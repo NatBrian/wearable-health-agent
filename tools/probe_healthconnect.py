@@ -4,17 +4,22 @@ Health Connect bridge probe.
 Answers one question: what is actually available, and how far back does it go?
 
 PRIVACY: this script prints STRUCTURE ONLY. Field names, record counts, date
-ranges and gap counts. It never prints a health value, and it writes nothing
+spans and gap counts. It never prints a health value or an absolute date, and writes nothing
 to disk. The output is safe to paste into a chat or an issue.
 
 Usage:
+    export HC_TOKEN=...                                  # bearer token from the app
     python probe_healthconnect.py 192.168.1.42          # phone IP, default port 8787
     python probe_healthconnect.py 192.168.1.42 8787 30  # explicit port and days
+
+The token is read from the HC_TOKEN environment variable. It is never written
+to disk or committed.
 
 Requires only the standard library.
 """
 
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
@@ -36,9 +41,15 @@ def fetch(host: str, port: int, days: int):
         f"http://{host}:{port}/",
         f"http://{host}:{port}/latest",
     ]
+    token = os.environ.get("HC_TOKEN", "").strip()
+    if not token:
+        print("  note: HC_TOKEN not set. Newer app versions require a bearer token.")
     for url in attempts:
         try:
-            with urllib.request.urlopen(url, timeout=TIMEOUT_S) as r:
+            req = urllib.request.Request(url)
+            if token:
+                req.add_header("Authorization", f"Bearer {token}")
+            with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
                 body = r.read().decode("utf-8", errors="replace")
             print(f"  fetched OK: {url}  ({len(body):,} bytes)")
             return json.loads(body), url
@@ -98,15 +109,18 @@ def summarise_records(name, records):
     stamps = sorted(ts for rec in records for ts in timestamps_in(rec))
     if stamps:
         first, last = stamps[0], stamps[-1]
+        now = datetime.now(timezone.utc)
         span_days = (last - first).days
         distinct_days = len({ts.date() for ts in stamps})
-        print(f"    earliest       : {first.date()}")
-        print(f"    latest         : {last.date()}")
+        # Relative only. Absolute dates are not printed.
+        print(f"    oldest record  : {(now - first).days} days ago")
+        print(f"    newest record  : {(now - last).days} days ago")
         print(f"    span           : {span_days} days")
         print(f"    days with data : {distinct_days}")
         if span_days > 0:
             missing = (span_days + 1) - distinct_days
-            print(f"    days missing   : {missing}")
+            pct = 100.0 * distinct_days / (span_days + 1)
+            print(f"    days missing   : {missing}  ({pct:.0f}% coverage)")
     else:
         print("    timestamps     : none recognised (field naming differs)")
 

@@ -48,3 +48,7 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# synthetic samples
+syn.json
+*.sample.json
