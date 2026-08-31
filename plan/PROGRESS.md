@@ -20,7 +20,7 @@ do it, run its exit command, then come back and update this table.
 | A-04 | Audit hash chain: `append_audit`, `verify_chain` | A-03 | 02 | [x] | 2026-09-01 | |
 | A-05 | `DataSource` protocol, `RawPayload`, pure `normalise()` | A-02 | 01 | [x] | 2026-09-01 | |
 | A-06 | Synthetic generator and the scenario fixture format | A-05 | 01 | [x] | 2026-09-01 | |
-| A-07 | `LiveBridge` client, against a stubbed transport | A-05 | 01 | [ ] | | |
+| A-07 | `LiveBridge` client, against a stubbed transport | A-05 | 01 | [x] | 2026-09-01 | |
 | A-08 | `store_raw`, `normalise_and_store` | A-03, A-05 | 01 | [ ] | | |
 | A-09 | Nocturnal window, `rhr_bpm`, coverage, `usable` | A-08 | 03 | [ ] | | |
 | A-10 | Covariates: previous-day steps, sleep hours, exercise offset | A-09 | 03 | [ ] | | |
