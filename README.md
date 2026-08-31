@@ -2,10 +2,10 @@
 
 **Agentic illness triage from smartwatch data.** It detects overnight physiological deviations, decides by expected information gain whether asking you one question is worth the interruption, can order a watch measurement, and returns a source-grounded differential.
 
-> **Status: design complete, implementation not started.**
-> This repository currently holds the research corpus and the design specification. Code follows next. See the [roadmap](#roadmap).
+> **Status: design and infrastructure complete. Application code not started.**
+> The research corpus, the design specification, the ingestion probe, a synthetic data generator matching the real device payload, and a working self-hosted LLM endpoint are all in place. Implementation planning is next. See the [roadmap](#roadmap).
 
-**Start here:** [the problem](#the-problem) → [what nobody does](#the-gap) → [the design](#the-approach) → [`PROPOSAL.md`](PROPOSAL.md) for the full specification.
+**Start here:** [the problem](#the-problem) → [the gap](#the-gap) → [the design](#the-approach) → [`PROPOSAL.md`](PROPOSAL.md) for the full specification.
 
 ---
 
@@ -104,14 +104,14 @@ Every episode terminates in one schema-validated object carrying the disposition
 
 | Layer | Choice |
 |---|---|
-| Ingestion | Android Health Connect via an off-the-shelf bridge, plus a one-time export for history |
+| Ingestion | Android Health Connect via an off-the-shelf bridge. No app to build, no manual export. **Samsung writes heart rate, steps, sleep stages and exercise to Health Connect, and nothing else**, so resting heart rate is derived rather than read |
 | Detection | Python, pandas, NumPy. Personal baseline, multi-signal concordance, multi-night persistence |
 | Forecasting | Chronos-Bolt, zero-shot, CPU |
 | Belief state | pgmpy discrete Bayesian network, literature-elicited priors |
 | Decision policy | Custom expected-information-gain arithmetic |
 | Orchestration | LangGraph with SQLite checkpointing and human-in-the-loop interrupts |
 | Retrieval | Hybrid BM25 and dense, reciprocal rank fusion, claim-to-source enforcement |
-| LLM | Open-weight model, self-hosted, used for language only |
+| LLM | Qwen3.8-27B, self-hosted on a free Kaggle 2x T4 via Ollama, reached over an authenticated tunnel. Used for language only. Measured at 9.2 tok/s, 100% on GPU |
 | Interface | Streamlit, with the reasoning trace and audit log visible |
 
 ---
@@ -132,7 +132,10 @@ Stating the limits precisely is part of the design, because they determine the m
 |---|---|
 | Research corpus | **Done.** Nine parallel investigations, ~126,000 words, ~2,100 citations |
 | Design specification | **Done.** See [`PROPOSAL.md`](PROPOSAL.md) |
-| Data layer: ingestion, backfill, synthetic generator | Next |
+| Ingestion probe and synthetic generator | **Done.** See [`tools/`](tools/) |
+| Self-hosted LLM endpoint on free tier | **Done.** Measured on hardware, see [`tools/kaggle_serve_qwen27b.ipynb`](tools/kaggle_serve_qwen27b.ipynb) |
+| Implementation planning | **In progress** |
+| Data layer: ingestion, backfill, storage schema | Next |
 | Detection: baselines, concordance, persistence, forecast comparison | Next |
 | Agent: bounded loop, typed tools, state across waits, human checkpoint, audit log | Then |
 | Belief state, information-gain policy, adaptive interview, measurement requests | Then |
@@ -146,9 +149,12 @@ Stating the limits precisely is part of the design, because they determine the m
 | Path | Contents |
 |---|---|
 | [`PROPOSAL.md`](PROPOSAL.md) | **The design specification.** Problem, agentic approach, prototype, safety, limitations |
-| [`research/`](research/) | Working notes: problem formulation, unknowns, decision gates, evidence synthesis, candidate formulations |
+| [`HANDOFF.md`](HANDOFF.md) | Locked decisions, verified measurements, open questions. Written for whoever picks the project up next |
+| [`tools/`](tools/) | Ingestion probe (structure only, prints no health values), synthetic payload generator, and the Kaggle LLM serving notebook |
+| [`research/`](research/) | Working notes 00 to 15: problem formulation, unknowns, decision gates, evidence synthesis, candidate formulations, prior-art reads |
 | [`research/findings/`](research/findings/) | **The research corpus.** Nine parallel investigations |
 | [`archive/`](archive/) | An earlier, weaker generation of the same research, retained deliberately and audited in [`research/00-prior-work-audit.md`](research/00-prior-work-audit.md) |
+| [`DISCLAIMER.md`](DISCLAIMER.md) | Not a medical device |
 
 ### Research corpus
 
@@ -172,13 +178,17 @@ Every document carries explicit `UNVERIFIED` flags and a closing list of what co
 
 ## Notes on method
 
-Three things here are worth more than the design itself.
+Four things here are worth more than the design itself.
 
-**The prior work was audited, not inherited.** An earlier generation of research is kept in `archive/` and systematically checked in [`research/00-prior-work-audit.md`](research/00-prior-work-audit.md). Several of its headline figures turned out to be fabricated, its ranking method selected the union of its own options, and its recommended architecture depended on sensor channels the target hardware does not expose. Finding that out was worth more than accepting it.
+**The prior work was audited, not inherited.** An earlier generation of research is kept in `archive/` and systematically checked in [`research/00-prior-work-audit.md`](research/00-prior-work-audit.md). A long list of its performance figures turned out to be fabricated or badly distorted, and its ranking method selected the union of its own options. Finding that out was worth more than accepting it.
+
+**The audit was itself audited.** The first pass concluded that the archive's citations were generated rather than retrieved and could not be trusted. A second pass checked every suspicious identifier against arXiv and found **they all resolve to real papers**. The conclusion was narrowed to what the evidence supported: *the identifiers are mostly reliable; the numbers are not.* A separate claim, that the archive's recommended architecture needed sensor channels the hardware does not expose, was **withdrawn** once the export path was examined properly. Both reversals are recorded in place rather than quietly edited out.
 
 **Claims were verified at source.** Where the research reports a number, the paper, repository or API was fetched and checked. Where verification failed, the document says so instead of quietly rounding.
 
 **The limits are stated in the design, not discovered later.** The specification contains an explicit list of what the system cannot determine, and why, at the level of mechanism. A system that names its own identifiability limits is easier to trust than one that does not.
+
+**Prior art that undercut the claim was sought out, not avoided.** A preprint flagged early as a required read was left unread while the design was written. Reading it falsified a sentence in this project's own summary. The claim was corrected rather than defended, and the reasoning is in [`research/15-project-hermes-read.md`](research/15-project-hermes-read.md).
 
 ---
 

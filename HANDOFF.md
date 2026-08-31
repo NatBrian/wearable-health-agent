@@ -52,7 +52,7 @@ two-week AI-in-healthcare module, nominally a team of four, but **plan for one p
 | Synthetic data generator matching the real payload shape | Done, `tools/make_synthetic.py` |
 | LLM served on free Kaggle, measured end to end | Done, `tools/kaggle_serve_qwen27b.ipynb` |
 | **Implementation planning** | **Not started. This is the next task** |
-| Health Connect retest for sleep, RHR, HRV, respiratory rate, SpO2 | **Blocked on the user's phone and more days of data** |
+| Health Connect retest for **sleep stages and exercise** | **Blocked on the user's phone and more days of data.** HRV, respiratory rate and resting HR are **not obtainable this way at all**, see section 6 |
 | Rotate the bearer token used during probing | **Open, user action** |
 
 Nothing is implemented. There is no application code, no tests, no data pipeline.
@@ -190,9 +190,22 @@ multi-token prediction, reported at +33 to 39% with identical output. Measure it
 rebuild.
 
 **Real device payload shape**, observed 31 August 2026, app v1.9.17. Fully documented in
-`tools/make_synthetic.py`. Only `heart_rate` and `steps` have been seen so far; sleep, resting HR,
-HRV, respiratory rate and SpO2 are pending a Samsung-side sharing change. Step buckets align to local
-midnight (16:00Z on UTC+8), heart rate arrives in 1-minute buckets with avg/min/max.
+`tools/make_synthetic.py`. Step buckets align to local midnight (16:00Z on UTC+8); heart rate arrives
+in 1-minute buckets with avg/min/max. Only `heart_rate` and `steps` have been seen so far.
+
+**Plan for a narrow channel set. This is the single most important data fact.** Per
+`research/13-galaxy-watch5-data-reality.md`, Samsung Health writes **heart rate, steps, sleep stages
+and exercise** to Health Connect and **nothing else**. It does **not** write HRV, respiratory rate, or
+even resting heart rate. Those exist only in the manual export, **which the user has ruled out.**
+
+So the realistic working set is **heart rate, steps and sleep**. Resting heart rate must be derived
+from the overnight per-minute stream, which is fine and arguably better because we control the
+definition. The "biophysical triad" of cardiac, thermal and pulmonary signals is **not available**,
+and any design that assumes it will not run.
+
+One upside: this **removes the domain-shift objection**. `PROPOSAL.md` 4.5.1 worried that the open
+Stanford cohort carries heart rate and steps only while our device would offer more. It will not. Our
+channels and the cohort's now line up.
 
 **Important:** the Samsung Health **export** does contain `com.samsung.health.hrv`,
 `respiratory_rate` and `skin_temperature`. The earlier claim that the watch lacks these was wrong; it
