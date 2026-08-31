@@ -1,11 +1,37 @@
 """Policy, action selection, and probe management."""
 
+from wha.policy.evsi import (
+    DERIVED_TREATMENT_THRESHOLD,
+    compute_eu_now,
+    evsi,
+    score_probe,
+)
+from wha.policy.gates import (
+    GateResult,
+    check_all_ask_gates,
+    check_depth_budget_gate,
+    check_episode_caps_gate,
+    check_interruption_budget_gate,
+    check_pending_interaction_gate,
+    check_rung_gate,
+)
 from wha.policy.probes import (
     ProbeDefinition,
     load_probes,
 )
 
 __all__ = [
+    "DERIVED_TREATMENT_THRESHOLD",
+    "GateResult",
     "ProbeDefinition",
+    "check_all_ask_gates",
+    "check_depth_budget_gate",
+    "check_episode_caps_gate",
+    "check_interruption_budget_gate",
+    "check_pending_interaction_gate",
+    "check_rung_gate",
+    "compute_eu_now",
+    "evsi",
     "load_probes",
+    "score_probe",
 ]
