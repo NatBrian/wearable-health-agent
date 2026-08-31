@@ -56,7 +56,7 @@ do it, run its exit command, then come back and update this table.
 | B-05 | BM25 index, dense index, reciprocal rank fusion | B-04 | 12 | [x] | 2026-09-01 | |
 | B-06 | Deterministic claim-to-source enforcement | B-05 | 12 | [x] | 2026-09-01 | |
 | B-07 | `red_flags.yaml` loader, tiers A and B | A-02 | 11 | [x] | 2026-09-01 | |
-| B-08 | Tier C LLM second opinion, union with the rules | B-07, B-01 | 11 | [ ] | | |
+| B-08 | Tier C LLM second opinion, union with the rules | B-07, B-01 | 11 | [x] | 2026-09-01 | |
 | B-09 | Outbound validation | B-07, A-19 | 11 | [ ] | | |
 | B-10 | Injection detection and the poisoned fixture | B-05 | 11 | [ ] | | |
 | B-11 | Output checks before display | B-06 | 11 | [ ] | | |

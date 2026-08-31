@@ -14,8 +14,13 @@ from wha.safety.rules import (
     load_red_flags,
     matches_symptom,
 )
+from wha.safety.tier_c import (
+    LLMRedFlagOutput,
+    check_red_flags_with_tier_c,
+)
 
 __all__ = [
+    "LLMRedFlagOutput",
     "NegationGuards",
     "RedFlagsConfig",
     "SafetyCheckResult",
@@ -23,6 +28,7 @@ __all__ = [
     "TierBRule",
     "VitalsRule",
     "check_red_flags_deterministic",
+    "check_red_flags_with_tier_c",
     "is_phrase_negated",
     "load_red_flags",
     "matches_symptom",

@@ -1,0 +1,121 @@
+"""Tier C safety layer: LLM second opinion combined strictly by set union."""
+
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from wha.constants import TEMP_DETERMINISTIC
+from wha.errors import LLMUnavailable
+from wha.llm import LLMClient, get_llm_client
+from wha.llm.prompts import RED_FLAG_CHECK_PROMPT
+from wha.safety.models import RedFlagsConfig, SafetyCheckResult
+from wha.safety.rules import check_red_flags_deterministic, load_red_flags
+
+
+class LLMRedFlagOutput(BaseModel):
+    """Schema expected from red_flag_check prompt."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    suspected_flag_ids: list[str] = Field(default_factory=list)
+    reason: str = ""
+
+
+def check_red_flags_with_tier_c(
+    user_text: str | None = None,
+    robust_z: float | None = None,
+    rhr_bpm: float | None = None,
+    rung: Any = None,
+    symptom_history: dict[str, int] | None = None,
+    llm_client: LLMClient | None = None,
+    config: RedFlagsConfig | None = None,
+) -> SafetyCheckResult:
+    """Evaluate safety floor with deterministic rules and Tier C LLM union.
+
+    The model contribution is strictly additive:
+    - An empty model result never clears a deterministic rule hit.
+    - An LLM failure (LLMUnavailable) falls back safely to deterministic rules without blocking.
+    - Union of triggered flags ensures model can only add escalations, never suppress them.
+    """
+    cfg = config or load_red_flags()
+    det_result = check_red_flags_deterministic(
+        user_text=user_text,
+        robust_z=robust_z,
+        rhr_bpm=rhr_bpm,
+        rung=rung,
+        symptom_history=symptom_history,
+        config=cfg,
+    )
+
+    text = (user_text or "").strip()
+    if not text:
+        return det_result
+
+    client = llm_client or get_llm_client()
+
+    tier_a_ids = {r.id for r in cfg.tier_a}
+    tier_b_ids = {r.id for r in cfg.tier_b}
+
+    llm_flags: set[str] = set()
+    llm_reason: str | None = None
+
+    try:
+        prompt = RED_FLAG_CHECK_PROMPT.render(
+            {
+                "user_text": text,
+                "criteria_list": str(list(tier_a_ids | tier_b_ids)),
+            }
+        )
+        output, _usage = client.complete(
+            prompt,
+            LLMRedFlagOutput,
+            temperature=TEMP_DETERMINISTIC,
+        )
+        llm_flags = set(output.suspected_flag_ids)
+        llm_reason = output.reason
+    except (LLMUnavailable, ValueError, TypeError, KeyError, AttributeError):
+        # LLM failure must never block a deterministic escalation
+        return det_result
+
+    # SET UNION: rules and model combined
+    combined_flags = sorted(set(det_result.triggered_flags) | llm_flags)
+
+    # Determine if any added LLM flags are Tier A or Tier B
+    has_tier_a = any(f in tier_a_ids for f in combined_flags)
+    tier_b_count = sum(1 for f in combined_flags if f in tier_b_ids)
+
+    escalate_urgent = det_result.level == "urgent" or has_tier_a
+    escalate_same_day = det_result.level == "same_day" or (
+        tier_b_count >= 2 and not escalate_urgent
+    )
+
+    new_guidance = list(det_result.guidance)
+    for flag_id in llm_flags:
+        for r in cfg.tier_a:
+            if r.id == flag_id and r.guidance not in new_guidance:
+                new_guidance.append(r.guidance)
+
+    if (
+        escalate_same_day
+        and not escalate_urgent
+        and cfg.tier_b_guidance
+        and cfg.tier_b_guidance not in new_guidance
+    ):
+        new_guidance.append(cfg.tier_b_guidance)
+
+    level = "urgent" if escalate_urgent else ("same_day" if escalate_same_day else None)
+    escalate = escalate_urgent or escalate_same_day
+
+    reasons: list[str] = []
+    if det_result.reason:
+        reasons.append(det_result.reason)
+    if llm_flags and llm_reason:
+        reasons.append(f"Tier C model identified: {sorted(llm_flags)} ({llm_reason})")
+
+    return SafetyCheckResult(
+        escalate=escalate,
+        level=level,
+        triggered_flags=combined_flags,
+        guidance=new_guidance,
+        reason="; ".join(reasons) if reasons else None,
+    )
