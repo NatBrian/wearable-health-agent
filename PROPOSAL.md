@@ -241,7 +241,17 @@ A chatbot answers when spoken to. **This system decides whether to speak at all,
 **Specifics:**
 - **Wearable, live:** Samsung Galaxy Watch 5, reaching us automatically via Samsung Health, then Android Health Connect, then the **Health Connect Webhook** app (AGPL-3.0, installed from the Play Store, no app to build). It exposes 31 data types including HRV, respiratory rate, skin temperature, resting heart rate, blood oxygen and sleep stages, either by pushing to a webhook or through a local HTTP server on port 8787 that our code polls over Wi-Fi. Sync modes are interval (15 minutes minimum), scheduled, or manual. **Because Health Connect is the aggregation point for Samsung Health, Fitbit and Google Fit, device portability comes for free rather than being engineered.**
 - **Wearable, history:** a one-time Samsung Health export at onboarding. **Required rather than optional**, because the live bridge only exposes a rolling 48-hour window while a personal baseline needs 2 to 4 weeks. Export bootstraps history; the bridge keeps it current.
-- **Public cohort data for evaluation:** the Stanford COVID-19 Wearables dataset (open download, 2,123 participants) for detection performance, and PMData (reported as 16 participants over 5 months, CC BY 4.0, with **daily self-reported alcohol, meals, training load, mood, stress and sleep quality**) for confounder attribution. **These PMData contents are taken from secondary sources and are verified as day-zero pre-work in Appendix B**, because the non-circular evaluation depends on them.
+- **Public cohort data for evaluation:** the Stanford COVID-19 Wearables dataset (open download, 2,123 participants) for detection performance, and **PMData** for confounder attribution. **Verified at source 2026-08-31**, not taken from secondary reporting: 16 participants over 5 months, **CC BY 4.0** (attribution only, no non-commercial restriction), 1.4 GB, hosted by SimulaMet with an OSF mirror. The files the evaluation depends on are:
+
+| File | Contents relevant to us |
+|---|---|
+|  | Daily meals, weight, **glasses drunk and an alcohol-consumption indicator** |
+|  | Daily **fatigue, mood, readiness, sleep duration, sleep quality, soreness and stress**, each on a 1 to 5 scale |
+|  | **Training sessions with rating of perceived exertion and duration** |
+|  | Resting heart rate **per day**, which is the exact quantity our detector operates on |
+| , , ,  | Per-minute heart rate, sleep stage breakdown, a 0-100 sleep score, per-minute steps |
+
+This matters because it confirms the simulated oracle can answer with **real human self-reports** rather than values we invented. Alcohol, training load, stress and sleep quality, the four causes that accounted for roughly 45% of false alerts in the field, are all present and all daily.
 
 **Knowledge repositories for retrieval:**
 - **MedlinePlus** (US National Library of Medicine): bulk XML, approximately 29 MB, updated daily, attribution-only licence.
@@ -682,7 +692,7 @@ We will build a **systematic adversarial test suite** (a taxonomy of attack goal
 
 | Days | Focus |
 |---|---|
-| 0 | **Pre-work, before the build starts.** (a) Run the Samsung Health export and record which channels this watch actually populates. (b) Install Health Connect Webhook from the Play Store, grant all available permissions, enable the local server, and **record which data types arrive with real values** since this determines the feature set. (c) Verify PMData actually contains the daily alcohol, training and stress self-reports the evaluation depends on. (d) Confirm a Colab or Kaggle notebook serving the chosen model |
+| 0 | **Pre-work, before the build starts.** (a) ~~Samsung Health export~~ **not used**, at the participant's request. (b) Health Connect bridge installed and reachable; **confirmed working, currently returning heart rate and steps only**, with the remaining channels pending a Samsung-side sharing change. (c) **PMData verified at source**, see section 3.6. (d) Confirm a Colab or Kaggle notebook serving the chosen model |
 | 1-2 | Data ingestion (Health Connect bridge poller plus Samsung export parser behind one `DataSource` interface), historical backfill, public dataset loading and inspection |
 | 3-4 | Feature extraction, personal baselines, deviation detection with concordance and persistence, mandatory baselines |
 | 5-7 | Agent skeleton in LangGraph: bounded loop, typed tools, state across waits, human interrupt, audit log |
