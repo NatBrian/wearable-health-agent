@@ -19,6 +19,10 @@ from wha.policy.probes import (
     ProbeDefinition,
     load_probes,
 )
+from wha.policy.select import (
+    determine_disposition,
+    select_action,
+)
 
 __all__ = [
     "DERIVED_TREATMENT_THRESHOLD",
@@ -31,7 +35,9 @@ __all__ = [
     "check_pending_interaction_gate",
     "check_rung_gate",
     "compute_eu_now",
+    "determine_disposition",
     "evsi",
     "load_probes",
     "score_probe",
+    "select_action",
 ]
