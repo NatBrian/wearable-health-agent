@@ -33,9 +33,11 @@ There is a second number that explains why this is hard rather than merely unsol
 
 > Physiological monitors detect but never ask. Symptom checkers ask but never measure. Journals ask unconditionally, so people stop answering.
 >
-> **Nothing connects a detected physiological deviation to a targeted question capable of resolving it, and then to a grounded explanation.**
+> **No shipped product connects a detected physiological deviation to a targeted question capable of resolving it, and then to a grounded explanation.**
 
-Every component needed to close that gap has already shipped somewhere. Google's Loss of Pulse Detection asks the user and escalates autonomously on silence. Ultrahuman's Jade responds to anomalies by ordering a confirmatory measurement rather than giving advice. Adaptive testing is deployed across healthcare, asking 22 questions instead of 60 because each one is chosen from what is still unknown. **Nobody has assembled them.**
+Every component needed to close that gap has already shipped somewhere. Google's Loss of Pulse Detection asks the user and escalates autonomously on silence. Ultrahuman's Jade responds to anomalies by ordering a confirmatory measurement rather than giving advice. Adaptive testing is deployed across healthcare, asking 22 questions instead of 60 because each one is chosen from what is still unknown. **No shipped product assembles them.**
+
+The closest prior art is a preprint, *Project Hermes* (arXiv:2602.18643), which connects a deviation to an LLM-generated question and a Bayesian update, reporting a false positive rate of 61.7% falling to 12.5% at 89% sensitivity on migraine. It is cited rather than sidestepped. It validates alerts that have already fired; it has no model of **whether a question is worth the interruption**, and it does not measure, escalate, or diagnose. That decision layer is what this project adds. See [`research/15-project-hermes-read.md`](research/15-project-hermes-read.md).
 
 ---
 

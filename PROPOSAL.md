@@ -23,7 +23,9 @@ The measured consequence is a positive predictive value around **4%**, roughly t
 | **Language** | LLM for extraction, question phrasing and explanation only. It never computes a number or decides an action |
 | **Grounding** | Hybrid retrieval over a small curated clinical corpus, with claim-to-source enforcement |
 
-**What is novel:** every component has shipped somewhere. Google's Loss of Pulse asks the user and escalates on silence. Ultrahuman's Jade orders a confirmatory measurement. Adaptive testing is deployed across healthcare. Nobody has assembled them, and **nothing connects a detected physiological deviation to a targeted question capable of resolving it.**
+**What is novel:** every component has shipped somewhere. Google's Loss of Pulse asks the user and escalates on silence. Ultrahuman's Jade orders a confirmatory measurement. Adaptive testing is deployed across healthcare. **No shipped product assembles them.**
+
+One preprint does connect a deviation to an LLM-generated question with a Bayesian update: *Project Hermes* (arXiv:2602.18643, Feb 2026), reporting a false positive rate falling from 61.7% to 12.5% at 89% sensitivity on migraine prediction. It is prior art for the mechanism and is cited as such. What it does not do is **decide whether asking is worth the interruption at all.** Hermes validates an alert that has already fired. This system computes the expected information gain of each candidate question against a quantified interruption cost and an explicit budget, and can choose to stay silent. It also orders measurements, escalates, and returns a source-grounded differential, where Hermes explicitly performs validation rather than diagnosis. **The novelty is the decision layer and the action space, not the act of asking.**
 
 ---
 
@@ -67,12 +69,15 @@ Existing products are the evidence that this problem is real and that our approa
 | **Symptom checkers** (Ada, NHS 111 online, Babylon) | Structured clinical questioning that produces a real differential | **Completely blind to your physiology.** They start from zero every time and cannot know your heart rate has been elevated for three nights |
 | **Google Loss of Pulse Detection** (FDA-cleared) | The one shipped feature that responds to an anomaly by **asking the user**, and escalating autonomously if there is no answer | Scoped to cardiac arrest only |
 | **Ultrahuman "Jade"** | Responds to anomalies by **triggering a confirmatory measurement** rather than giving advice | Scoped to specific cardiac checks |
+| **Project Hermes** (arXiv:2602.18643, preprint) | The closest prior art. LLM-generated contextual queries plus Bayesian updating, as a validation layer downstream of any predictor. Reports 61.7% to 12.5% false positive rate at 89% sensitivity on migraine | **Asks whenever an alert fires**, with no model of whether the question is worth the interruption. Validation only, explicitly not diagnosis, and no measurement or escalation actions. Single author, no released code, one condition |
 
 **The gap, stated precisely:**
 
-> Physiological monitors detect but never ask. Symptom checkers ask but never measure. Journals ask unconditionally, so people stop answering. **Nothing connects a detected physiological deviation to a targeted question capable of resolving it, and then to a grounded explanation.**
+> Physiological monitors detect but never ask. Symptom checkers ask but never measure. Journals ask unconditionally, so people stop answering. **No shipped product connects a detected physiological deviation to a targeted question capable of resolving it, and then to a grounded explanation.**
 
-Every component needed to close that gap has been proven in a shipped product. **Nobody has assembled them.**
+Every component needed to close that gap has been proven in a shipped product. **No shipped product assembles them.**
+
+One preprint assembles part of it. *Project Hermes* connects deviation to LLM-generated question to Bayesian update, and reports that it works. It stops before the two things that make this a decision problem rather than a validation problem: **it does not weigh the question against the cost of asking**, and it does not act on the answer beyond adjusting a confidence. See `research/15-project-hermes-read.md`.
 
 ### 2.5 Scope of claims: what the system can and cannot determine
 
@@ -718,6 +723,7 @@ Full bibliography (approximately 2,100 sources reviewed) is held in the project 
 - Zwiers et al., COVID-RED randomised controlled trial, PLoS ONE 2025 (n=17,825)
 - Drew et al., alarm fatigue in hospital monitoring, 2014; Joint Commission Sentinel Event Alert 50
 - Horvitz, Jacobs and Hovel, *Attention-Sensitive Alerting*, UAI 1999
+- Chakraborty, *Project Hermes: A Model-Agnostic Validation Layer for Wearable Health Prediction Systems*, arXiv:2602.18643, 2026 (closest prior art; 61.7% to 12.5% false positive rate at 89% sensitivity, migraine)
 - Anthropic, *Building Effective Agents*, 2024
 - Beurer-Kellner et al., *Design Patterns for Securing LLM Agents against Prompt Injection*, arXiv:2506.08837
 - OWASP Top 10 for LLM Applications, and for Agentic Applications, 2026
