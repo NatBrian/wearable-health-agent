@@ -245,11 +245,11 @@ A chatbot answers when spoken to. **This system decides whether to speak at all,
 
 | File | Contents relevant to us |
 |---|---|
-|  | Daily meals, weight, **glasses drunk and an alcohol-consumption indicator** |
-|  | Daily **fatigue, mood, readiness, sleep duration, sleep quality, soreness and stress**, each on a 1 to 5 scale |
-|  | **Training sessions with rating of perceived exertion and duration** |
-|  | Resting heart rate **per day**, which is the exact quantity our detector operates on |
-| , , ,  | Per-minute heart rate, sleep stage breakdown, a 0-100 sleep score, per-minute steps |
+| `reporting.csv` | Daily meals, weight, **glasses drunk and an alcohol-consumption indicator** |
+| `wellness.csv` | Daily **fatigue, mood, readiness, sleep duration, sleep quality, soreness and stress**, each on a 1 to 5 scale |
+| `srpe.csv` | **Training sessions with rating of perceived exertion and duration** |
+| `resting_heart_rate.json` | Resting heart rate **per day**, which is the exact quantity our detector operates on |
+| `heart_rate.json`, `sleep.json`, `sleep_score.csv`, `steps.json` | Per-minute heart rate, sleep stage breakdown, a 0-100 sleep score, per-minute steps |
 
 This matters because it confirms the simulated oracle can answer with **real human self-reports** rather than values we invented. Alcohol, training load, stress and sleep quality, the four causes that accounted for roughly 45% of false alerts in the field, are all present and all daily.
 
