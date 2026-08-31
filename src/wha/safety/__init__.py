@@ -1,5 +1,9 @@
 """Safety layer: red flag rules, outbound validation, and injection detection."""
 
+from wha.safety.injection import (
+    InjectionVerdict,
+    scan_untrusted,
+)
 from wha.safety.models import (
     NegationGuards,
     RedFlagsConfig,
@@ -25,6 +29,7 @@ from wha.safety.tier_c import (
 )
 
 __all__ = [
+    "InjectionVerdict",
     "LLMRedFlagOutput",
     "NegationGuards",
     "OutboundMessage",
@@ -39,5 +44,6 @@ __all__ = [
     "is_phrase_negated",
     "load_red_flags",
     "matches_symptom",
+    "scan_untrusted",
     "validate_outbound",
 ]
