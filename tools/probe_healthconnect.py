@@ -110,17 +110,17 @@ def summarise_records(name, records):
     if stamps:
         first, last = stamps[0], stamps[-1]
         now = datetime.now(timezone.utc)
-        span_days = (last - first).days
+        # Inclusive day span: a range touching two calendar days spans 2 days.
+        span_days = (last.date() - first.date()).days + 1
         distinct_days = len({ts.date() for ts in stamps})
         # Relative only. Absolute dates are not printed.
         print(f"    oldest record  : {(now - first).days} days ago")
         print(f"    newest record  : {(now - last).days} days ago")
         print(f"    span           : {span_days} days")
         print(f"    days with data : {distinct_days}")
-        if span_days > 0:
-            missing = (span_days + 1) - distinct_days
-            pct = 100.0 * distinct_days / (span_days + 1)
-            print(f"    days missing   : {missing}  ({pct:.0f}% coverage)")
+        missing = max(0, span_days - distinct_days)
+        pct = 100.0 * distinct_days / span_days if span_days else 0.0
+        print(f"    days missing   : {missing}  ({pct:.0f}% coverage)")
     else:
         print("    timestamps     : none recognised (field naming differs)")
 
