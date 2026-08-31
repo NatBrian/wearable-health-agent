@@ -51,7 +51,7 @@ do it, run its exit command, then come back and update this table.
 |---|---|---|---|---|---|---|
 | B-01 | LLM provider protocol and the cassette provider | A-02 | 13 | [x] | 2026-09-01 | |
 | B-02 | `ollama_native` and `openai_compatible` providers | B-01 | 13 | [x] | 2026-09-01 | |
-| B-03 | Prompt files, the six-component structural test, versioning | B-01 | 13 | [ ] | | |
+| B-03 | Prompt files, the six-component structural test, versioning | B-01 | 13 | [x] | 2026-09-01 | |
 | B-04 | Corpus fetch, parse, section-aware chunking | A-02 | 12 | [ ] | | |
 | B-05 | BM25 index, dense index, reciprocal rank fusion | B-04 | 12 | [ ] | | |
 | B-06 | Deterministic claim-to-source enforcement | B-05 | 12 | [ ] | | |
