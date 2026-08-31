@@ -8,6 +8,11 @@ from wha.safety.models import (
     TierBRule,
     VitalsRule,
 )
+from wha.safety.outbound import (
+    OutboundMessage,
+    OutboundValidationResult,
+    validate_outbound,
+)
 from wha.safety.rules import (
     check_red_flags_deterministic,
     is_phrase_negated,
@@ -22,6 +27,8 @@ from wha.safety.tier_c import (
 __all__ = [
     "LLMRedFlagOutput",
     "NegationGuards",
+    "OutboundMessage",
+    "OutboundValidationResult",
     "RedFlagsConfig",
     "SafetyCheckResult",
     "TierARule",
@@ -32,4 +39,5 @@ __all__ = [
     "is_phrase_negated",
     "load_red_flags",
     "matches_symptom",
+    "validate_outbound",
 ]
