@@ -1,8 +1,11 @@
 # Wearable Health Agent
 
-**An agentic differential-triage system that answers the one question wearables cannot: *am I getting sick, or do I just need rest?***
+**Agentic illness triage from smartwatch data.** It detects overnight physiological deviations, decides by expected information gain whether asking you one question is worth the interruption, can order a watch measurement, and returns a source-grounded differential.
 
-> **Status: design complete, implementation not started.** This repository currently holds the research and the design specification. Code will follow.
+> **Status: design complete, implementation not started.**
+> This repository currently holds the research corpus and the design specification. Code follows next. See the [roadmap](#roadmap).
+
+**Start here:** [the problem](#the-problem) → [what nobody does](#the-gap) → [the design](#the-approach) → [`PROPOSAL.md`](PROPOSAL.md) for the full specification.
 
 ---
 
@@ -12,9 +15,11 @@ Consumer wearables have become good at noticing that something in your body has 
 
 A raised overnight resting heart rate is produced by an incubating infection, by alcohol, by a hard training session, by poor sleep, by stress, by a recent vaccination, and by the luteal phase of the menstrual cycle. To a wrist sensor these look nearly identical, yet they demand opposite responses: rest and isolate, or carry on as normal.
 
-The consequence is measured, not hypothetical. An independent prospective evaluation of a wearable illness-detection system issued **665 alerts across 470 participants at a positive predictive value of 4%**, roughly twenty-four false alarms for every true one. The authors attributed the false alerts by cause: stress 16.0%, poor sleep 13.7%, exercise 9.7%, alcohol 6.0%.
+The consequence is measured, not hypothetical. An independent prospective evaluation of a wearable illness-detection system issued **665 alerts across 470 participants at a positive predictive value of 4%**, roughly twenty-four false alarms for every true one. The authors attributed those false alerts by cause: stress 16.0%, poor sleep 13.7%, exercise 9.7%, alcohol 6.0%.
 
-**About 45% of those false alerts had a cause that a single question could have resolved.** Nothing on the market asks it.
+**About 45% of them had a cause that a single question could have resolved.** Nothing on the market asks it.
+
+There is a second number that explains why this is hard rather than merely unsolved. Acute respiratory infection raises resting heart rate by roughly **1.1 to 2.1 bpm**. One alcoholic drink raises it by 2.4 to 2.8. A hard evening session raises it by about 5.94. **The confounders are larger than the signal.** Detection works at all only because it is multi-channel, within-person and multi-night.
 
 ---
 
@@ -29,6 +34,8 @@ The consequence is measured, not hypothetical. An independent prospective evalua
 > Physiological monitors detect but never ask. Symptom checkers ask but never measure. Journals ask unconditionally, so people stop answering.
 >
 > **Nothing connects a detected physiological deviation to a targeted question capable of resolving it, and then to a grounded explanation.**
+
+Every component needed to close that gap has already shipped somewhere. Google's Loss of Pulse Detection asks the user and escalates autonomously on silence. Ultrahuman's Jade responds to anomalies by ordering a confirmatory measurement rather than giving advice. Adaptive testing is deployed across healthcare, asking 22 questions instead of 60 because each one is chosen from what is still unknown. **Nobody has assembled them.**
 
 ---
 
@@ -48,13 +55,13 @@ ESCALATE    surface a warning, or direct the user to clinical care
 CONCLUDE    terminate with a disposition and a grounded explanation
 ```
 
-### Three design decisions that carry the project
+### Three decisions that carry the project
 
-**The ask-or-stay-silent decision is explicit arithmetic, not an LLM judgement.** The agent holds a probability distribution over twelve candidate causes and computes the expected information gain of each candidate question against the cost of interrupting, in the form given by Horvitz, Jacobs and Hovel's *Attention-Sensitive Alerting* (UAI 1999). Keeping this out of the language model is what makes the policy **measurable**: it can be compared directly against never-ask, always-ask and fixed-threshold baselines. An LLM told to "ask if unsure" can be demonstrated but never evaluated.
+**The ask-or-stay-silent decision is explicit arithmetic, not an LLM judgement.** The agent holds a probability distribution over twelve candidate causes and computes the expected information gain of each candidate question against the cost of interrupting, in the form given by Horvitz, Jacobs and Hovel's *Attention-Sensitive Alerting* (UAI 1999). Keeping this outside the language model is what makes the policy **measurable**: it can be compared directly against never-ask, always-ask and fixed-threshold baselines. An LLM told to "ask if unsure" can be demonstrated but never evaluated.
 
-**The agent can order a test.** Not just ask how you feel. It can instruct a stress and HRV reading, a blood-oxygen reading, or a sit-to-stand orthostatic test, then re-reason on the result. Two shipped products prove the pattern: Google's Loss of Pulse Detection asks the user and escalates autonomously on silence, and Ultrahuman's Jade responds to anomalies by triggering a confirmatory measurement rather than giving advice. Neither has been applied to illness triage.
+**The agent can order a test.** Not just ask how you feel. It can instruct a stress and HRV reading, a blood-oxygen reading, or a sit-to-stand orthostatic test, then re-reason on the result. This turns the action space from a chatbot's into a clinician's: observe, ask, order a test, escalate.
 
-**Nothing is trained.** Every model is pretrained and zero-shot, or hand-specified from published effect sizes. This is the statistically correct choice rather than a convenience: the obtainable labelled data is far too thin to generalise, the open cohort carries different channels than the target device, and fitted weights cannot be cited. Every number in the belief model comes from a peer-reviewed effect size with a source attached.
+**Nothing is trained.** Every model is pretrained and zero-shot, or hand-specified from published effect sizes. This is the statistically correct choice rather than a convenience: the obtainable labelled data is far too thin to generalise, the open cohort carries different sensor channels than the target device, and fitted weights cannot be cited. Every number in the belief model comes from a peer-reviewed effect size with a source attached.
 
 ---
 
@@ -87,7 +94,9 @@ CONCLUDE    terminate with a disposition and a grounded explanation
                     human checkpoint --> audit log --> visible trace
 ```
 
-Two properties this makes visible: the LLM sits in exactly one box and is **never invoked on a quiet night**, and the red-flag path sits upstream of the agent so it cannot be reasoned past.
+Two properties this makes visible: the LLM sits in exactly one box and is **never invoked on a quiet night**, and the red-flag intercept sits upstream of the agent, so it cannot be reasoned past.
+
+Every episode terminates in one schema-validated object carrying the disposition, the observation, a ranked differential with probabilities, what was ruled out and by which evidence, citations, a count of any claims stripped for lacking a source, an action, and explicit escalation criteria. `INSUFFICIENT_DATA` is one of the dispositions, not an error.
 
 ### Stack
 
@@ -107,7 +116,7 @@ Two properties this makes visible: the LLM sits in exactly one box and is **neve
 
 ## What it can and cannot do
 
-Being precise about this is part of the design, because the limits determine the model selection.
+Stating the limits precisely is part of the design, because they determine the model selection.
 
 **Can:** tell you your physiology has deviated from your own normal, and when it started; tell you the deviation is fully explained by a recorded event; identify systemic strain consistent with immune activation; distinguish likely benign causes from possible illness **given one or two answers**; produce a grounded differential **given symptoms**; escalate deterministically on red flags.
 
@@ -115,14 +124,29 @@ Being precise about this is part of the design, because the limits determine the
 
 ---
 
+## Roadmap
+
+| Stage | State |
+|---|---|
+| Research corpus | **Done.** Nine parallel investigations, ~126,000 words, ~2,100 citations |
+| Design specification | **Done.** See [`PROPOSAL.md`](PROPOSAL.md) |
+| Data layer: ingestion, backfill, synthetic generator | Next |
+| Detection: baselines, concordance, persistence, forecast comparison | Next |
+| Agent: bounded loop, typed tools, state across waits, human checkpoint, audit log | Then |
+| Belief state, information-gain policy, adaptive interview, measurement requests | Then |
+| Retrieval corpus, claim-to-source enforcement, safety layer | Then |
+| Evaluation: detection metrics, policy benchmark, ablation, adversarial suite | Last |
+
+---
+
 ## Repository
 
 | Path | Contents |
 |---|---|
-| [`PROPOSAL.md`](PROPOSAL.md) | **The design specification.** Problem, agentic approach, prototype, safety and limitations |
+| [`PROPOSAL.md`](PROPOSAL.md) | **The design specification.** Problem, agentic approach, prototype, safety, limitations |
 | [`research/`](research/) | Working notes: problem formulation, unknowns, decision gates, evidence synthesis, candidate formulations |
-| [`research/findings/`](research/findings/) | **The research corpus.** Nine parallel investigations, roughly 126,000 words and 2,100 citations |
-| [`archive/`](archive/) | An earlier, weaker generation of the research, retained deliberately and audited in `research/00-prior-work-audit.md` |
+| [`research/findings/`](research/findings/) | **The research corpus.** Nine parallel investigations |
+| [`archive/`](archive/) | An earlier, weaker generation of the same research, retained deliberately and audited in [`research/00-prior-work-audit.md`](research/00-prior-work-audit.md) |
 
 ### Research corpus
 
@@ -140,7 +164,7 @@ Nine independent investigations, each verifying claims against primary sources r
 | F8 | Confounder physiology and the separability matrix; value-of-information machinery |
 | F9 | Advanced techniques ranked by impressiveness-per-hour, with a "will not work here" list |
 
-Every document carries explicit `UNVERIFIED` flags and a closing list of what could not be sourced. Those are deliberate: an unverified claim marked as such is useful, and one presented as fact is not.
+Every document carries explicit `UNVERIFIED` flags and a closing list of what could not be sourced. Those are deliberate: an unverified claim marked as such is useful, one presented as fact is not.
 
 ---
 
@@ -148,16 +172,16 @@ Every document carries explicit `UNVERIFIED` flags and a closing list of what co
 
 Three things here are worth more than the design itself.
 
-**The prior work was audited rather than inherited.** An earlier generation of research is kept in `archive/` and systematically checked in `research/00-prior-work-audit.md`. Several of its headline figures turned out to be fabricated, its ranking method selected the union of its own options, and its recommended architecture depended on sensor channels the target hardware does not expose. Finding that out was worth more than accepting it.
+**The prior work was audited, not inherited.** An earlier generation of research is kept in `archive/` and systematically checked in [`research/00-prior-work-audit.md`](research/00-prior-work-audit.md). Several of its headline figures turned out to be fabricated, its ranking method selected the union of its own options, and its recommended architecture depended on sensor channels the target hardware does not expose. Finding that out was worth more than accepting it.
 
-**Claims were verified at source.** Where the research reports a number, the paper, repository or API was fetched and checked. Where verification failed, the document says so.
+**Claims were verified at source.** Where the research reports a number, the paper, repository or API was fetched and checked. Where verification failed, the document says so instead of quietly rounding.
 
 **The limits are stated in the design, not discovered later.** The specification contains an explicit list of what the system cannot determine, and why, at the level of mechanism. A system that names its own identifiability limits is easier to trust than one that does not.
 
 ---
 
-## Data and privacy
+## Data, privacy and scope
 
-No personal health data is included in this repository, and `.gitignore` is configured to keep it that way. Wearable data used during development stays on the local machine.
+No personal health data is in this repository, and `.gitignore` is configured to keep it that way. Wearable data used during development stays on the local machine.
 
-This is a research prototype and a personal wellness tool. **It is not a medical device**, it makes no claim of clinical validity, and anything clinically consequential is routed to a professional by deterministic code that the model cannot override.
+This is a research prototype and a personal wellness tool. **It is not a medical device.** It makes no claim of clinical validity, and anything clinically consequential is routed to a professional by deterministic code the model cannot override.
