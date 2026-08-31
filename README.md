@@ -1,4 +1,4 @@
-# Morning Rounds
+# Wearable Health Agent
 
 **An agentic differential-triage system that answers the one question wearables cannot: *am I getting sick, or do I just need rest?***
 

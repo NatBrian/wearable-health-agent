@@ -1,4 +1,4 @@
-# Morning Rounds
+# Wearable Health Agent
 
 ### An agentic differential-triage system that answers the one question wearables cannot: *am I getting sick, or do I just need rest?*
 
@@ -13,7 +13,7 @@ Consumer wearables detect that something in your body has changed. None of them 
 
 The measured consequence is a positive predictive value around **4%**, roughly twenty-four false alarms for every true one, of which about **45% had a cause a single question could have resolved**.
 
-**Morning Rounds** is a bounded agent that investigates each flagged deviation. It maintains an explicit probability distribution over twelve candidate causes, decides by expected information gain whether interrupting the user is worth it, conducts a short adaptive interview when it is, **can instruct the user to take a specific measurement on their watch**, grounds every clinical claim in a retrieved source, and terminates at a typed disposition. Red flags bypass the model entirely via deterministic code.
+**Wearable Health Agent** is a bounded agent that investigates each flagged deviation. It maintains an explicit probability distribution over twelve candidate causes, decides by expected information gain whether interrupting the user is worth it, conducts a short adaptive interview when it is, **can instruct the user to take a specific measurement on their watch**, grounds every clinical claim in a retrieved source, and terminates at a typed disposition. Red flags bypass the model entirely via deterministic code.
 
 | | |
 |---|---|
