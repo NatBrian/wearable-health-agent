@@ -31,7 +31,7 @@ do it, run its exit command, then come back and update this table.
 | A-15 | Chronos forecast wrapper, with a stubbed pipeline | A-11 | 06 | [x] | 2026-09-01 | |
 | A-16 | `causes.yaml` loader and validation | A-02 | 07 | [x] | 2026-09-01 | |
 | A-17 | Belief: presence matrix and exact enumeration | A-16 | 07 | [x] | 2026-09-01 | |
-| A-18 | Belief: evidence factors | A-17, A-13 | 07 | [ ] | | |
+| A-18 | Belief: evidence factors | A-17, A-13 | 07 | [x] | 2026-09-01 | |
 | A-19 | `probes.yaml` loader and validation | A-16 | 08 | [ ] | | |
 | A-20 | Policy: EVSI and the gates | A-18, A-19 | 08 | [ ] | | |
 | A-21 | Policy: action selection and dispositions | A-20 | 08 | [ ] | | |
