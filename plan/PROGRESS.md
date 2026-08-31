@@ -28,7 +28,7 @@ do it, run its exit command, then come back and update this table.
 | A-12 | Explained-variance subtraction | A-11 | 05 | [x] | 2026-09-01 | |
 | A-13 | Levels, persistence, alert events | A-12 | 05 | [x] | 2026-09-01 | |
 | A-14 | The two mandatory detection baselines | A-13 | 05 | [x] | 2026-09-01 | |
-| A-15 | Chronos forecast wrapper, with a stubbed pipeline | A-11 | 06 | [ ] | | |
+| A-15 | Chronos forecast wrapper, with a stubbed pipeline | A-11 | 06 | [x] | 2026-09-01 | |
 | A-16 | `causes.yaml` loader and validation | A-02 | 07 | [ ] | | |
 | A-17 | Belief: presence matrix and exact enumeration | A-16 | 07 | [ ] | | |
 | A-18 | Belief: evidence factors | A-17, A-13 | 07 | [ ] | | |
