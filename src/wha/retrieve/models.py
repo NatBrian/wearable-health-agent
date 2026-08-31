@@ -1,4 +1,4 @@
-"""Data models for corpus documents, chunks, and index manifests."""
+"""Data models for corpus documents, chunks, citations, claims, and index manifests."""
 
 from typing import Any
 
@@ -51,6 +51,27 @@ class RetrievalResult(BaseModel):
     score: float
     rank: int = 1
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class Citation(BaseModel):
+    """Retrieved passage cited as evidence."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_id: str
+    title: str = ""
+    uri: str = ""
+    text: str = ""
+
+
+class GeneratedClaim(BaseModel):
+    """Generated clinical assertion with explicit evidence span and citation link."""
+
+    model_config = ConfigDict(frozen=False)
+
+    text: str
+    evidence_span: str | None = None
+    citation: str | None = None
 
 
 class SourceManifestEntry(BaseModel):
