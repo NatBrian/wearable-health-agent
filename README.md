@@ -186,4 +186,4 @@ Three things here are worth more than the design itself.
 
 No personal health data is in this repository, and `.gitignore` is configured to keep it that way. Wearable data used during development stays on the local machine.
 
-This is a research prototype and a personal wellness tool. **It is not a medical device.** It makes no claim of clinical validity, and anything clinically consequential is routed to a professional by deterministic code the model cannot override.
+This is a research prototype and a personal wellness tool. **It is not a medical device.** It makes no claim of clinical validity, and anything clinically consequential is routed to a professional by deterministic code the model cannot override. See [`DISCLAIMER.md`](DISCLAIMER.md).
