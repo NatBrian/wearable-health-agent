@@ -468,7 +468,7 @@ The LLM extracts structured facts. The belief state updates sharply toward infec
 | **Belief state** | **pgmpy** discrete Bayesian network | Auditable arithmetic. The LLM never computes a probability |
 | **Decision policy** | Custom, expected information gain versus interruption cost | A few hundred operations over 12 causes. Comparable against never-ask, always-ask and threshold baselines |
 | **Agent orchestration** | **LangGraph** with SQLite checkpointer, plus LangChain's `HumanInTheLoopMiddleware` | Checkpointer gives state across multi-day waits; `interrupt()` gives the human gate; its `allowed_decisions` are literally approve, edit, reject, respond. The graph renders as a diagram for the report |
-| **LLM hosting** | See 4.5.3 | Kaggle 2xT4 for the large model, Colab single T4 for the small one, OpenRouter for demo |
+| **LLM hosting** | See 4.5.3 | **Ollama on Kaggle 2x T4**, exposed to the local machine as an OpenAI-compatible endpoint over a Cloudflare tunnel behind a bearer-token proxy. Verified working, see 4.5.3 |
 | **Retrieval** | See the RAG design in 4.6 | Hybrid BM25 plus dense, fused by reciprocal rank fusion. Reranking excluded, see 4.5.2.1 |
 | **Structured output** | **Pydantic** schema validation on every agent step | "Machine-checkable outputs". Validation failure is a handled event |
 | **Interface** | **Streamlit** | Maximises time on the agent rather than on front-end plumbing, while making planning, state transitions, tool calls and the audit log visible |
@@ -529,12 +529,37 @@ Requested target: Qwen3.8-27B on free Google Colab. **We checked, and it does no
 - The result is memory pressure and spillover into system RAM, with reported throughput around 12 tokens per second on a comparable 16 GB card. Practical guidance for this model is 24 GB minimum and 32 to 48 GB for comfort.
 - The T4 is also Turing generation, so it lacks native bfloat16 and cannot use the faster quantisation kernels that require Ampere or newer.
 
-**Therefore:**
+**Therefore: Kaggle, not Colab.** Kaggle's 2x T4 gives 32 GB combined, 30 GPU-hours per week and 12-hour sessions.
 
-| Role | Model and host | Rationale |
-|---|---|---|
-| **Large-model configuration** | **Qwen3.8-27B, 4-bit, on Kaggle** with vLLM tensor parallelism across its **2x T4 (32 GB combined)**, 30 GPU-hours per week, 12-hour sessions | This is the free tier that can actually hold the 27B model. Kaggle, not Colab |
-| **Working configuration** | **Qwen3 8B (fallback 4B), 4-bit, on Colab T4** | Comfortable fit, fast, sufficient for structured extraction, question phrasing and explanation, which is all the LLM does here |
+**The serving engine is Ollama.** This was measured on real hardware on 31 August 2026, and two earlier choices were discarded on evidence.
+
+| Engine | Verdict |
+|---|---|
+| **vLLM** | **Rejected.** Requires torch 2.13 and the CUDA 13 stack, so on Kaggle it uninstalls and replaces roughly thirty packages including torch, torchvision and triton. Turing (compute 7.5) is a neglected path with open reports of a 27B Qwen hanging indefinitely on a T4 |
+| **llama-cpp-python** | **Rejected.** The prebuilt CUDA wheel index stops at 0.3.19 (March 2026). Qwen3.8-27B shipped in August 2026 with a new `qwen35` architecture that older builds refuse outright. Building current from source means a ~30 minute compile per rebuild |
+| **Ollama** | **Chosen.** Qwen3.8 support landed in v0.32.12; we pin v0.33.2. Bundles its own CUDA runtime, so Kaggle's CUDA version is irrelevant. Turing is supported (floor is compute 5.0) |
+
+**Measured, 2x Tesla T4:**
+
+| Property | Value |
+|---|---|
+| Model | `qwen3.8:27b` from Ollama's registry, 18 GB |
+| Placement | **100% GPU**, both cards, at 8192 context |
+| Sustained generation | **9.2 tok/s** |
+| Time to first token, streaming | 4.34 s |
+| Cold start from cached weights | 2 min, against ~20 min without |
+| Structured output | JSON mode returns schema-valid objects |
+
+**Two implementation constraints this imposes:**
+
+1. **Qwen3.8 is a thinking model.** Reasoning tokens are billed against `max_tokens` but stripped from `content`, so a small budget returns `finish_reason="length"` with an **empty string**. A two-word answer cost 37 completion tokens. **Never budget below 200.** Thinking can be disabled with `"think": false`, but only on Ollama's **native** `/api/chat`, not on `/v1/chat/completions`.
+2. **The endpoint is ephemeral.** The Cloudflare hostname and bearer key are regenerated every session, so the client must read them from configuration at run time and never hard-code them.
+
+Speed is bandwidth-bound: one token requires reading all 18 GB, a T4 gives ~320 GB/s, and Ollama splits layers **sequentially** rather than in parallel, giving a ~17.8 tok/s ceiling. The second T4 buys capacity, not speed. An untested `qwen3.8:27b-mtp-q4_K_M` variant at the same 18 GB offers multi-token prediction, reported at +33 to 39% with mathematically identical output.
+
+**Fallback if the 27B proves impractical:** Qwen3.5 9B, or any small instruct model. The LLM does language only, never a number and never a decision, so the design absorbs a smaller model far better than a typical LLM application would.
+
+The serving notebook is `tools/kaggle_serve_qwen27b.ipynb`.
 | **Demonstration** | **OpenRouter free tier** | A stronger hosted model for the small number of live demo calls, where the daily cap is not binding |
 | **Evaluation** | Cached and replayed responses from whichever model produced them | Makes every number re-derivable offline and independent of session limits |
 
@@ -665,7 +690,7 @@ Evaluated on the six metrics the course specifies: task completion rate, unsuppo
 | **Data exfiltration** | **The system has no exfiltration vector.** It has private data and untrusted content but no tool that sends anything outward. We will document the tool table that keeps this true, which is a stronger guarantee than any prompt hardening |
 | **Over-permissioning / excessive agency** | Every tool is typed, argument-validated, read-only where possible, and assigned an explicit control tier. No shell, no arbitrary code execution, no network access from tools. Self-expansion is denied and attempted expansions are logged and counted |
 | **Goal hijack via memory** | Persisted episode state is schema-validated on read, so poisoned state cannot alter the agent's objective |
-| **Model unavailability** | Free-tier rate limits and Colab session expiry are expected. Cached and replayed responses make evaluation independent of live availability, and the demonstration is a scripted replay by design (4.2.5), so it does not depend on a live model at all |
+| **Model unavailability** | Free-tier quota limits and Kaggle session expiry are expected, and the endpoint URL and key change every session. Cached and replayed responses make evaluation independent of live availability, and the demonstration is a scripted replay by design (4.2.5), so it does not depend on a live model at all |
 | **Unauthenticated local health data endpoint** | The Health Connect bridge exposes health data over the local network **without authentication**, by its own design, and is intended for trusted networks only. We state this as a real limitation rather than glossing it. Mitigations for the prototype: run it only on a private network, prefer webhook push to a loopback-bound listener over open polling, and treat the endpoint as untrusted input that is schema-validated on read. A production version would require authentication, which is noted as future work |
 
 We will build a **systematic adversarial test suite** (a taxonomy of attack goals crossed with injection vectors, approximately 40 to 80 cases) with a measured attack success rate, rather than a single demonstration case.
@@ -697,7 +722,7 @@ We will build a **systematic adversarial test suite** (a taxonomy of attack goal
 
 | Days | Focus |
 |---|---|
-| 0 | **Pre-work, before the build starts.** (a) ~~Samsung Health export~~ **not used**, at the participant's request. (b) Health Connect bridge installed and reachable; **confirmed working, currently returning heart rate and steps only**, with the remaining channels pending a Samsung-side sharing change. (c) **PMData verified at source**, see section 3.6. (d) Confirm a Colab or Kaggle notebook serving the chosen model |
+| 0 | **Pre-work, before the build starts.** (a) ~~Samsung Health export~~ **not used**, at the participant's request. (b) Health Connect bridge installed and reachable; **confirmed working, currently returning heart rate and steps only**, with the remaining channels pending a Samsung-side sharing change. (c) **PMData verified at source**, see section 3.6. (d) **Done.** Kaggle notebook serving Qwen3.8-27B via Ollama, measured end to end |
 | 1-2 | Data ingestion (Health Connect bridge poller plus Samsung export parser behind one `DataSource` interface), historical backfill, public dataset loading and inspection |
 | 3-4 | Feature extraction, personal baselines, deviation detection with concordance and persistence, mandatory baselines |
 | 5-7 | Agent skeleton in LangGraph: bounded loop, typed tools, state across waits, human interrupt, audit log |
