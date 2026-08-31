@@ -17,6 +17,7 @@ from wha.service.doctor import (
     DoctorItem,
     run_doctor,
 )
+from wha.service.evaluation import run_evaluation_suite
 from wha.service.ingest import run_ingest
 from wha.service.nightly import (
     parse_date_range,
@@ -34,6 +35,7 @@ __all__ = [
     "parse_date_range",
     "run_demo",
     "run_doctor",
+    "run_evaluation_suite",
     "run_ingest",
     "run_nightly",
 ]

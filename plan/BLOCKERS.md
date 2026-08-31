@@ -24,4 +24,15 @@ stub out a blocked module, or change a contract to unblock yourself.
 
 ---
 
-_No blockers recorded yet._
+## A-25 — Missing data/knowledge/cohort_labels.yaml for cohort evaluation
+
+**What I tried:** `uv run pytest tests/unit/eval -q && uv run wha eval detection`
+
+**What happened:**
+```
+Evaluation skipped / error: Cohort labels file missing at 'data\knowledge\cohort_labels.yaml'. Stanford and PMData ground truth labels live in supplementary information and must be provided.
+```
+
+**What I think is wrong:** Stanford and PMData ground truth labels live in the paper's supplementary data and are not part of the dataset archives. `data/knowledge/cohort_labels.yaml` is an external knowledge input that cannot be modified by the agent (Rule 3).
+
+**What I need:** Human authoring of `data/knowledge/cohort_labels.yaml` containing ground truth symptom onset and infection labels from the study supplementary data.

@@ -38,7 +38,7 @@ do it, run its exit command, then come back and update this table.
 | A-22 | Policy: the four benchmark policies | A-21 | 08 | [x] | 2026-09-01 | |
 | A-23 | CLI: `doctor`, `ingest`, `nightly`, `data fetch` | A-13, A-15 | 17 | [x] | 2026-09-01 | |
 | A-24 | Cohort loaders: Stanford and PMData to parquet | A-08, A-23 | 01 | [x] | 2026-09-01 | |
-| A-25 | Eval: detection suite | A-14, A-24 | 16 | [ ] | | |
+| A-25 | Eval: detection suite | A-14, A-24 | 16 | [!] | 2026-09-01 | Blocked on data/knowledge/cohort_labels.yaml |
 | A-26 | Eval: baseline-age suite | A-25 | 16 | [ ] | | |
 | A-27 | Eval: policy suite on the hidden-self-report oracle | A-22, A-24 | 16 | [ ] | | |
 | A-28 | Eval: ablation suite | A-27 | 16 | [ ] | | |

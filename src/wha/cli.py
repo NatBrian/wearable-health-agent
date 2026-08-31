@@ -14,6 +14,7 @@ from wha.service import (
     fetch_data,
     run_demo,
     run_doctor,
+    run_evaluation_suite,
     run_ingest,
     run_nightly,
 )
@@ -231,6 +232,37 @@ def data_fetch_cmd(
     except Exception as e:  # noqa: BLE001
         typer.echo(f"Data fetch error: {e}", err=True)
         sys.exit(1)
+    sys.exit(0)
+
+
+@app.command("eval")
+def eval_cmd(
+    suite: Annotated[
+        str,
+        typer.Argument(help="Evaluation suite name (detection, baseline-age, policy, ablation)"),
+    ],
+    as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Execute offline evaluation suites and benchmark comparisons."""
+    try:
+        res = run_evaluation_suite(suite=suite)
+    except ConfigError as e:
+        typer.echo(f"Evaluation skipped / error: {e}", err=True)
+        sys.exit(1)
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Evaluation failed: {e}", err=True)
+        sys.exit(1)
+
+    if as_json:
+        typer.echo(res.model_dump_json(indent=2))
+    else:
+        typer.echo(f"=== Evaluation Suite: {res.suite} ===")
+        for k, v in res.metrics.items():
+            typer.echo(f"{k.ljust(30)}: {v}")
+        if res.caveats:
+            typer.echo("\nCaveats:")
+            for c in res.caveats:
+                typer.echo(f"- {c}")
     sys.exit(0)
 
 
