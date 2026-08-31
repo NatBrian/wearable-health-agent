@@ -1,5 +1,11 @@
 """Policy, action selection, and probe management."""
 
+from wha.policy.baselines import (
+    policy_always_ask,
+    policy_never_ask,
+    policy_random,
+    policy_threshold,
+)
 from wha.policy.evsi import (
     DERIVED_TREATMENT_THRESHOLD,
     compute_eu_now,
@@ -38,6 +44,10 @@ __all__ = [
     "determine_disposition",
     "evsi",
     "load_probes",
+    "policy_always_ask",
+    "policy_never_ask",
+    "policy_random",
+    "policy_threshold",
     "score_probe",
     "select_action",
 ]
