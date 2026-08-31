@@ -76,7 +76,7 @@ def compute_detection_for_features(
     flagged = False
     if level in (DetectionLevel.YELLOW, DetectionLevel.RED):
         # Current run of consecutive elevated nights ending tonight
-        current_run = [level] + list(preceding_consecutive_levels)
+        current_run = [level] + list(preceding_consecutive_levels or [])
         if len(current_run) >= DETECT_PERSISTENCE_NIGHTS and any(
             lvl in (DetectionLevel.RED, "RED") for lvl in current_run
         ):

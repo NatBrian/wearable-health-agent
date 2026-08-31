@@ -36,3 +36,18 @@ Evaluation skipped / error: Cohort labels file missing at 'data\knowledge\cohort
 **What I think is wrong:** Stanford and PMData ground truth labels live in the paper's supplementary data and are not part of the dataset archives. `data/knowledge/cohort_labels.yaml` is an external knowledge input that cannot be modified by the agent (Rule 3).
 
 **What I need:** Human authoring of `data/knowledge/cohort_labels.yaml` containing ground truth symptom onset and infection labels from the study supplementary data.
+
+---
+
+## A-26 — Missing data/knowledge/cohort_labels.yaml for baseline-age evaluation
+
+**What I tried:** `uv run wha eval baseline-age`
+
+**What happened:**
+```
+Evaluation skipped / error: Cohort labels file missing at 'data\knowledge\cohort_labels.yaml'. Stanford and PMData ground truth labels live in supplementary information and must be provided.
+```
+
+**What I think is wrong:** Baseline age evaluation requires Stanford cohort illness labels to evaluate detection recall against truncated history lengths.
+
+**What I need:** Human authoring of `data/knowledge/cohort_labels.yaml`.
