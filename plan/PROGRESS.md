@@ -26,7 +26,7 @@ do it, run its exit command, then come back and update this table.
 | A-10 | Covariates: previous-day steps, sleep hours, exercise offset | A-09 | 03 | [x] | 2026-09-01 | |
 | A-11 | Shrinkage baseline and the maturity ladder | A-10 | 04 | [x] | 2026-09-01 | |
 | A-12 | Explained-variance subtraction | A-11 | 05 | [x] | 2026-09-01 | |
-| A-13 | Levels, persistence, alert events | A-12 | 05 | [ ] | | |
+| A-13 | Levels, persistence, alert events | A-12 | 05 | [x] | 2026-09-01 | |
 | A-14 | The two mandatory detection baselines | A-13 | 05 | [ ] | | |
 | A-15 | Chronos forecast wrapper, with a stubbed pipeline | A-11 | 06 | [ ] | | |
 | A-16 | `causes.yaml` loader and validation | A-02 | 07 | [ ] | | |
