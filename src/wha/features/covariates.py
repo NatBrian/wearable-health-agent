@@ -104,7 +104,11 @@ def derive_exercise_offset(
     qualifying_offsets: list[float] = []
 
     for item in exercise_sessions:
-        end_utc_val = item.get("end_utc")
+        try:
+            end_utc_val = item["end_utc"]
+        except (KeyError, IndexError):
+            end_utc_val = None
+
         if not end_utc_val:
             continue
         end_utc = from_iso(end_utc_val) if isinstance(end_utc_val, str) else end_utc_val
