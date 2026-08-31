@@ -1,0 +1,1 @@
+"""Notifier protocol and implementations."""

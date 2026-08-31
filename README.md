@@ -1,11 +1,20 @@
 # Wearable Health Agent
 
-**Agentic illness triage from smartwatch data.** It detects overnight physiological deviations, decides by expected information gain whether asking you one question is worth the interruption, can order a watch measurement, and returns a source-grounded differential.
+> **Building this? Read [`HANDOFF.md`](HANDOFF.md), not this file.**
+> The status section below predates the implementation plan and is out of date. The plan lives in
+> [`plan/`](plan/) and is the only implementation contract.
 
-> **Status: design and infrastructure complete. Application code not started.**
-> The research corpus, the design specification, the ingestion probe, a synthetic data generator matching the real device payload, and a working self-hosted LLM endpoint are all in place. Implementation planning is next. See the [roadmap](#roadmap).
+---
 
-**Start here:** [the problem](#the-problem) → [the gap](#the-gap) → [the design](#the-approach) → [`PROPOSAL.md`](PROPOSAL.md) for the full specification.
+
+**Agentic illness triage from smartwatch data.** It detects overnight physiological deviations, decides by expected value of sample information whether asking you one question is worth the interruption, can order a watch measurement, and returns a source-grounded differential.
+
+> **Status: implementation plan complete and frozen. Build in progress.**
+> Research, design and a full implementation plan are done. The plan is in [`plan/`](plan/): 17 component specifications, 67 test-gated tasks, cited knowledge tables, and 11 frozen end-to-end scenarios. See the [roadmap](#roadmap).
+
+**Start here:** [the problem](#the-problem) → [the gap](#the-gap) → [the design](#the-approach) → [`plan/`](plan/) for the implementation contract.
+
+**Building it?** Read [`HANDOFF.md`](HANDOFF.md). `PROPOSAL.md` is a narrative design document that predates the plan and is superseded in fourteen documented ways.
 
 ---
 
@@ -59,7 +68,7 @@ CONCLUDE    terminate with a disposition and a grounded explanation
 
 ### Three decisions that carry the project
 
-**The ask-or-stay-silent decision is explicit arithmetic, not an LLM judgement.** The agent holds a probability distribution over twelve candidate causes and computes the expected information gain of each candidate question against the cost of interrupting, in the form given by Horvitz, Jacobs and Hovel's *Attention-Sensitive Alerting* (UAI 1999). Keeping this outside the language model is what makes the policy **measurable**: it can be compared directly against never-ask, always-ask and fixed-threshold baselines. An LLM told to "ask if unsure" can be demonstrated but never evaluated.
+**The ask-or-stay-silent decision is explicit arithmetic, not an LLM judgement.** The agent tracks which of twelve candidate causes are contributing and computes the expected value of sample information for each candidate probe against a quantified interruption cost. Information that cannot change what the system does is worth exactly zero, so the quiet band at both ends emerges from the arithmetic rather than being imposed by a threshold. Keeping this outside the language model is what makes the policy **measurable**: it can be compared directly against never-ask, always-ask and fixed-threshold baselines. An LLM told to "ask if unsure" can be demonstrated but never evaluated.
 
 **The agent can order a test.** Not just ask how you feel. It can instruct a stress and HRV reading, a blood-oxygen reading, or a sit-to-stand orthostatic test, then re-reason on the result. This turns the action space from a chatbot's into a clinician's: observe, ask, order a test, escalate.
 
@@ -107,11 +116,11 @@ Every episode terminates in one schema-validated object carrying the disposition
 | Ingestion | Android Health Connect via an off-the-shelf bridge. No app to build, no manual export. **Samsung writes heart rate, steps, sleep stages and exercise to Health Connect, and nothing else**, so resting heart rate is derived rather than read |
 | Detection | Python, pandas, NumPy. Personal baseline, multi-signal concordance, multi-night persistence |
 | Forecasting | Chronos-Bolt, zero-shot, CPU |
-| Belief state | pgmpy discrete Bayesian network, literature-elicited priors |
-| Decision policy | Custom expected-information-gain arithmetic |
+| Belief state | Twelve independent binary causes with additive effects and published temporal profiles. Exact inference by enumeration over 4096 states, in numpy. Literature-elicited priors, every row cited |
+| Decision policy | Expected value of sample information against a quantified interruption cost. The testing threshold is derived from the stated utilities, not asserted |
 | Orchestration | LangGraph with SQLite checkpointing and human-in-the-loop interrupts |
 | Retrieval | Hybrid BM25 and dense, reciprocal rank fusion, claim-to-source enforcement |
-| LLM | Qwen3.8-27B, self-hosted on a free Kaggle 2x T4 via Ollama, reached over an authenticated tunnel. Used for language only. Measured at 9.2 tok/s, 100% on GPU |
+| LLM | Provider-agnostic: any OpenAI-compatible endpoint, or a local Ollama. Bring your own model. It investigates, extracts, writes its own questions and runs the interview, but never decides whether to interrupt you |
 | Interface | Streamlit, with the reasoning trace and audit log visible |
 
 ---
@@ -134,13 +143,13 @@ Stating the limits precisely is part of the design, because they determine the m
 | Design specification | **Done.** See [`PROPOSAL.md`](PROPOSAL.md) |
 | Ingestion probe and synthetic generator | **Done.** See [`tools/`](tools/) |
 | Self-hosted LLM endpoint on free tier | **Done.** Measured on hardware, see [`tools/kaggle_serve_qwen27b.ipynb`](tools/kaggle_serve_qwen27b.ipynb) |
-| Implementation planning | **In progress** |
-| Data layer: ingestion, backfill, storage schema | Next |
-| Detection: baselines, concordance, persistence, forecast comparison | Next |
-| Agent: bounded loop, typed tools, state across waits, human checkpoint, audit log | Then |
-| Belief state, information-gain policy, adaptive interview, measurement requests | Then |
-| Retrieval corpus, claim-to-source enforcement, safety layer | Then |
-| Evaluation: detection metrics, policy benchmark, ablation, adversarial suite | Last |
+| Implementation plan | **Done.** 17 components, 67 tasks, see [`plan/`](plan/) |
+| Phase A: data, detection, belief, policy, evaluation | Planned, 28 tasks |
+
+| Phase B: agent graph, tools, retrieval, safety, notifier | Planned, 27 tasks |
+
+| Phase C: dashboard, scheduler, documentation | Planned, 12 tasks |
+
 
 ---
 
@@ -148,12 +157,16 @@ Stating the limits precisely is part of the design, because they determine the m
 
 | Path | Contents |
 |---|---|
-| [`PROPOSAL.md`](PROPOSAL.md) | **The design specification.** Problem, agentic approach, prototype, safety, limitations |
-| [`HANDOFF.md`](HANDOFF.md) | Locked decisions, verified measurements, open questions. Written for whoever picks the project up next |
-| [`tools/`](tools/) | Ingestion probe (structure only, prints no health values), synthetic payload generator, and the Kaggle LLM serving notebook |
-| [`research/`](research/) | Working notes 00 to 15: problem formulation, unknowns, decision gates, evidence synthesis, candidate formulations, prior-art reads |
+| [`plan/`](plan/) | **The implementation contract.** 17 component specifications, 67 test-gated tasks, the schema and model contract, and the decision record. Everything is built from here |
+| [`data/knowledge/`](data/knowledge/) | The cited medical tables: twelve causes with effect sizes and temporal profiles, nine probes with their likelihoods, the red-flag rules, and the source allow-list. **Every number labelled `CITED`, `DERIVED` or `ASSUMED`** |
+| [`tests/fixtures/`](tests/fixtures/) | Eleven frozen end-to-end scenarios and nineteen authored LLM responses, so the whole system runs offline with no data and no endpoint |
+| [`tools/`](tools/) | The ingestion probe (structure only, prints no health values), the synthetic payload generator that documents the real device schema, and the LLM serving notebook |
+| [`HANDOFF.md`](HANDOFF.md) | **The entry point for building this.** Written for someone, or something, with no prior knowledge of the project |
+| [`AGENTS.md`](AGENTS.md) · [`GEMINI.md`](GEMINI.md) · [`.agents/rules/`](.agents/rules/) | Operating rules for a coding agent: prohibitions, environment, conventions, task workflow |
+| [`PROPOSAL.md`](PROPOSAL.md) | The original narrative design document. **Superseded by `plan/` in fourteen documented ways** and kept for the reasoning, not as a specification |
+| [`research/`](research/) | Working notes 00 to 15, and the evidence corpus. See [`research/README.md`](research/README.md) for what is still current |
 | [`research/findings/`](research/findings/) | **The research corpus.** Nine parallel investigations |
-| [`archive/`](archive/) | An earlier, weaker generation of the same research, retained deliberately and audited in [`research/00-prior-work-audit.md`](research/00-prior-work-audit.md) |
+| [`archive/`](archive/) | An earlier, weaker generation, retained deliberately and audited in [`research/00-prior-work-audit.md`](research/00-prior-work-audit.md) |
 | [`DISCLAIMER.md`](DISCLAIMER.md) | Not a medical device |
 
 ### Research corpus

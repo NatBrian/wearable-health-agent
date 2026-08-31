@@ -1,5 +1,20 @@
 # Wearable Health Agent
 
+> ### NOT THE IMPLEMENTATION SPECIFICATION
+>
+> **If you are a coding agent, stop and read `HANDOFF.md` instead.**
+>
+> This is a narrative design document, written *before* the implementation plan. It is out of date
+> in fourteen specific, documented ways: it names a probabilistic-graphical-model library that was
+> dropped, a measurement type that has no data path, a backfill mechanism that was ruled out, and a
+> policy formulation that was replaced. Every one is catalogued in `plan/04-decisions.md` Part B.
+>
+> **The implementation contract is `plan/`.** Where this document and `plan/` disagree, `plan/`
+> wins, always. Building from this file will produce the wrong system.
+
+---
+
+
 ### An agentic differential-triage system that answers the one question wearables cannot: *am I getting sick, or do I just need rest?*
 
 **Document type:** design specification and project proposal

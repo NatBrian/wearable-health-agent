@@ -1,0 +1,27 @@
+{
+  "name": "stress-mimic",
+  "description": "A sustained multi-night rise whose true cause is stress. The system should ask, update, and NOT conclude illness.",
+  "days": 30,
+  "base_bpm": 62.0,
+  "seed": 83,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "stress",
+      "start_day": 25,
+      "amplitude_bpm": 3.6,
+      "nights": 6
+    }
+  ],
+  "oracle": {
+    "probe_symptoms": "none",
+    "probe_stress": "lots",
+    "probe_alcohol": "none"
+  },
+  "expect": {
+    "disposition": "LIKELY_BENIGN",
+    "asks_at_least": 1,
+    "escalates": false,
+    "note": "THE HARDEST CASE. Stress moves the same channel in the same direction over the same timescale as infection, and there is no sensor discriminator. This scenario is the one that only asking can resolve, which is the entire argument for the project."
+  }
+}

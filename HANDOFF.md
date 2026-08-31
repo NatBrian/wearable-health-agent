@@ -1,308 +1,372 @@
-# Handoff: from design to implementation planning
+# HANDOFF: build this
 
-**Written 31 August 2026.** Research, proposal and day-zero setup are complete. The next session's
-job is **implementation planning only**: architecture, components, logic, features, testing. Not code
-yet, unless asked.
+**Read this file to the end before doing anything else.**
 
----
-
-## 0. How to use this document
-
-Read this file first, then section 4's reading list. This file is the compressed context. It exists
-so the next session does not redo settled work, does not relitigate settled decisions, and does not
-repeat mistakes that already cost time.
-
-Where this file states a **verified** fact, it was checked against a primary source or measured on
-hardware. Where it states an **unverified** one, it says so. Preserve that distinction.
+You have no prior knowledge of this project. This file gives you everything you need to start.
+Nothing else at the repository root is a specification, and two files there **will actively mislead
+you** if you treat them as one. Section 1 names them.
 
 ---
 
-## 1. What this project is, in sixty seconds
+## 0. Situation
 
-Consumer wearables detect that something in your body changed but cannot tell you **why**. A raised
-overnight resting heart rate is produced by an incubating infection, alcohol, hard training, poor
-sleep, stress, a recent vaccination, or the luteal phase. To a wrist sensor these look nearly
-identical, yet they demand opposite responses.
-
-This is measured, not hypothetical: an independent prospective evaluation issued **665 alerts at a
-positive predictive value of 4%**, and about **45% of the false alerts had a cause a single question
-could have resolved**. Worse, the confounders are **larger than the signal**: infection raises resting
-HR by 1.1 to 2.1 bpm, one drink by 2.4 to 2.8, a hard evening session by about 5.94.
-
-**The monitor is not the agent.** Detection is cheap, deterministic, continuous statistics. When it
-flags a deviation, a **bounded agent** is instantiated with one goal: determine the most probable
-explanation, acquiring only the evidence worth acquiring, and reach a typed disposition. It reasons
-across several nights, holds state while it waits, and terminates.
-
-The project is simultaneously a **personal tool** and a **portfolio piece**. It is coursework for a
-two-week AI-in-healthcare module, nominally a team of four, but **plan for one person**.
-
----
-
-## 2. Status
-
-| Area | State |
+| | |
 |---|---|
-| Research corpus, 9 investigations, ~126k words, ~2,100 citations | Done, `research/findings/` |
-| Working notes 00 to 15 | Done, `research/` |
-| Design specification | Done, `PROPOSAL.md`, ~700 lines |
-| Repository de-identified, published private, MIT licensed | Done, `github.com/NatBrian/wearable-health-agent` |
-| Project Hermes blocking read | Done, `research/15-project-hermes-read.md` |
-| Health Connect bridge reachable, schema captured | Done, `tools/probe_healthconnect.py` |
-| Synthetic data generator matching the real payload shape | Done, `tools/make_synthetic.py` |
-| LLM served on free Kaggle, measured end to end | Done, `tools/kaggle_serve_qwen27b.ipynb` |
-| **Implementation planning** | **Not started. This is the next task** |
-| Health Connect retest for **sleep stages and exercise** | **Blocked on the user's phone and more days of data.** HRV, respiratory rate and resting HR are **not obtainable this way at all**, see section 6 |
-| Rotate the bearer token used during probing | **Open, user action** |
+| **What this is** | A **Python** project: a wearable health monitoring system |
+| **State of the code** | **There is none.** `src/` does not exist. `tests/` contains only fixtures. **You are starting from zero** |
+| **Your job** | Write the code by executing a finished plan, one task at a time. **67 tasks** |
+| **The plan** | Already written and frozen, in `plan/`. **Do not add to it, extend it, or redesign it** |
+| **Machine** | **Windows.** Run every command **from the repository root** |
+| **Python** | Managed by **uv**, already installed and on PATH. Full path if needed: `C:\Users\Admin\.local\bin\uv.exe` |
+| **Credentials** | Already configured in `.env`, which is gitignored. **But none are REQUIRED for any task.** Every test and every demo runs with no key, no token, no phone and no endpoint |
+| **Network** | **Not required.** Five tasks (A-24 to A-28) download two public datasets; block them and continue. Everything else is offline |
+| **Questions** | **You cannot ask any.** Nobody is watching. When stuck, write to `plan/BLOCKERS.md` and move on |
 
-Nothing is implemented. There is no application code, no tests, no data pipeline.
+### The instruction you were given is ambiguous. It means this.
 
----
-
-## 3. Standing constraints from the user
-
-These are non-negotiable. Several were stated more than once.
-
-| Constraint | The user's own words where it matters |
-|---|---|
-| **No personal health data shared** | *"I dont really want to give you my samsung health data, because it is private to me."* and *"I still will not provide my full samsung export."* Development uses synthetic data and public datasets |
-| **Mask any health data that does appear** | *"remember my health data is sensitive so mask it"* |
-| **Train nothing** | *"I also do not want to train any AI"* |
-| **Do not overengineer** | *"we do not want our project to be overengineered and use many/various AI model. We must have a clear focus"* |
-| **Must not be boring** | *"if the project if fucking boring, too generic and normal, no novelty than I will get poor grade and no recruiter care"* and *"My project should not be constraint by the lecture"* |
-| **No manual export** | *"I want my project to be able to work without needing manual export"* |
-| **Repo is portfolio-facing** | No course name, no real name, no private data. Will be made public on completion |
-| **Free tiers only** | *"the healtconnect webhook app need to pay. I dont want to pay"* |
-| **Quota-efficient notebooks** | *"I am using free so it should be safing my GPU usage time"* |
-| **No secrets pasted into chat** | Standing rule from the user's memory |
-| **No em-dashes; no Claude co-author trailer in commits** | Standing rule. Commits are authored as `NatBrian` |
-
-**Working style:** deliver end to end, decide technical questions yourself, front-load questions into
-planning rather than interrupting mid-build. Explanations in plain language.
+**"Complete the implementation plan" means execute the plan by writing code.** It does **not** mean
+finish writing a plan. The plan is complete. Writing more plan is out of scope and is the single
+most likely way to waste this entire run.
 
 ---
 
-## 4. Read these, in this order
+## 1. Every path in this repository, and what to do with it
 
-1. **`PROPOSAL.md`** in full. This is the specification. Do not plan against a summary of it.
-   Section 4.2 lists features F1 to F20 with MUST/SHOULD/COULD; 4.2.2 gives the `EpisodeOutcome`
-   contract; 4.2.3 the episode lifecycle and triggers; 4.5 the model inventory; 4.6 retrieval;
-   4.7 evaluation; 5 safety, ethics, privacy, security, limitations; Appendix B a two-week plan.
-2. **`research/15-project-hermes-read.md`**. The closest prior art and what it means for the novelty
-   claim. Short.
-3. **`research/13-galaxy-watch5-data-reality.md`** and **`14-automatic-data-access-and-samsung-vitals.md`**.
-   What the hardware actually exposes, and what Samsung already ships.
-4. **`research/findings/F8`** (confounder physiology, separability matrix, value-of-information),
-   **`F6`** (detection methods, datasets, and the pathologies of anomaly-detection evaluation),
-   **`F7`** (agentic patterns, prompt injection, audit logging, medical corpora).
-5. **`tools/`**, all three files. They define the real data shape and the real serving stack.
-6. Everything else in `research/` as needed. `archive/` is an earlier, weaker generation retained
-   deliberately and audited in `research/00-prior-work-audit.md`. **Do not treat `archive/` as fact.**
+**This list is complete.** If something is not on it, it does not exist yet or you created it.
 
----
+### Read these
 
-## 5. Locked decisions
-
-Each of these was argued out. Reopening one needs new evidence, not a new opinion.
-
-**Architecture**
-
-- **The detector is not the agent.** Deterministic statistics flag deviations; the agent investigates
-  an episode. The LLM is **never invoked on a quiet night**, which is what makes the cost model work.
-- **Single agent, not multi-agent.** Free-tier rate limits make multi-agent infeasible, one action log
-  is easier to audit, and published ablations show extra validate/replan stages contributing nothing.
-- **Action space:** `OBSERVE`, `ASK(question)`, `MEASURE(test)`, `ESCALATE(level)`, `CONCLUDE(disposition)`.
-- **Dispositions:** `EXPLAINED_BY_EVENT | LIKELY_ILLNESS | LIKELY_BENIGN | ESCALATED | UNRESOLVED |
-  INSUFFICIENT_DATA`. The last is a first-class outcome, not an error.
-- **Two budgets:** interruption budget, default 2 per week; depth budget, default 5 per conversation.
-- **The red-flag intercept is deterministic code upstream of the agent**, so it cannot be reasoned past.
-- **The ask-or-stay-silent decision is explicit arithmetic outside the LLM**, expected information gain
-  against interruption cost, in the form of Horvitz, Jacobs and Hovel, *Attention-Sensitive Alerting*,
-  UAI 1999. This is what makes the policy measurable against never-ask, always-ask and fixed-threshold
-  baselines. An LLM told to "ask if unsure" can be demonstrated but never evaluated.
-
-**Models: four, none trained**
-
-| # | Component | Job |
+| Path | What it is | When |
 |---|---|---|
-| 0 | Personal statistical baseline | Rolling median and MAD, multi-signal concordance, multi-night persistence. **Not a model.** Also the baseline everything else must beat |
-| 1 | **Chronos-Bolt**, Apache-2.0, zero-shot, CPU | What should tonight have looked like, with an expected range |
-| 2 | **pgmpy** discrete Bayesian network | Belief over twelve candidate causes. Hand-specified structure, literature-elicited priors, every number cited |
-| 3 | **Sentence embedding model** (e.g. `bge-small-en-v1.5`) | Dense retrieval |
-| 4 | **LLM** (Qwen) | Language only: extract structured facts, phrase questions, write explanations. Never computes a number, never decides an action |
+| **`HANDOFF.md`** | You are reading it | Once, now, to the end |
+| **`AGENTS.md`** | The hard rules. Kept short so it can stay in context | First, and keep it loaded |
+| **`GEMINI.md`** | A pointer to the two files above, in case your version prefers this filename | If it loaded, follow it here |
+| **`.agents/rules/`** | Four files: environment, prohibitions, Python conventions, task workflow | Read three of them once. `30-python-conventions.md` when you write the first module |
+| **`plan/02-contracts.md`** | Schemas, models, constants, service signatures, errors. **The contract** | In full, before task one, and again whenever unsure |
+| **`plan/tasks/<id>.md`** | What to build, which tests, the exit command | **One at a time.** Only the current task |
+| **`plan/components/NN-*.md`** | Design for one area | **Only the one your current task names** |
+| **`plan/01-overview.md`** | System shape, control tiers, scope | Once, for orientation |
+| **`plan/phases/*.md`** | Ordering, dependencies, critical path | Once, for orientation |
+| **`plan/04-decisions.md`** | Why each choice was made | Only when tempted to change one |
+| **`tools/make_synthetic.py`** | **Authoritative** record of the real device payload schema, observed on hardware | Before writing the ingestion parser. Task A-05 |
 
-Explicitly excluded, with reasons in `PROPOSAL.md` 4.5.2.1: trained classifiers, cross-encoder
-rerankers, MOMENT (normalises away vertical shifts, which is exactly our signal), IBM TTM (512-step
-minimum equals 1.4 years at nightly cadence), Apple WBM / Google LSM-2 / SensorFM (no released
-weights), TimesFM 3.0 and Moirai (non-commercial licences), GraphRAG, multi-agent.
+### Write these
 
-**Stack**
-
-LangGraph with SQLite checkpointer and `interrupt()` for the human gate; Pydantic validation on every
-agent step; hybrid BM25 plus dense retrieval fused by reciprocal rank fusion with claim-to-source
-enforcement; Streamlit with the reasoning trace and audit log visible; pytest plus a frozen scenario
-suite with cached and replayed LLM responses.
-
-**Data**
-
-- Ingestion via the **Health Connect Webhook** app (AGPL-3.0, Play Store), not a custom Android app,
-  and not a manual export.
-- **Stanford COVID-19-Wearables** for detection (open, HR and steps only, no labels in the archive).
-- **PMData** for confounder attribution (verified CC BY 4.0, 16 participants, 5 months;
-  `reporting.csv` has alcohol, `wellness.csv` has stress/mood/sleep quality, `srpe.csv` training load,
-  `resting_heart_rate.json` per day). **This is what dissolves the circularity objection**: PMData's
-  real self-reports are revealed only when the agent asks for them.
-- **COVID-RED** is the only RCT and the only dataset with confounder annotations, but it is gated.
-
----
-
-## 6. Verified facts
-
-**LLM serving, measured on Kaggle 2x Tesla T4, 31 August 2026**
-
-| Property | Value |
+| Path | What it is |
 |---|---|
-| Engine | **Ollama v0.33.2** (pinned). Not vLLM, not llama-cpp-python |
-| Model | `qwen3.8:27b` from Ollama's registry, 18 GB |
-| Placement | **100% GPU**, both cards, 8192 context |
-| Sustained generation | **9.2 tok/s** |
-| Time to first token, streaming | 4.34 s |
-| Cold start from cached weights | 2 min, versus ~20 min without |
-| JSON mode | Returns schema-valid objects |
-| Auth | Bearer-token proxy in front of the tunnel. Verified 401 on missing and wrong keys |
+| **`plan/PROGRESS.md`** | Your checklist. **Update after every task.** The only reason a dead session can resume |
+| **`plan/BLOCKERS.md`** | What you could not do, and why. Append, never rewrite |
+| **`src/wha/`** | **Does not exist yet. You create it.** All the code you write lives here |
+| **`tests/unit/`, `tests/integration/`, `tests/scenario/`, `tests/ui/`** | **Do not exist yet. You create them.** Task A-01 |
 
-**Three constraints this imposes on implementation:**
+### Load in code, but never edit
 
-1. **`max_tokens` must be at least 200.** Qwen3.8 is a thinking model; reasoning tokens are billed
-   against the budget but stripped from `content`. A small budget returns `finish_reason="length"`
-   with an **empty string**, which looks like a broken model. A two-word answer cost 37 tokens.
-2. **Thinking can only be disabled on the native `/api/chat`** with `"think": false`, not on
-   `/v1/chat/completions`. The proxy forwards all paths, so `/api/chat` is available unchanged.
-   Untested but worth ~40 to 50% latency.
-3. **The endpoint is ephemeral.** URL and key regenerate every Kaggle session. **The client must read
-   them from a `.env` at run time.** Never hard-code, never commit. `.gitignore` already excludes `.env`.
-
-**Speed is bandwidth-bound and near its ceiling.** One token reads all 18 GB, a T4 gives ~320 GB/s,
-and Ollama splits layers **sequentially**, so the ceiling is ~17.8 tok/s. The second T4 buys capacity,
-not speed. Tensor parallelism would help but Ollama does not do it and vLLM is broken on Turing. There
-is no MoE variant of Qwen3.8. An **unmeasured** `qwen3.8:27b-mtp-q4_K_M` at the same 18 GB offers
-multi-token prediction, reported at +33 to 39% with identical output. Measure it at the next cache
-rebuild.
-
-**Real device payload shape**, observed 31 August 2026, app v1.9.17. Fully documented in
-`tools/make_synthetic.py`. Step buckets align to local midnight (16:00Z on UTC+8); heart rate arrives
-in 1-minute buckets with avg/min/max. Only `heart_rate` and `steps` have been seen so far.
-
-**Plan for a narrow channel set. This is the single most important data fact.** Per
-`research/13-galaxy-watch5-data-reality.md`, Samsung Health writes **heart rate, steps, sleep stages
-and exercise** to Health Connect and **nothing else**. It does **not** write HRV, respiratory rate, or
-even resting heart rate. Those exist only in the manual export, **which the user has ruled out.**
-
-So the realistic working set is **heart rate, steps and sleep**. Resting heart rate must be derived
-from the overnight per-minute stream, which is fine and arguably better because we control the
-definition. The "biophysical triad" of cardiac, thermal and pulmonary signals is **not available**,
-and any design that assumes it will not run.
-
-One upside: this **removes the domain-shift objection**. `PROPOSAL.md` 4.5.1 worried that the open
-Stanford cohort carries heart rate and steps only while our device would offer more. It will not. Our
-channels and the cohort's now line up.
-
-**Important:** the Samsung Health **export** does contain `com.samsung.health.hrv`,
-`respiratory_rate` and `skin_temperature`. The earlier claim that the watch lacks these was wrong; it
-is true of the Data SDK, not the export. But **the user will not provide the export**, so plan for
-whatever Health Connect delivers.
-
----
-
-## 7. Traps that already cost time
-
-| Trap | Avoid it by |
+| Path | What it is |
 |---|---|
-| **Bash heredocs mangle content.** Backticks became command substitution; apostrophes broke quoting; one incident silently emptied a table in `PROPOSAL.md` | Write scripts to a file, then execute. Do not pipe complex content through a heredoc |
-| **Stale cross-references after rewrites.** Caught four times, twice by the user: "eight components" when there were four, "roughly ten causes" while listing twelve, a serving section still specifying vLLM after we had abandoned it | After any structural edit, **read the whole document**, not a targeted grep |
-| **Jupyter "Run All" ignores `SystemExit`** | Use `RuntimeError` to halt a notebook run |
-| **Kaggle output is capped at 20 GB** | The model store is 18 GB. Nothing else large goes in `/kaggle/working` |
-| **A Quick Save from a serving session destroys the cache** | Only ever save from a `BUILD_CACHE=True` run |
-| **Kaggle's DNS cannot resolve a fresh `trycloudflare.com` hostname** | Never let an in-container self-test decide whether the endpoint works. The laptop is the client that matters |
-| **Ollama cannot import Unsloth "UD" GGUFs** | Use registry tags, not GGUF files |
-| **The Health Connect app 500s on unrecognised record types** | Keep the selected data types narrow |
-| **Overstating findings.** Twice I asserted something ("citations are fabricated", "the watch lacks HRV") that fuller checking disproved | State the evidence and its strength. Do not round a suspicion up to a fact |
+| **`data/knowledge/`** | Four cited YAML tables: causes, probes, red flags, source allow-list. **The project's medical content, authored by a human.** Your code loads and validates them |
+| **`tests/fixtures/scenarios/`** | Eleven frozen scenarios. Their `expect` blocks are the contract. **If one fails, fix the code** |
+| **`tests/fixtures/llm_cassettes/`** | Nineteen authored LLM responses, so everything runs offline |
+| **`.env`** | Already written and gitignored. Configuration and secrets. **Never commit it, never log a value from it** |
+
+### Do not read, or read only narrowly
+
+| Path | What it is | What to do |
+|---|---|---|
+| **`PROPOSAL.md`** (754 lines) | A narrative design document written **before** the plan. **Out of date in fourteen documented ways**, naming components that were dropped | **Do not read it. Do not build from it.** If you already have, disregard it entirely |
+| **`README.md`** | Public-facing overview | Ignore. Task C-10 rewrites it |
+| **`research/`** | 126,000 words of evidence and citations | Read **only** to find a number or a citation. **Never take a design decision from it.** Several notes are superseded and state the opposite of the current design |
+| **`archive/`** | An earlier, weaker generation | **Never read it.** It holds figures found under audit to be fabricated |
+| **`DISCLAIMER.md`**, **`LICENSE`**, **`.gitignore`** | Legal and repository config | Leave alone |
+
+Where `PROPOSAL.md` and `plan/` disagree, **`plan/` wins, always.** Every disagreement is catalogued
+in `plan/04-decisions.md` Part B, items B-1 to B-14.
 
 ---
 
-## 8. Open questions the plan must resolve
+## 2. Start here, in this order
 
-These are genuinely unsettled. They are the right things to spend planning time on.
-
-1. **What triggers a nightly run?** There is no server. Windows Task Scheduler, a manual button, or a
-   Streamlit-launched job? This determines the whole execution model.
-2. **How does the agent survive the LLM endpoint being down?** Kaggle sessions expire, quota is 30
-   h/week, and the URL changes. What happens to an in-flight episode?
-3. **The twelve causes: what exactly are they**, and what is the concrete elicitation procedure from
-   published effect sizes to conditional probability tables? This is the reasoning core and the most
-   under-specified part of the design.
-4. **What is actually in the retrieval corpus?** Which Singapore sources (MOH, HealthHub, NEA dengue
-   clusters) and which international ones, how many documents, chunked how?
-5. **How is the information-gain policy evaluated without labels?** F6 documents the pathologies here:
-   point-adjusted F1 lets random scores reach 0.969.
-6. **How is the interview surfaced?** The proposal says tap-first rather than free text. What does
-   that mean concretely for the UI and for the LLM's role?
-7. **What is the demo?** 4.2.5 says scripted replay. What exactly is replayed, and what is live?
-8. **Local versus Kaggle split.** What runs where, and what is the interface between them?
-9. **Which features are genuinely MUST for two weeks?** F1 to F20 is more than one person builds. The
-   plan should cut, explicitly, and say what is cut.
-
----
-
-## 9. What the implementation plan must cover
-
-The user asked for this to be **very detailed**:
-
-- High-level architecture, with the boundaries between deterministic code, the belief model, and the LLM drawn explicitly
-- Component-by-component breakdown, with responsibilities and interfaces
-- Detailed logic for the detector, the belief update, the information-gain policy, and the agent loop
-- Feature list mapped to F1 to F20, with a cut line for two weeks
-- Data layer: ingestion, storage schema, backfill, synthetic generation, the public datasets
-- Retrieval: corpus, chunking, indexing, fusion, claim-to-source enforcement
-- Safety: red-flag intercept, escalation, prompt-injection posture, audit log
-- Testing: unit, the frozen scenario suite, replayed LLM responses, the evaluation harness
-- Evaluation: detection metrics, policy benchmark against never-ask/always-ask/threshold, ablation per model, adversarial suite
-- Sequencing across two weeks, with dependencies and a critical path
-
----
-
-## 10. What I would challenge in the next session
-
-Offered as honest concerns, not blockers.
-
-- **F1 to F20 is too much for two weeks and one person.** The plan should force a cut early rather
-  than discover it in week two.
-- **The twelve-cause Bayesian network is the highest-risk component.** Eliciting twelve priors and
-  their conditional tables from literature, each with a citation, is slow and fiddly work. Consider
-  whether six well-evidenced causes would demonstrate the same idea and actually get finished.
-- **The evaluation is where marks are won and where projects run out of time.** Appendix B puts it
-  last. Consider building the harness early against synthetic data so it is not sacrificed.
-- **The novelty now rests on the decision layer**, since Hermes has the ask-and-update mechanism. That
-  makes the information-gain policy and its baseline comparison the single most important thing to
-  finish. If only one thing works properly, it should be that.
-- **9.2 tok/s shapes the UX.** Design for short LLM outputs and stream them. A 45-second wait per
-  interview turn will feel broken.
-
----
-
-## 11. Repository map
+**Read these four files first. All of them. They are short and they are the whole operating manual.**
 
 ```
-PROPOSAL.md        the specification. Read in full
-README.md          portfolio-facing overview
-DISCLAIMER.md      not a medical device
-LICENSE            MIT
-HANDOFF.md         this file
-research/          00-15 working notes; findings/ holds the 9 investigations
-archive/           earlier weaker generation, audited in research/00. NOT a source of truth
-tools/             probe_healthconnect.py, make_synthetic.py, kaggle_serve_qwen27b.ipynb
+AGENTS.md                          the hard rules
+.agents/rules/10-environment.md    how to run anything on this machine
+.agents/rules/20-prohibitions.md   what is forbidden, and why each one is silent if broken
+.agents/rules/40-task-workflow.md  the loop, blockers, definition of done
 ```
 
-`main` is a protected ref; pushes bypass as owner. Twelve historical commits carry the author name
-"Nathanael Brian"; the email is the GitHub noreply address throughout and repo-local `user.name` is
-now `NatBrian`. Rewriting those twelve is an open, unmade decision.
+`.agents/rules/30-python-conventions.md` is a reference. Read it once when you write the first
+module.
+
+**Then read `plan/02-contracts.md` in full.** It defines every schema, model, constant, service
+signature and error class. Every task depends on it and no task may contradict it.
+
+**Then begin the loop:**
+
+1. Open `plan/PROGRESS.md`. Find the **first row not marked `[x]`**. It will be `A-01`.
+2. Open **only** `plan/tasks/A-01.md`.
+3. Do exactly what it says. Write the tests it names first, then the code.
+4. Run **its** exit command. Not the component's.
+5. Green? Tick the row in `plan/PROGRESS.md` with today's date, then **commit**.
+   Blocked? Append to `plan/BLOCKERS.md`, mark the row `[!]`, and go to the next task that does not
+   depend on it.
+6. Next row. **Work through all 67, skipping only what is genuinely blocked.**
+
+Your first command will be from inside `plan/tasks/A-01.md`. Do not run `uv sync` before that;
+`pyproject.toml` does not exist yet, and creating it **is** task A-01.
+
+That is the whole job.
+
+---
+
+## 3. How you will be judged
+
+The human running you will review by **running the demo**. Not by reading your code, and not by
+reading your summary. These commands must work on a clean checkout:
+
+```bash
+uv sync
+uv run wha doctor                       # no fail rows
+uv run wha demo run illness-onset       # a full episode, offline, no endpoint needed
+uv run wha demo run red-flag            # deterministic escalation
+uv run wha demo run injection-poisoned  # and injection-clean, same disposition
+uv run wha serve                        # every page renders
+uv run pytest                           # green in full
+```
+
+**Everything above runs offline.** No network, no phone, no live model. The cassettes are authored
+and committed, the scenarios are frozen, and `wha demo run` forces the `cassette` provider unless
+`--live` is passed.
+
+If any of these cannot work, that is the most important thing to put in your final report, ahead of
+everything else.
+
+---
+
+## 4. What you need to run this. Two answers.
+
+### Data: you need none
+
+**Every test and every demo runs on synthetic data you generate yourself**, from the eleven frozen
+scenarios in `tests/fixtures/scenarios/`. Each has a fixed seed, so two runs produce byte-identical
+input. No wearable, no phone, no export, no personal data of any kind.
+
+| What | Data it needs | Blocks if absent |
+|---|---|---|
+| Every unit test | Synthetic, generated in-process | Nothing |
+| Every scenario test | Synthetic, from the frozen fixtures | Nothing |
+| Every `wha demo run` | Synthetic | Nothing |
+| Tasks **A-24 to A-28** only | Two **public** cohort datasets, roughly 5 GB, downloaded by `uv run wha data fetch` | **Only those five tasks.** Block them and continue |
+
+There is also a subject called `me` for real wearable data. **It has almost none**, and that is the
+correct state: the system reports rung `COLD` and disposition `INSUFFICIENT_DATA` until it has three
+usable nights. That behaviour is deliberate, is tested by the `cold-start` scenario, and is not a
+problem to fix.
+
+### LLM: configured, but tests never touch it
+
+`.env` at the repository root is already written and gitignored. It points at a live
+OpenAI-compatible endpoint.
+
+| Context | Provider | Why |
+|---|---|---|
+| **`pytest`, always** | `cassette` | An **autouse fixture in `tests/conftest.py` overrides `.env`.** Non-negotiable |
+| `wha demo run` | `cassette` | Deterministic, so the frozen `expect` blocks hold. `--live` opts in |
+| `wha doctor`, `serve`, `episode step`, `llm record` | live, from `.env` | Real model for anything a human runs |
+
+**Why tests never use the live endpoint:** you will run the suite hundreds of times across 67 tasks.
+A live provider would make that slow, costly, and nondeterministic enough to break every frozen
+scenario assertion.
+
+Nineteen cassettes are already committed under `tests/fixtures/llm_cassettes/`, so **you never need
+the endpoint to be up.** If it is down, everything still works.
+
+---
+
+## 5. The five rules that override everything
+
+1. **Never modify, weaken, delete or skip a test to make it pass.** Not a loosened assertion, not a
+   widened tolerance, not an `xfail`, not a changed expected value. If a test looks wrong, that is a
+   **blocker**: write it to `plan/BLOCKERS.md` and move to the next independent task.
+2. **Never invent a number.** Every threshold is in `src/wha/constants.py`. Every clinical figure is
+   in `data/knowledge/`. If a value you need is not there, that is a blocker.
+3. **Never edit `data/knowledge/`, `plan/` (except `PROGRESS.md` and `BLOCKERS.md`), `PROPOSAL.md`,
+   `HANDOFF.md`, `research/` or `archive/`.** They are read-only inputs.
+4. **Always `uv run`.** Never bare `python`, never bare `pip`. On this machine `python` resolves to
+   an unrelated project's virtual environment and your imports will fail in a way that looks like a
+   code bug and is not.
+5. **Never `git push`.** Commit locally when a task says to. Never push, force, rebase or rewrite
+   history.
+
+A recorded blocker is a **good outcome**. A silent workaround is the worst one.
+
+---
+
+## 6. How the plan is organised
+
+Three layers. Load only what a task names.
+
+| Layer | What | When you read it |
+|---|---|---|
+| `plan/02-contracts.md` | Schemas, models, constants, service signatures, errors. **The contract.** | Every task |
+| `plan/components/NN-*.md` | The design for one area: logic, edge cases, named tests | Only the one your task names |
+| `plan/tasks/<id>.md` | What to build, which tests, the exit command, the do-not list | One at a time |
+| `plan/phases/*.md` | Ordering, dependencies, critical path | For orientation, once |
+| `plan/01-overview.md` | System shape, where agency lives, scope | For orientation, once |
+| `plan/04-decisions.md` | Why each choice was made | Only when tempted to change one |
+
+> **Follow the exit command in the TASK file, not the one in the component document.** Component
+> exits describe the finished area and may reference commands a later task creates.
+
+---
+
+## 7. What this system is, in sixty seconds
+
+A wearable detects that something changed but cannot say why. A raised overnight resting heart rate
+is produced by infection, alcohol, hard training, short sleep, stress, vaccination or the luteal
+phase, and to a wrist sensor they look nearly identical.
+
+**The monitor is deterministic.** Every morning it derives resting heart rate from the 00:00 to 07:00
+window, compares it against the person's own baseline, and decides whether anything happened. No
+language model. Most nights are quiet and cost zero.
+
+**The agent is the investigation.** When a deviation is flagged, an LLM-driven agent opens an
+*episode*. It chooses its own read-only tool calls, reads history, retrieves clinical evidence,
+writes its own questions and runs the interview. A deterministic model tracks which of twelve causes
+are contributing.
+
+**One decision is not the model's:** whether to interrupt the human. That is expected value of
+sample information against an interruption cost, in numpy, outside the model. It is the project's
+contribution and it is the reason the policy can be benchmarked rather than merely demonstrated.
+
+---
+
+## 8. Traps that fail silently
+
+Each of these produces code that runs and is wrong.
+
+| Trap | Rule |
+|---|---|
+| `python` on PATH | Points at another project's venv. **Always `uv run`** |
+| LangGraph `interrupt()` | Re-runs the **whole node** on resume, not from the interrupt. Everything before it must be idempotent |
+| Thinking models | `max_tokens` below `LLM_MAX_TOKENS_FLOOR` returns an **empty string**, not an error |
+| Provider JSON mode | Not uniform across providers. Always validate with Pydantic. One repair round, then raise |
+| **YAML booleans** | Bare `no`, `yes`, `on`, `off` parse as booleans. An `option_id: no` becomes `False` and the slot silently breaks **while still passing YAML validation** |
+| Log-space inference | Products of 4096 Gaussian densities underflow to zero within a few nights. You get a uniform posterior and never notice |
+| MAD floor | MAD is **exactly zero** on quantised data. Without `BASELINE_SCALE_FLOOR_BPM` you divide by zero and every night becomes an infinite deviation |
+| Telegram `callback_data` | Hard 64-byte limit |
+| Windows paths | `pathlib.Path` only. Never a hard-coded separator |
+| Shell heredocs | This repository has already lost file content to them. Use a file-writing tool |
+
+---
+
+## 9. What already exists and works
+
+- **`data/knowledge/`** -- the cited medical tables. Twelve causes, nine probes, the red-flag rules,
+  the endpoint allow-list. **Read-only.** Every number labelled `CITED`, `DERIVED` or `ASSUMED`.
+- **`tests/fixtures/scenarios/`** -- eleven frozen scenarios. Their `expect` blocks are the contract.
+  **If a scenario fails, fix the code, never the fixture.**
+- **`tools/make_synthetic.py`** -- documents the **real device payload schema**, observed on hardware.
+  Authoritative. Read it before writing the ingestion parser. Do not invent field names.
+- **`tools/probe_healthconnect.py`** -- the bridge probe, structure-only, prints no health values.
+- **`tools/kaggle_serve_qwen27b.ipynb`** -- the self-hosted LLM endpoint, measured on hardware.
+
+---
+
+## 10. Facts measured on real hardware, not assumed
+
+- The bridge delivers **heart rate in 1-minute buckets** and **steps in daily buckets**. There is no
+  per-minute step data, which is why the published activity-masking method is impossible and the
+  detector uses the nocturnal window instead.
+- Samsung Health writes **only heart rate, steps, sleep stages and exercise** to Health Connect. No
+  HRV, no respiratory rate, no skin temperature, no resting heart rate. **Any design assuming those
+  will not run.** Sleep and exercise may never arrive at all; treat them as optional everywhere.
+- The self-hosted endpoint sustains about **9.2 tokens per second** and its URL and key regenerate
+  every session. **It is expected to be down most of the time.** Every test runs against recorded
+  cassettes with `WHA_LLM_PROVIDER=cassette`, and `LLMUnavailable` parks an episode rather than
+  fabricating or closing it.
+- About **33 GB free disk and no second drive.** Extract datasets selectively, convert to parquet,
+  delete intermediates.
+
+---
+
+## 11. `research/` is evidence, not design
+
+You may read `research/` to find a citation or a measured figure. **You must never take an
+architectural conclusion from it.** Several of those notes are superseded and say the opposite of
+the current design: one recommends building on a manual export that has been ruled out, another
+assumes a team of four. `archive/` is an earlier, weaker generation and is not a source of fact.
+
+**Design comes from `plan/` only.**
+
+---
+
+## 12. What a human still owes you, and what to do meanwhile
+
+None of these blocks starting. All are recorded in `plan/PROGRESS.md`.
+
+| Owed | Blocks | Do this instead |
+|---|---|---|
+| `data/knowledge/corpus.yaml` | B-04 only | Build the corpus code against the fixture corpus in `tests/fixtures/corpus/`, which you create in B-04. Record the blocker and continue |
+| `data/knowledge/cohort_labels.yaml` | A-25 to A-28 only | Every task up to A-24 runs with no dataset at all. Record the blocker and continue to Phase B |
+| Whether a manual heart-rate reading reaches Health Connect | nothing | Implement `MEASURE` with **both** kinds. If the spot reading proves unavailable later, `wear_tonight` is the fallback |
+
+**LLM cassettes are already authored and committed.** Nineteen files under
+`tests/fixtures/llm_cassettes/`. There is no recording step, and **you never need the endpoint**.
+
+---
+
+## 13. Definition of done, per task
+
+All six, or it is not done:
+
+1. The task's exit command exits zero.
+2. `uv run pytest` green **in full**, not only the new tests.
+3. `uv run ruff check src tests` clean.
+4. No test weakened, skipped or deleted.
+5. No contract changed.
+6. `plan/PROGRESS.md` updated with the date.
+7. **The work is committed.** One task, one commit. Never push.
+
+## 14. When you finish, or cannot continue
+
+Run all of these:
+
+```bash
+uv run pytest
+uv run ruff check src tests
+uv run wha doctor
+for s in illness-onset alcohol-night workout-explained red-flag cold-start nonwear-gap          no-response-timeout stress-mimic budget-exhausted injection-poisoned injection-clean; do
+  uv run wha demo run $s
+done
+```
+
+Then write the final summary at the end of `plan/PROGRESS.md` and repeat it in your report:
+
+1. **How many of the 67 tasks are `[x]`**, by phase.
+2. **Which demo commands work**, one line each, because that is how you will be reviewed.
+3. **Every blocker**, with the one-line reason. Do not bury these.
+4. **Anything you had to guess.** If you invented a name, a shape or a value that the contract did
+   not give you, say so explicitly. A guess you flag is fine. A guess you hide is not.
+5. **Anything you noticed that a human should look at**, including anywhere the plan seemed wrong.
+
+**Then stop.** Do not start improving things nobody asked for, do not begin Phase D, and do not
+refactor code no task named.
+
+---
+
+## 15. Project history, for context only
+
+Research, design and implementation planning are complete and are not to be redone.
+
+`research/findings/` holds nine investigations, roughly 126,000 words with about 2,100 citations,
+each carrying explicit `UNVERIFIED` flags where a claim could not be sourced. `PROPOSAL.md` is the
+written narrative artefact and **is not the thing to code from**; where it and `plan/` disagree,
+`plan/` wins, and `plan/04-decisions.md` Part B records all fourteen contradictions and how each is
+resolved.
+
+Two prior corrections are worth knowing because they set the standard for this repository. An
+earlier generation of the research was audited and found to carry fabricated performance figures.
+And a preprint flagged as a required read was left unread while the design was written; reading it
+falsified a sentence in the project's own summary, and the claim was narrowed rather than defended.
+
+**State the evidence and its strength. Do not round a suspicion up to a fact.**

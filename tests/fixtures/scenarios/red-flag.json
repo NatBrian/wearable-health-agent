@@ -1,0 +1,25 @@
+{
+  "name": "red-flag",
+  "description": "An answer containing a tier-A phrase. Deterministic escalation must bypass the agent entirely.",
+  "days": 30,
+  "base_bpm": 59.0,
+  "seed": 41,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "illness",
+      "start_day": 28,
+      "amplitude_bpm": 4.2
+    }
+  ],
+  "oracle": {
+    "probe_symptoms": "other",
+    "free_text": "feels like an elephant is sitting on my chest"
+  },
+  "expect": {
+    "disposition": "ESCALATED",
+    "escalates": true,
+    "escalation_level": "urgent",
+    "note": "Tier A. The phrase does not contain the literal words 'chest pain', so this also exercises the phrasing list. Must escalate on the RULES, not only on the model, and must NOT reach the belief or policy nodes."
+  }
+}

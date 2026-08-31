@@ -1,0 +1,29 @@
+{
+  "name": "workout-explained",
+  "description": "A 5 bpm rise with a recorded workout ending 90 minutes before sleep. Explained variance must absorb it and the system must stay silent.",
+  "days": 30,
+  "base_bpm": 56.0,
+  "seed": 37,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "exercise",
+      "day": 29,
+      "end_offset_h": 1.5,
+      "amplitude_bpm": 5.0
+    },
+    {
+      "kind": "exercise",
+      "day": 28,
+      "end_offset_h": 1.2,
+      "amplitude_bpm": 4.8
+    }
+  ],
+  "expect": {
+    "disposition": null,
+    "flagged_on_day": null,
+    "asks_at_least": 0,
+    "escalates": false,
+    "note": "residual must be GREEN on both nights after subtraction. THE COST-MODEL TEST: zero LLM calls on both nights."
+  }
+}

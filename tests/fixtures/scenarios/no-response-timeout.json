@@ -1,0 +1,25 @@
+{
+  "name": "no-response-timeout",
+  "description": "A question is asked and never answered. Non-response is a DESIGNED path, not a failure.",
+  "days": 30,
+  "base_bpm": 60.0,
+  "seed": 71,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "illness",
+      "start_day": 28,
+      "amplitude_bpm": 4.4
+    }
+  ],
+  "oracle": {
+    "__no_response__": true
+  },
+  "expect": {
+    "disposition": "UNRESOLVED",
+    "asks_at_least": 1,
+    "escalates": false,
+    "budget_consumed": 1,
+    "note": "Must reach a sensible disposition WITHOUT an answer. The budget is still consumed, because the interruption was spent."
+  }
+}

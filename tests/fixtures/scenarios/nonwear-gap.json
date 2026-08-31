@@ -1,0 +1,25 @@
+{
+  "name": "nonwear-gap",
+  "description": "Elevated, then five nights of non-wear, then elevated again. The gap must break the run and must never be interpolated.",
+  "days": 30,
+  "base_bpm": 57.0,
+  "seed": 67,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "illness",
+      "start_day": 22,
+      "amplitude_bpm": 4.5
+    },
+    {
+      "kind": "nonwear",
+      "start_day": 24,
+      "nights": 5
+    }
+  ],
+  "expect": {
+    "asks_at_least": 0,
+    "escalates": false,
+    "note": "Two separate alert events, not one long one. Nights 24 to 28 have level NA and contribute NO likelihood to the belief, but STILL ADVANCE the temporal profile index. No interpolated value may appear anywhere."
+  }
+}

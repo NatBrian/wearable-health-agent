@@ -1,0 +1,21 @@
+{
+  "prompt_id": "interview_followup",
+  "prompt_version": "1",
+  "scenario": "default",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "text": "How long has that been going on?",
+    "option_labels": [
+      "Since today",
+      "A couple of days",
+      "Longer"
+    ],
+    "rationale": "Onset timing is the cheapest remaining discriminator."
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

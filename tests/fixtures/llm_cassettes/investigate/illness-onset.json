@@ -1,0 +1,85 @@
+{
+  "prompt_id": "investigate",
+  "prompt_version": "1",
+  "scenario": "illness-onset",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": [
+    {
+      "tool_call": {
+        "tool_name": "get_nightly_features",
+        "args": {
+          "start": "-10d",
+          "end": "today"
+        },
+        "called_at_utc": "2026-09-01T02:00:00Z"
+      },
+      "done": null
+    },
+    {
+      "tool_call": {
+        "tool_name": "get_known_events",
+        "args": {
+          "start": "-3d",
+          "end": "today"
+        },
+        "called_at_utc": "2026-09-01T02:00:00Z"
+      },
+      "done": null
+    },
+    {
+      "tool_call": {
+        "tool_name": "find_similar_past_episodes",
+        "args": {
+          "pattern": {
+            "peak_residual_bpm": 4.6,
+            "elevated_nights": 2
+          }
+        },
+        "called_at_utc": "2026-09-01T02:00:00Z"
+      },
+      "done": null
+    },
+    {
+      "tool_call": {
+        "tool_name": "get_local_disease_activity",
+        "args": {},
+        "called_at_utc": "2026-09-01T02:00:00Z"
+      },
+      "done": null
+    },
+    {
+      "tool_call": {
+        "tool_name": "retrieve_clinical_evidence",
+        "args": {
+          "query": "dengue early presentation warning signs fever onset",
+          "layer": "sg"
+        },
+        "called_at_utc": "2026-09-01T02:00:00Z"
+      },
+      "done": null
+    },
+    {
+      "tool_call": {
+        "tool_name": "retrieve_clinical_evidence",
+        "args": {
+          "query": "resting heart rate elevation after alcohol duration",
+          "layer": null
+        },
+        "called_at_utc": "2026-09-01T02:00:00Z"
+      },
+      "done": null
+    },
+    {
+      "tool_call": null,
+      "done": {
+        "reason": "Two elevated nights, no workout on record, an active dengue cluster, and a comparable past episode that turned out to be alcohol. Enough to form a belief."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

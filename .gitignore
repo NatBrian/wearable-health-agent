@@ -1,5 +1,9 @@
 # --- Data. Never commit wearable datasets or personal health data. ---
-data/
+# NOTE: data/ is ignored by CONTENT, not as a directory, because
+# data/knowledge/ holds the authored, cited knowledge tables and MUST be committed.
+data/*
+!data/knowledge/
+data/knowledge/*.sqlite
 datasets/
 raw/
 *.zip

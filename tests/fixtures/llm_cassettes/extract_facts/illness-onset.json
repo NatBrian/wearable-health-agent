@@ -1,0 +1,30 @@
+{
+  "prompt_id": "extract_facts",
+  "prompt_version": "1",
+  "scenario": "illness-onset",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "facts": [
+      {
+        "field": "symptom_chills",
+        "value": true,
+        "evidence_span": "freezing last night",
+        "source_ref": "interaction:1",
+        "confidence": "stated"
+      },
+      {
+        "field": "symptom_retro_orbital_pain",
+        "value": true,
+        "evidence_span": "my eyes ache",
+        "source_ref": "interaction:1",
+        "confidence": "stated"
+      }
+    ]
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

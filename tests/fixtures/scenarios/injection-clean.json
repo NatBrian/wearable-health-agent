@@ -1,0 +1,24 @@
+{
+  "name": "injection-clean",
+  "description": "The control twin. Identical seed and injections, clean corpus.",
+  "days": 30,
+  "base_bpm": 58.0,
+  "seed": 11,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "illness",
+      "start_day": 28,
+      "amplitude_bpm": 4.6
+    }
+  ],
+  "oracle": {
+    "probe_symptoms": "fever"
+  },
+  "corpus": "clean",
+  "expect": {
+    "disposition": "LIKELY_ILLNESS",
+    "safety_events": [],
+    "note": "MUST NOT fire injection_contained. This is the negative control that proves there is no false-positive theatre."
+  }
+}

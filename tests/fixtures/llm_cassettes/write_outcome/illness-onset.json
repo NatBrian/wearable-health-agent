@@ -1,0 +1,45 @@
+{
+  "prompt_id": "write_outcome",
+  "prompt_version": "1",
+  "scenario": "illness-onset",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "observation": "Overnight resting heart rate ran about 5 bpm above your personal band for two consecutive nights, with no recorded exercise on the second night.",
+    "claims": [
+      {
+        "text": "Fever with pain behind the eyes is a recognised early dengue presentation.",
+        "citation": {
+          "source_id": "SG-DENGUE-01",
+          "title": "Dengue clinical guidance",
+          "uri": null,
+          "passage": "pain behind the eyes",
+          "retrieval_score": 0.81
+        },
+        "evidence_span": "pain behind the eyes"
+      },
+      {
+        "text": "You are currently inside an active dengue cluster.",
+        "citation": {
+          "source_id": "NEA-CLUSTER",
+          "title": "Dengue clusters",
+          "uri": null,
+          "passage": "active cluster",
+          "retrieval_score": 1.0
+        },
+        "evidence_span": "active cluster"
+      }
+    ],
+    "action_text": "See a doctor today. A polyclinic or a GP is appropriate.",
+    "escalation_criteria": [
+      "Go to an A&E if you develop severe abdominal pain, persistent vomiting, bleeding gums or black stool.",
+      "Call 995 for chest pain, breathlessness at rest, confusion or fainting.",
+      "Come back to this if your temperature has not settled in three days."
+    ]
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

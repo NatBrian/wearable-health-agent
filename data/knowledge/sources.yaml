@@ -1,0 +1,127 @@
+# sources.yaml
+#
+# The complete allow-list of external endpoints and corpus sources.
+# READ ONLY. Authored by a human.
+#
+# ANYTHING NOT IN THIS FILE IS REFUSED. There is no open web search, no arbitrary URL
+# fetch, and no way for the model to add an entry. Reach is extended by a human adding a
+# named source here, not by opening the door.
+#
+# WHY. This system holds private health data and has an outbound channel to a phone.
+# Adding arbitrary untrusted web content would complete the lethal trifecta, and a claim
+# from a random page cannot be cited as clinical evidence while the entire grounding
+# story is claim-to-source enforcement over a curated corpus.
+
+schema_version: "1.0"
+
+# --- Live endpoints. The only network the agent can reach. -------------------
+live_endpoints:
+
+  - id: nea_dengue_clusters
+    url: "https://data.gov.sg/api/action/datastore_search"
+    resource: "dengue-clusters-geojson"
+    auth: none
+    cache_hours: 6
+    schema_validated: true
+    used_by: get_local_disease_activity
+    note: >
+      Open, unauthenticated, from a named authority. Verified reachable without
+      credentials. Cluster polygons with case counts. A subject inside an active cluster
+      materially raises the dengue prior, and no shipped product does this.
+
+  - id: nea_air_quality
+    url: "https://api.data.gov.sg/v1/environment/psi"
+    auth: none
+    cache_hours: 6
+    schema_validated: true
+    used_by: get_local_disease_activity
+    note: >
+      Haze materially affects respiratory symptoms in this region, so it is a genuine
+      confounder for a respiratory complaint rather than decoration.
+
+# --- Corpus sources. Fetched once, indexed locally, never queried live. -------
+corpus_sources:
+
+  - id: medlineplus
+    layer: 1
+    url: "https://medlineplus.gov/xml/mplus_topics_compressed.zip"
+    licence: "Free, no registration. ATTRIBUTION ONLY."
+    licence_ok_for_public_repo: true
+    format: xml
+    approx_size_mb: 29
+    refresh: "daily, Tue to Sat"
+    note: >
+      The bulk layer, and the best fit by some distance. Consumer register, which matches
+      a wellness tool's voice and the general-wellness regulatory boundary. One file,
+      trivially chunkable, no licence friction.
+
+  - id: statpearls
+    layer: 2
+    url: "ftp://ftp.ncbi.nlm.nih.gov/pub/litarch/"
+    manifest: "file_list.csv"
+    licence: "CC BY-NC-ND 4.0"
+    licence_ok_for_public_repo: true
+    licence_caveat: >
+      NON-COMMERCIAL and NO-DERIVATIVES. Chunking and embedding for a research prototype
+      is defensible; shipping a commercial product on it is not. STATED IN THE REPORT.
+    format: nxml
+    subset: "selected chapters only, listed in corpus.yaml"
+    note: "Clinical-reference register, for depth the consumer layer does not carry."
+
+  - id: sg_care_pathways
+    layer: 3
+    method: hand_curated
+    licence: "Quoted excerpts with attribution and source URL"
+    licence_ok_for_public_repo: true
+    note: >
+      HAND-CURATED, NOT SCRAPED. Licensing for the relevant national sources could not be
+      verified programmatically, and bulk-ingesting content whose terms are unread is not
+      defensible in a public repository. A small set of quoted excerpts with source URLs
+      and fetch dates is. Covers: when a polyclinic is appropriate, when a GP is, when an
+      A&E is, and when to call 995. Plus national dengue clinical guidance, including the
+      warning signs used by the tier-B escalation text.
+    why_this_matters: >
+      Not localisation for its own sake. General pretraining corpora represent Singapore
+      MOH clinical guidance SPARSELY and local documentation conventions BARELY AT ALL.
+      The model does not know this material. It also changes the differential, because
+      dengue is endemic here and effectively absent from the US and UK sources that
+      dominate international corpora, and it has different red flags and a different
+      escalation urgency from influenza.
+
+  - id: confounder_table
+    layer: 4
+    method: generated
+    source_file: "data/knowledge/causes.yaml"
+    licence: "Ours"
+    licence_ok_for_public_repo: true
+    note: >
+      Every effect size, base rate and temporal profile, rendered as retrievable passages
+      so the agent can cite the evidence behind its own reasoning rather than asserting it.
+
+# --- Explicitly excluded, with reasons ---------------------------------------
+excluded:
+
+  - id: open_web_search
+    reason: >
+      Completes the lethal trifecta: private data, untrusted content, and an outbound
+      channel. Also produces claims that cannot be cited, which breaks claim-to-source
+      enforcement. NOT A CAPABILITY GAP, A DELIBERATE ABSENCE.
+
+  - id: pmc_open_access
+    reason: >
+      Primary research literature is the wrong register for a consumer wellness agent, the
+      volume is far beyond this project, and the bulk access route changed in August 2026
+      so most existing tutorials are wrong. If ever needed, a narrow PMID-list pull via the
+      supported API, never a bulk fetch.
+
+  - id: nice_guidance
+    reason: >
+      The licence terms page blocks automated fetching and the content is widely understood
+      to carry a UK-territorial restriction, which would be a real problem for a
+      Singapore-based tool. Not used until a human has read the licence.
+
+  - id: cdc_guidance
+    reason: >
+      US federal works are generally public domain, but the terms page returned 403 to
+      automated fetching and the status was never confirmed by hand. Excluded rather than
+      assumed. MedlinePlus covers the same register with an unambiguous licence.

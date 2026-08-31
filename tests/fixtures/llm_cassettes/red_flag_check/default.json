@@ -1,0 +1,16 @@
+{
+  "prompt_id": "red_flag_check",
+  "prompt_version": "1",
+  "scenario": "default",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "suspected_flag_ids": [],
+    "reason": "No red-flag language present."
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

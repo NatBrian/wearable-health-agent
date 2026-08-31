@@ -1,0 +1,155 @@
+# red_flags.yaml
+#
+# The deterministic safety floor. READ ONLY. Authored by a human.
+#
+# Runs BEFORE the agent, on every flagged night and every free-text answer. Plain code.
+# It cannot be reasoned past because it is not reasoning.
+#
+# POSTURE: BALANCED, not over-sensitive. A stream of unnecessary escalations is itself
+# the alarm-fatigue failure this project exists to fix. But "balanced" taken literally
+# would leave a hole, so:
+#
+#   TIER A   one is enough           the ambulance list. Nobody wants a second opinion
+#   TIER B   two or more, or persistence beyond a stated duration
+#   VITALS   alongside tier A, in robust z against the person's own baseline
+#   TIER C   the model, ADDITIVE ONLY, in code elsewhere. It may add a flag, never remove
+#
+# THE MODEL CAN ONLY MAKE THIS LOUDER, NEVER QUIETER. Rules and model are combined by
+# SET UNION, in code, not by a prompt instruction.
+#
+# This file is not a diagnostic instrument. It is a routing rule for a consumer wellness
+# tool, deliberately simple, with a language model as the backstop for phrasing it misses.
+
+schema_version: "1.0"
+
+tier_a:
+  # One match is enough. Immediate ESCALATE(urgent), bypassing the agent entirely.
+
+  - id: rf_chest_pain
+    match: ["chest pain", "chest pressure", "chest tightness", "pain in my chest",
+            "tight chest", "crushing", "elephant on my chest", "band around my chest"]
+    guidance: "Chest pain or pressure needs assessment now. Call 995 or go to an A&E."
+    rationale: "Cannot be excluded from wearable data, and it is time-critical."
+
+  - id: rf_breathless_at_rest
+    match: ["can't breathe", "cannot breathe", "short of breath at rest",
+            "breathless sitting", "gasping", "struggling to breathe",
+            "breathless just lying"]
+    guidance: "Breathlessness at rest needs assessment now. Call 995 or go to an A&E."
+    rationale: "Distinguish from exertional breathlessness, which is tier B."
+
+  - id: rf_confusion
+    match: ["confused", "disoriented", "can't think straight", "slurred",
+            "not making sense", "drowsy and confused"]
+    guidance: "New confusion needs assessment now. Call 995."
+    rationale: "A recognised marker of serious systemic illness across many conditions."
+
+  - id: rf_syncope
+    match: ["fainted", "passed out", "blacked out", "nearly fainted",
+            "about to pass out", "lost consciousness"]
+    guidance: "Fainting or near-fainting needs assessment now. Call 995 or go to an A&E."
+    rationale: "Cardiac and volume causes cannot be excluded here."
+
+  - id: rf_meningism
+    match: ["stiff neck", "neck stiffness", "can't touch chin to chest",
+            "light hurts my eyes", "photophobia"]
+    requires_also: ["fever"]
+    guidance: "A stiff neck with fever needs assessment now. Go to an A&E."
+    rationale: >
+      The one tier-A rule with a conjunction, because a stiff neck alone is usually
+      musculoskeletal. With fever it is not something to wait on.
+
+  - id: rf_bleeding
+    match: ["bleeding that won't stop", "coughing up blood", "vomiting blood",
+            "blood in my stool", "black stool"]
+    guidance: "Uncontrolled or unexplained bleeding needs assessment now. Go to an A&E."
+    rationale: "Time-critical and outside anything this system can assess."
+
+vitals:
+  # Alongside tier A. Expressed in robust z against the PERSON'S OWN baseline, because
+  # 95 bpm means different things for different people.
+  - id: rf_rhr_extreme_high
+    robust_z_above: 6.0
+    guidance: >
+      Your overnight resting heart rate is far outside your own usual range. If you feel
+      unwell with this, seek medical advice today.
+    rationale: "Six robust standard deviations is well beyond any confounder in the table."
+    cold_rung_fallback_bpm_above: 100
+    cold_rung_note: >
+      Below the SHRINKING rung there is no established personal range, so a wide absolute
+      bound is used and the message says the baseline is still forming.
+
+  - id: rf_rhr_extreme_low
+    robust_z_below: -6.0
+    guidance: >
+      Your overnight resting heart rate is unusually low for you. If you feel faint or
+      unwell, seek medical advice today.
+    rationale: >
+      Included because relative bradycardia is a documented phase of some infections and
+      because beta blockade plus illness is a real combination.
+    cold_rung_fallback_bpm_below: 40
+
+tier_b:
+  # TWO OR MORE co-occurring, OR one persisting beyond persist_nights.
+  # ESCALATE(same_day). This is where "balanced" lives.
+
+  - id: rf_fever
+    match: ["fever", "feverish", "temperature", "burning up", "chills", "shivering"]
+    persist_nights: 3
+    guidance: "See a doctor today."
+
+  - id: rf_body_aches
+    match: ["aching all over", "body aches", "muscle aches", "everything hurts"]
+    persist_nights: 4
+
+  - id: rf_severe_fatigue
+    match: ["exhausted", "can't get out of bed", "no energy at all",
+            "wiped out", "completely drained"]
+    persist_nights: 4
+
+  - id: rf_poor_intake
+    match: ["can't eat", "not eating", "can't keep fluids down", "no appetite at all"]
+    persist_nights: 2
+
+  - id: rf_exertional_breathlessness
+    match: ["out of breath on the stairs", "breathless walking",
+            "short of breath when I move"]
+    persist_nights: 2
+
+  - id: rf_persistent_vomiting
+    match: ["vomiting", "throwing up", "being sick repeatedly"]
+    persist_nights: 2
+
+tier_b_guidance: >
+  Two or more of these together, or one that has not settled, is worth a same-day
+  appointment. A polyclinic or a GP is appropriate. Go to an A&E if you develop any of
+  the urgent signs listed above.
+
+negation_guards:
+  # Deliberately simple. A phrase preceding a match within this many words suppresses it.
+  window_words: 4
+  phrases: ["no", "not", "without", "denies", "haven't had", "never had",
+            "no more", "free of", "gone", "resolved"]
+  note: >
+    Kept simple ON PURPOSE. A real parser here would be over-engineering a layer that
+    already has a backstop: tier C, the language model, catches what this misses, and it
+    can only ADD a flag. Failing open in the safe direction is the correct trade.
+
+always:
+  # Applied to every outcome regardless of disposition, including LIKELY_BENIGN.
+  never_say: ["you are fine", "you're fine", "nothing to worry about", "definitely not",
+              "it's nothing", "no need to worry"]
+  always_include_escalation_criteria: true
+  note: >
+    THE SYSTEM NEVER OUTPUTS "YOU ARE FINE". Its disposition set includes UNRESOLVED and
+    INSUFFICIENT_DATA, and every output carries explicit criteria for when to seek care
+    regardless of what it concluded.
+
+# ---------------------------------------------------------------------------
+# OPERATOR REVIEW: the tier-A list, the two vitals thresholds, and the tier-B
+# persist_nights values. Those encode a judgement about YOUR health, in a tool you will
+# actually use, and they are the only place in this project where a wrong number has a
+# real-world consequence rather than a metric consequence.
+#
+# The phrasing lists are not exhaustive and are not meant to be. Tier C is the backstop.
+# ---------------------------------------------------------------------------
