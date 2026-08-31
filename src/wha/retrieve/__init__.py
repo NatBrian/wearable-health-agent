@@ -10,10 +10,16 @@ from wha.retrieve.corpus import (
     generate_layer_4_confounder_docs,
     load_corpus_from_directory,
 )
+from wha.retrieve.index import (
+    DefaultSentenceTransformerEmbedder,
+    Embedder,
+    HybridIndex,
+)
 from wha.retrieve.models import (
     Chunk,
     CorpusDocument,
     CorpusManifest,
+    RetrievalResult,
     SourceManifestEntry,
 )
 
@@ -21,6 +27,10 @@ __all__ = [
     "Chunk",
     "CorpusDocument",
     "CorpusManifest",
+    "DefaultSentenceTransformerEmbedder",
+    "Embedder",
+    "HybridIndex",
+    "RetrievalResult",
     "SourceManifestEntry",
     "build_corpus_manifest",
     "chunk_document",

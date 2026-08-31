@@ -35,6 +35,24 @@ class Chunk(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class RetrievalResult(BaseModel):
+    """Scored and ranked retrieved passage."""
+
+    model_config = ConfigDict(frozen=True)
+
+    chunk_id: str
+    doc_id: str
+    title: str
+    heading: str | None = None
+    text: str
+    parent_text: str
+    layer: int
+    source_url: str | None = None
+    score: float
+    rank: int = 1
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class SourceManifestEntry(BaseModel):
     """Manifest entry for a single corpus source layer."""
 
