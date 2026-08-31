@@ -9,6 +9,7 @@ from wha.ingest.base import (
     NormalisedStepBucket,
     normalise,
 )
+from wha.ingest.synthetic import Synthetic
 
 __all__ = [
     "DataSource",
@@ -17,5 +18,6 @@ __all__ = [
     "NormalisedHeartRate",
     "NormalisedSleepStage",
     "NormalisedStepBucket",
+    "Synthetic",
     "normalise",
 ]
