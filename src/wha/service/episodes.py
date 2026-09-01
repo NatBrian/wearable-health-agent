@@ -174,8 +174,10 @@ def submit_answer(
 
     try:
         int_row = conn.execute(
-            "SELECT id, episode_id, status FROM interactions WHERE id = ?",
-            (interaction_id,),
+            """SELECT id, episode_id, status FROM interactions
+               WHERE id = ? OR (episode_id = ? AND status = 'PENDING')
+               ORDER BY asked_at_utc DESC LIMIT 1""",
+            (interaction_id, interaction_id),
         ).fetchone()
 
         if int_row is None:
@@ -196,19 +198,20 @@ def submit_answer(
             return
 
         now_str = datetime.now(UTC).isoformat()
+        actual_int_id = int_row["id"]
         if answer.declined:
             conn.execute(
                 """UPDATE interactions
                    SET status = 'DECLINED', answered_at_utc = ?
                    WHERE id = ?""",
-                (now_str, interaction_id),
+                (now_str, actual_int_id),
             )
         else:
             conn.execute(
                 """UPDATE interactions
                    SET status = 'ANSWERED', answer_option_id = ?, free_text = ?, answered_at_utc = ?
                    WHERE id = ?""",
-                (answer.option_id, answer.free_text, now_str, interaction_id),
+                (answer.option_id, answer.free_text, now_str, actual_int_id),
             )
         conn.commit()
     finally:
