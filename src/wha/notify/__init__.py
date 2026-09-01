@@ -2,6 +2,7 @@
 
 from wha.notify.null import NullNotifier
 from wha.notify.protocol import MessageKind, Notifier
+from wha.notify.receiver import TelegramReceiver
 from wha.notify.telegram import TelegramNotifier, format_callback_data
 
 __all__ = [
@@ -9,5 +10,6 @@ __all__ = [
     "Notifier",
     "NullNotifier",
     "TelegramNotifier",
+    "TelegramReceiver",
     "format_callback_data",
 ]
