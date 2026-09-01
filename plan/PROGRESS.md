@@ -91,7 +91,7 @@ do it, run its exit command, then come back and update this table.
 | C-06 | Audit page, with hash-chain verification and export | C-01, B-23 | 15 | [x] | 2026-09-01 | |
 | C-07 | Evaluation page | C-01, B-23 | 15 | [x] | 2026-09-01 | |
 | C-08 | Settings page, with connection tests and delete-all | C-01, B-23 | 15 | [x] | 2026-09-01 | |
-| C-09 | `wha serve`, the scheduler thread, Task Scheduler documentation | C-01, B-20 | 17 | [ ] | | |
+| C-09 | `wha serve`, the scheduler thread, Task Scheduler documentation | C-01, B-20 | 17 | [x] | 2026-09-01 | |
 | C-10 | README rewrite, screenshots, quickstart | C-09 | - | [ ] | | |
 | C-11 | Documentation pass: strip course and team framing from the public documents | C-10 | - | [ ] | | |
 | C-12 | Full scenario sweep and the release checklist | C-09 | - | [ ] | | |

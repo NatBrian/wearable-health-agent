@@ -1,20 +1,22 @@
-"""Service functions for subject management."""
-
 import sqlite3
+from pathlib import Path
 
 from wha.db import connect
 from wha.db.migrations import apply_schema
 from wha.models import BaselineRung, Subject
 
 
-def list_subjects(conn: sqlite3.Connection | None = None) -> list[Subject]:
+def list_subjects(
+    db_path: Path | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> list[Subject]:
     """Retrieve all configured subjects with their latest baseline maturity status.
 
     Handles empty database cleanly (returns []).
     """
     close_conn = False
     if conn is None:
-        conn = connect()
+        conn = connect(db_path) if db_path is not None else connect()
         apply_schema(conn)
         close_conn = True
 

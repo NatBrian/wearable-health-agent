@@ -4,6 +4,7 @@ import os
 import sqlite3
 import time
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import httpx
 
@@ -22,8 +23,40 @@ from wha.models import (
 )
 
 
+def record_component_status(
+    status: ComponentStatus,
+    subject_id: str = "me",
+    db_path: Path | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    """Record a component status check into system_status table."""
+    close_conn = False
+    if conn is None:
+        conn = connect(db_path) if db_path is not None else connect()
+        apply_schema(conn)
+        close_conn = True
+
+    try:
+        conn.execute(
+            """INSERT INTO system_status (subject_id, component, ok, detail, ts_utc)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                subject_id,
+                status.component,
+                1 if status.ok else 0,
+                status.detail,
+                status.checked_at_utc.isoformat(),
+            ),
+        )
+        conn.commit()
+    finally:
+        if close_conn:
+            conn.close()
+
+
 def get_system_status(
-    subject_id: str,
+    subject_id: str = "me",
+    db_path: Path | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> SystemStatus:
     """Aggregate system status and recent health metrics for the status strip.
@@ -33,7 +66,7 @@ def get_system_status(
     """
     close_conn = False
     if conn is None:
-        conn = connect()
+        conn = connect(db_path) if db_path is not None else connect()
         apply_schema(conn)
         close_conn = True
 
@@ -108,13 +141,20 @@ def get_system_status(
         )
 
         # 3. Scheduler
+        row_sched = conn.execute(
+            "SELECT ok, detail FROM system_status WHERE component = 'scheduler' ORDER BY ts_utc DESC LIMIT 1"
+        ).fetchone()
+        sched_ok = bool(row_sched["ok"]) if row_sched else True
+        sched_detail = row_sched["detail"] if row_sched else "Scheduler active"
+        sched_severity = "ok" if sched_ok else "error"
+
         components.append(
             ComponentStatus(
                 component="scheduler",
-                ok=True,
-                detail="Scheduler active",
+                ok=sched_ok,
+                detail=sched_detail,
                 checked_at_utc=now_utc,
-                severity="ok",
+                severity=sched_severity,
             )
         )
 

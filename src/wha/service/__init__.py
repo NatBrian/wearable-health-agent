@@ -45,6 +45,10 @@ from wha.service.nights import (
     get_night_detail,
     list_nights,
 )
+from wha.service.scheduler import (
+    create_scheduler,
+    run_episode_tick,
+)
 from wha.service.settings import (
     delete_all_subject_data,
     get_service_settings,
@@ -52,6 +56,7 @@ from wha.service.settings import (
 )
 from wha.service.status import (
     get_system_status,
+    record_component_status,
     test_bridge_connection,
     test_llm_connection,
     test_telegram_connection,
@@ -67,6 +72,7 @@ __all__ = [
     "DoctorItem",
     "SourceUnavailable",
     "ask_about_episode",
+    "create_scheduler",
     "delete_all_subject_data",
     "explain_belief",
     "export_audit",
@@ -82,8 +88,10 @@ __all__ = [
     "list_subjects",
     "parse_date_range",
     "query_audit",
+    "record_component_status",
     "run_demo",
     "run_doctor",
+    "run_episode_tick",
     "run_evaluation_suite",
     "run_ingest",
     "run_nightly",

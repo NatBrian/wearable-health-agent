@@ -337,6 +337,62 @@ def eval_cmd(
             typer.echo("\nCaveats:")
             for c in res.caveats:
                 typer.echo(f"- {c}")
+
+
+@app.command("serve")
+def serve_cmd(
+    port: Annotated[int, typer.Option("--port", "-p", help="Port to bind dashboard")] = 8501,
+    host: Annotated[
+        str, typer.Option("--host", help="Host address to bind dashboard")
+    ] = "localhost",
+    no_scheduler: Annotated[
+        bool, typer.Option("--no-scheduler", help="Disable background scheduler")
+    ] = False,
+    db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
+) -> None:
+    """Start the Streamlit dashboard and background scheduler thread."""
+    import socket
+    import subprocess
+
+    from wha.service import create_scheduler
+
+    # Check port availability
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        in_use = s.connect_ex((host, port)) == 0
+        if in_use:
+            typer.echo(f"Port {port} is already in use.", err=True)
+            sys.exit(2)
+
+    scheduler = None
+    if not no_scheduler:
+        scheduler = create_scheduler(db_path=db)
+        scheduler.start()
+        typer.echo("Background scheduler started (ingest, nightly, episode_tick).")
+
+    app_path = Path(__file__).parent / "ui" / "app.py"
+    typer.echo(f"Starting Streamlit dashboard on http://{host}:{port}...")
+    try:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                str(app_path),
+                "--server.port",
+                str(port),
+                "--server.address",
+                host,
+                "--server.headless",
+                "true",
+            ],
+            check=False,
+        )
+    except KeyboardInterrupt:
+        typer.echo("\nShutting down serve...")
+    finally:
+        if scheduler and scheduler.running:
+            scheduler.shutdown(wait=False)
     sys.exit(0)
 
 
