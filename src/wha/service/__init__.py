@@ -4,6 +4,11 @@ from wha.errors import (
     ConfigError,
     SourceUnavailable,
 )
+from wha.service.audit import (
+    export_audit,
+    query_audit,
+    verify_hash_chain,
+)
 from wha.service.belief import (
     BeliefNightRecord,
     explain_belief,
@@ -26,7 +31,10 @@ from wha.service.episodes import (
     submit_human_decision,
     submit_measurement_done,
 )
-from wha.service.evaluation import run_evaluation_suite
+from wha.service.evaluation import (
+    get_evaluation_results,
+    run_evaluation_suite,
+)
 from wha.service.ingest import run_ingest
 from wha.service.nightly import (
     parse_date_range,
@@ -35,6 +43,11 @@ from wha.service.nightly import (
 from wha.service.nights import (
     get_night_detail,
     list_nights,
+)
+from wha.service.settings import (
+    delete_all_subject_data,
+    get_service_settings,
+    update_settings,
 )
 from wha.service.status import (
     get_system_status,
@@ -53,16 +66,21 @@ __all__ = [
     "DoctorItem",
     "SourceUnavailable",
     "ask_about_episode",
+    "delete_all_subject_data",
     "explain_belief",
+    "export_audit",
     "fetch_data",
     "get_episode",
+    "get_evaluation_results",
     "get_night_detail",
     "get_pending_interaction",
+    "get_service_settings",
     "get_system_status",
     "list_episodes",
     "list_nights",
     "list_subjects",
     "parse_date_range",
+    "query_audit",
     "run_demo",
     "run_doctor",
     "run_evaluation_suite",
@@ -74,4 +92,6 @@ __all__ = [
     "test_bridge_connection",
     "test_llm_connection",
     "test_telegram_connection",
+    "update_settings",
+    "verify_hash_chain",
 ]

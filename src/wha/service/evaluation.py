@@ -1,10 +1,15 @@
-"""Evaluation service for executing evaluation suites."""
+"""Evaluation service for executing evaluation suites and retrieving cached evaluation reports."""
 
+import json
+import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 from wha.errors import ConfigError
 from wha.eval.detection import run_detection_eval
 from wha.models import EvaluationResult
+
+logger = logging.getLogger(__name__)
 
 
 def run_evaluation_suite(suite: str, eval_dir: Path | None = None) -> EvaluationResult:
@@ -27,4 +32,33 @@ def run_evaluation_suite(suite: str, eval_dir: Path | None = None) -> Evaluation
 
     raise ConfigError(
         f"Unknown evaluation suite '{suite}'. Valid suites: detection, baseline-age, policy, ablation"
+    )
+
+
+def get_evaluation_results(suite: str, eval_dir: Path | None = None) -> EvaluationResult:
+    """Retrieve precomputed evaluation results for a suite.
+
+    If missing, returns an empty EvaluationResult with an explanatory caveat naming the command.
+    """
+    target_dir = eval_dir or Path("data/eval")
+    suite_normalized = suite.lower().replace("-", "_")
+    target_file = target_dir / f"{suite_normalized}.json"
+
+    if target_file.exists():
+        try:
+            data = json.loads(target_file.read_text(encoding="utf-8"))
+            return EvaluationResult.model_validate(data)
+        except (json.JSONDecodeError, OSError, ValueError) as exc:
+            logger.warning("Failed to load evaluation file %s: %s", target_file, exc)
+
+    return EvaluationResult(
+        suite=suite,
+        generated_at_utc=datetime.now(UTC),
+        metrics={},
+        tables={},
+        figures=[],
+        sample_size=0,
+        caveats=[
+            f"Evaluation results missing for suite '{suite}'. Run 'uv run wha eval run {suite}' to generate."
+        ],
     )

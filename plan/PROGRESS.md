@@ -71,7 +71,7 @@ do it, run its exit command, then come back and update this table.
 | B-20 | Telegram receive, callbacks, offset persistence | B-19 | 15 | [x] | 2026-09-01 | |
 | B-21 | Service: status, subjects, nights | A-13 | 14 | [x] | 2026-09-01 | |
 | B-22 | Service: episodes, including the bounded episode Q&A | B-18, B-06 | 14 | [x] | 2026-09-01 | |
-| B-23 | Service: audit, evaluation, settings | A-04, A-28 | 14 | [ ] | | |
+| B-23 | Service: audit, evaluation, settings | A-04, A-28 | 14 | [x] | 2026-09-01 | |
 | B-24 | CLI: `episode step`, `demo run`, `belief explain` | B-18 | 17 | [ ] | | |
 | B-25 | Eval: adversarial suite | B-10, B-24 | 16 | [ ] | | |
 | B-26 | The frozen scenario suite, end to end | B-24 | 09 | [ ] | | |
