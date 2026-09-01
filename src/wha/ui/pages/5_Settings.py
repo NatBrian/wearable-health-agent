@@ -11,9 +11,9 @@ def main() -> None:
     st.set_page_config(page_title="WHA - Settings", page_icon="⚙️", layout="wide")
     st.title("⚙️ System Settings & Privacy")
 
-    subject = render_subject_selector()
+    subject = render_subject_selector() or st.session_state.get("active_subject")
     if subject:
-        render_settings_page(subject.subject_id)
+        render_settings_page(subject)
     else:
         st.warning("No subjects available.")
 

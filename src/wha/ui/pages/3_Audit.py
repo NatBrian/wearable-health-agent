@@ -11,9 +11,9 @@ def main() -> None:
     st.set_page_config(page_title="WHA - Audit Trail", page_icon="📜", layout="wide")
     st.title("📜 Audit Trail & Verification")
 
-    subject = render_subject_selector()
+    subject = render_subject_selector() or st.session_state.get("active_subject")
     if subject:
-        render_audit_page(subject.subject_id)
+        render_audit_page(subject)
     else:
         st.warning("No subjects available.")
 
