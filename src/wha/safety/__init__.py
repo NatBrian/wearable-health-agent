@@ -1,4 +1,4 @@
-"""Safety layer: red flag rules, outbound validation, and injection detection."""
+"""Safety layer: red flag rules, outbound validation, injection detection, and pre-display output checks."""
 
 from wha.safety.injection import (
     InjectionVerdict,
@@ -16,6 +16,12 @@ from wha.safety.outbound import (
     OutboundMessage,
     OutboundValidationResult,
     validate_outbound,
+)
+from wha.safety.output_checks import (
+    check_no_diagnosis_language,
+    check_no_false_reassurance,
+    sanitize_fabricated_numbers_in_prose,
+    validate_and_sanitize_outcome,
 )
 from wha.safety.rules import (
     check_red_flags_deterministic,
@@ -39,11 +45,15 @@ __all__ = [
     "TierARule",
     "TierBRule",
     "VitalsRule",
+    "check_no_diagnosis_language",
+    "check_no_false_reassurance",
     "check_red_flags_deterministic",
     "check_red_flags_with_tier_c",
     "is_phrase_negated",
     "load_red_flags",
     "matches_symptom",
+    "sanitize_fabricated_numbers_in_prose",
     "scan_untrusted",
+    "validate_and_sanitize_outcome",
     "validate_outbound",
 ]
