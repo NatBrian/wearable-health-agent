@@ -22,7 +22,8 @@ STRESS_PROFILE = [0.8, 1.0, 1.0, 1.0, 1.0, 0.8, 0.6, 0.4, 0.0]
 
 def resting_bpm(local_hour: float, base_bpm: float) -> float:
     """Circadian baseline shape: lowest around 04:00, highest late afternoon."""
-    return base_bpm + 12.0 * math.sin((local_hour - 10.0) / 24.0 * 2 * math.pi)
+    circadian_shift = 6.0 * math.sin((local_hour - 10.0) / 24.0 * 2 * math.pi)
+    return base_bpm + circadian_shift + 6.0
 
 
 class Synthetic:
@@ -74,19 +75,21 @@ class Synthetic:
 
         # 2. Exercise sessions from injections
         exercise: list[dict[str, Any]] = []
+        local_start = start + timedelta(hours=utc_offset_h)
+        local_midnight_0 = local_start.replace(hour=0, minute=0, second=0, microsecond=0)
         for inj in self.scenario.injections:
             if inj.get("kind") == "exercise":
                 day_idx = inj.get("day", 0)
                 end_offset_h = float(inj.get("end_offset_h", 1.5))
-                # Local midnight for this day
-                local_midnight = start + timedelta(days=day_idx + 1)
-                # Exercise end is end_offset_h before midnight local
-                ex_end = local_midnight - timedelta(hours=utc_offset_h + end_offset_h)
-                ex_start = ex_end - timedelta(hours=1)
+                # Local midnight for this night (start of nocturnal window 00:00)
+                night_local_midnight = local_midnight_0 + timedelta(days=day_idx + 1)
+                ex_end_local = night_local_midnight - timedelta(hours=end_offset_h)
+                ex_end_utc = ex_end_local - timedelta(hours=utc_offset_h)
+                ex_start_utc = ex_end_utc - timedelta(hours=1)
                 exercise.append(
                     {
-                        "start_time": to_iso(ex_start),
-                        "end_time": to_iso(ex_end),
+                        "start_time": to_iso(ex_start_utc),
+                        "end_time": to_iso(ex_end_utc),
                         "kind": "running",
                     }
                 )
@@ -139,7 +142,8 @@ class Synthetic:
                     if current_day >= start_day:
                         nights_since = current_day - start_day
                         prof = INFECTION_PROFILE
-                        weight = prof[nights_since] if nights_since < len(prof) else prof[-1]
+                        idx = min(nights_since + 2, len(prof) - 1)
+                        weight = prof[idx]
                         amplitude = float(inj.get("amplitude_bpm", 1.60))
                         offset += amplitude * weight
 
