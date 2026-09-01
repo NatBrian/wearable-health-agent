@@ -1,0 +1,22 @@
+"""Audit page runner for Streamlit."""
+
+import streamlit as st
+
+from wha.ui.audit import render_audit_page
+from wha.ui.components.subject_selector import render_subject_selector
+
+
+def main() -> None:
+    """Entry point for Audit page."""
+    st.set_page_config(page_title="WHA - Audit Trail", page_icon="📜", layout="wide")
+    st.title("📜 Audit Trail & Verification")
+
+    subject = render_subject_selector()
+    if subject:
+        render_audit_page(subject.subject_id)
+    else:
+        st.warning("No subjects available.")
+
+
+if __name__ == "__main__":
+    main()
