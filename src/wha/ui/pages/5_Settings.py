@@ -1,0 +1,22 @@
+"""Settings page runner for Streamlit."""
+
+import streamlit as st
+
+from wha.ui.components.subject_selector import render_subject_selector
+from wha.ui.settings import render_settings_page
+
+
+def main() -> None:
+    """Entry point for Settings page."""
+    st.set_page_config(page_title="WHA - Settings", page_icon="⚙️", layout="wide")
+    st.title("⚙️ System Settings & Privacy")
+
+    subject = render_subject_selector()
+    if subject:
+        render_settings_page(subject.subject_id)
+    else:
+        st.warning("No subjects available.")
+
+
+if __name__ == "__main__":
+    main()
