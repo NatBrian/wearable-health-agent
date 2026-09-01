@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from wha.models import EpisodeSummary, NightRow
-from wha.service.episodes import list_episodes
+from wha.service.episodes import get_episode, list_episodes
 from wha.service.nights import get_night_detail, list_nights
 from wha.ui.components.night_chart import render_night_chart
 from wha.ui.components.status_strip import render_status_strip
@@ -84,9 +84,17 @@ def render_history_page(subject_id: str) -> None:
     # Check query param for drill-down episode
     ep_param = st.query_params.get("episode")
     if ep_param:
-        st.info(f"Drill-down view for Episode `{ep_param}`")
-        if st.button("⬅️ Back to Full History"):
-            del st.query_params["episode"]
+        ep_detail = get_episode(ep_param)
+        if ep_detail:
+            from wha.ui.components.episode_panel import render_episode_panel
+
+            if st.button("⬅️ Back to Full History"):
+                del st.query_params["episode"]
+                st.rerun()
+            render_episode_panel(ep_detail)
+            return
+        st.warning(f"Episode `{ep_param}` not found.")
+
     from datetime import UTC, datetime
 
     end_d = datetime.now(UTC).date()
