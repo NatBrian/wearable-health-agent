@@ -1,8 +1,9 @@
-"""Graph execution nodes for preloading, investigation, belief update, policy decision, asking, and measuring."""
+"""Graph execution nodes for preloading, investigation, belief, decision, asking, measuring, and outcome lifecycle."""
 
 import json
+import re
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, Literal
 
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field
@@ -19,11 +20,21 @@ from wha.models import (
     Action,
     ActionKind,
     Answer,
+    BaselineRung,
+    DifferentialItem,
+    Disposition,
+    EpisodeOutcome,
     ExtractedFact,
     MeasurementResult,
     Question,
 )
+from wha.policy import determine_disposition
 from wha.policy.select import select_action
+from wha.safety.output_checks import (
+    DIAGNOSIS_PHRASES,
+    FALSE_REASSURANCE_PHRASES,
+    validate_and_sanitize_outcome,
+)
 
 
 class ToolCallArgs(BaseModel):
@@ -67,6 +78,24 @@ class QuestionDraftResponse(BaseModel):
     text: str
     option_labels: list[str] = Field(default_factory=list)
     rationale: str | None = None
+
+
+class WriteOutcomeResponse(BaseModel):
+    """Synthesized outcome prose and escalation criteria from model."""
+
+    observation: str
+    claims: list[str] = Field(default_factory=list)
+    action_text: str = ""
+    escalation_criteria: list[str] = Field(default_factory=list)
+
+
+class CritiqueResponse(BaseModel):
+    """Subtractive output critique response from LLM."""
+
+    approved: bool = True
+    stripped_claims: list[str] = Field(default_factory=list)
+    modified_text: str = ""
+    critique_notes: str = ""
 
 
 def node_preload(
@@ -554,5 +583,230 @@ def node_measure(
 
     return {
         "measurements": [meas_res],
+        "step": state.get("step", 0) + 1,
+    }
+
+
+def node_conclude(
+    state: EpisodeState,
+    llm_client: LLMClient | None = None,
+    db: Any = None,
+) -> dict[str, Any]:
+    """Draft episode outcome findings, disposition, differential, and action."""
+    nights = state.get("nights", [])
+    now_d = datetime.now(UTC).date()
+    opened_on = min(d.night_date for d in nights) if nights else now_d
+    closed_on = max(d.night_date for d in nights) if nights else now_d
+
+    belief = state.get("belief")
+    if belief is None:
+        belief = update_belief(
+            episode_nights=nights,
+            features=state.get("features", []),
+            answers=state.get("answers", []),
+            measurements=state.get("measurements", []),
+        )
+
+    action_model = state.get("action")
+    if action_model is not None and action_model.disposition is not None:
+        disposition = action_model.disposition
+    else:
+        disposition = determine_disposition(belief, rung=BaselineRung.MATURE)
+
+    differential = [
+        DifferentialItem(
+            cause=c,
+            probability=round(p, 4),
+            supporting=[],
+            contradicting=[],
+        )
+        for c, p in belief.top(5)
+    ]
+
+    observation = f"Observed {len(nights)} nights. Primary finding: {disposition.value}."
+    action_val: Literal["rest", "monitor", "seek_same_day_care", "seek_urgent_care"] = (
+        "rest" if disposition == Disposition.LIKELY_ILLNESS else "monitor"
+    )
+    escalation_criteria = [
+        "Seek care if elevated heart rate persists >3 nights without confounders.",
+        "Seek immediate emergency care if experiencing chest pain or severe shortness of breath.",
+    ]
+
+    client = llm_client or get_llm_client()
+    try:
+        outcome_def = get_prompt_definition("write_outcome")
+        outcome_prompt = outcome_def.render(
+            {
+                "summary": f"{len(nights)} nights observed",
+                "disposition": disposition.value,
+                "top_causes": json.dumps({c.value: p for c, p in belief.top(3)}),
+                "facts": json.dumps(
+                    [e.model_dump() for e in state.get("evidence", [])], default=str
+                ),
+            }
+        )
+        outcome_res, _ = client.complete(
+            outcome_prompt,
+            schema=WriteOutcomeResponse,
+            temperature=outcome_def.temperature,
+        )
+        if outcome_res.observation:
+            observation = outcome_res.observation
+        if outcome_res.escalation_criteria:
+            escalation_criteria = outcome_res.escalation_criteria
+    except (
+        LLMUnavailable,
+        ValidationFailed,
+        KeyError,
+        TypeError,
+        ValueError,
+        AttributeError,
+        StopIteration,
+    ):
+        pass
+
+    draft = EpisodeOutcome(
+        episode_id=state.get("episode_id", "ep_default"),
+        subject_id=state.get("subject_id", "sub_default"),
+        opened_on=opened_on,
+        closed_on=closed_on,
+        disposition=disposition,
+        observation=observation,
+        baseline_nights=28,
+        baseline_rung=BaselineRung.MATURE,
+        differential=differential,
+        evidence_used=[e.field for e in state.get("evidence", [])],
+        ruled_out=[],
+        citations=[],
+        unsupported_claims=0,
+        action=action_val,
+        escalation_criteria=escalation_criteria,
+        confidence="moderate" if disposition != Disposition.UNRESOLVED else "low",
+        interruptions_used_this_week=0,
+        depth_used_this_episode=state.get("depth_used", 0),
+    )
+
+    return {
+        "draft": draft,
+        "step": state.get("step", 0) + 1,
+    }
+
+
+def node_critique(
+    state: EpisodeState,
+    llm_client: LLMClient | None = None,
+    db: Any = None,
+) -> dict[str, Any]:
+    """Run deterministic grounding first, followed by subtractive LLM critique."""
+    draft = state.get("draft")
+    if draft is None:
+        return {"step": state.get("step", 0) + 1}
+
+    obs = draft.observation
+    # Deterministic phrase cleaning for false reassurance & diagnosis language
+    for phrase in FALSE_REASSURANCE_PHRASES:
+        if phrase in obs.lower():
+            pattern = re.compile(re.escape(phrase), re.IGNORECASE)
+            obs = pattern.sub("", obs).strip()
+
+    for phrase in DIAGNOSIS_PHRASES:
+        if phrase in obs.lower():
+            pattern = re.compile(re.escape(phrase), re.IGNORECASE)
+            obs = pattern.sub("", obs).strip()
+
+    cleaned_draft = draft.model_copy(update={"observation": obs})
+
+    # Step A: Deterministic grounding & sanitization
+    sanitized_draft = validate_and_sanitize_outcome(cleaned_draft)
+
+    # Step B: LLM Critique Pass (Subtractive only)
+    client = llm_client or get_llm_client()
+    try:
+        critique_def = get_prompt_definition("critique")
+        critique_prompt = critique_def.render(
+            {
+                "draft_text": sanitized_draft.observation,
+                "sources": json.dumps(sanitized_draft.evidence_used),
+                "facts": json.dumps(
+                    [e.model_dump() for e in state.get("evidence", [])], default=str
+                ),
+            }
+        )
+        critique_res, _ = client.complete(
+            critique_prompt,
+            schema=CritiqueResponse,
+            temperature=critique_def.temperature,
+        )
+        current_text = sanitized_draft.observation
+        # Strip any ungrounded claims identified by the model
+        for stripped in critique_res.stripped_claims:
+            if stripped and stripped in current_text:
+                current_text = current_text.replace(stripped, "").strip()
+
+        # If model proposed a shorter / sanitized modified_text, use it if it doesn't inflate length
+        if critique_res.modified_text and len(critique_res.modified_text) <= len(
+            sanitized_draft.observation
+        ):
+            current_text = critique_res.modified_text
+
+        sanitized_draft = sanitized_draft.model_copy(update={"observation": current_text})
+    except (
+        LLMUnavailable,
+        ValidationFailed,
+        KeyError,
+        TypeError,
+        ValueError,
+        AttributeError,
+        StopIteration,
+    ):
+        pass
+
+    return {
+        "draft": sanitized_draft,
+        "step": state.get("step", 0) + 1,
+    }
+
+
+def node_review(
+    state: EpisodeState,
+    db: Any = None,
+) -> dict[str, Any]:
+    """Human review checkpoint. Resumed by approve, edit, reject, or escalate."""
+    draft = state.get("draft")
+    if draft is None:
+        return {"step": state.get("step", 0) + 1}
+
+    raw_response = interrupt(
+        {
+            "kind": "human_review",
+            "draft": draft.model_dump(),
+        }
+    )
+
+    status = "closed"
+    final_draft = draft
+
+    if isinstance(raw_response, dict):
+        decision = raw_response.get("decision", "approve")
+        if decision == "reject":
+            final_draft = draft.model_copy(update={"disposition": Disposition.UNRESOLVED})
+            status = "unresolved"
+        elif decision == "edit":
+            edited_obs = raw_response.get("edited_observation", draft.observation)
+            # Machine fields (disposition, differential, baseline) are preserved
+            final_draft = draft.model_copy(update={"observation": edited_obs})
+            status = "closed"
+        elif decision == "escalate":
+            final_draft = draft.model_copy(
+                update={"disposition": Disposition.ESCALATED, "action": "seek_urgent_care"}
+            )
+            status = "closed"
+        else:
+            final_draft = draft
+            status = "closed"
+
+    return {
+        "draft": final_draft,
+        "status": status,
         "step": state.get("step", 0) + 1,
     }

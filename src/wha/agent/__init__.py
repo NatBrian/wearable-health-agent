@@ -5,18 +5,23 @@ from wha.agent.graph import (
     run_episode_step,
 )
 from wha.agent.nodes import (
+    CritiqueResponse,
     DoneSignal,
     FactExtractionResponse,
     InvestigateStep,
     QuestionDraftResponse,
     ToolCallArgs,
     VetoCheckResponse,
+    WriteOutcomeResponse,
     node_ask,
     node_believe,
+    node_conclude,
+    node_critique,
     node_decide,
     node_investigate,
     node_measure,
     node_preload,
+    node_review,
 )
 from wha.agent.state import (
     EpisodeState,
@@ -24,6 +29,7 @@ from wha.agent.state import (
 )
 
 __all__ = [
+    "CritiqueResponse",
     "DoneSignal",
     "EpisodeState",
     "FactExtractionResponse",
@@ -31,13 +37,17 @@ __all__ = [
     "QuestionDraftResponse",
     "ToolCallArgs",
     "VetoCheckResponse",
+    "WriteOutcomeResponse",
     "add_nights",
     "build_agent_graph",
     "node_ask",
     "node_believe",
+    "node_conclude",
+    "node_critique",
     "node_decide",
     "node_investigate",
     "node_measure",
     "node_preload",
+    "node_review",
     "run_episode_step",
 ]
