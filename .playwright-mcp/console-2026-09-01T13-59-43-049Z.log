@@ -1,2 +1,24 @@
 [     950ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/Audit/_stcore/health:0
 [     951ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/Audit/_stcore/host-config:0
+[  400283ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/Today/_stcore/host-config:0
+[  400284ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/Today/_stcore/health:0
+[  422061ms] [WARNING] WARN Scale bindings are currently only supported for scales with unbinned, continuous domains. @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  422125ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  422126ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  422126ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  422155ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  435188ms] [WARNING] WARN Scale bindings are currently only supported for scales with unbinned, continuous domains. @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  435222ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  435222ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  435223ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  435238ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  449503ms] [WARNING] WARN Scale bindings are currently only supported for scales with unbinned, continuous domains. @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  449523ms] [WARNING] WARN Infinite extent for field "Probability_start": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  449523ms] [WARNING] WARN Infinite extent for field "Probability_end": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  474803ms] [WARNING] WARN Scale bindings are currently only supported for scales with unbinned, continuous domains. @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  474824ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  474824ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  474825ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  474837ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[  545893ms] [WARNING] LaTeX-incompatible input and strict mode is set to 'warn': % comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $) [commentAtEnd] @ http://localhost:8505/static/js/rehype-katex.DW0mIjjk.js:2
+[  545897ms] [WARNING] LaTeX-incompatible input and strict mode is set to 'warn': % comment has no terminating newline; LaTeX would fail because of commenting the end of math mode (e.g. $) [commentAtEnd] @ http://localhost:8505/static/js/rehype-katex.DW0mIjjk.js:2

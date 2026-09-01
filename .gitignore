@@ -56,3 +56,8 @@ desktop.ini
 # synthetic samples
 syn.json
 *.sample.json
+
+# Playwright MCP artifacts & screenshots
+.playwright-mcp/
+screenshot_*.png
+view_db.py
