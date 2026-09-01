@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from wha.models import EpisodeDetail
+from wha.service.episodes import ask_about_episode
 from wha.ui.components.pipeline_trace import render_pipeline_trace
 
 
@@ -59,6 +60,89 @@ def render_summary_tab(detail: EpisodeDetail) -> None:
     )
 
 
+def render_conversation_tab(detail: EpisodeDetail) -> None:
+    """Render Tab 3: Question transcript with EVSI and rejected alternatives, plus bounded Q&A."""
+    st.subheader("💬 Question Transcript")
+    if not detail.interactions:
+        st.caption("No user questions were asked during this episode.")
+    else:
+        for idx, inter in enumerate(detail.interactions):
+            with st.chat_message("assistant"):
+                st.markdown(f"**Question {idx + 1}:** {inter.question_text}")
+                st.caption(
+                    f"Probe served: `{inter.probe_id}` | EVSI: `{inter.evsi:.3f}` | "
+                    f"Interruption Cost: `{inter.interruption_cost:.3f}` | Source: `{inter.text_source}`"
+                )
+                if inter.rejected:
+                    with st.expander("Alternatives Considered & Rejected"):
+                        for alt_probe, score in inter.rejected:
+                            st.write(f"• `{alt_probe}` (score: {score:.3f})")
+
+            with st.chat_message("user"):
+                if inter.status == "DECLINED":
+                    st.markdown("*Declined (`Not now`)*")
+                elif inter.answer_option_id:
+                    ans_text = f"**Option selected:** `{inter.answer_option_id}`"
+                    if inter.free_text:
+                        ans_text += f"\n\n*Notes:* {inter.free_text}"
+                    st.markdown(ans_text)
+                else:
+                    st.markdown(f"Status: `{inter.status}`")
+                if inter.answered_at_utc:
+                    st.caption(
+                        f"Answered at: {inter.answered_at_utc.strftime('%Y-%m-%d %H:%M UTC')}"
+                    )
+
+    st.write("---")
+    st.subheader("❓ Ask About This Episode")
+    st.caption(
+        "Answers are strictly bounded to this episode's stored evidence and knowledge citations."
+    )
+
+    user_q = st.text_input(
+        "Ask a follow-up question...", key=f"followup_{detail.summary.episode_id}"
+    )
+    if st.button("Submit Follow-up", key=f"btn_followup_{detail.summary.episode_id}") and user_q:
+        answer = ask_about_episode(detail.summary.episode_id, user_q)
+        if answer.refused:
+            st.warning(f"⚠️ **Refused to answer:** {answer.refusal_reason or answer.text}")
+        else:
+            st.success(answer.text)
+            if answer.citations:
+                st.markdown("**Evidence Citations:**")
+                for c in answer.citations:
+                    st.caption(f'• **{c.title}** (`{c.source_id}`): *"{c.passage}"*')
+
+
+def render_evidence_tab(detail: EpisodeDetail) -> None:
+    """Render Tab 4: Retrieved knowledge passages and deliberately visible stripped claims."""
+    st.subheader("📚 Knowledge Citations & Evidence")
+
+    if not detail.citations:
+        st.info("No knowledge base citations linked to this episode.")
+    else:
+        for idx, c in enumerate(detail.citations):
+            uri_str = f" ([Link]({c.uri}))" if c.uri else ""
+            st.markdown(
+                f"**{idx + 1}. {c.title}** (`{c.source_id}`){uri_str} — Score: `{c.retrieval_score:.3f}`"
+            )
+            st.info(f'"{c.passage}"')
+
+    st.write("---")
+    st.subheader("🛡️ Stripped Claims")
+    st.caption(
+        "Assertions drafted by the LLM that were stripped because they could not be grounded in cited evidence."
+    )
+
+    if not detail.stripped_claims:
+        st.success(
+            "✅ No claims were stripped — all generated statements were successfully grounded."
+        )
+    else:
+        for claim in detail.stripped_claims:
+            st.warning(f'⚠️ Stripped: "{claim}"')
+
+
 def render_episode_panel(detail: EpisodeDetail) -> None:
     """Render 4-tab drill-down panel for an episode."""
     tab1, tab2, tab3, tab4 = st.tabs(["📋 Summary", "🔍 Trace", "💬 Conversation", "📚 Evidence"])
@@ -70,7 +154,7 @@ def render_episode_panel(detail: EpisodeDetail) -> None:
         render_pipeline_trace(detail)
 
     with tab3:
-        st.caption("Conversation transcript will render here.")
+        render_conversation_tab(detail)
 
     with tab4:
-        st.caption("Evidence passages and stripped claims will render here.")
+        render_evidence_tab(detail)

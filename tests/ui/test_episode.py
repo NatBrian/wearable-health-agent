@@ -1,23 +1,31 @@
-"""Unit tests for Episode Panel: Summary and Trace tabs, belief chart, and honesty metrics."""
+"""Unit tests for Episode Panel: Summary, Trace, Conversation, and Evidence tabs."""
 
-from datetime import date
+from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
 from wha.models import (
+    AnswerOption,
     BaselineRung,
     BeliefState,
     CauseId,
+    Citation,
     DifferentialItem,
     Disposition,
     EpisodeDetail,
     EpisodeOutcome,
     EpisodeState,
     EpisodeSummary,
+    GroundedAnswer,
+    InteractionView,
     PipelineStage,
     StageStatus,
 )
 from wha.ui.components.belief_chart import build_belief_evolution_data, render_belief_evolution
-from wha.ui.components.episode_panel import render_summary_tab
+from wha.ui.components.episode_panel import (
+    render_conversation_tab,
+    render_evidence_tab,
+    render_summary_tab,
+)
 from wha.ui.components.pipeline_trace import render_pipeline_trace
 
 
@@ -58,10 +66,8 @@ def test_episode_trace_shows_skipped() -> None:
 
     with patch("streamlit.markdown") as mock_markdown, patch("streamlit.write") as mock_write:
         render_pipeline_trace(detail)
-        # Verify markdown calls render all stages including SKIPPED
         rendered_headers = [call[0][0] for call in mock_markdown.call_args_list]
         assert any("notify" in h and "SKIPPED" in h for h in rendered_headers)
-        # Verify skipped reason is written
         written_reasons = [call[0][0] for call in mock_write.call_args_list]
         assert any("Policy returned OBSERVE" in r for r in written_reasons)
 
@@ -146,7 +152,6 @@ def test_belief_chart_labels_marginals_not_partition() -> None:
         render_belief_evolution(belief_history)
         assert mock_caption.called
         caption_text = mock_caption.call_args[0][0]
-        # Assert caption explains marginals do not sum to 1.0
         assert "does not sum to 1.0" in caption_text or "independent" in caption_text.lower()
 
 
@@ -209,3 +214,125 @@ def test_unsupported_claims_displayed() -> None:
         assert "Unsupported Claims" in labels
         idx = labels.index("Unsupported Claims")
         assert values[idx] == 0
+
+
+def test_episode_conversation_shows_rejected_probes() -> None:
+    """Conversation tab shows question with probe metadata, EVSI, and rejected alternatives with scores."""
+    inter = InteractionView(
+        id="int_01",
+        probe_id="probe_symptoms",
+        question_text="Have you felt feverish?",
+        text_source="llm",
+        options=[
+            AnswerOption(option_id="fever", label="Fever"),
+            AnswerOption(option_id="none", label="None"),
+        ],
+        evsi=0.45,
+        interruption_cost=0.30,
+        rejected=[("probe_alcohol", 0.12), ("probe_workout", 0.08)],
+        answer_option_id="fever",
+        free_text="Mild fever around 38.1C",
+        status="ANSWERED",
+        asked_at_utc=datetime.now(UTC),
+        answered_at_utc=datetime.now(UTC),
+    )
+    detail = EpisodeDetail(
+        summary=EpisodeSummary(
+            episode_id="ep_conv_01",
+            opened_on=date(2026, 8, 1),
+            closed_on=date(2026, 8, 2),
+            state=EpisodeState.CLOSED,
+            disposition=Disposition.LIKELY_ILLNESS,
+            night_span=(date(2026, 8, 1), date(2026, 8, 2)),
+        ),
+        stages=[],
+        belief_history=[],
+        interactions=[inter],
+    )
+
+    with (
+        patch("streamlit.chat_message", return_value=MagicMock()),
+        patch("streamlit.markdown") as mock_markdown,
+        patch("streamlit.caption"),
+        patch("streamlit.write") as mock_write,
+        patch("streamlit.expander", return_value=MagicMock()),
+    ):
+        render_conversation_tab(detail)
+        # Check that question text is rendered
+        md_texts = [call[0][0] for call in mock_markdown.call_args_list]
+        assert any("Have you felt feverish" in m for m in md_texts)
+        # Check that rejected alternatives are written
+        written = [call[0][0] for call in mock_write.call_args_list]
+        assert any("probe_alcohol" in w for w in written)
+        assert any("probe_workout" in w for w in written)
+
+
+def test_ask_about_episode_refuses_ungrounded() -> None:
+    """Follow-up Q&A refuses when an assertion cannot be grounded to the episode's evidence."""
+    refused_answer = GroundedAnswer(
+        text="I cannot answer this question based on the episode evidence.",
+        citations=[],
+        refused=True,
+        refusal_reason="Question cannot be grounded in the bounded evidence of episode ep_test.",
+    )
+    detail = EpisodeDetail(
+        summary=EpisodeSummary(
+            episode_id="ep_test",
+            opened_on=date(2026, 8, 1),
+            closed_on=date(2026, 8, 2),
+            state=EpisodeState.CLOSED,
+            disposition=Disposition.LIKELY_ILLNESS,
+            night_span=(date(2026, 8, 1), date(2026, 8, 2)),
+        ),
+        stages=[],
+        belief_history=[],
+        interactions=[],
+    )
+
+    with (
+        patch("streamlit.text_input", return_value="What is the weather outside?"),
+        patch("streamlit.button", return_value=True),
+        patch("wha.ui.components.episode_panel.ask_about_episode", return_value=refused_answer),
+        patch("streamlit.warning") as mock_warning,
+    ):
+        render_conversation_tab(detail)
+        assert mock_warning.called
+        warn_msg = mock_warning.call_args[0][0]
+        assert "Refused to answer" in warn_msg
+        assert "cannot be grounded" in warn_msg
+
+
+def test_stripped_claims_visible() -> None:
+    """Evidence tab deliberately displays stripped claims that could not be grounded in cited evidence."""
+    detail = EpisodeDetail(
+        summary=EpisodeSummary(
+            episode_id="ep_evid_01",
+            opened_on=date(2026, 8, 1),
+            closed_on=date(2026, 8, 2),
+            state=EpisodeState.CLOSED,
+            disposition=Disposition.LIKELY_ILLNESS,
+            night_span=(date(2026, 8, 1), date(2026, 8, 2)),
+        ),
+        stages=[],
+        belief_history=[],
+        citations=[
+            Citation(
+                source_id="src_guideline",
+                title="Clinical Guideline",
+                passage="Elevation > 3 bpm indicates infection.",
+                retrieval_score=0.92,
+            )
+        ],
+        stripped_claims=["Patient has pneumonia.", "Heart rate was 140 bpm."],
+    )
+
+    with (
+        patch("streamlit.markdown"),
+        patch("streamlit.info"),
+        patch("streamlit.warning") as mock_warning,
+    ):
+        render_evidence_tab(detail)
+        assert mock_warning.called
+        warn_msgs = [call[0][0] for call in mock_warning.call_args_list]
+        assert any("Patient has pneumonia" in w for w in warn_msgs)
+        assert any("Heart rate was 140 bpm" in w for w in warn_msgs)
