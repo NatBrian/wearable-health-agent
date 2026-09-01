@@ -29,9 +29,13 @@ def run_evaluation_suite(suite: str, eval_dir: Path | None = None) -> Evaluation
         from wha.eval.ablation import run_ablation_eval
 
         return run_ablation_eval(eval_dir=eval_dir)
+    elif suite_clean == "adversarial":
+        from wha.eval.adversarial import run_adversarial_eval
+
+        return run_adversarial_eval(eval_dir=eval_dir)
 
     raise ConfigError(
-        f"Unknown evaluation suite '{suite}'. Valid suites: detection, baseline-age, policy, ablation"
+        f"Unknown evaluation suite '{suite}'. Valid suites: detection, baseline-age, policy, ablation, adversarial"
     )
 
 
