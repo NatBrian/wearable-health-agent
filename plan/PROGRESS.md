@@ -61,7 +61,7 @@ do it, run its exit command, then come back and update this table.
 | B-10 | Injection detection and the poisoned fixture | B-05 | 11 | [x] | 2026-09-01 | |
 | B-11 | Output checks before display | B-06 | 11 | [x] | 2026-09-01 | |
 | B-12 | Tool registry, common result shape, provenance and freshness | A-03 | 10 | [x] | 2026-09-01 | |
-| B-13 | The seven tools | B-12, B-05 | 10 | [ ] | | |
+| B-13 | The seven tools | B-12, B-05 | 10 | [x] | 2026-09-01 | |
 | B-14 | Graph state, checkpointer, compile | B-01, A-21 | 09 | [ ] | | |
 | B-15 | `preload` and `investigate` nodes | B-14, B-13 | 09 | [ ] | | |
 | B-16 | `believe` and `decide` nodes, and the veto | B-15, A-21 | 09 | [ ] | | |

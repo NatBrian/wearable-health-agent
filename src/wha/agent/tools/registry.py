@@ -13,6 +13,7 @@ from wha.errors import PermissionDenied
 from wha.models import AuditEvent, ControlTier
 
 TOOL_MAX_RANGE_DAYS: int = 90
+MAX_AUDIT_VALUE_CHARS: int = 500
 
 CLOSED_TOOL_REGISTRY: set[str] = {
     "get_nightly_features",
@@ -55,6 +56,25 @@ class ToolContext(BaseModel):
 
 
 HandlerFunc = Callable[[dict[str, Any], ToolContext, Any], ToolResult]
+
+
+def format_tool_result_for_audit(
+    result: ToolResult, max_chars: int = MAX_AUDIT_VALUE_CHARS
+) -> dict[str, Any]:
+    """Serialize tool result for audit logging with visible truncation for large payloads."""
+    raw_str = str(result.value)
+    truncated = False
+    if len(raw_str) > max_chars:
+        raw_str = raw_str[:max_chars] + "... [TRUNCATED]"
+        truncated = True
+
+    return {
+        "ok": result.ok,
+        "source_ids": result.source_ids,
+        "freshness": result.freshness,
+        "truncated": truncated,
+        "preview": raw_str,
+    }
 
 
 class ToolRegistry:
@@ -221,7 +241,7 @@ class ToolRegistry:
             control_tier=ControlTier.T1,
             tool_name=tool_name,
             tool_args=args,
-            tool_result={"ok": result.ok, "source_ids": result.source_ids},
+            tool_result=format_tool_result_for_audit(result),
             permission_decision="allowed",
         )
         context.audit_events.append(event)
