@@ -1,0 +1,123 @@
+- generic [ref=f3e2]:
+  - generic [ref=f3e7]:
+    - list [ref=f3e10]:
+      - listitem [ref=f3e11]:
+        - link [ref=f3e13] [cursor=pointer]:
+          - /url: http://localhost:8505/
+          - paragraph [ref=f3e16]: app
+      - listitem [ref=f3e17]:
+        - link [ref=f3e19] [cursor=pointer]:
+          - /url: http://localhost:8505/Today
+          - paragraph [ref=f3e22]: Today
+      - listitem [ref=f3e23]:
+        - link [ref=f3e25] [cursor=pointer]:
+          - /url: http://localhost:8505/History
+          - paragraph [ref=f3e28]: History
+      - listitem [ref=f3e29]:
+        - link [ref=f3e31] [cursor=pointer]:
+          - /url: http://localhost:8505/Audit
+          - paragraph [ref=f3e34]: Audit
+      - listitem [ref=f3e35]:
+        - link [ref=f3e37] [cursor=pointer]:
+          - /url: http://localhost:8505/Evaluation
+          - paragraph [ref=f3e40]: Evaluation
+      - listitem [ref=f3e41]:
+        - link [ref=f3e43] [cursor=pointer]:
+          - /url: http://localhost:8505/Settings
+          - paragraph [ref=f3e46]: Settings
+    - generic [ref=f3e52]:
+      - paragraph [ref=f3e56]: Select Subject
+      - group [ref=f3e58]:
+        - combobox "Select Subject" [ref=f3e59]: Demo alcohol-night (demo-alcohol-night)
+        - button "Open" [ref=f3e60] [cursor=pointer]
+  - generic [ref=f3e3]:
+    - banner [ref=f3e66]:
+      - generic [ref=f3e69]:
+        - button "Deploy" [ref=f3e71] [cursor=pointer]
+        - button "Main menu" [ref=f3e75] [cursor=pointer]
+    - generic [ref=f3e79]:
+      - generic [ref=f3e83]:
+        - generic [ref=f3e90]:
+          - generic [ref=f3e91]: ⌚ Watch Data
+          - generic "OK (08:00)" [ref=f3e92]
+        - generic [ref=f3e99]:
+          - generic [ref=f3e100]: 📈 Baseline
+          - generic "27d (PERSONAL)" [ref=f3e101]
+        - generic [ref=f3e108]:
+          - generic [ref=f3e109]: ⏰ Scheduler
+          - generic "Active" [ref=f3e110]
+        - generic [ref=f3e117]:
+          - generic [ref=f3e118]: 🤖 LLM Provider
+          - generic "Provider openai_compatible" [ref=f3e119]
+        - generic [ref=f3e126]:
+          - generic [ref=f3e127]: 💬 Notifications
+          - generic "Channel disabled (none)" [ref=f3e128]
+        - generic [ref=f3e135]:
+          - generic [ref=f3e136]: ✅ System Errors
+          - generic "0 in 24h" [ref=f3e137]
+      - separator [ref=f3e142]
+      - button [ref=f3e145] [cursor=pointer]:
+        - paragraph [ref=f3e150]: ⬅️ Back to Full History
+      - generic [ref=f3e152]:
+        - tablist [ref=f3e153]:
+          - tab [ref=f3e154] [cursor=pointer]:
+            - paragraph [ref=f3e156]: 📋 Summary
+          - tab [ref=f3e158] [cursor=pointer]:
+            - paragraph [ref=f3e160]: 🔍 Trace
+          - tab [active] [selected] [ref=f3e161] [cursor=pointer]:
+            - paragraph [ref=f3e163]: 💬 Conversation
+          - tab [ref=f3e164] [cursor=pointer]:
+            - paragraph [ref=f3e166]: 📚 Evidence
+        - tabpanel "💬 Conversation" [ref=f3e603]:
+          - generic [ref=f3e604]:
+            - heading "💬 Question Transcript" [level=3] [ref=f3e609]:
+              - text: 💬 Question Transcript
+              - generic [ref=f3e610]:
+                - link "Link to heading":
+                  - /url: "#question-transcript"
+            - generic [ref=f3e612]:
+              - generic [ref=f3e613]: smart_toy
+              - generic "Chat message from assistant" [ref=f3e616]:
+                - generic [ref=f3e617]:
+                  - paragraph [ref=f3e622]:
+                    - strong [ref=f3e623]: "Question 1:"
+                    - text: We noticed an overnight resting HR elevation (+3.8 bpm). Are you experiencing any of these symptoms today?
+                  - paragraph [ref=f3e628]:
+                    - text: "Probe served:"
+                    - code [ref=f3e629]: probe_symptoms
+                    - text: "| EVSI:"
+                    - code [ref=f3e630]: "0.420"
+                    - text: "| Interruption Cost:"
+                    - code [ref=f3e631]: "0.150"
+                    - text: "| Source:"
+                    - code [ref=f3e632]: llm
+                  - group [ref=f3e635]:
+                    - generic "keyboard_arrow_right Alternatives Considered & Rejected" [ref=f3e636] [cursor=pointer]:
+                      - generic [ref=f3e637]:
+                        - generic [ref=f3e638]: keyboard_arrow_right
+                        - paragraph [ref=f3e642]: Alternatives Considered & Rejected
+            - generic [ref=f3e644]:
+              - generic [ref=f3e645]: face
+              - generic "Chat message from user" [ref=f3e648]:
+                - generic [ref=f3e649]:
+                  - generic [ref=f3e653]:
+                    - paragraph [ref=f3e654]:
+                      - strong [ref=f3e655]: "Option selected:"
+                      - code [ref=f3e656]: fever
+                    - paragraph [ref=f3e657]:
+                      - emphasis [ref=f3e658]: "Notes:"
+                      - text: Mild chills since morning
+                  - paragraph [ref=f3e663]: "Answered at: 2026-08-31 23:19 UTC"
+            - separator [ref=f3e668]
+            - heading "❓ Ask About This Episode" [level=3] [ref=f3e673]:
+              - text: ❓ Ask About This Episode
+              - generic [ref=f3e674]:
+                - link "Link to heading":
+                  - /url: "#ask-about-this-episode"
+            - paragraph [ref=f3e679]: Answers are strictly bounded to this episode's stored evidence and knowledge citations.
+            - generic [ref=f3e681]:
+              - paragraph [ref=f3e685]: Ask a follow-up question...
+              - textbox "Ask a follow-up question..." [ref=f3e688]:
+                - /placeholder: ""
+            - button [ref=f3e691] [cursor=pointer]:
+              - paragraph [ref=f3e696]: Submit Follow-up

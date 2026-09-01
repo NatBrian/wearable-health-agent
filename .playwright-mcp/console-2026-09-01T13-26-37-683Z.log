@@ -1,0 +1,7 @@
+[    1272ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/History/_stcore/health:0
+[    1274ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/History/_stcore/host-config:0
+[    2651ms] [WARNING] WARN Scale bindings are currently only supported for scales with unbinned, continuous domains. @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[    2790ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[    2790ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[    2790ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[    2847ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0

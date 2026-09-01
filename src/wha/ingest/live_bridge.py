@@ -21,12 +21,26 @@ class LiveBridge:
         host: str | None = None,
         port: int | None = None,
         token: str | None = None,
+        base_url: str | None = None,
         timeout: float = 30.0,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        self.host = host or os.environ.get("WHA_BRIDGE_HOST", "127.0.0.1")
-        port_env = os.environ.get("WHA_BRIDGE_PORT")
-        self.port = int(port if port is not None else (port_env if port_env else 8787))
+        if base_url:
+            clean = base_url.replace("http://", "").replace("https://", "").rstrip("/")
+            if ":" in clean:
+                parts = clean.split(":")
+                self.host = parts[0]
+                try:
+                    self.port = int(parts[1])
+                except ValueError:
+                    self.port = 8787
+            else:
+                self.host = clean
+                self.port = 8787
+        else:
+            self.host = host or os.environ.get("WHA_BRIDGE_HOST", "127.0.0.1")
+            port_env = os.environ.get("WHA_BRIDGE_PORT")
+            self.port = int(port if port is not None else (port_env if port_env else 8787))
         self.token = token if token is not None else os.environ.get("WHA_BRIDGE_TOKEN")
         self.timeout = timeout
         self.transport = transport

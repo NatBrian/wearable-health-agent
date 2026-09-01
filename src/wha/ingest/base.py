@@ -13,6 +13,24 @@ SLEEP_STAGE_MAP = {
     "LIGHT": "LIGHT",
     "DEEP": "DEEP",
     "REM": "REM",
+    "STAGE_TYPE_AWAKE": "AWAKE",
+    "STAGE_TYPE_LIGHT": "LIGHT",
+    "STAGE_TYPE_DEEP": "DEEP",
+    "STAGE_TYPE_REM": "REM",
+    "STAGE_TYPE_OUT_OF_BED": "AWAKE",
+    "STAGE_TYPE_SLEEPING": "LIGHT",
+    "1": "AWAKE",
+    "2": "LIGHT",
+    "3": "AWAKE",
+    "4": "LIGHT",
+    "5": "DEEP",
+    "6": "REM",
+    1: "AWAKE",
+    2: "LIGHT",
+    3: "AWAKE",
+    4: "LIGHT",
+    5: "DEEP",
+    6: "REM",
 }
 
 
@@ -88,14 +106,34 @@ def normalise(subject_id: str, payload_input: dict[str, Any] | str) -> Normalise
         payload = payload_input
 
     # 1. Heart rate samples
+    hr_raw = (
+        payload.get("heart_rate")
+        or payload.get("heartRate")
+        or payload.get("heart_rate_records")
+        or []
+    )
     hr_samples: list[NormalisedHeartRate] = []
-    for item in payload.get("heart_rate", []):
-        ts_utc = _parse_iso_utc(item["time"])
-        avg_bpm = float(item["avg"])
+    for item in hr_raw:
+        t_val = (
+            item.get("time")
+            or item.get("start_time")
+            or item.get("startTime")
+            or item.get("timestamp")
+        )
+        if not t_val:
+            continue
+        ts_utc = _parse_iso_utc(str(t_val))
+        avg_bpm = float(
+            item.get("avg")
+            or item.get("bpm")
+            or item.get("beats_per_minute")
+            or item.get("value")
+            or 0.0
+        )
         min_bpm = float(item["min"]) if item.get("min") is not None else None
         max_bpm = float(item["max"]) if item.get("max") is not None else None
         metadata = item.get("metadata")
-        origin = metadata.get("data_origin") if isinstance(metadata, dict) else None
+        origin = metadata.get("data_origin") if isinstance(metadata, dict) else item.get("origin")
 
         hr_samples.append(
             NormalisedHeartRate(
@@ -109,11 +147,18 @@ def normalise(subject_id: str, payload_input: dict[str, Any] | str) -> Normalise
         )
 
     # 2. Daily step buckets
+    steps_raw = (
+        payload.get("steps") or payload.get("step_buckets") or payload.get("steps_records") or []
+    )
     step_buckets: list[NormalisedStepBucket] = []
-    for item in payload.get("steps", []):
-        start_utc = _parse_iso_utc(item["start_time"])
-        end_utc = _parse_iso_utc(item["end_time"])
-        count = int(item["count"])
+    for item in steps_raw:
+        st_val = item.get("start_time") or item.get("startTime")
+        et_val = item.get("end_time") or item.get("endTime")
+        if not st_val or not et_val:
+            continue
+        start_utc = _parse_iso_utc(str(st_val))
+        end_utc = _parse_iso_utc(str(et_val))
+        count = int(item.get("count") or item.get("steps") or 0)
 
         step_buckets.append(
             NormalisedStepBucket(
@@ -125,28 +170,72 @@ def normalise(subject_id: str, payload_input: dict[str, Any] | str) -> Normalise
         )
 
     # 3. Sleep stages
+    sleep_raw = (
+        payload.get("sleep") or payload.get("sleep_stages") or payload.get("sleep_sessions") or []
+    )
     sleep_stages: list[NormalisedSleepStage] = []
-    for item in payload.get("sleep", []):
-        start_utc = _parse_iso_utc(item["start_time"])
-        end_utc = _parse_iso_utc(item["end_time"])
-        raw_stage = str(item.get("stage", "")).upper()
-        stage = SLEEP_STAGE_MAP.get(raw_stage, raw_stage)
+    for item in sleep_raw:
+        # Check if item contains nested stages (Health Connect SleepSessionRecord)
+        nested_stages = item.get("stages") or item.get("stages_records")
+        if isinstance(nested_stages, list) and nested_stages:
+            for n_stg in nested_stages:
+                st_val = n_stg.get("start_time") or n_stg.get("startTime")
+                et_val = n_stg.get("end_time") or n_stg.get("endTime")
+                if not st_val or not et_val:
+                    continue
+                start_utc = _parse_iso_utc(str(st_val))
+                end_utc = _parse_iso_utc(str(et_val))
+                raw_stage = str(n_stg.get("stage") or n_stg.get("stage_type") or "").upper()
+                stage = SLEEP_STAGE_MAP.get(raw_stage, raw_stage)
+                sleep_stages.append(
+                    NormalisedSleepStage(
+                        subject_id=subject_id,
+                        start_utc=start_utc,
+                        end_utc=end_utc,
+                        stage=stage,
+                    )
+                )
+        else:
+            st_val = item.get("start_time") or item.get("startTime")
+            et_val = item.get("end_time") or item.get("endTime")
+            if not st_val or not et_val:
+                continue
+            start_utc = _parse_iso_utc(str(st_val))
+            end_utc = _parse_iso_utc(str(et_val))
+            raw_stage = str(item.get("stage") or item.get("stage_type") or "").upper()
+            stage = SLEEP_STAGE_MAP.get(raw_stage, raw_stage)
 
-        sleep_stages.append(
-            NormalisedSleepStage(
-                subject_id=subject_id,
-                start_utc=start_utc,
-                end_utc=end_utc,
-                stage=stage,
+            sleep_stages.append(
+                NormalisedSleepStage(
+                    subject_id=subject_id,
+                    start_utc=start_utc,
+                    end_utc=end_utc,
+                    stage=stage,
+                )
             )
-        )
 
     # 4. Exercise sessions
+    ex_raw = (
+        payload.get("exercise") or payload.get("exercise_sessions") or payload.get("workouts") or []
+    )
     exercise_sessions: list[NormalisedExerciseSession] = []
-    for item in payload.get("exercise", []):
-        start_utc = _parse_iso_utc(item["start_time"])
-        end_utc = _parse_iso_utc(item["end_time"])
-        kind = str(item["kind"]) if item.get("kind") is not None else None
+    for item in ex_raw:
+        st_val = item.get("start_time") or item.get("startTime")
+        et_val = item.get("end_time") or item.get("endTime")
+        if not st_val or not et_val:
+            continue
+        start_utc = _parse_iso_utc(str(st_val))
+        end_utc = _parse_iso_utc(str(et_val))
+        kind = (
+            str(
+                item.get("kind")
+                or item.get("type")
+                or item.get("exercise_type")
+                or item.get("title")
+                or ""
+            )
+            or None
+        )
 
         exercise_sessions.append(
             NormalisedExerciseSession(

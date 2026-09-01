@@ -1,0 +1,10 @@
+[     512ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/History/_stcore/health:0
+[     513ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/History/_stcore/host-config:0
+[    2162ms] [WARNING] WARN Scale bindings are currently only supported for scales with unbinned, continuous domains. @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[    2260ms] [WARNING] WARN Infinite extent for field "Probability_start": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[    2261ms] [WARNING] WARN Infinite extent for field "Probability_end": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[   24770ms] [WARNING] WARN Scale bindings are currently only supported for scales with unbinned, continuous domains. @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[   24836ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[   24836ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[   24836ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0
+[   24858ms] [WARNING] WARN Infinite extent for field "value -- streamlit-generated": [Infinity, -Infinity] @ http://localhost:8505/static/js/styled-components.CoebTwJg.js:0

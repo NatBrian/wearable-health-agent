@@ -189,12 +189,53 @@ class Synthetic:
                 }
             )
 
+        # 3. Sleep sessions matching Health Connect ultradian sleep cycle pattern
+        sleep: list[dict[str, Any]] = []
+        for d in range(num_days):
+            night_start_local = local_midnight_0 + timedelta(days=d) - timedelta(minutes=30)
+            is_sleep_nonwear = any(
+                inj.get("kind") == "nonwear"
+                and inj.get("start_day", inj.get("day", 0))
+                <= d
+                < (inj.get("start_day", inj.get("day", 0)) + inj.get("nights", 1))
+                for inj in self.scenario.injections
+            )
+            if is_sleep_nonwear:
+                continue
+
+            session_stages = []
+            curr_t = night_start_local
+            cycle_pattern = ["LIGHT", "DEEP", "LIGHT", "REM"]
+            for _ in range(4):
+                for stg in cycle_pattern:
+                    dur_min = rng.randint(18, 26)
+                    stg_start = curr_t
+                    stg_end = curr_t + timedelta(minutes=dur_min)
+                    session_stages.append(
+                        {
+                            "stage": stg,
+                            "start_time": to_iso(stg_start - timedelta(hours=utc_offset_h)),
+                            "end_time": to_iso(stg_end - timedelta(hours=utc_offset_h)),
+                            "duration_seconds": dur_min * 60,
+                        }
+                    )
+                    curr_t = stg_end
+
+            sleep.append(
+                {
+                    "session_end_time": to_iso(curr_t - timedelta(hours=utc_offset_h)),
+                    "duration_seconds": int((curr_t - night_start_local).total_seconds()),
+                    "stages": session_stages,
+                    "metadata": {"data_origin": DATA_ORIGIN},
+                }
+            )
+
         body: dict[str, Any] = {
             "app_version": APP_VERSION,
             "timestamp": to_iso(now),
             "steps": steps,
             "heart_rate": heart_rate,
-            "sleep": [],
+            "sleep": sleep,
             "exercise": exercise,
         }
 
