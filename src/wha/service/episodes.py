@@ -3,7 +3,8 @@
 import json
 import sqlite3
 from datetime import UTC, date, datetime
-from typing import Literal
+from pathlib import Path
+from typing import Any, Literal
 
 from wha.db import connect
 from wha.db.migrations import apply_schema
@@ -314,12 +315,13 @@ def submit_human_decision(
 
 def list_episodes(
     subject_id: str,
+    db_path: Path | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> list[EpisodeSummary]:
-    """List all episodes for a subject with top cause probability and span."""
+    """Retrieve summaries for all episodes for a subject, ordered newest first."""
     close_conn = False
     if conn is None:
-        conn = connect()
+        conn = connect(db_path) if db_path is not None else connect()
         apply_schema(conn)
         close_conn = True
 
@@ -626,6 +628,68 @@ def ask_about_episode(
                 f"Question '{question}' cannot be grounded in the bounded evidence of episode {episode_id}."
             ),
         )
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def step_episode(
+    episode_id: str,
+    db_path: Path | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """Advance an episode by one step synchronously.
+
+    If episode is already CLOSED, this is an idempotent no-op.
+    """
+    close_conn = False
+    if conn is None:
+        conn = connect(db_path) if db_path is not None else connect()
+        apply_schema(conn)
+        close_conn = True
+
+    try:
+        ep_row = conn.execute(
+            """SELECT episode_id, subject_id, thread_id, state, disposition, step_count
+               FROM episodes WHERE episode_id = ?""",
+            (episode_id,),
+        ).fetchone()
+
+        if ep_row is None:
+            raise ValueError(f"Episode '{episode_id}' not found")
+
+        if ep_row["state"] == "CLOSED":
+            return {
+                "episode_id": episode_id,
+                "state": "CLOSED",
+                "disposition": ep_row["disposition"],
+                "step_count": ep_row["step_count"],
+                "status": "closed",
+            }
+
+        from wha.agent.graph import build_agent_graph, run_episode_step
+
+        graph = build_agent_graph()
+        initial_state = {
+            "episode_id": episode_id,
+            "subject_id": ep_row["subject_id"],
+            "step": ep_row["step_count"],
+        }
+        res = run_episode_step(graph, episode_id=episode_id, initial_state=initial_state)
+
+        new_step = int(ep_row["step_count"]) + 1
+        conn.execute(
+            "UPDATE episodes SET step_count = ? WHERE episode_id = ?",
+            (new_step, episode_id),
+        )
+        conn.commit()
+
+        return {
+            "episode_id": episode_id,
+            "state": ep_row["state"],
+            "step_count": new_step,
+            "result": res,
+        }
     finally:
         if close_conn:
             conn.close()

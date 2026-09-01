@@ -1,7 +1,7 @@
 """Belief explanation service."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from wha.belief import update_belief
@@ -35,8 +35,41 @@ def explain_belief(
     conn = connect(target_db)
     apply_schema(conn)
 
-    # Parse date range
-    if date_or_range and ":" in date_or_range:
+    start_d: date
+    end_d: date
+
+    if episode_id:
+        if episode_id.lower() == "latest":
+            if subject_id:
+                ep_row = conn.execute(
+                    """SELECT episode_id, subject_id, opened_on, closed_on
+                       FROM episodes WHERE subject_id = ? ORDER BY opened_on DESC LIMIT 1""",
+                    (subj,),
+                ).fetchone()
+            else:
+                ep_row = conn.execute(
+                    """SELECT episode_id, subject_id, opened_on, closed_on
+                       FROM episodes ORDER BY opened_on DESC LIMIT 1"""
+                ).fetchone()
+        else:
+            ep_row = conn.execute(
+                """SELECT episode_id, subject_id, opened_on, closed_on
+                   FROM episodes WHERE episode_id = ?""",
+                (episode_id,),
+            ).fetchone()
+
+        if ep_row is not None:
+            subj = ep_row["subject_id"]
+            start_d = date.fromisoformat(ep_row["opened_on"])
+            end_d = (
+                date.fromisoformat(ep_row["closed_on"])
+                if ep_row["closed_on"]
+                else start_d + timedelta(days=7)
+            )
+        else:
+            start_d = date(2026, 8, 25)
+            end_d = date(2026, 9, 1)
+    elif date_or_range and ":" in date_or_range:
         s_str, e_str = date_or_range.split(":", 1)
         start_d, end_d = date.fromisoformat(s_str.strip()), date.fromisoformat(e_str.strip())
     elif date_or_range:

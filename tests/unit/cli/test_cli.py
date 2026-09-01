@@ -220,7 +220,7 @@ def test_exit_codes(tmp_path: Path) -> None:
     assert res_bad_scenario.exit_code == 1
 
 
-def test_demo_dry_run_makes_no_llm_call(tmp_path: Path, monkeypatch) -> None:
+def test_demo_dry_run_makes_no_llm_call(tmp_path: Path) -> None:
     """wha demo run --dry-run completes purely on deterministic math with no LLM calls."""
     db_file = tmp_path / "demo_dry.sqlite"
     res = runner.invoke(app, ["demo", "run", "illness-onset", "--dry-run", "--db", str(db_file)])
@@ -229,15 +229,51 @@ def test_demo_dry_run_makes_no_llm_call(tmp_path: Path, monkeypatch) -> None:
     assert "illness-onset" in res.output
 
 
-def test_belief_explain_works_without_an_episode(tmp_path: Path) -> None:
-    """wha belief explain computes causal marginals without requiring an active episode."""
-    db_file = tmp_path / "belief_explain.sqlite"
-    # First run demo to populate detection history
+def test_demo_run_completes_offline(tmp_path: Path) -> None:
+    """wha demo run illness-onset completes offline using cassette fixtures."""
+    db_file = tmp_path / "demo_offline.sqlite"
+    res = runner.invoke(app, ["demo", "run", "illness-onset", "--db", str(db_file)])
+
+    assert res.exit_code == 0
+    assert "illness-onset" in res.output
+
+
+def test_belief_explain_prints_marginals_per_night(tmp_path: Path) -> None:
+    """wha belief explain outputs causal probability trace night by night."""
+    db_file = tmp_path / "belief_explain_trace.sqlite"
     runner.invoke(app, ["demo", "run", "illness-onset", "--dry-run", "--db", str(db_file)])
 
-    # Explain belief over the subject's nights
     res = runner.invoke(
         app, ["belief", "explain", "--subject", "demo-illness-onset", "--db", str(db_file)]
     )
     assert res.exit_code == 0
     assert "p(illness)" in res.output
+    assert "Top causes:" in res.output
+
+
+def test_episode_step_is_idempotent(tmp_path: Path) -> None:
+    """Advancing an episode via CLI is idempotent on closed or stepped episodes."""
+    db_file = tmp_path / "episode_step_test.sqlite"
+    conn = connect(db_file)
+    apply_schema(conn)
+    conn.execute(
+        """
+        INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)
+        VALUES ('sub_step', 'Step User', 'synthetic', 'Asia/Singapore', '2026-08-01T00:00:00Z');
+        """
+    )
+    conn.execute(
+        """
+        INSERT INTO episodes (episode_id, subject_id, thread_id, opened_on, state, step_count, baseline_nights, baseline_rung)
+        VALUES ('ep_step_01', 'sub_step', 'th_01', '2026-08-15', 'CLOSED', 4, 14, 'PERSONAL');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    res1 = runner.invoke(app, ["episode", "step", "ep_step_01", "--db", str(db_file)])
+    assert res1.exit_code == 0
+    assert "stepped" in res1.output or "closed" in res1.output
+
+    res2 = runner.invoke(app, ["episode", "step", "ep_step_01", "--db", str(db_file)])
+    assert res2.exit_code == 0

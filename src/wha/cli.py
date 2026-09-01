@@ -12,11 +12,13 @@ from wha.service import (
     SourceUnavailable,
     explain_belief,
     fetch_data,
+    list_episodes,
     run_demo,
     run_doctor,
     run_evaluation_suite,
     run_ingest,
     run_nightly,
+    step_episode,
 )
 
 app = typer.Typer(
@@ -31,8 +33,14 @@ app.add_typer(demo_app, name="demo")
 belief_app = typer.Typer(help="Explain causal belief evolution.")
 app.add_typer(belief_app, name="belief")
 
+episode_app = typer.Typer(help="Manage and step agent episodes.")
+app.add_typer(episode_app, name="episode")
+
 data_app = typer.Typer(help="Fetch external datasets and foundation models.")
 app.add_typer(data_app, name="data")
+
+llm_app = typer.Typer(help="Manage LLM provider and cassette fixtures.")
+app.add_typer(llm_app, name="llm")
 
 
 @app.command("doctor")
@@ -184,7 +192,7 @@ def belief_explain(
     nights: Annotated[
         str | None, typer.Option("--nights", help="Night range (YYYY-MM-DD:YYYY-MM-DD)")
     ] = None,
-    episode: Annotated[str | None, typer.Option("--episode", help="Episode ID")] = None,
+    episode: Annotated[str | None, typer.Option("--episode", help="Episode ID or 'latest'")] = None,
     db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
@@ -216,6 +224,72 @@ def belief_explain(
         for r in records:
             top_str = ", ".join(f"{c}={p:.2f}" for c, p in r.top_causes)
             typer.echo(f"{r.night_date} | p(illness)={r.p_illness:.3f} | Top causes: {top_str}")
+    sys.exit(0)
+
+
+@episode_app.command("step")
+def episode_step_cmd(
+    episode_id: Annotated[str, typer.Argument(help="Episode ID to advance by one step")],
+    db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Advance one episode by one step synchronously."""
+    try:
+        res = step_episode(episode_id=episode_id, db_path=db)
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Episode step error: {e}", err=True)
+        sys.exit(1)
+
+    if as_json:
+        typer.echo(json.dumps(res, indent=2))
+    else:
+        typer.echo(
+            f"Episode '{episode_id}' stepped. Status: {res.get('status', 'stepped')}, Step count: {res.get('step_count')}"
+        )
+    sys.exit(0)
+
+
+@episode_app.command("list")
+def episode_list_cmd(
+    subject: Annotated[str | None, typer.Option("--subject", "-s", help="Subject ID")] = None,
+    db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
+    as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """List open and historical episodes for a subject."""
+    try:
+        subj_id = subject or "me"
+        episodes = list_episodes(subject_id=subj_id, db_path=db)
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Episode list error: {e}", err=True)
+        sys.exit(1)
+
+    if as_json:
+        out = [ep.model_dump(mode="json") for ep in episodes]
+        typer.echo(json.dumps(out, indent=2))
+    else:
+        typer.echo(f"Episodes for subject '{subj_id}' ({len(episodes)} total):")
+        for ep in episodes:
+            cause_str = f"{ep.top_cause} ({ep.top_probability:.2f})" if ep.top_cause else "N/A"
+            typer.echo(
+                f"{ep.episode_id} | State: {ep.state.ljust(12)} | Disp: {str(ep.disposition).ljust(18)} | Top cause: {cause_str}"
+            )
+    sys.exit(0)
+
+
+@llm_app.command("record")
+def llm_record_cmd(
+    scenario: Annotated[
+        str, typer.Option("--scenario", help="Scenario fixture name to record")
+    ] = "illness-onset",
+) -> None:
+    """Record LLM prompt cassettes for a scenario against live provider."""
+    typer.echo(f"Recording cassettes for scenario '{scenario}'...")
+    try:
+        run_demo(scenario_name=scenario, dry_run=False, live=True)
+        typer.echo(f"Cassettes recorded successfully for scenario '{scenario}'.")
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Recording failed: {e}", err=True)
+        sys.exit(1)
     sys.exit(0)
 
 
