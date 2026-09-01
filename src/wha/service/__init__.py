@@ -23,6 +23,19 @@ from wha.service.nightly import (
     parse_date_range,
     run_nightly,
 )
+from wha.service.nights import (
+    get_night_detail,
+    list_nights,
+)
+from wha.service.status import (
+    get_system_status,
+    test_bridge_connection,
+    test_llm_connection,
+    test_telegram_connection,
+)
+from wha.service.subjects import (
+    list_subjects,
+)
 
 __all__ = [
     "BeliefNightRecord",
@@ -32,10 +45,17 @@ __all__ = [
     "SourceUnavailable",
     "explain_belief",
     "fetch_data",
+    "get_night_detail",
+    "get_system_status",
+    "list_nights",
+    "list_subjects",
     "parse_date_range",
     "run_demo",
     "run_doctor",
     "run_evaluation_suite",
     "run_ingest",
     "run_nightly",
+    "test_bridge_connection",
+    "test_llm_connection",
+    "test_telegram_connection",
 ]
