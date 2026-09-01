@@ -8,18 +8,9 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from wha.agent.nodes import node_investigate, node_preload
 from wha.agent.state import EpisodeState
 from wha.constants import EPISODE_MAX_STEPS
-
-
-def node_stub_preload(state: EpisodeState) -> dict[str, Any]:
-    """Stub preload node for graph compilation."""
-    return {"preloaded": state.get("preloaded", {})}
-
-
-def node_stub_investigate(state: EpisodeState) -> dict[str, Any]:
-    """Stub investigate node for graph compilation."""
-    return {"step": state.get("step", 0) + 1}
 
 
 def build_agent_graph(
@@ -30,8 +21,8 @@ def build_agent_graph(
 
     builder = StateGraph(EpisodeState)
 
-    builder.add_node("preload", node_stub_preload)
-    builder.add_node("investigate", node_stub_investigate)
+    builder.add_node("preload", node_preload)
+    builder.add_node("investigate", node_investigate)
 
     builder.add_edge(START, "preload")
     builder.add_edge("preload", "investigate")
