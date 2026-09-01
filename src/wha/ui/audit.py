@@ -1,7 +1,6 @@
 """Audit view rendering end-to-end pipeline transparency, architectural inspector, cryptographic verification, and exports."""
 
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 import streamlit as st
@@ -9,7 +8,6 @@ import streamlit as st
 from wha.models import AuditFilter
 from wha.service.audit import export_audit, query_audit, verify_hash_chain
 from wha.service.episodes import get_episode, list_episodes
-from wha.service.nights import list_nights
 from wha.ui.components.status_strip import render_status_strip
 
 
@@ -36,7 +34,10 @@ def render_pipeline_architecture_inspector(subject_id: str) -> None:
 
     # Let user select an episode or inspect general subject pipeline
     episodes = list_episodes(subject_id)
-    ep_options = {ep.episode_id: f"Episode {ep.episode_id} ({ep.disposition.value if ep.disposition else ep.state.value}) - Opened: {ep.opened_on}" for ep in episodes}
+    ep_options = {
+        ep.episode_id: f"Episode {ep.episode_id} ({ep.disposition.value if ep.disposition else ep.state.value}) - Opened: {ep.opened_on}"
+        for ep in episodes
+    }
 
     selected_ep_id = None
     if ep_options:
@@ -81,17 +82,23 @@ def render_pipeline_architecture_inspector(subject_id: str) -> None:
         - **Chronos Foundation Model:** Advisory zero-shot neural time-series forecast running locally for trend validation.
         """)
         if ep_detail and ep_detail.outcome:
-            st.code(f"Baseline Rung: {ep_detail.outcome.baseline_rung.value} | Calibration Nights: {ep_detail.outcome.baseline_nights} nights")
+            st.code(
+                f"Baseline Rung: {ep_detail.outcome.baseline_rung.value} | Calibration Nights: {ep_detail.outcome.baseline_nights} nights"
+            )
 
     # 4. Covariate Subtraction & Persistence Filter Layer
-    with st.expander("4️⃣ **Layer 4: Explained-Variance Subtraction & Persistence Filter**", expanded=False):
+    with st.expander(
+        "4️⃣ **Layer 4: Explained-Variance Subtraction & Persistence Filter**", expanded=False
+    ):
         st.markdown("""
         - **Post-Exercise Tachycardia Subtraction:** Subtracts $+4.14\\text{ bpm}$ expected exercise elevation for late workouts, preventing false alarms.
         - **Persistence Gating:** Requires 2 consecutive nights of elevation for non-acute signals, cleanly filtering single-night alcohol artifacts without user interruption.
         """)
 
     # 5. Deterministic Safety & Red-Flag Gate
-    with st.expander("5️⃣ **Layer 5: Deterministic Safety Rules & Red-Flag Intercept**", expanded=True):
+    with st.expander(
+        "5️⃣ **Layer 5: Deterministic Safety Rules & Red-Flag Intercept**", expanded=True
+    ):
         st.markdown("""
         - **Deterministic Rule Engine:** Scans for cardinal symptoms (e.g. crushing chest pain, severe dyspnea, cyanosis).
         - **Hallucination Prevention Guarantee:** If a red-flag condition is matched, the system **bypasses LLM agent reasoning completely** and triggers immediate emergency triage advice (`seek_urgent_care`).
@@ -114,10 +121,14 @@ def render_pipeline_architecture_inspector(subject_id: str) -> None:
             for stg in ep_detail.stages:
                 status_icon = "✅" if stg.status.value == "RAN" else "⏭️"
                 dur = f"({stg.duration_ms} ms)" if stg.duration_ms else ""
-                st.write(f"{status_icon} **{stg.name}** — `{stg.status.value}` {dur} — *{stg.reason}*")
+                st.write(
+                    f"{status_icon} **{stg.name}** — `{stg.status.value}` {dur} — *{stg.reason}*"
+                )
 
     # 7. Exact Bayesian Causal Belief State & EVSI Optimizer
-    with st.expander("7️⃣ **Layer 7: Bayesian Causal Belief State & EVSI Decision Policy**", expanded=True):
+    with st.expander(
+        "7️⃣ **Layer 7: Bayesian Causal Belief State & EVSI Decision Policy**", expanded=True
+    ):
         st.markdown("""
         - **Exact Discrete Enumeration:** Evaluates $2^{12} = 4,096$ causal configurations (Infection, Alcohol, Exertion, Sleep, Stress, Vaccination, Medication, etc.) using log-space arithmetic to prevent floating-point underflow.
         - **Information-Gain Math (EVSI):**
@@ -127,18 +138,28 @@ def render_pipeline_architecture_inspector(subject_id: str) -> None:
         if ep_detail and ep_detail.belief_history:
             st.markdown("#### Probability Evolution across Investigation Steps:")
             for seq, trig, b_view in ep_detail.belief_history:
-                top_c = max(b_view.marginals.items(), key=lambda x: x[1]) if b_view.marginals else ("None", 0.0)
-                st.write(f"- Step {seq} (`{trig}`): **Top Cause: {top_c[0]} ({top_c[1]:.1%})** | $P(\\text{{Illness}}) = {b_view.p_illness:.1%}$")
+                top_c = (
+                    max(b_view.marginals.items(), key=lambda x: x[1])
+                    if b_view.marginals
+                    else ("None", 0.0)
+                )
+                st.write(
+                    f"- Step {seq} (`{trig}`): **Top Cause: {top_c[0]} ({top_c[1]:.1%})** | $P(\\text{{Illness}}) = {b_view.p_illness:.1%}$"
+                )
 
     # 8. Human-in-the-Loop Interaction & Grounded Outcome
-    with st.expander("8️⃣ **Layer 8: Human Interaction & Grounded Clinical Differential**", expanded=True):
+    with st.expander(
+        "8️⃣ **Layer 8: Human Interaction & Grounded Clinical Differential**", expanded=True
+    ):
         st.markdown("""
         - **Interactive Questionnaire:** Delivered via Web Dashboard or Telegram inline keyboards.
         - **Verbatim Grounding Check:** Automated safety check ensures every sentence in the generated differential is strictly supported by retrieved medical literature. Any hallucinated claim is automatically stripped.
         - **Cryptographic Audit:** SHA-256 hash linking previous event hash to current event hash.
         """)
         if ep_detail and ep_detail.outcome:
-            st.success(f"**Final Grounded Outcome:** `{ep_detail.outcome.disposition.value}` | Action: `{ep_detail.outcome.action}` | Confidence: `{ep_detail.outcome.confidence.upper()}`")
+            st.success(
+                f"**Final Grounded Outcome:** `{ep_detail.outcome.disposition.value}` | Action: `{ep_detail.outcome.action}` | Confidence: `{ep_detail.outcome.confidence.upper()}`"
+            )
             st.write(f"*{ep_detail.outcome.observation}*")
 
 

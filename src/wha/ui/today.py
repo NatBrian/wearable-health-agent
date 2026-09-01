@@ -1,4 +1,4 @@
-"""Today view rendering inbox, last night summary, and open episodes."""
+"""Today view rendering inbox, active clinical interview, last night summary, and open episodes."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -25,7 +25,7 @@ def render_inbox(
     subject_id: str, pending: PendingInteraction | None, status: SystemStatus | None = None
 ) -> None:
     """Render the single active pending interaction or the reassuring nothing-pending state."""
-    st.subheader("📬 Inbox")
+    st.subheader("📬 Inbox & AI Clinical Interview")
 
     if pending is None:
         # Reassuring nothing-pending state
@@ -39,7 +39,12 @@ def render_inbox(
 
     if pending.kind == "question" and pending.question:
         q = pending.question
+        st.markdown("### 💬 Active AI Clinical Investigation")
         st.info(f"**Question for you:** {q.text}")
+        st.caption(
+            "Our algorithm detected a physiological deviation. The AI agent is asking a targeted clinical probe to evaluate your symptoms and update the Bayesian diagnostic differential."
+        )
+
         free_text = st.text_input("Additional notes or symptoms (optional)", key="q_free_text")
 
         cols = st.columns(len(q.probe.answer_space) + 1)
@@ -115,14 +120,14 @@ def render_inbox(
 
 
 def render_last_night_summary(subject_id: str) -> None:
-    """Render last night status in one clean line."""
-    st.subheader("🌙 Last Night")
+    """Render last night status in a clean card."""
+    st.subheader("🌙 Last Night Vitals & Clinical Assessment")
     end_d = datetime.now(UTC).date()
     start_d = end_d - timedelta(days=14)
     nights = list_nights(subject_id, start=start_d, end=end_d)
     usable_nights = [n for n in reversed(nights) if n.usable and n.rhr_bpm is not None]
     if not usable_nights:
-        st.write("No night data recorded yet.")
+        st.info("No night vitals recorded yet.")
         return
 
     n = usable_nights[0]
@@ -130,26 +135,36 @@ def render_last_night_summary(subject_id: str) -> None:
     dev = f"{n.deviation_bpm:+.1f} bpm" if n.deviation_bpm is not None else "N/A"
     res = f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "N/A"
 
-    st.markdown(
-        f"**{n.night_date}** | Resting HR: `{rhr}` | Deviation: `{dev}` | "
-        f"Residual: `{res}` | Level: `{n.level.value}`"
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Resting Heart Rate", rhr)
+    with col2:
+        st.metric("Baseline Deviation", dev)
+    with col3:
+        st.metric("Unexplained Residual", res)
+    with col4:
+        st.metric("Detection Level", n.level.value)
+
+    st.caption(
+        f"Recorded for night of **{n.night_date}** with {n.coverage_minutes} minutes of valid nocturnal watch contact."
     )
 
 
 def render_open_episodes(subject_id: str) -> None:
     """Render one-line summaries of open episodes."""
-    st.subheader("📋 Open Episodes")
+    st.subheader("📋 Active Clinical Episodes")
     episodes = list_episodes(subject_id)
     open_eps = [e for e in episodes if e.state.value not in ("CLOSED", "RESOLVED")]
 
     if not open_eps:
-        st.caption("No open episodes.")
+        st.caption("No open episodes. All physiological signals within normal bounds.")
         return
 
     for ep in open_eps:
         disp = ep.disposition.value if ep.disposition else "IN_PROGRESS"
+        disp_icon = "🩺" if "ILLNESS" in disp else "🚨" if "ESCALATE" in disp else "🔍"
         st.write(
-            f"• **Episode `{ep.episode_id}`** (opened {ep.opened_on}) — State: `{ep.state.value}`, Disposition: `{disp}`"
+            f"{disp_icon} **Episode `{ep.episode_id}`** (opened {ep.opened_on}) — State: `{ep.state.value}`, Disposition: `{disp}`"
         )
 
 
