@@ -85,7 +85,7 @@ do it, run its exit command, then come back and update this table.
 |---|---|---|---|---|---|---|
 | C-01 | App shell, sidebar, subject selector, status strip fragment | B-21 | 15 | [x] | 2026-09-01 | |
 | C-02 | Today: the inbox, last night, open episodes | C-01, B-22 | 15 | [x] | 2026-09-01 | |
-| C-03 | History: night chart with the maturing band, episode spans, night table | C-01 | 15 | [ ] | | |
+| C-03 | History: night chart with the maturing band, episode spans, night table | C-01 | 15 | [x] | 2026-09-01 | |
 | C-04 | Episode panel: Summary and Trace tabs | C-03, B-22 | 15 | [ ] | | |
 | C-05 | Episode panel: Conversation and Evidence tabs | C-04 | 15 | [ ] | | |
 | C-06 | Audit page, with hash-chain verification and export | C-01, B-23 | 15 | [ ] | | |

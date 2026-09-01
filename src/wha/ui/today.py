@@ -1,6 +1,6 @@
 """Today view rendering inbox, last night summary, and open episodes."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import streamlit as st
 
@@ -117,12 +117,15 @@ def render_inbox(
 def render_last_night_summary(subject_id: str) -> None:
     """Render last night status in one clean line."""
     st.subheader("🌙 Last Night")
-    nights = list_nights(subject_id, limit=1)
-    if not nights:
+    end_d = datetime.now(UTC).date()
+    start_d = end_d - timedelta(days=14)
+    nights = list_nights(subject_id, start=start_d, end=end_d)
+    usable_nights = [n for n in reversed(nights) if n.usable and n.rhr_bpm is not None]
+    if not usable_nights:
         st.write("No night data recorded yet.")
         return
 
-    n = nights[0]
+    n = usable_nights[0]
     rhr = f"{n.rhr_bpm:.1f} bpm" if n.rhr_bpm is not None else "N/A"
     dev = f"{n.deviation_bpm:+.1f} bpm" if n.deviation_bpm is not None else "N/A"
     res = f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "N/A"
