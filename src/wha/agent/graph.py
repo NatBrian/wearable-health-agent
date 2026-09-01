@@ -8,7 +8,12 @@ from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from wha.agent.nodes import node_investigate, node_preload
+from wha.agent.nodes import (
+    node_believe,
+    node_decide,
+    node_investigate,
+    node_preload,
+)
 from wha.agent.state import EpisodeState
 from wha.constants import EPISODE_MAX_STEPS
 
@@ -23,10 +28,14 @@ def build_agent_graph(
 
     builder.add_node("preload", node_preload)
     builder.add_node("investigate", node_investigate)
+    builder.add_node("believe", node_believe)
+    builder.add_node("decide", node_decide)
 
     builder.add_edge(START, "preload")
     builder.add_edge("preload", "investigate")
-    builder.add_edge("investigate", END)
+    builder.add_edge("investigate", "believe")
+    builder.add_edge("believe", "decide")
+    builder.add_edge("decide", END)
 
     return builder.compile(checkpointer=saver)
 

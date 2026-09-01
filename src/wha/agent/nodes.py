@@ -1,4 +1,4 @@
-"""Graph execution nodes for preloading context and running LLM investigation."""
+"""Graph execution nodes for preloading, investigation, belief update, and policy decision."""
 
 import json
 from datetime import UTC, datetime, timedelta
@@ -9,11 +9,13 @@ from pydantic import BaseModel, Field
 from wha.agent.state import EpisodeState
 from wha.agent.tools.impl import create_default_tool_registry
 from wha.agent.tools.registry import ToolContext, ToolRegistry
+from wha.belief import update_belief
 from wha.constants import MAX_TOOL_CALLS_PER_EPISODE
 from wha.errors import LLMUnavailable, PermissionDenied, ValidationFailed
 from wha.llm.client import LLMClient, get_llm_client
 from wha.llm.prompts import get_prompt_definition
-from wha.models import ExtractedFact
+from wha.models import Action, ActionKind, ExtractedFact
+from wha.policy.select import select_action
 
 
 class ToolCallArgs(BaseModel):
@@ -41,6 +43,14 @@ class FactExtractionResponse(BaseModel):
     """Typed structured facts extracted by LLM from investigation artifacts."""
 
     facts: list[ExtractedFact] = Field(default_factory=list)
+
+
+class VetoCheckResponse(BaseModel):
+    """Unidirectional redundant question veto decision from model."""
+
+    veto: bool = False
+    reason: str = ""
+    suggested_alternative: str | None = None
 
 
 def node_preload(
@@ -218,4 +228,131 @@ def node_investigate(
         "tool_call_count": context.tool_call_count,
         "evidence": facts,
         "step": state.get("step", 0) + 1,
+    }
+
+
+def node_believe(
+    state: EpisodeState,
+    db: Any = None,
+) -> dict[str, Any]:
+    """Deterministically recompute belief distribution across 4096 states."""
+    nights = state.get("nights", [])
+    features = state.get("features", [])
+    answers = state.get("answers", [])
+    measurements = state.get("measurements", [])
+
+    belief = update_belief(
+        episode_nights=nights,
+        features=features,
+        answers=answers,
+        measurements=measurements,
+    )
+
+    if db is not None:
+        if hasattr(db, "append_belief"):
+            db.append_belief(
+                episode_id=state.get("episode_id"),
+                subject_id=state.get("subject_id"),
+                belief=belief,
+                trigger="node_believe",
+            )
+        elif hasattr(db, "insert_belief"):
+            db.insert_belief(
+                episode_id=state.get("episode_id"),
+                subject_id=state.get("subject_id"),
+                belief=belief,
+            )
+
+    return {
+        "belief": belief,
+        "step": state.get("step", 0) + 1,
+    }
+
+
+def node_decide(
+    state: EpisodeState,
+    llm_client: LLMClient | None = None,
+    db: Any = None,
+) -> dict[str, Any]:
+    """Deterministically select action via EVSI policy, with unidirectional LLM veto on ask actions."""
+    belief = state.get("belief")
+    if belief is None:
+        belief = update_belief(
+            episode_nights=state.get("nights", []),
+            features=state.get("features", []),
+            answers=state.get("answers", []),
+            measurements=state.get("measurements", []),
+        )
+
+    depth_used = state.get("depth_used", 0)
+    step = state.get("step", 0)
+    nights = state.get("nights", [])
+
+    action = select_action(
+        belief=belief,
+        episode_questions_asked=depth_used,
+        steps_in_episode=step,
+        nights_in_episode=len(nights) if nights else 1,
+    )
+
+    client = llm_client or get_llm_client()
+
+    # VETO CHECK: Only on ASK actions
+    veto_applied = False
+    if action.kind == ActionKind.ASK:
+        try:
+            veto_def = get_prompt_definition("veto_check")
+            probe_id = (
+                action.question.probe_id
+                if action.question and hasattr(action.question, "probe_id")
+                else "general"
+            )
+            question_text = (
+                action.question.text
+                if action.question and hasattr(action.question, "text")
+                else "Proposed inquiry"
+            )
+            veto_prompt = veto_def.render(
+                {
+                    "probe_id": probe_id,
+                    "question_text": question_text,
+                    "known_facts": json.dumps(
+                        [e.model_dump() for e in state.get("evidence", [])], default=str
+                    ),
+                }
+            )
+            veto_res, _ = client.complete(
+                veto_prompt,
+                schema=VetoCheckResponse,
+                temperature=veto_def.temperature,
+            )
+            if veto_res.veto:
+                veto_applied = True
+                # Redundant question cancelled: convert to OBSERVE without consuming depth budget
+                action = Action(
+                    kind=ActionKind.OBSERVE,
+                    disposition=action.disposition,
+                    rationale=f"Vetoed redundant inquiry: {veto_res.reason}",
+                    rejected=action.rejected,
+                )
+        except (
+            LLMUnavailable,
+            ValidationFailed,
+            KeyError,
+            TypeError,
+            ValueError,
+            AttributeError,
+            StopIteration,
+        ):
+            pass
+
+    if action.kind == ActionKind.ASK and not veto_applied:
+        new_depth = depth_used + 1
+    else:
+        new_depth = depth_used
+
+    return {
+        "action": action,
+        "depth_used": new_depth,
+        "step": step + 1,
     }
