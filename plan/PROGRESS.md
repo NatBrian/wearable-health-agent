@@ -137,4 +137,7 @@ indistinguishable from the threshold-only baseline, **stop and report it**. See
   - Formatter: `uv run ruff format --check src tests` clean (206 files formatted).
   - Doctor: `uv run wha doctor` clean (0 fail rows).
   - Demo Scenarios: All 11 scenario fixtures execute end-to-end and reach expected dispositions.
-  - Cryptographic Audit: `verify_hash_chain` passed with unbroken SHA-256 chain integrity.
+  - **Cryptographic Audit**: `verify_hash_chain` passed with unbroken SHA-256 chain integrity.
+- **Current Branch**: `feat/agentic-early-warning-system` (Main reset to `origin/main` for clean PR).
+- **Live Phone Device**: Ingested and verified on `192.168.1.196:8787` (Bearer Token configured in `.env`).
+- **Dashboard Surface**: Running on `http://localhost:8505` with updated AI Clinical Interview, Status Badges, and 8-Stage Architecture Inspector.
