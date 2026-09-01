@@ -65,7 +65,7 @@ do it, run its exit command, then come back and update this table.
 | B-14 | Graph state, checkpointer, compile | B-01, A-21 | 09 | [x] | 2026-09-01 | |
 | B-15 | `preload` and `investigate` nodes | B-14, B-13 | 09 | [x] | 2026-09-01 | |
 | B-16 | `believe` and `decide` nodes, and the veto | B-15, A-21 | 09 | [x] | 2026-09-01 | |
-| B-17 | `ask` and `measure` nodes, and the interrupt discipline | B-16, B-09 | 09 | [ ] | | |
+| B-17 | `ask` and `measure` nodes, and the interrupt discipline | B-16, B-09 | 09 | [x] | 2026-09-01 | |
 | B-18 | `conclude`, `critique`, `review` nodes | B-17, B-11 | 09 | [ ] | | |
 | B-19 | `Notifier` protocol and Telegram send | B-09 | 15 | [ ] | | |
 | B-20 | Telegram receive, callbacks, offset persistence | B-19 | 15 | [ ] | | |

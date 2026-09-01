@@ -1,9 +1,10 @@
-"""Graph execution nodes for preloading, investigation, belief update, and policy decision."""
+"""Graph execution nodes for preloading, investigation, belief update, policy decision, asking, and measuring."""
 
 import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
 from wha.agent.state import EpisodeState
@@ -14,7 +15,14 @@ from wha.constants import MAX_TOOL_CALLS_PER_EPISODE
 from wha.errors import LLMUnavailable, PermissionDenied, ValidationFailed
 from wha.llm.client import LLMClient, get_llm_client
 from wha.llm.prompts import get_prompt_definition
-from wha.models import Action, ActionKind, ExtractedFact
+from wha.models import (
+    Action,
+    ActionKind,
+    Answer,
+    ExtractedFact,
+    MeasurementResult,
+    Question,
+)
 from wha.policy.select import select_action
 
 
@@ -51,6 +59,14 @@ class VetoCheckResponse(BaseModel):
     veto: bool = False
     reason: str = ""
     suggested_alternative: str | None = None
+
+
+class QuestionDraftResponse(BaseModel):
+    """Drafted question text and option labels from LLM."""
+
+    text: str
+    option_labels: list[str] = Field(default_factory=list)
+    rationale: str | None = None
 
 
 def node_preload(
@@ -303,8 +319,8 @@ def node_decide(
         try:
             veto_def = get_prompt_definition("veto_check")
             probe_id = (
-                action.question.probe_id
-                if action.question and hasattr(action.question, "probe_id")
+                action.question.probe.probe_id
+                if action.question and hasattr(action.question, "probe")
                 else "general"
             )
             question_text = (
@@ -355,4 +371,188 @@ def node_decide(
         "action": action,
         "depth_used": new_depth,
         "step": step + 1,
+    }
+
+
+def node_ask(
+    state: EpisodeState,
+    llm_client: LLMClient | None = None,
+    notifier: Any = None,
+    db: Any = None,
+) -> dict[str, Any]:
+    """Ask node with strict interrupt discipline and idempotent pre-interrupt execution."""
+    action = state.get("action")
+    if action is None or action.question is None:
+        return {"step": state.get("step", 0) + 1}
+
+    question = action.question
+    probe_id = question.probe.probe_id
+    episode_id = state.get("episode_id", "ep_default")
+    interaction_id = f"int_{episode_id}_{probe_id}"
+
+    # 1. Prepare Question Text (with fallback if LLM is unavailable)
+    question_text = question.text
+    text_source = question.text_source
+
+    if text_source == "llm":
+        client = llm_client or get_llm_client()
+        try:
+            draft_def = get_prompt_definition("write_question")
+            draft_prompt = draft_def.render(
+                {
+                    "probe_id": probe_id,
+                    "target_cause": question.probe.target_cause.value,
+                    "fallback_text": question.probe.fallback_text,
+                    "options": json.dumps([o.model_dump() for o in question.options], default=str),
+                }
+            )
+            draft_res, _ = client.complete(
+                draft_prompt,
+                schema=QuestionDraftResponse,
+                temperature=draft_def.temperature,
+            )
+            question_text = draft_res.text
+        except (LLMUnavailable, ValidationFailed, KeyError, TypeError, ValueError, StopIteration):
+            question_text = question.probe.fallback_text
+            text_source = "fallback"
+
+    updated_question = Question(
+        probe=question.probe,
+        text=question_text,
+        text_source=text_source,
+        options=question.options,
+        allows_free_text=question.allows_free_text,
+    )
+
+    # 2. Idempotent write / upsert of interaction
+    if db is not None and hasattr(db, "upsert_interaction"):
+        db.upsert_interaction(
+            interaction_id=interaction_id,
+            episode_id=episode_id,
+            subject_id=state.get("subject_id"),
+            probe_id=probe_id,
+            question_text=updated_question.text,
+        )
+
+    # 3. Idempotent send notification: check if already sent
+    already_sent = False
+    if db is not None:
+        if hasattr(db, "has_notification_for"):
+            already_sent = db.has_notification_for(interaction_id)
+        elif hasattr(db, "get_notifications_for_interaction"):
+            already_sent = bool(db.get_notifications_for_interaction(interaction_id))
+
+    if not already_sent and notifier is not None:
+        if hasattr(notifier, "send_message"):
+            notifier.send_message(
+                recipient_id=state.get("subject_id"),
+                text=updated_question.text,
+                interaction_id=interaction_id,
+                options=[opt.model_dump() for opt in updated_question.options],
+            )
+        if db is not None and hasattr(db, "record_notification"):
+            db.record_notification(interaction_id=interaction_id, recipient=state.get("subject_id"))
+
+    # 4. Interrupt for human response
+    raw_response = interrupt(
+        {
+            "kind": "question",
+            "interaction_id": interaction_id,
+            "probe_id": probe_id,
+            "text": updated_question.text,
+            "options": [opt.model_dump() for opt in updated_question.options],
+        }
+    )
+
+    # 5. Post-interrupt resumption logic
+    if isinstance(raw_response, Answer):
+        answer = raw_response
+    elif isinstance(raw_response, dict):
+        if raw_response.get("timed_out") or raw_response.get("status") == "timed_out":
+            # Timeout answer
+            answer = Answer(
+                probe_id=probe_id,
+                option_id=None,
+                free_text=None,
+                declined=True,
+            )
+        else:
+            answer = Answer(
+                probe_id=raw_response.get("probe_id", probe_id),
+                option_id=raw_response.get("option_id"),
+                free_text=raw_response.get("free_text"),
+                declined=raw_response.get("declined", False),
+            )
+    else:
+        answer = Answer(
+            probe_id=probe_id,
+            option_id=None,
+            free_text=str(raw_response),
+            declined=False,
+        )
+
+    return {
+        "answers": [answer],
+        "step": state.get("step", 0) + 1,
+    }
+
+
+def node_measure(
+    state: EpisodeState,
+    notifier: Any = None,
+    db: Any = None,
+) -> dict[str, Any]:
+    """Measure node with idempotent pre-interrupt execution."""
+    action = state.get("action")
+    episode_id = state.get("episode_id", "ep_default")
+    measurement_id = (
+        action.measurement.measurement_id
+        if action and action.measurement
+        else f"meas_{episode_id}_{state.get('step', 0)}"
+    )
+
+    # 1. Idempotent check & notify
+    already_sent = False
+    if db is not None and hasattr(db, "has_notification_for"):
+        already_sent = db.has_notification_for(measurement_id)
+
+    if not already_sent and notifier is not None:
+        if hasattr(notifier, "send_message"):
+            notifier.send_message(
+                recipient_id=state.get("subject_id"),
+                text="Please perform spot measurement.",
+                interaction_id=measurement_id,
+            )
+        if db is not None and hasattr(db, "record_notification"):
+            db.record_notification(interaction_id=measurement_id, recipient=state.get("subject_id"))
+
+    # 2. Interrupt
+    raw_response = interrupt(
+        {
+            "kind": "measurement",
+            "interaction_id": measurement_id,
+        }
+    )
+
+    # 3. Post-interrupt parsing
+    if isinstance(raw_response, MeasurementResult):
+        meas_res = raw_response
+    elif isinstance(raw_response, dict):
+        meas_res = MeasurementResult(
+            measurement_id=measurement_id,
+            kind=raw_response.get("kind", "spot_resting_hr"),
+            value=raw_response.get("value"),
+            observed_at_utc=raw_response.get("observed_at_utc"),
+            satisfied=raw_response.get("satisfied", False),
+        )
+    else:
+        meas_res = MeasurementResult(
+            measurement_id=measurement_id,
+            kind="spot_resting_hr",
+            satisfied=False,
+        )
+
+    return {
+        "measurements": [meas_res],
+        "step": state.get("step", 0) + 1,
     }

@@ -9,13 +9,31 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from wha.agent.nodes import (
+    node_ask,
     node_believe,
     node_decide,
     node_investigate,
+    node_measure,
     node_preload,
 )
 from wha.agent.state import EpisodeState
 from wha.constants import EPISODE_MAX_STEPS
+from wha.models import ActionKind
+
+
+def route_after_decide(state: EpisodeState) -> str:
+    """Route graph to next execution step based on selected ActionKind."""
+    action = state.get("action")
+    if action is None:
+        return END
+
+    if action.kind == ActionKind.ASK:
+        return "ask"
+    elif action.kind == ActionKind.MEASURE:
+        return "measure"
+    else:
+        # OBSERVE, CONCLUDE, ESCALATE terminate graph step
+        return END
 
 
 def build_agent_graph(
@@ -30,12 +48,26 @@ def build_agent_graph(
     builder.add_node("investigate", node_investigate)
     builder.add_node("believe", node_believe)
     builder.add_node("decide", node_decide)
+    builder.add_node("ask", node_ask)
+    builder.add_node("measure", node_measure)
 
     builder.add_edge(START, "preload")
     builder.add_edge("preload", "investigate")
     builder.add_edge("investigate", "believe")
     builder.add_edge("believe", "decide")
-    builder.add_edge("decide", END)
+
+    builder.add_conditional_edges(
+        "decide",
+        route_after_decide,
+        {
+            "ask": "ask",
+            "measure": "measure",
+            END: END,
+        },
+    )
+
+    builder.add_edge("ask", "believe")
+    builder.add_edge("measure", "believe")
 
     return builder.compile(checkpointer=saver)
 
