@@ -1,0 +1,27 @@
+[     611ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/Audit/_stcore/health:0
+[     611ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:8505/Audit/_stcore/host-config:0
+[   28636ms] [WARNING] WebSocket onclose @ http://localhost:8505/static/js/index.dZusM_HY.js:34
+[   29106ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   29107ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   29226ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   29228ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   29466ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   29467ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   29881ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   29883ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   30595ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   30595ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   30914ms] [ERROR] Cannot send rerun backMessage when disconnected from server. @ http://localhost:8505/static/js/index.dZusM_HY.js:38
+[   31982ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   31983ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8505/static/js/index.dZusM_HY.js:33
+[   31984ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8505/static/js/index.dZusM_HY.js:38
+[   31986ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   34691ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   34692ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8505/static/js/index.dZusM_HY.js:33
+[   34692ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8505/static/js/index.dZusM_HY.js:38
+[   34726ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   37647ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/health:0
+[   37648ms] [ERROR] Client Error in reaching server endpoint - No response received when attempting to reach /_stcore/health @ http://localhost:8505/static/js/index.dZusM_HY.js:33
+[   37649ms] [ERROR] Is Streamlit still running? If you accidentally stopped Streamlit, just restart it in your terminal: @ http://localhost:8505/static/js/index.dZusM_HY.js:38
+[   37684ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://localhost:8505/_stcore/host-config:0
+[   40917ms] [ERROR] Cannot send rerun backMessage when disconnected from server. @ http://localhost:8505/static/js/index.dZusM_HY.js:38
