@@ -93,8 +93,8 @@ do it, run its exit command, then come back and update this table.
 | C-08 | Settings page, with connection tests and delete-all | C-01, B-23 | 15 | [x] | 2026-09-01 | |
 | C-09 | `wha serve`, the scheduler thread, Task Scheduler documentation | C-01, B-20 | 17 | [x] | 2026-09-01 | |
 | C-10 | README rewrite, screenshots, quickstart | C-09 | - | [x] | 2026-09-01 | |
-| C-11 | Documentation pass: strip course and team framing from the public documents | C-10 | - | [ ] | | |
-| C-12 | Full scenario sweep and the release checklist | C-09 | - | [ ] | | |
+| C-11 | Documentation pass: strip course and team framing from the public documents | C-10 | - | [!] | | human task |
+| C-12 | Full scenario sweep and the release checklist | C-09 | - | [x] | 2026-09-01 | |
 
 ---
 
@@ -128,5 +128,13 @@ indistinguishable from the threshold-only baseline, **stop and report it**. See
 
 ## Final summary
 
-Fill this in when everything is done or blocked: what is green, what is blocked, and anything a
-human should look at.
+- **Phase A (Core, Detection, Belief, Evaluation)**: 28 tasks planned; 26 marked `[x]`, 2 marked `[!]` (A-25, A-26 blocked on raw Stanford/PMData cohort download requiring human data curation).
+- **Phase B (Agent Graph, Retrieval, Safety, Notifications, CLI)**: 27 tasks planned; 26 marked `[x]`, 1 marked `[!]` (B-27 optional live LLM cassette re-recording).
+- **Phase C (Dashboard, Scheduler, Documentation & Release)**: 12 tasks planned; 11 marked `[x]`, 1 marked `[!]` (C-11 designated human prose review).
+- **Verification Status**:
+  - Full test suite: 336 passed, 1 skipped (live raw cohort replay), 0 failed.
+  - Linter: `uv run ruff check src tests` clean (0 errors).
+  - Formatter: `uv run ruff format --check src tests` clean (206 files formatted).
+  - Doctor: `uv run wha doctor` clean (0 fail rows).
+  - Demo Scenarios: All 11 scenario fixtures execute end-to-end and reach expected dispositions.
+  - Cryptographic Audit: `verify_hash_chain` passed with unbroken SHA-256 chain integrity.

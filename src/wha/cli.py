@@ -143,6 +143,21 @@ def nightly(
     sys.exit(0)
 
 
+@demo_app.command("list")
+def demo_list() -> None:
+    """List available scenario demonstration fixtures."""
+    scenarios_dir = Path("tests/fixtures/scenarios")
+    if not scenarios_dir.exists():
+        typer.echo("No scenario fixtures directory found.")
+        sys.exit(1)
+
+    scenarios = sorted([f.stem for f in scenarios_dir.glob("*.json")])
+    typer.echo("Available scenario fixtures:")
+    for s in scenarios:
+        typer.echo(f"  - {s}")
+    sys.exit(0)
+
+
 @demo_app.command("run")
 def demo_run(
     scenario: Annotated[str, typer.Argument(help="Scenario name (e.g. illness-onset)")],
