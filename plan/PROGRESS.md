@@ -67,7 +67,7 @@ do it, run its exit command, then come back and update this table.
 | B-16 | `believe` and `decide` nodes, and the veto | B-15, A-21 | 09 | [x] | 2026-09-01 | |
 | B-17 | `ask` and `measure` nodes, and the interrupt discipline | B-16, B-09 | 09 | [x] | 2026-09-01 | |
 | B-18 | `conclude`, `critique`, `review` nodes | B-17, B-11 | 09 | [x] | 2026-09-01 | |
-| B-19 | `Notifier` protocol and Telegram send | B-09 | 15 | [ ] | | |
+| B-19 | `Notifier` protocol and Telegram send | B-09 | 15 | [x] | 2026-09-01 | |
 | B-20 | Telegram receive, callbacks, offset persistence | B-19 | 15 | [ ] | | |
 | B-21 | Service: status, subjects, nights | A-13 | 14 | [ ] | | |
 | B-22 | Service: episodes, including the bounded episode Q&A | B-18, B-06 | 14 | [ ] | | |

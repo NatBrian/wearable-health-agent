@@ -96,6 +96,10 @@ class ToolRegistry:
         """Clear cache when an episode concludes."""
         self._episode_caches.pop(episode_id, None)
 
+    def list_tools(self) -> list[str]:
+        """Return list of registered tool names."""
+        return list(self._handlers.keys())
+
     def invoke(
         self,
         tool_name: str,
