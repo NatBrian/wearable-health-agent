@@ -16,9 +16,10 @@ The rules implemented here come from ``plan/02-contracts.md``:
 
 import sqlite3
 import uuid
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from pathlib import Path
 
+from wha.clock import local_date_of, local_today
 from wha.constants import DETECT_PERSISTENCE_NIGHTS, EPISODE_MAX_NIGHTS
 from wha.db import apply_schema, connect
 from wha.errors import ConfigError
@@ -108,7 +109,7 @@ def close_episode(
         """UPDATE episodes
            SET state = 'CLOSED', disposition = ?, closed_on = ?
            WHERE episode_id = ?""",
-        (value, (closed_on or datetime.now(UTC).date()).isoformat(), episode_id),
+        (value, (closed_on or local_today()).isoformat(), episode_id),
     )
     conn.commit()
 
@@ -131,7 +132,7 @@ def check_close_conditions(
         return None
 
     opened = date.fromisoformat(row["opened_on"])
-    today = datetime.now(UTC).date()
+    today = local_today()
 
     if (today - opened).days >= EPISODE_MAX_NIGHTS:
         close_episode(conn, episode_id, Disposition.UNRESOLVED, today)
@@ -166,16 +167,22 @@ def monitoring_since(conn: sqlite3.Connection, subject_id: str) -> date | None:
     The subject row is written on first ingest, so ``created_at_utc`` is the moment the
     person started being monitored. Nights before it are history the system was given, not
     nights it was watching.
+
+    That column is UTC and night dates are local, so the two are only comparable after a
+    conversion. Taking the first ten characters of the timestamp put a subject who
+    installed at 01:41 in Singapore a whole day early, and the night before they installed
+    was treated as one the system had been watching.
     """
     row = conn.execute(
-        "SELECT created_at_utc FROM subjects WHERE subject_id = ?", (subject_id,)
+        "SELECT created_at_utc, timezone FROM subjects WHERE subject_id = ?", (subject_id,)
     ).fetchone()
     if row is None or not row[0]:
         return None
     try:
-        return date.fromisoformat(str(row[0])[:10])
+        moment = datetime.fromisoformat(str(row[0]))
     except ValueError:
         return None
+    return local_date_of(moment, row["timezone"])
 
 
 def open_episodes_for_flagged_nights(

@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from wha.clock import local_today
 from wha.db import connect
 from wha.db.migrations import apply_schema
 from wha.models import (
@@ -282,7 +283,7 @@ def submit_human_decision(
         if ep_row is None or ep_row["state"] != "AWAITING_HUMAN_REVIEW":
             return
 
-        now_d = datetime.now(UTC).date().isoformat()
+        now_d = local_today().isoformat()
         if decision == "approve":
             conn.execute(
                 "UPDATE episodes SET state = 'CLOSED', closed_on = ? WHERE episode_id = ?",
@@ -759,7 +760,7 @@ def _close_if_concluded(
         """UPDATE episodes
            SET state = 'CLOSED', disposition = ?, closed_on = ?
            WHERE episode_id = ?""",
-        (value, datetime.now(UTC).date().isoformat(), episode_id),
+        (value, local_today().isoformat(), episode_id),
     )
     return "CLOSED"
 

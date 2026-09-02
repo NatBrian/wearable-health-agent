@@ -13,9 +13,9 @@ escalates on its own, regardless of what the sensors saw.
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 
+from wha.clock import local_today
 from wha.db import apply_schema, connect
 from wha.models import Disposition
 from wha.safety.models import SafetyCheckResult
@@ -70,7 +70,7 @@ def report_symptoms(
             episode_id = str(existing["episode_id"])
         else:
             episode_id = f"ep_{uuid.uuid4().hex[:12]}"
-            today = datetime.now(UTC).date()
+            today = local_today()
             baseline = conn.execute(
                 """SELECT usable_nights, rung FROM baselines
                    WHERE subject_id = ? ORDER BY night_date DESC LIMIT 1""",

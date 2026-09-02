@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from wha.clock import local_date_of, local_today
 from wha.errors import PermissionDenied
 from wha.models import AuditEvent, ControlTier
 
@@ -150,7 +151,7 @@ class ToolRegistry:
 
         # 3. Date range clamping to at most 90 days and not in the future
         clamp_note: str | None = None
-        today = now.date() if isinstance(now, datetime) else datetime.now(UTC).date()
+        today = local_date_of(now) if isinstance(now, datetime) else local_today()
 
         start_val = args.get("start") or args.get("start_date")
         end_val = args.get("end") or args.get("end_date")

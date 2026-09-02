@@ -153,9 +153,35 @@ def _lookup(table: dict[str, Phrase], value: object) -> Phrase:
     return table.get(str(key), _FALLBACK)
 
 
-def level_phrase(value: object) -> Phrase:
-    """Plain wording for a nightly detection level."""
-    return _lookup(LEVEL_PHRASES, value)
+# Below this rung the shrinkage estimate is still dominated by the population prior, so
+# "your usual range" is not yet a statement about this person.
+_PERSONAL_RUNGS = {"SHRINKING", "PERSONAL", "MATURE"}
+
+
+def level_phrase(value: object, rung: object = None) -> Phrase:
+    """Plain wording for a nightly detection level.
+
+    Every phrase said "your usual range" regardless of how much the system knew about the
+    person. On a three-night baseline that range is the population prior, and the Today
+    page said "in your usual range" directly beneath a tile reading "baseline: Learning".
+    When the baseline has not shrunk toward the subject yet, the wording says what the
+    comparison actually is rather than claiming a personal normal it has not learned.
+    """
+    phrase = _lookup(LEVEL_PHRASES, value)
+    if rung is None:
+        return phrase
+
+    rung_name = getattr(rung, "value", None) or getattr(rung, "name", None) or str(rung)
+    if rung_name in _PERSONAL_RUNGS or phrase.technical == "NA":
+        return phrase
+
+    return Phrase(
+        phrase.label,
+        phrase.explanation.replace("your usual range", "the usual range for an adult").rstrip(".")
+        + ". Your own range is still being learned, so this is measured against a typical "
+        "adult rather than against you.",
+        phrase.technical,
+    )
 
 
 def disposition_phrase(value: object) -> Phrase:

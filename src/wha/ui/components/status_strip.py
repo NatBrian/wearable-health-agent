@@ -9,6 +9,7 @@ from typing import Any
 
 import streamlit as st
 
+from wha.clock import to_local
 from wha.models import SystemStatus
 from wha.service.status import get_system_status
 from wha.ui.components.wording import rung_phrase
@@ -53,8 +54,13 @@ def render_status_strip(subject_id: str, status: SystemStatus | None = None) -> 
         elif bridge_comp and bridge_comp.severity == "warn":
             st.warning(f"Watch data: {bridge_comp.detail}", icon="⏳")
         else:
+            # Shown to a person looking at their own clock, so it is their clock this
+            # uses. Printing the UTC hour told a subject in Singapore that data arrived at
+            # 17:41 when it was 01:41 for them.
             last_in = (
-                status.last_ingest_utc.strftime("%H:%M") if status.last_ingest_utc else "just now"
+                to_local(status.last_ingest_utc).strftime("%H:%M")
+                if status.last_ingest_utc
+                else "just now"
             )
             html = _render_pill("⌚", "Watch data", f"Arriving ({last_in})", severity="ok")
             st.markdown(html, unsafe_allow_html=True)

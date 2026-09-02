@@ -10,9 +10,14 @@ from wha.ui.audit import render_audit_table, render_hash_chain_panel
 
 def test_audit_hash_chain_verifies() -> None:
     """Hash-chain panel shows success on clean chain, and clear error with broken link on tampered chain."""
-    # 1. Clean chain
+    # 1. Clean chain that actually holds entries.
+    #
+    # This case previously left the entry count unmocked, so it asserted the success
+    # message over an empty log. An empty chain verifies trivially, and reporting "the
+    # record is intact" for zero entries is a green tick for something never checked.
     with (
         patch("wha.ui.audit.verify_hash_chain", return_value=(True, None)),
+        patch("wha.ui.audit.count_audit_events", return_value=12),
         patch("streamlit.success") as mock_success,
         patch("streamlit.error") as mock_error,
     ):
@@ -21,6 +26,21 @@ def test_audit_hash_chain_verifies() -> None:
         assert mock_success.called
         assert not mock_error.called
         assert "intact" in mock_success.call_args[0][0].lower()
+
+    # 1b. Verified, but nothing has been written yet.
+    with (
+        patch("wha.ui.audit.verify_hash_chain", return_value=(True, None)),
+        patch("wha.ui.audit.count_audit_events", return_value=0),
+        patch("streamlit.success") as mock_success,
+        patch("streamlit.error") as mock_error,
+        patch("streamlit.info") as mock_info,
+    ):
+        intact = render_hash_chain_panel("sub_new")
+        assert intact is True
+        assert not mock_error.called
+        assert not mock_success.called, "an empty log must not be reported as verified"
+        assert mock_info.called
+        assert "nothing has been recorded yet" in mock_info.call_args[0][0].lower()
 
     # 2. Tampered chain
     with (

@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from langgraph.types import interrupt
@@ -12,6 +12,7 @@ from wha.agent.state import EpisodeState
 from wha.agent.tools.impl import create_default_tool_registry
 from wha.agent.tools.registry import ToolContext, ToolRegistry
 from wha.belief import update_belief
+from wha.clock import local_today
 from wha.constants import MAX_TOOL_CALLS_PER_EPISODE
 from wha.errors import LLMUnavailable, PermissionDenied, ValidationFailed
 from wha.llm.client import LLMClient, get_llm_client
@@ -113,7 +114,7 @@ def node_preload(
         start_d = min(dates) - timedelta(days=7)
         end_d = max(dates)
     else:
-        end_d = datetime.now(UTC).date()
+        end_d = local_today()
         start_d = end_d - timedelta(days=14)
 
     start_str = start_d.isoformat()
@@ -347,7 +348,7 @@ def node_decide(
     asked_probe_ids = [a.probe_id for a in answers]
 
     if db is not None:
-        today = datetime.now(UTC).date()
+        today = local_today()
         if hasattr(db, "count_interruptions_since"):
             weekly_used = db.count_interruptions_since(subject_id, today - timedelta(days=7))
         if hasattr(db, "has_pending_interaction"):
@@ -669,7 +670,7 @@ def node_conclude(
 ) -> dict[str, Any]:
     """Draft episode outcome findings, disposition, differential, and action."""
     nights = state.get("nights", [])
-    now_d = datetime.now(UTC).date()
+    now_d = local_today()
     opened_on = min(d.night_date for d in nights) if nights else now_d
     closed_on = max(d.night_date for d in nights) if nights else now_d
 
@@ -691,9 +692,7 @@ def node_conclude(
         # which is precisely what INSUFFICIENT_DATA exists to prevent.
         conclude_rung = BaselineRung.MATURE
         if db is not None and hasattr(db, "get_baseline_rung"):
-            conclude_rung = db.get_baseline_rung(
-                state.get("subject_id", ""), datetime.now(UTC).date()
-            )
+            conclude_rung = db.get_baseline_rung(state.get("subject_id", ""), local_today())
         disposition = determine_disposition(belief, rung=conclude_rung)
 
     differential = [

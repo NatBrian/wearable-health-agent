@@ -242,18 +242,28 @@ def get_system_status(
         ).fetchone()
         errors_24h = int(row_err["count"]) if row_err else 0
 
-        # Quiet nights streak (consecutive unflagged nights up to today)
+        # Consecutive nights that were measured and came back clear.
+        #
+        # This counted every unflagged detection row, and a night with no reading at all is
+        # written as level NA with flagged 0. A user whose watch recorded three nights out
+        # of seven was told "7 quiet nights in a row": four of those were nights nobody
+        # looked at. Silence is not the same as good news, least of all here.
         rows_det = conn.execute(
-            "SELECT flagged FROM detections WHERE subject_id = ? ORDER BY night_date DESC LIMIT 30",
+            """SELECT flagged, level FROM detections
+               WHERE subject_id = ? ORDER BY night_date DESC LIMIT 30""",
             (subject_id,),
         ).fetchall()
 
         quiet_nights_streak = 0
         for r in rows_det:
+            if r["level"] == "NA":
+                break
             if r["flagged"] == 0:
                 quiet_nights_streak += 1
             else:
                 break
+
+        unmeasured_recent_nights = sum(1 for r in rows_det[:7] if r["level"] == "NA")
 
         return SystemStatus(
             components=components,
@@ -263,6 +273,7 @@ def get_system_status(
             rung=rung,
             errors_24h=errors_24h,
             quiet_nights_streak=quiet_nights_streak,
+            unmeasured_recent_nights=unmeasured_recent_nights,
         )
     finally:
         if close_conn:

@@ -31,6 +31,7 @@ from wha.constants import (
 )
 from wha.models import AuditFilter
 from wha.service.audit import (
+    count_audit_events,
     export_audit,
     get_permitted_tool_names,
     query_audit,
@@ -45,6 +46,17 @@ def render_hash_chain_panel(subject_id: str) -> bool:
     """Say whether the record has been altered since it was written."""
     st.subheader("Has the record been changed?")
     intact, bad_id = verify_hash_chain(subject_id)
+
+    # An empty chain verifies. Reporting "the record is intact" over zero entries is a
+    # green tick for something never checked, on the one page whose whole purpose is to
+    # be trustworthy. A new install has no entries until the agent runs for the first time.
+    if intact and count_audit_events(subject_id) == 0:
+        st.info(
+            "**Nothing has been recorded yet.** The record fills in the first time the AI "
+            "investigates a night. There is nothing here to verify."
+        )
+        return True
+
     if intact:
         st.success(
             "**No. The record is intact.** Every entry still matches the fingerprint "
@@ -264,8 +276,9 @@ def render_audit_page(subject_id: str) -> None:
 
     st.title("The record")
     st.caption(
-        "Everything this system does is written down as it happens, including what the AI "
-        "asked for and what it was refused."
+        "Every tool the AI used, every tool call it was refused, and every settings change "
+        "is written down as it happens. Pulling data from your watch and scoring a night "
+        "are deterministic steps and are not recorded here; History is where those appear."
     )
 
     render_hash_chain_panel(subject_id)

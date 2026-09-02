@@ -51,8 +51,9 @@ def render_night_chart(nights: list[NightRow]) -> None:
     st.subheader("Your overnight heart rate")
     st.caption(
         "The dark line is each night. The shaded pair around it is your usual range for "
-        "that period, which widens when there is less to go on. A night outside the band "
-        "is what starts an investigation."
+        "that period, which widens when there is less to go on. A night that sits **above** "
+        "the band is what can start an investigation; this system looks for a raised "
+        "overnight heart rate, so a night below the band is not treated as a problem."
     )
 
     # Trim to the span that actually has readings. The query looks back a fixed number of
@@ -88,7 +89,15 @@ def render_night_chart(nights: list[NightRow]) -> None:
         alt.Chart(long_df)
         .mark_line()
         .encode(
-            x=alt.X("date:T", title=None),
+            # One point per night, so the axis is days. Left to choose its own units,
+            # Vega picked hours for a short series and labelled three nights with ticks
+            # like "09 AM" and "03 PM", which reads as intra-day data the watch never
+            # produced.
+            x=alt.X(
+                "date:T",
+                title=None,
+                axis=alt.Axis(format="%d %b", tickCount={"interval": "day", "step": 1}),
+            ),
             y=alt.Y(
                 "bpm:Q",
                 title="beats per minute",
@@ -120,7 +129,11 @@ def render_night_chart(nights: list[NightRow]) -> None:
                     range=[2.5, 1.2, 1.2],
                 ),
             ),
-            tooltip=["date:T", "series:N", alt.Tooltip("bpm:Q", format=".1f")],
+            tooltip=[
+                alt.Tooltip("date:T", title="Night", format="%d %b %Y"),
+                alt.Tooltip("series:N", title=None),
+                alt.Tooltip("bpm:Q", format=".1f"),
+            ],
         )
         .properties(height=320)
     )

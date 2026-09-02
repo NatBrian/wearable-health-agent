@@ -133,6 +133,23 @@ def query_audit(
             conn.close()
 
 
+def count_audit_events(subject_id: str, conn: sqlite3.Connection | None = None) -> int:
+    """How many entries the record holds. An empty chain verifies, so callers must ask."""
+    close_conn = False
+    if conn is None:
+        conn = connect()
+        apply_schema(conn)
+        close_conn = True
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM audit_events WHERE subject_id = ?", (subject_id,)
+        ).fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        if close_conn:
+            conn.close()
+
+
 def verify_hash_chain(
     subject_id: str,
     conn: sqlite3.Connection | None = None,

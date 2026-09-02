@@ -9,6 +9,10 @@ HR_PLAUSIBLE_MIN_BPM = 25
 HR_PLAUSIBLE_MAX_BPM = 220
 INGEST_STALE_WARN_HOURS = 36  # status strip turns amber
 INGEST_STALE_REFUSE_HOURS = 72  # nightly batch refuses rather than guessing
+# How far back the first-run catch up scores nights. The watch holds roughly a month, and
+# scoring what it hands over is what builds the baseline; without this a new install shows
+# an empty dashboard until the 09:00 cron.
+STARTUP_CATCHUP_DAYS = 30
 
 # Defaults for the synthetic fallback source used when no live bridge is configured.
 # Not clinical figures: base_bpm is a plausible adult nocturnal resting heart rate, and the

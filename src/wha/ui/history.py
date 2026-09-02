@@ -10,6 +10,7 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
+from wha.clock import local_today
 from wha.models import EpisodeSummary, NightRow
 from wha.service.episodes import get_episode, list_episodes
 from wha.service.nights import get_night_detail, list_nights
@@ -32,7 +33,10 @@ def render_episode_spans(episodes: list[EpisodeSummary]) -> str | None:
         "Most nights never open one."
     )
     if not episodes:
-        st.caption("None so far. Every night has been within your usual range.")
+        # This claimed every night sat inside the band. The band is two-sided and the
+        # system only investigates elevation, so a person whose nights run below it was
+        # told something plainly contradicted by the chart directly above.
+        st.caption("None so far. No night has been raised for long enough to look into.")
         return None
 
     selected_ep_id = None
@@ -100,7 +104,10 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
     with st.expander("Look at one night in detail"):
         selected_date_str = st.selectbox(
             "Which night",
-            options=[d["Date"] for d in table_data],
+            # The column is "Night". This read said "Date", so opening the History page
+            # raised KeyError for any subject with any nights. Nothing in the test suite
+            # rendered this page, so a guaranteed crash sat here while every test passed.
+            options=[d["Night"] for d in table_data],
             key="history_night_inspect_select",
         )
         if selected_date_str:
@@ -163,9 +170,7 @@ def render_history_page(subject_id: str) -> None:
             return
         st.warning("That investigation could not be found.")
 
-    from datetime import UTC, datetime
-
-    end_d = datetime.now(UTC).date()
+    end_d = local_today()
     start_d = end_d - timedelta(days=60)
     nights = list_nights(subject_id, start=start_d, end=end_d)
     episodes = list_episodes(subject_id)

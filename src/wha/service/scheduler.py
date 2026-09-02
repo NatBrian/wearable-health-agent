@@ -9,9 +9,16 @@ from typing import Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from wha.constants import ANSWER_TIMEOUT_HOURS, MEASUREMENT_TIMEOUT_HOURS
+from wha.clock import local_today
+from wha.config import get_settings
+from wha.constants import (
+    ANSWER_TIMEOUT_HOURS,
+    MEASUREMENT_TIMEOUT_HOURS,
+    STARTUP_CATCHUP_DAYS,
+)
 from wha.db import connect
 from wha.db.migrations import apply_schema
 from wha.models import ComponentStatus
@@ -326,4 +333,50 @@ def create_scheduler(db_path: Path | None = None) -> BackgroundScheduler:
         coalesce=True,
     )
 
+    # 5. Catch up once, immediately.
+    #
+    # Measured from a cold start, the jobs above first fire at: telegram 45s, episode tick
+    # 15 min, ingest 30 min, nightly at 09:00 the next morning. A new user who started the
+    # app at one in the morning would therefore see an empty dashboard for half an hour and
+    # unprocessed nights for seven hours, with nothing on screen distinguishing that from a
+    # broken install. It also forced a second, undocumented route through the CLI, so there
+    # appeared to be two different ways to set the system up.
+    scheduler.add_job(
+        func=lambda: safe_job_wrapper(
+            "startup_catchup", lambda: run_startup_catchup(db_path=db_path), db_path=db_path
+        ),
+        trigger=DateTrigger(run_date=datetime.now(UTC) + timedelta(seconds=1)),
+        id="startup_catchup",
+        name="First-run catch up: pull and process what is already on the watch",
+        max_instances=1,
+        coalesce=True,
+    )
+
     return scheduler
+
+
+def scheduled_job_summary(scheduler: BackgroundScheduler) -> str:
+    """One line naming every job actually registered.
+
+    The startup message listed three jobs while four were running, so the only place that
+    tells an operator what happens in the background was already out of date. Reading it
+    off the scheduler means it cannot drift again.
+    """
+    return ", ".join(sorted(j.id for j in scheduler.get_jobs()))
+
+
+def run_startup_catchup(db_path: Path | None = None) -> dict[str, Any]:
+    """Pull from the source and process every night it returned, once, at startup."""
+    settings = get_settings()
+    stored = run_ingest(db_path=db_path)
+    end = local_today(settings.timezone)
+    start = end - timedelta(days=STARTUP_CATCHUP_DAYS)
+    dets = run_nightly(date_or_range=f"{start.isoformat()}:{end.isoformat()}", db_path=db_path)
+    logger.info(
+        "Startup catch up stored %d samples and scored %d nights (%s to %s).",
+        stored,
+        len(dets),
+        start,
+        end,
+    )
+    return {"stored": stored, "nights": len(dets), "start": start, "end": end}

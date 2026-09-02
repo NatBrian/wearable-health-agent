@@ -361,3 +361,55 @@ sake.
 **What I need:** nothing, unless the blood oxygen likelihood above is ever authored, at
 which point the generator should grow a matching channel so the two halves stay testable
 together.
+
+---
+
+## audit-scope — ingest and nightly are not recorded in the audit log
+
+**What I tried:** a first run as a new user: `wha ingest --days 7`, `wha nightly`, then the
+Audit page in the dashboard.
+
+**What happened:** `audit_events` held zero rows, while the page said "Everything this
+system does is written down as it happens" and, in green, "No. The record is intact.
+Every entry still matches the fingerprint taken when it was written." It was verifying an
+empty list and reporting success on the one page whose purpose is to be trustworthy.
+
+**What I think is wrong:** nothing in the chain implementation. `verify_hash_chain`
+correctly returns intact for an empty chain; the caller simply never asked how many
+entries there were. Audit rows are written by `EpisodeRepository.append_audit` from the
+agent's tool registry and by `update_settings`, and by nothing else. Ingest, feature
+extraction, baseline update and detection write none.
+
+I have narrowed the page's claim to what is true and made an empty log say so, rather than
+making the deterministic pipeline write audit rows. Recording every night scored would
+change what the log is for and would bury the agent's tool calls, which are the entries
+the contract cares about, under routine bookkeeping.
+
+**What I need:** a decision on whether the audit log is meant to cover the deterministic
+pipeline as well as the agent. If it is, the honest version records one event per nightly
+batch rather than one per night, and `plan/02-contracts.md` should say so.
+
+---
+
+## timezone — "today" was computed in UTC and compared against local night dates
+
+**What I tried:** installed at 01:41 Singapore time, ran `wha ingest --days 7` and
+`wha nightly`.
+
+**What happened:** the system reported "monitoring began on 2026-09-02" and treated the
+night of 09-02 as one it had been watching, though the subject installed on 09-03. The
+dashboard reported watch data "Arriving (17:41)" for an ingest that happened at 01:41
+local.
+
+**What I think is wrong:** a night is labelled with a local calendar date, resolved
+through the subject's timezone in `features/window.py`. "Today" was
+`datetime.now(UTC).date()` in twelve places and compared against those local dates. For
+UTC+8 the two differ for the whole window between local midnight and 8am, which is
+precisely when someone checks a sleep monitor.
+
+Fixed by routing every such comparison through `wha/clock.py`. Recorded here because the
+class of bug is worth naming: any new code that reaches for `datetime.now(UTC).date()` and
+compares it against a night date reintroduces it, and nothing in the type system prevents
+that.
+
+**What I need:** nothing. Noted so the next person does not reach for the UTC date again.

@@ -47,6 +47,11 @@ llm_app = typer.Typer(help="Manage LLM provider and cassette fixtures.")
 app.add_typer(llm_app, name="llm")
 
 
+# Reported by both halves of `doctor --live`. The offline row and the live row make the
+# same claim for these, so only the live row is printed.
+LIVE_PROBE_DUPLICATES = {"database", "knowledge", "chronos", "datasets"}
+
+
 @app.command("doctor")
 def doctor(
     db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
@@ -134,6 +139,13 @@ def _render_live_report(as_json: bool, offline_items: list[DoctorItem]) -> None:
         typer.echo("=" * 80)
         typer.echo("\n[CONFIGURATION AND LOCAL STATE]")
         for i in offline_items:
+            # Facts the live probes restate below are dropped rather than printed twice.
+            # Bridge, LLM and Telegram deliberately stay: the offline row says credentials
+            # are configured, the live row says the service answered, and those are
+            # different claims. Database, knowledge, chronos and datasets said the same
+            # thing in both sections, which made the report longer without being clearer.
+            if i.name in LIVE_PROBE_DUPLICATES:
+                continue
             symbol = {"ok": "[PASS]", "fail": "[FAIL]", "warn": "[WARN]"}.get(i.status, "[INFO]")
             typer.echo(f"  {symbol:<8}  {i.name:<36} -> {i.detail}")
         typer.echo("\n[MANDATORY PRODUCTION SUBSYSTEMS]")
@@ -145,7 +157,9 @@ def _render_live_report(as_json: bool, offline_items: list[DoctorItem]) -> None:
 
         typer.echo("\n[OPTIONAL / ADVISORY SUBSYSTEMS]")
         for c in res["optional"]:
-            status_symbol = "[INFO]" if c["ok"] else "[WARN]"
+            # Advisory by definition, so absence is INFO. The same fact appeared as INFO
+            # in one section and WARN in the other.
+            status_symbol = "[INFO]"
             component_name = c["component"]
             detail = c["detail"]
             typer.echo(f"  {status_symbol:<8}  {component_name:<36} -> {detail}")
@@ -563,9 +577,18 @@ def serve_cmd(
 
     scheduler = None
     if not no_scheduler:
+        from wha.service.scheduler import scheduled_job_summary
+
         scheduler = create_scheduler(db_path=db)
         scheduler.start()
-        typer.echo("Background scheduler started (ingest, nightly, episode_tick).")
+        # Read off the scheduler rather than written by hand: the hardcoded list said three
+        # jobs while four were running, so the only place describing the background work
+        # was already wrong.
+        typer.echo(f"Background scheduler started ({scheduled_job_summary(scheduler)}).")
+        typer.echo(
+            "Pulling from your watch and scoring the nights it returns. "
+            "This runs now and then repeats on a schedule."
+        )
 
     app_path = Path(__file__).parent / "ui" / "Home.py"
     typer.echo(f"Starting Streamlit dashboard on http://{host}:{port}...")

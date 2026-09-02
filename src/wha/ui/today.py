@@ -1,9 +1,10 @@
 """Today view: what happened last night, and anything that needs the person."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import streamlit as st
 
+from wha.clock import local_today
 from wha.models import (
     Answer,
     PendingInteraction,
@@ -39,6 +40,17 @@ def render_inbox(
         else:
             nights_word = "night" if streak == 1 else "nights"
             st.success(f"**Nothing needs you right now.** {streak} quiet {nights_word} in a row.")
+
+        # Missing nights are stated rather than folded into the reassurance above. The
+        # streak used to include them, so a watch that recorded three nights of seven
+        # still reported seven quiet ones.
+        missing = stat.unmeasured_recent_nights
+        if missing:
+            nights_word = "night" if missing == 1 else "nights"
+            st.caption(
+                f"{missing} of the last 7 {nights_word} had no usable reading, so there was "
+                "nothing to judge. Wearing the watch overnight is what fills these in."
+            )
         return
 
     if pending.kind == "question" and pending.question:
@@ -139,10 +151,11 @@ def render_inbox(
                 st.rerun()
 
 
-def render_last_night_summary(subject_id: str) -> None:
+def render_last_night_summary(subject_id: str, status: SystemStatus | None = None) -> None:
     """Say plainly how last night looked, with the numbers available underneath."""
     st.subheader("Last night")
-    end_d = datetime.now(UTC).date()
+    stat = status or get_system_status(subject_id)
+    end_d = local_today()
     start_d = end_d - timedelta(days=14)
     nights = list_nights(subject_id, start=start_d, end=end_d)
     usable_nights = [n for n in reversed(nights) if n.usable and n.rhr_bpm is not None]
@@ -152,7 +165,8 @@ def render_last_night_summary(subject_id: str) -> None:
         return
 
     n = usable_nights[0]
-    phrase = level_phrase(n.level)
+    # The rung decides whether "your usual range" is a claim this system has earned.
+    phrase = level_phrase(n.level, rung=stat.rung)
 
     if n.level.value == "GREEN":
         st.success(f"**{phrase.label}.** {phrase.explanation}")
@@ -224,6 +238,6 @@ def render_today_page(subject_id: str) -> None:
 
     render_inbox(subject_id, pending, status)
     st.write("---")
-    render_last_night_summary(subject_id)
+    render_last_night_summary(subject_id, status)
     st.write("---")
     render_open_episodes(subject_id)

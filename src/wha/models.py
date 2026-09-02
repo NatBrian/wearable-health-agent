@@ -355,6 +355,10 @@ class SystemStatus(BaseModel):
     rung: BaselineRung
     errors_24h: int
     quiet_nights_streak: int
+    # Nights in the same recent window with no usable reading. A night the watch did not
+    # measure is not a quiet night, and reporting it as one turns missing data into
+    # reassurance, which is the opposite of what it means.
+    unmeasured_recent_nights: int = 0
 
 
 class ConnectionCheck(BaseModel):

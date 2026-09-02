@@ -281,3 +281,61 @@ def test_episode_tick_stops_when_the_agent_decides_to_observe(tmp_path: Path) ->
         run_episode_tick(db_path=db_file)
 
     assert len(calls) == 1, f"a settled episode must be stepped once, not {len(calls)} times"
+
+
+# -- the system does something the moment it starts ----------------------------------
+
+
+def test_scheduler_registers_a_startup_catchup_job() -> None:
+    """Measured first-fire times from a cold start were 30 min for ingest and 09:00 for
+    nightly, so a new user saw an empty dashboard for hours with no way to tell that from
+    a broken install."""
+    scheduler = create_scheduler()
+    try:
+        jobs = {j.id: j for j in scheduler.get_jobs()}
+    finally:
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
+
+    assert "startup_catchup" in jobs
+    assert {"ingest", "nightly", "episode_tick", "telegram_poll"} <= set(jobs)
+
+
+def test_the_startup_message_names_every_job_that_is_running() -> None:
+    """It listed three while four were registered."""
+    from wha.service.scheduler import scheduled_job_summary
+
+    scheduler = create_scheduler()
+    try:
+        summary = scheduled_job_summary(scheduler)
+        registered = {j.id for j in scheduler.get_jobs()}
+    finally:
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
+
+    assert registered == set(summary.split(", "))
+
+
+def test_startup_catchup_ingests_then_scores_the_window(tmp_path: Path) -> None:
+    from wha.service.scheduler import run_startup_catchup
+
+    db_file = _make_db(tmp_path)
+    calls: list[str] = []
+
+    def fake_ingest(**kwargs: Any) -> int:
+        calls.append("ingest")
+        return 11337
+
+    def fake_nightly(**kwargs: Any) -> list[Any]:
+        calls.append(f"nightly:{kwargs.get('date_or_range')}")
+        return []
+
+    with (
+        patch("wha.service.scheduler.run_ingest", side_effect=fake_ingest),
+        patch("wha.service.scheduler.run_nightly", side_effect=fake_nightly),
+    ):
+        result = run_startup_catchup(db_path=db_file)
+
+    assert calls[0] == "ingest", "data must be pulled before it is scored"
+    assert calls[1].startswith("nightly:")
+    assert result["stored"] == 11337
