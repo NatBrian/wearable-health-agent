@@ -5,6 +5,7 @@ from datetime import timedelta
 import streamlit as st
 
 from wha.clock import local_today
+from wha.constants import RECENT_NIGHTS_WINDOW
 from wha.models import (
     Answer,
     PendingInteraction,
@@ -44,12 +45,18 @@ def render_inbox(
         # Missing nights are stated rather than folded into the reassurance above. The
         # streak used to include them, so a watch that recorded three nights of seven
         # still reported seven quiet ones.
+        #
+        # Phrased as what the watch did record, over a named period, rather than "4 of the
+        # last 7 nights". That reads as a quota, and the system has real night-count
+        # thresholds elsewhere, so a bare 7 here is indistinguishable from one of those.
         missing = stat.unmeasured_recent_nights
         if missing:
-            nights_word = "night" if missing == 1 else "nights"
+            recorded = RECENT_NIGHTS_WINDOW - missing
+            nights_word = "night" if recorded == 1 else "nights"
             st.caption(
-                f"{missing} of the last 7 {nights_word} had no usable reading, so there was "
-                "nothing to judge. Wearing the watch overnight is what fills these in."
+                f"In the past week your watch recorded {recorded} {nights_word}. A night "
+                "without a reading is skipped rather than guessed at, so it does not count "
+                "toward learning your normal."
             )
         return
 

@@ -14,6 +14,13 @@ INGEST_STALE_REFUSE_HOURS = 72  # nightly batch refuses rather than guessing
 # an empty dashboard until the 09:00 cron.
 STARTUP_CATCHUP_DAYS = 30
 
+# How far back the dashboard looks when reporting nights with no reading. This is a
+# reporting window, NOT a threshold: the pipeline behaves identically at three nights or
+# thirty. It is named here because the system also has real night-count thresholds
+# (FORECAST_MIN_NIGHTS and the rung ladder, one of whose boundaries is also 7), and a bare
+# 7 in the interface is indistinguishable from those.
+RECENT_NIGHTS_WINDOW = 7
+
 # Defaults for the synthetic fallback source used when no live bridge is configured.
 # Not clinical figures: base_bpm is a plausible adult nocturnal resting heart rate, and the
 # seed exists only so the fallback is reproducible.

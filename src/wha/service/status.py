@@ -13,6 +13,7 @@ from wha.config import get_settings
 from wha.constants import (
     INGEST_STALE_REFUSE_HOURS,
     INGEST_STALE_WARN_HOURS,
+    RECENT_NIGHTS_WINDOW,
 )
 from wha.db import connect
 from wha.db.migrations import apply_schema
@@ -263,7 +264,9 @@ def get_system_status(
             else:
                 break
 
-        unmeasured_recent_nights = sum(1 for r in rows_det[:7] if r["level"] == "NA")
+        unmeasured_recent_nights = sum(
+            1 for r in rows_det[:RECENT_NIGHTS_WINDOW] if r["level"] == "NA"
+        )
 
         return SystemStatus(
             components=components,

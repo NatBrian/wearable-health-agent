@@ -42,7 +42,7 @@ Turn the phone hotspot on. `WHA_BRIDGE_URL` must be the Wi-Fi gateway address.
 
 ```bash
 uv run wha doctor --live      # mandatory subsystems must all pass
-uv run wha ingest --days 7
+uv run wha ingest              # pulls 30 days by default; the watch holds about a month
 uv run wha nightly --range 2026-08-28:2026-09-03
 uv run wha data capability    # what the device actually sends
 ```
