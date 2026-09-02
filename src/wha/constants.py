@@ -42,12 +42,25 @@ MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 # Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473, n=525, Oura.
 POP_PRIOR_RHR_MEAN_BPM = 62.75
 POP_PRIOR_RHR_SD_BPM = 8.64
+# Rendered to the person alongside the figure it justifies. Held as a string rather than
+# retyped in the interface so the citation cannot drift away from the number.
+POP_PRIOR_CITATION = "Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473, n=525"
 
 # --- detection ------------------------------------------------------------
 # Alavi et al. 2022, Nat Med 28:175-184. NightSignal transitions at 3, red at 4.
 DETECT_YELLOW_BPM = 3.0
 DETECT_RED_BPM = 4.0
 DETECT_PERSISTENCE_NIGHTS = 2
+DETECT_CITATION = "Alavi et al. 2022, Nature Medicine 28:175-184 (NightSignal)"
+# Only elevation is investigated. The thresholds above are cited; this one-sidedness is a
+# SCOPE decision rather than a cited finding: infection raises nocturnal heart rate, and a
+# low resting heart rate is usually fitness or good rest. Conditions that lower it are out
+# of scope and the interface says so rather than leaving the reader to infer it.
+DETECT_DIRECTION_NOTE = (
+    "Only nights above the range are looked into. Infection raises resting heart rate; "
+    "a low one is usually fitness or good rest. This system does not look for conditions "
+    "that lower it."
+)
 
 # --- explained variance ---------------------------------------------------
 # Leota et al. 2025, Nat Commun 16:3297, "high strain" column.

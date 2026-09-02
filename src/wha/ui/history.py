@@ -14,6 +14,7 @@ from wha.clock import local_today
 from wha.models import EpisodeSummary, NightRow
 from wha.service.episodes import get_episode, list_episodes
 from wha.service.nights import get_night_detail, list_nights
+from wha.service.status import get_system_status
 from wha.ui.components.night_chart import render_night_chart
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
@@ -175,7 +176,9 @@ def render_history_page(subject_id: str) -> None:
     nights = list_nights(subject_id, start=start_d, end=end_d)
     episodes = list_episodes(subject_id)
 
-    render_night_chart(nights)
+    # The chart says whether the band is still a population estimate, which needs the rung.
+    status = get_system_status(subject_id)
+    render_night_chart(nights, rung=status.rung)
     st.write("---")
     render_episode_spans(episodes)
     st.write("---")

@@ -4,7 +4,26 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from wha.models import DetectionLevel, NightRow
+from wha.constants import (
+    DETECT_CITATION,
+    DETECT_DIRECTION_NOTE,
+    POP_PRIOR_CITATION,
+    POP_PRIOR_RHR_MEAN_BPM,
+    POP_PRIOR_RHR_SD_BPM,
+)
+from wha.models import BaselineRung, DetectionLevel, NightRow
+
+# The three lines, named as a reader would describe them. "Usual range, low" and
+# "Usual range, high" were the series names, which reads as two unrelated measurements
+# rather than the two edges of one band.
+SERIES_NIGHT = "Your sleeping heart rate"
+SERIES_HI = "Usual range, upper edge"
+SERIES_LO = "Usual range, lower edge"
+SERIES_ORDER = [SERIES_NIGHT, SERIES_HI, SERIES_LO]
+
+# Below this rung the band is still mostly the population estimate, so a night sitting
+# outside it says more about how little the system knows than about the person.
+_PERSONAL_RUNGS = {BaselineRung.SHRINKING, BaselineRung.PERSONAL, BaselineRung.MATURE}
 
 
 def build_night_chart_data(nights: list[NightRow]) -> pd.DataFrame:
@@ -40,7 +59,7 @@ def build_night_chart_data(nights: list[NightRow]) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-def render_night_chart(nights: list[NightRow]) -> None:
+def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None) -> None:
     """Plot overnight heart rate against the person's own usual range."""
     if not nights:
         st.info("No nights recorded yet. Wear the watch overnight and this will fill in.")
@@ -50,10 +69,8 @@ def render_night_chart(nights: list[NightRow]) -> None:
 
     st.subheader("Your overnight heart rate")
     st.caption(
-        "The dark line is each night. The shaded pair around it is your usual range for "
-        "that period, which widens when there is less to go on. A night that sits **above** "
-        "the band is what can start an investigation; this system looks for a raised "
-        "overnight heart rate, so a night below the band is not treated as a problem."
+        "Your resting heart rate while asleep, measured between midnight and 7am. "
+        "Daytime and exercise heart rate are never used."
     )
 
     # Trim to the span that actually has readings. The query looks back a fixed number of
@@ -73,9 +90,9 @@ def render_night_chart(nights: list[NightRow]) -> None:
 
     long_df["series"] = long_df["series"].map(
         {
-            "rhr_bpm": "Your night",
-            "lo_band": "Usual range, low",
-            "hi_band": "Usual range, high",
+            "rhr_bpm": SERIES_NIGHT,
+            "lo_band": SERIES_LO,
+            "hi_band": SERIES_HI,
         }
     )
 
@@ -105,27 +122,34 @@ def render_night_chart(nights: list[NightRow]) -> None:
             ),
             color=alt.Color(
                 "series:N",
-                title=None,
+                title="What each line means",
+                sort=SERIES_ORDER,
                 scale=alt.Scale(
-                    domain=["Your night", "Usual range, low", "Usual range, high"],
+                    domain=SERIES_ORDER,
                     range=["#1f4e79", "#9ecae1", "#9ecae1"],
                 ),
             ),
             # Set explicitly. Left to Altair these are assigned alphabetically, which made
             # the person's own nights dotted and a band line solid, inverting the emphasis.
+            #
+            # These carried legend=None. Vega-Lite merges the legends of every channel
+            # encoding the same field, and a None on any of them suppresses the merged
+            # legend, so the chart rendered with no legend at all whatever the colour
+            # channel asked for. Sharing one title across the three channels gives a single
+            # legend whose swatches show each series' real dash pattern and thickness.
             strokeDash=alt.StrokeDash(
                 "series:N",
-                legend=None,
+                title="What each line means",
                 scale=alt.Scale(
-                    domain=["Your night", "Usual range, low", "Usual range, high"],
+                    domain=SERIES_ORDER,
                     range=[[1, 0], [4, 3], [4, 3]],
                 ),
             ),
             size=alt.Size(
                 "series:N",
-                legend=None,
+                title="What each line means",
                 scale=alt.Scale(
-                    domain=["Your night", "Usual range, low", "Usual range, high"],
+                    domain=SERIES_ORDER,
                     range=[2.5, 1.2, 1.2],
                 ),
             ),
@@ -139,3 +163,34 @@ def render_night_chart(nights: list[NightRow]) -> None:
     )
 
     st.altair_chart(chart, use_container_width=True)
+
+    # A legend names the lines; it does not say what they mean or why the rule is
+    # one-sided, and a reader whose nights sit below the band had no way to tell whether
+    # that was a finding. Every figure quoted here carries the source it came from.
+    st.markdown(
+        f"""
+**Reading this chart**
+
+- **{SERIES_NIGHT}** — the solid dark line. One point per night.
+- **{SERIES_HI}** and **{SERIES_LO}** — the dashed lines. Together they are the range
+  expected for you on that night. The band is wider when the system has less to go on and
+  narrows as your own nights accumulate.
+
+{DETECT_DIRECTION_NOTE}
+"""
+    )
+
+    if rung is not None and rung not in _PERSONAL_RUNGS:
+        st.info(
+            "**This band is not yet yours.** With only a few nights recorded it is still "
+            f"mostly a typical-adult estimate, starting at {POP_PRIOR_RHR_MEAN_BPM:.1f} bpm "
+            f"plus or minus {POP_PRIOR_RHR_SD_BPM:.1f}. Your nights may sit outside it, "
+            "which reflects how little is known about you rather than anything about your "
+            "health. The band moves toward you as nights accumulate."
+        )
+
+    st.caption(
+        f"Range starts from the population figure in {POP_PRIOR_CITATION}, and shifts "
+        f"toward your own nights as they accumulate. The thresholds that decide when a "
+        f"raised night is investigated come from {DETECT_CITATION}."
+    )
