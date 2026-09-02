@@ -5,15 +5,35 @@ from pathlib import Path
 
 from wha.errors import ConfigError
 
-DB_VERSION = 1
+DB_VERSION = 2
+
+# Columns added after version 1. CREATE TABLE IF NOT EXISTS does not alter a table that
+# already exists, so a database created before a column was introduced would silently
+# lack it and fail at the first write. Each entry is applied only when absent.
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("beliefs", "state_logprob_json", "TEXT"),
+)
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> bool:
+    """Add a column if the table lacks it. Returns True when something changed."""
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table});").fetchall()}
+    if not existing or column in existing:
+        return False
+    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl};")
+    return True
 
 
 def apply_schema(conn: sqlite3.Connection) -> None:
-    """Idempotently apply database schema and verify schema version."""
+    """Idempotently apply database schema, migrate older databases, and verify version."""
     schema_path = Path(__file__).parent / "schema.sql"
     sql_script = schema_path.read_text(encoding="utf-8")
 
     conn.executescript(sql_script)
+
+    for table, column, decl in _ADDED_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+    conn.commit()
 
     # Verify or initialize schema version
     cursor = conn.execute("SELECT version FROM schema_version LIMIT 1;")
@@ -21,9 +41,18 @@ def apply_schema(conn: sqlite3.Connection) -> None:
     if row is None:
         conn.execute("INSERT INTO schema_version (version) VALUES (?);", (DB_VERSION,))
         conn.commit()
-    else:
-        current_version = row["version"] if isinstance(row, sqlite3.Row) else row[0]
-        if current_version != DB_VERSION:
-            raise ConfigError(
-                f"Database schema version mismatch: expected {DB_VERSION}, found {current_version}"
-            )
+        return
+
+    current_version = row["version"] if isinstance(row, sqlite3.Row) else row[0]
+    if current_version == DB_VERSION:
+        return
+    if current_version > DB_VERSION:
+        raise ConfigError(
+            f"Database schema version {current_version} is newer than this build "
+            f"expects ({DB_VERSION}). Upgrade the application rather than the database."
+        )
+
+    # Older database: the additive migrations above have already run, so record the
+    # new version rather than refusing to open a database we just brought up to date.
+    conn.execute("UPDATE schema_version SET version = ?;", (DB_VERSION,))
+    conn.commit()

@@ -13,8 +13,11 @@ PROMPT = PromptDefinition(
     constraints=[
         "Additive only: LLM may add flags, never remove flags identified by deterministic rules.",
         "Be conservative on cardiac, respiratory, and neurological warning signs.",
-        "Every id in suspected_flag_ids MUST be copied verbatim from the supplied criteria list. "
-        "Never invent an id. An id that is not on that list is discarded and the symptom is missed.",
+        (
+            "Every id in suspected_flag_ids MUST be copied verbatim from the supplied "
+            "criteria list. Never invent an id. An id that is not on that list is "
+            "discarded and the symptom is missed."
+        ),
     ],
     examples=[
         {

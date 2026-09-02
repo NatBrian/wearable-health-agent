@@ -1,5 +1,6 @@
 """Expected Value of Sample Information (EVSI) and utility calculations."""
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -13,6 +14,8 @@ from wha.constants import (
 )
 from wha.models import BeliefState, CauseId, Probe
 from wha.policy.probes import ProbeDefinition
+
+logger = logging.getLogger(__name__)
 
 # Indifference threshold P* = |U_FALSE_ALARM| / (|U_FALSE_ALARM| + |U_MISS_ILLNESS|) = 1 / (1 + 9) = 0.10
 DERIVED_TREATMENT_THRESHOLD = abs(UTILITY_FALSE_ALARM) / (
@@ -88,7 +91,22 @@ def evsi(
         val = eu_expected - eu_now
         return max(0.0, round(float(val), 6))
 
-    # Fast 1D projection fallback
+    # Fast 1D projection fallback.
+    #
+    # This branch cannot represent explaining-away: for any probe that does not target
+    # infection it leaves p_illness unchanged, so EVSI is exactly zero and the probe is
+    # never worth its interruption cost. That is a silent, total loss of the policy's
+    # reason to ask about alcohol, exercise, stress or sleep, so a belief that reaches
+    # here with no joint state at all is reported rather than quietly degraded.
+    if not belief.state_logprob and target_cause != CauseId.INFECTION:
+        logger.warning(
+            "EVSI for probe targeting %s computed without a joint log-posterior. "
+            "The projection cannot represent explaining-away and will score 0.0, so "
+            "this probe will not be asked. A belief loaded from storage should carry "
+            "beliefs.state_logprob_json.",
+            target_cause,
+        )
+
     p_target = belief.marginals.get(target_cause, p_inf)
     eu_expected = 0.0
 

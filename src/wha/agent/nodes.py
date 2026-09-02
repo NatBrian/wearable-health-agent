@@ -28,6 +28,7 @@ from wha.models import (
     MeasurementResult,
     Question,
 )
+from wha.notify.protocol import MessageKind
 from wha.policy import determine_disposition
 from wha.policy.select import select_action
 from wha.safety.output_checks import (
@@ -332,12 +333,43 @@ def node_decide(
     depth_used = state.get("depth_used", 0)
     step = state.get("step", 0)
     nights = state.get("nights", [])
+    subject_id = state.get("subject_id", "")
+    episode_id = state.get("episode_id", "")
+    answers = state.get("answers", [])
+
+    # These were previously left to their permissive defaults, which disabled the weekly
+    # interruption budget, bypassed cold-start rung gating, and allowed the same probe to
+    # be asked repeatedly. They are policy inputs, not optional decoration.
+    weekly_used = 0
+    pending = False
+    rung = BaselineRung.MATURE
+    asked_probe_ids = [a.probe_id for a in answers]
+
+    if db is not None:
+        today = datetime.now(UTC).date()
+        if hasattr(db, "count_interruptions_since"):
+            weekly_used = db.count_interruptions_since(subject_id, today - timedelta(days=7))
+        if hasattr(db, "has_pending_interaction"):
+            pending = db.has_pending_interaction(subject_id)
+        if hasattr(db, "get_baseline_rung"):
+            rung = db.get_baseline_rung(subject_id, today)
+        if hasattr(db, "get_answered_probe_ids"):
+            asked_probe_ids = sorted(set(asked_probe_ids) | set(db.get_answered_probe_ids(episode_id)))
+
+    has_symptoms_evidence = any(
+        a.probe_id == "probe_symptoms" and not a.declined for a in answers
+    )
 
     action = select_action(
         belief=belief,
+        weekly_interruptions_used=weekly_used,
         episode_questions_asked=depth_used,
+        rung=rung,
         steps_in_episode=step,
         nights_in_episode=len(nights) if nights else 1,
+        has_pending_interaction=pending,
+        already_asked_probe_ids=asked_probe_ids,
+        has_symptoms_evidence=has_symptoms_evidence,
     )
 
     client = llm_client or get_llm_client()
@@ -472,14 +504,18 @@ def node_ask(
             already_sent = bool(db.get_notifications_for_interaction(interaction_id))
 
     if not already_sent and notifier is not None:
-        if hasattr(notifier, "send_message"):
-            notifier.send_message(
-                recipient_id=state.get("subject_id"),
-                text=updated_question.text,
-                interaction_id=interaction_id,
-                options=[opt.model_dump() for opt in updated_question.options],
-            )
-        if db is not None and hasattr(db, "record_notification"):
+        # Record delivery only if the transport reported success. Recording it
+        # unconditionally marked questions as delivered that were never sent, leaving the
+        # episode parked forever on an answer the person was never asked for.
+        delivered = notifier.send(
+            recipient_id=state.get("subject_id"),
+            kind=MessageKind.QUESTION,
+            text=updated_question.text,
+            interaction_id=interaction_id,
+            probe_id=probe_id,
+            options=updated_question.options,
+        )
+        if delivered and db is not None and hasattr(db, "record_notification"):
             db.record_notification(interaction_id=interaction_id, recipient=state.get("subject_id"))
 
     # 4. Interrupt for human response
@@ -546,13 +582,13 @@ def node_measure(
         already_sent = db.has_notification_for(measurement_id)
 
     if not already_sent and notifier is not None:
-        if hasattr(notifier, "send_message"):
-            notifier.send_message(
-                recipient_id=state.get("subject_id"),
-                text="Please perform spot measurement.",
-                interaction_id=measurement_id,
-            )
-        if db is not None and hasattr(db, "record_notification"):
+        delivered = notifier.send(
+            recipient_id=state.get("subject_id"),
+            kind=MessageKind.MEASUREMENT,
+            text="Please perform spot measurement.",
+            interaction_id=measurement_id,
+        )
+        if delivered and db is not None and hasattr(db, "record_notification"):
             db.record_notification(interaction_id=measurement_id, recipient=state.get("subject_id"))
 
     # 2. Interrupt
@@ -611,7 +647,15 @@ def node_conclude(
     if action_model is not None and action_model.disposition is not None:
         disposition = action_model.disposition
     else:
-        disposition = determine_disposition(belief, rung=BaselineRung.MATURE)
+        # The subject's real rung, not an assumed MATURE. Assuming a mature baseline here
+        # let a cold-start subject be given a confident disposition off two nights of data,
+        # which is precisely what INSUFFICIENT_DATA exists to prevent.
+        conclude_rung = BaselineRung.MATURE
+        if db is not None and hasattr(db, "get_baseline_rung"):
+            conclude_rung = db.get_baseline_rung(
+                state.get("subject_id", ""), datetime.now(UTC).date()
+            )
+        disposition = determine_disposition(belief, rung=conclude_rung)
 
     differential = [
         DifferentialItem(

@@ -122,6 +122,10 @@ CREATE TABLE IF NOT EXISTS beliefs (
   trigger        TEXT NOT NULL,
   marginals_json TEXT NOT NULL,
   p_illness      REAL NOT NULL,
+  -- Full 4096-state joint log-posterior. The marginals alone cannot reconstruct it,
+  -- and without it EVSI silently degrades: every probe that is not the infection probe
+  -- scores exactly zero, so explaining-away stops working and the policy stops asking.
+  state_logprob_json TEXT,
   PRIMARY KEY (episode_id, seq)
 );
 

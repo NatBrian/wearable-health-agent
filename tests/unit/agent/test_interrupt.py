@@ -19,6 +19,7 @@ from wha.models import (
     Probe,
     Question,
 )
+from wha.notify import MessageKind, Notifier
 from wha.policy import determine_disposition
 
 _cached_priors = load_causes()
@@ -72,7 +73,10 @@ def test_interrupt_resume_does_not_double_send() -> None:
         "step": 1,
     }
 
-    mock_notifier = MagicMock()
+    # Specced against the real protocol. An unspecced MagicMock answers to any attribute,
+    # so asserting on a misspelled method name passes while nothing is ever sent.
+    mock_notifier = MagicMock(spec=Notifier)
+    mock_notifier.send.return_value = True
     mock_db = MagicMock()
 
     # First pass: no prior notification recorded
@@ -86,13 +90,64 @@ def test_interrupt_resume_does_not_double_send() -> None:
     with patch("wha.agent.nodes.interrupt", side_effect=fake_interrupt):
         res1 = node_ask(state, notifier=mock_notifier, db=mock_db)
         assert len(res1["answers"]) == 1
-        assert mock_notifier.send_message.call_count == 1
+        assert mock_notifier.send.call_count == 1
 
         # Simulate second resume pass
         res2 = node_ask(state, notifier=mock_notifier, db=mock_db)
         assert len(res2["answers"]) == 1
         # Notifier was NOT called again on second pass!
-        assert mock_notifier.send_message.call_count == 1
+        assert mock_notifier.send.call_count == 1
+
+
+def test_ask_node_calls_the_real_notifier_protocol_method() -> None:
+    """The ask node must call Notifier.send. Calling a name the protocol does not define
+    meant nothing was ever delivered while the question was recorded as sent."""
+    action = _make_dummy_ask_action()
+    state: EpisodeState = {
+        "episode_id": "ep_protocol_check",
+        "subject_id": "sub_001",
+        "action": action,
+        "step": 1,
+    }
+
+    notifier = MagicMock(spec=Notifier)
+    notifier.send.return_value = True
+    db = MagicMock()
+    db.has_notification_for.return_value = False
+
+    with patch("wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}):
+        node_ask(state, notifier=notifier, db=db)
+
+    assert notifier.send.call_count == 1
+    assert notifier.send.call_args.kwargs["kind"] == MessageKind.QUESTION
+    # Delivery is only recorded once the transport confirms it.
+    assert db.record_notification.call_count == 1
+
+
+def test_failed_delivery_is_not_recorded_as_sent() -> None:
+    """A transport that reports failure must not leave a delivery record behind.
+
+    Recording it anyway parks the episode forever on an answer to a question the person
+    was never actually asked.
+    """
+    action = _make_dummy_ask_action()
+    state: EpisodeState = {
+        "episode_id": "ep_failed_delivery",
+        "subject_id": "sub_001",
+        "action": action,
+        "step": 1,
+    }
+
+    notifier = MagicMock(spec=Notifier)
+    notifier.send.return_value = False
+    db = MagicMock()
+    db.has_notification_for.return_value = False
+
+    with patch("wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}):
+        node_ask(state, notifier=notifier, db=db)
+
+    assert notifier.send.call_count == 1
+    assert db.record_notification.call_count == 0
 
 
 def test_interrupt_resume_is_idempotent_on_writes() -> None:

@@ -111,6 +111,12 @@ class ToolRegistry:
         now = context.now_utc
         episode_id = context.episode_id or "default"
 
+        # Every attempt costs budget, including a refused one. The investigate loop
+        # terminates only when this counter reaches its ceiling, so charging solely for
+        # successful calls let a model that keeps requesting an unregistered tool spin
+        # forever, issuing unbounded LLM calls that the budget never bounded.
+        context.tool_call_count += 1
+
         # 1. Closed Registry Enforcement
         if tool_name not in CLOSED_TOOL_REGISTRY:
             # Audit denied attempt
@@ -177,9 +183,6 @@ class ToolRegistry:
                     args["end_date"] = end_d.isoformat()
             except (ValueError, TypeError):
                 pass
-
-        # 4. Counting: every invocation increments counter regardless of caching
-        context.tool_call_count += 1
 
         # 5. Caching within the same episode
         cache_key = f"{tool_name}:{json.dumps(args, sort_keys=True)}"

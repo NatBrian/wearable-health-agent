@@ -416,15 +416,21 @@ def get_episode(
 
         # 2. Belief history
         b_rows = conn.execute(
-            "SELECT seq, trigger, ts_utc, marginals_json, p_illness FROM beliefs WHERE episode_id = ? ORDER BY seq",
+            """SELECT seq, trigger, ts_utc, marginals_json, p_illness, state_logprob_json
+               FROM beliefs WHERE episode_id = ? ORDER BY seq""",
             (episode_id,),
         ).fetchall()
         belief_history: list[tuple[int, str, BeliefState]] = []
         for br in b_rows:
             margs = json.loads(br["marginals_json"])
+            # Without the joint log-posterior, EVSI silently falls back to a projection in
+            # which every non-infection probe scores exactly zero, so a rehydrated belief
+            # would stop the policy asking about alcohol, exercise, stress or sleep.
+            raw_logprob = br["state_logprob_json"]
             b_state = BeliefState(
                 marginals={CauseId(k): float(v) for k, v in margs.items()},
                 p_illness=float(br["p_illness"]),
+                state_logprob=json.loads(raw_logprob) if raw_logprob else [],
             )
             belief_history.append((int(br["seq"]), br["trigger"], b_state))
 
@@ -670,9 +676,12 @@ def step_episode(
                 "status": "closed",
             }
 
-        from wha.agent.graph import build_agent_graph, run_episode_step
+        from wha.agent.graph import get_agent_graph, run_episode_step
 
-        graph = build_agent_graph()
+        # Cached and backed by SqliteSaver, so the checkpoint written by the previous
+        # tick is visible to this one. Building a fresh graph here gave every tick an
+        # empty in-memory saver, so no interrupt could ever be resumed.
+        graph = get_agent_graph(db_path)
         initial_state = {
             "episode_id": episode_id,
             "subject_id": ep_row["subject_id"],

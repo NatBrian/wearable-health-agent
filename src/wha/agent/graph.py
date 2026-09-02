@@ -1,9 +1,14 @@
 """Agent state graph construction, checkpointer configuration, and execution loop."""
 
+import functools
+import inspect
+import sqlite3
+from pathlib import Path
 from typing import Any
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -20,6 +25,7 @@ from wha.agent.nodes import (
     node_review,
 )
 from wha.agent.state import EpisodeState
+from wha.config import get_db_path
 from wha.constants import EPISODE_MAX_STEPS
 from wha.models import ActionKind
 
@@ -41,23 +47,91 @@ def route_after_decide(state: EpisodeState) -> str:
         return "conclude"
 
 
+_CHECKPOINT_SAVERS: dict[Path, SqliteSaver] = {}
+_GRAPH_CACHE: dict[Path, CompiledStateGraph] = {}
+
+
+def get_sqlite_checkpointer(db_path: Path | None = None) -> SqliteSaver:
+    """Return the durable checkpointer for a database, opening it once per path.
+
+    Episode state must outlive the process. An episode parks on an ``interrupt()``
+    waiting for a human answer that may take hours or days, and the scheduler runs it
+    in ticks. An in-memory saver discards that state the moment the call returns, so
+    the interrupt could never be resumed and every tick would restart from START.
+    Checkpoints live in the application database so that deleting it removes the agent's
+    memory of a subject along with their data.
+    """
+    path = db_path if db_path is not None else get_db_path()
+    saver = _CHECKPOINT_SAVERS.get(path)
+    if saver is None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # check_same_thread=False: the scheduler thread and the dashboard share this saver.
+        conn = sqlite3.connect(str(path), check_same_thread=False)
+        saver = SqliteSaver(conn)
+        saver.setup()
+        _CHECKPOINT_SAVERS[path] = saver
+    return saver
+
+
+def get_agent_graph(
+    db_path: Path | None = None,
+    notifier: Any = None,
+) -> CompiledStateGraph:
+    """Return the compiled graph for a database, built once and reused across ticks."""
+    path = db_path if db_path is not None else get_db_path()
+    graph = _GRAPH_CACHE.get(path)
+    if graph is None:
+        from wha.agent.repository import EpisodeRepository
+        from wha.notify import get_notifier
+
+        graph = build_agent_graph(
+            checkpointer=get_sqlite_checkpointer(path),
+            db=EpisodeRepository(db_path=path),
+            notifier=notifier if notifier is not None else get_notifier(),
+        )
+        _GRAPH_CACHE[path] = graph
+    return graph
+
+
 def build_agent_graph(
     checkpointer: BaseCheckpointSaver | None = None,
+    db: Any = None,
+    notifier: Any = None,
 ) -> CompiledStateGraph:
-    """Construct and compile the agent StateGraph."""
+    """Construct and compile the agent StateGraph.
+
+    Callers that need durability across process restarts should pass a checkpointer, or
+    use :func:`get_agent_graph`. The in-memory default exists only for tests that build
+    and drive a graph within a single process.
+
+    ``db`` and ``notifier`` are bound into the nodes here. LangGraph calls a node with
+    state alone, so a node's remaining parameters keep their defaults unless they are
+    bound at build time. Leaving them unbound meant every node ran with ``db=None``, the
+    tools read no data, and nothing the agent produced was ever persisted.
+    """
     saver = checkpointer if checkpointer is not None else MemorySaver()
 
     builder = StateGraph(EpisodeState)
 
-    builder.add_node("preload", node_preload)
-    builder.add_node("investigate", node_investigate)
-    builder.add_node("believe", node_believe)
-    builder.add_node("decide", node_decide)
-    builder.add_node("ask", node_ask)
-    builder.add_node("measure", node_measure)
-    builder.add_node("conclude", node_conclude)
-    builder.add_node("critique", node_critique)
-    builder.add_node("review", node_review)
+    def bind(node: Any) -> Any:
+        """Bind the shared dependencies a node accepts, leaving its signature intact."""
+        kwargs: dict[str, Any] = {}
+        parameters = inspect.signature(node).parameters
+        if "db" in parameters and db is not None:
+            kwargs["db"] = db
+        if "notifier" in parameters and notifier is not None:
+            kwargs["notifier"] = notifier
+        return functools.partial(node, **kwargs) if kwargs else node
+
+    builder.add_node("preload", bind(node_preload))
+    builder.add_node("investigate", bind(node_investigate))
+    builder.add_node("believe", bind(node_believe))
+    builder.add_node("decide", bind(node_decide))
+    builder.add_node("ask", bind(node_ask))
+    builder.add_node("measure", bind(node_measure))
+    builder.add_node("conclude", bind(node_conclude))
+    builder.add_node("critique", bind(node_critique))
+    builder.add_node("review", bind(node_review))
 
     builder.add_edge(START, "preload")
     builder.add_edge("preload", "investigate")
@@ -84,6 +158,16 @@ def build_agent_graph(
     return builder.compile(checkpointer=saver)
 
 
+def _has_checkpoint(graph: CompiledStateGraph, config: dict[str, Any]) -> bool:
+    """True when this thread already has saved state to resume from.
+
+    An unknown thread yields an empty snapshot with ``created_at`` unset rather than
+    raising, so absence and presence are distinguished by that field alone.
+    """
+    snapshot = graph.get_state(config)
+    return snapshot is not None and snapshot.created_at is not None
+
+
 def run_episode_step(
     graph: CompiledStateGraph,
     episode_id: str,
@@ -96,8 +180,15 @@ def run_episode_step(
         "recursion_limit": recursion_limit,
     }
 
+    # A thread that already holds a checkpoint must be resumed, not restarted. Passing a
+    # state dict re-enters the graph at START, which discards the interrupt the episode is
+    # parked on and loses every belief, answer and piece of evidence gathered so far.
+    payload: dict[str, Any] | None = initial_state or {}
+    if _has_checkpoint(graph, config):
+        payload = None
+
     try:
-        result = graph.invoke(initial_state or {}, config=config)
+        result = graph.invoke(payload, config=config)
         return dict(result)
     except GraphRecursionError:
         # GraphRecursionError caught and handled: mark episode status as unresolved

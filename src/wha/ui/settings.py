@@ -76,7 +76,7 @@ def render_llm_section(subject_id: str) -> None:
             index=provider_idx,
             key="sett_llm_provider",
         )
-        llm_base_url = st.text_input(
+        st.text_input(
             "Base URL (for OpenAI compatible / Ollama)",
             value=getattr(current_settings, "llm_base_url", None) or os.environ.get("WHA_LLM_BASE_URL", "https://api.gptplus5.com/v1"),
             key="sett_llm_base_url",
@@ -98,13 +98,11 @@ def render_llm_section(subject_id: str) -> None:
 
     if st.button("🧪 Test LLM Provider", key="btn_test_llm"):
         from wha.service.status import test_llm_connection
-        if st.session_state.get("sett_llm_key"):
-            os.environ["WHA_LLM_API_KEY"] = st.session_state["sett_llm_key"]
-        if llm_base_url:
-            os.environ["WHA_LLM_BASE_URL"] = llm_base_url
-        if llm_model:
-            os.environ["WHA_LLM_MODEL"] = llm_model
-        st.info(f"Testing inference for provider `{llm_provider}` with model `{llm_model}` at `{llm_base_url}`...")
+
+        # Deliberately not written into os.environ. The dashboard process is shared by
+        # every browser session, so promoting one visitor's key or endpoint to process
+        # environment would leak it into all of them and outlive the request.
+        st.info(f"Testing `{llm_provider}` with model `{llm_model}`...")
         chk = test_llm_connection(provider=llm_provider, model=llm_model)
         if chk.ok:
             st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
