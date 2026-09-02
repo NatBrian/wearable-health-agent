@@ -61,3 +61,4 @@ syn.json
 .playwright-mcp/
 screenshot_*.png
 view_db.py
+seed_*.py
