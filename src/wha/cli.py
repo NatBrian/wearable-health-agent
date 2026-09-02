@@ -239,6 +239,15 @@ def demo_run(
                 }
                 for n in res.nights
             ],
+            "episode_ids": res.episode_ids,
+            "disposition": res.disposition,
+            "questions_asked": res.questions_asked,
+            "escalated": res.escalated,
+            "expectations": [
+                {"name": e.name, "expected": e.expected, "actual": e.actual, "ok": e.ok}
+                for e in res.expectations
+            ],
+            "ok": res.ok,
         }
         typer.echo(json.dumps(out, indent=2))
     else:
@@ -248,6 +257,31 @@ def demo_run(
             typer.echo(
                 f"{n.night_date} | {n.level.ljust(6)} | Flagged: {str(n.flagged).ljust(5)} | Residual: {res_str}"
             )
+
+        typer.echo("")
+        typer.echo(f"Episodes opened : {len(res.episode_ids)}")
+        typer.echo(f"Disposition     : {res.disposition or '-'}")
+        typer.echo(f"Questions asked : {res.questions_asked}")
+        typer.echo(f"Escalated       : {res.escalated}")
+
+        if res.expectations:
+            typer.echo("")
+            typer.echo("Frozen expectations:")
+            for e in res.expectations:
+                mark = "PASS" if e.ok else "FAIL"
+                typer.echo(f"  [{mark}] {e.name}: expected {e.expected!r}, got {e.actual!r}")
+
+    # The exit code is the contract. Returning zero regardless of the expectations meant
+    # every scenario reported success while doing nothing the fixture asked for.
+    if not res.ok:
+        failed = [e.name for e in res.expectations if not e.ok]
+        typer.echo(
+            f"Scenario '{res.scenario}' did not meet its frozen expectations: "
+            f"{', '.join(failed)}",
+            err=True,
+        )
+        sys.exit(1)
+
     sys.exit(0)
 
 

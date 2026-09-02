@@ -12,6 +12,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.errors import GraphRecursionError
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
 
 from wha.agent.nodes import (
     node_ask,
@@ -168,13 +169,30 @@ def _has_checkpoint(graph: CompiledStateGraph, config: dict[str, Any]) -> bool:
     return snapshot is not None and snapshot.created_at is not None
 
 
+def get_pending_interrupt(
+    graph: CompiledStateGraph,
+    episode_id: str,
+) -> Any | None:
+    """The payload of the interrupt this episode is parked on, or None if it is running."""
+    snapshot = graph.get_state({"configurable": {"thread_id": episode_id}})
+    for task in getattr(snapshot, "tasks", ()) or ():
+        for pending in getattr(task, "interrupts", ()) or ():
+            return pending.value
+    return None
+
+
 def run_episode_step(
     graph: CompiledStateGraph,
     episode_id: str,
     initial_state: dict[str, Any] | None = None,
     recursion_limit: int = EPISODE_MAX_STEPS,
+    resume: Any = None,
 ) -> dict[str, Any]:
-    """Execute graph steps under configured recursion limit, closing as unresolved on recursion limit."""
+    """Execute graph steps under configured recursion limit, closing as unresolved on recursion limit.
+
+    ``resume`` supplies the value an ``interrupt()`` is waiting for, which is how an
+    answer, a measurement or a review decision re-enters the graph.
+    """
     config = {
         "configurable": {"thread_id": episode_id},
         "recursion_limit": recursion_limit,
@@ -183,8 +201,10 @@ def run_episode_step(
     # A thread that already holds a checkpoint must be resumed, not restarted. Passing a
     # state dict re-enters the graph at START, which discards the interrupt the episode is
     # parked on and loses every belief, answer and piece of evidence gathered so far.
-    payload: dict[str, Any] | None = initial_state or {}
-    if _has_checkpoint(graph, config):
+    payload: Any = initial_state or {}
+    if resume is not None:
+        payload = Command(resume=resume)
+    elif _has_checkpoint(graph, config):
         payload = None
 
     try:

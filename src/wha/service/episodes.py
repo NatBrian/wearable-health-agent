@@ -2,7 +2,7 @@
 
 import json
 import sqlite3
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
@@ -14,15 +14,20 @@ from wha.models import (
     BeliefState,
     CauseId,
     Citation,
+    Detection,
+    DetectionLevel,
     Disposition,
     EpisodeDetail,
     EpisodeOutcome,
     EpisodeState,
     EpisodeSummary,
+    Forecast,
+    ForecastStatus,
     GroundedAnswer,
     InteractionView,
     MeasurementRequest,
     MeasurementResult,
+    NightlyFeatures,
     PendingInteraction,
     PipelineStage,
     Probe,
@@ -642,10 +647,128 @@ def ask_about_episode(
             conn.close()
 
 
+def _run_start(conn: sqlite3.Connection, subject_id: str, opened_on: str) -> str:
+    """Walk back from the flagged night over consecutive elevated nights."""
+    start = date.fromisoformat(opened_on)
+    while True:
+        previous = start - timedelta(days=1)
+        row = conn.execute(
+            "SELECT level FROM detections WHERE subject_id = ? AND night_date = ?",
+            (subject_id, previous.isoformat()),
+        ).fetchone()
+        if row is None or row["level"] not in ("YELLOW", "RED"):
+            return start.isoformat()
+        start = previous
+
+
+def _episode_nights(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    opened_on: str,
+) -> list[Detection]:
+    """Detections covering the alert run, as the agent's evidence.
+
+    An episode opens on the night a persistent run reaches length, so starting at
+    ``opened_on`` would hand the agent only the last night of the run and discard the
+    elevation that triggered it. The belief model needs the whole run: its likelihoods
+    are indexed by nights elapsed, and one night cannot distinguish a rising infection
+    from a single bad night.
+    """
+    start = _run_start(conn, subject_id, opened_on)
+    rows = conn.execute(
+        """SELECT * FROM detections
+           WHERE subject_id = ? AND night_date >= ?
+           ORDER BY night_date ASC""",
+        (subject_id, start),
+    ).fetchall()
+    return [
+        Detection(
+            subject_id=r["subject_id"],
+            night_date=date.fromisoformat(r["night_date"]),
+            deviation_bpm=r["deviation_bpm"],
+            robust_z=r["robust_z"],
+            explained_bpm=r["explained_bpm"],
+            residual_bpm=r["residual_bpm"],
+            level=DetectionLevel(r["level"]),
+            flagged=bool(r["flagged"]),
+            forecast=Forecast(
+                status=ForecastStatus(r["forecast_status"]),
+                predicted_bpm=r["forecast_bpm"],
+                lo_bpm=r["forecast_lo_bpm"],
+                hi_bpm=r["forecast_hi_bpm"],
+                forecast_z=r["forecast_z"],
+            ),
+            reasons=json.loads(r["reasons_json"]) if r["reasons_json"] else [],
+        )
+        for r in rows
+    ]
+
+
+def _episode_features(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    opened_on: str,
+) -> list[NightlyFeatures]:
+    """Nightly features covering the episode, including the week before it opened."""
+    start = (date.fromisoformat(opened_on) - timedelta(days=7)).isoformat()
+    rows = conn.execute(
+        """SELECT * FROM nightly_features
+           WHERE subject_id = ? AND night_date >= ?
+           ORDER BY night_date ASC""",
+        (subject_id, start),
+    ).fetchall()
+    return [
+        NightlyFeatures(
+            subject_id=r["subject_id"],
+            night_date=date.fromisoformat(r["night_date"]),
+            rhr_bpm=r["rhr_bpm"],
+            coverage_minutes=r["coverage_minutes"],
+            implausible_dropped=r["implausible_dropped"],
+            usable=bool(r["usable"]),
+            steps_prev_day=r["steps_prev_day"],
+            sleep_hours=r["sleep_hours"],
+            exercise_end_offset_h=r["exercise_end_offset_h"],
+        )
+        for r in rows
+    ]
+
+
+def _close_if_concluded(
+    conn: sqlite3.Connection,
+    episode_id: str,
+    result: dict[str, Any],
+) -> str:
+    """Write a reached disposition back to the episode row and close it.
+
+    Returns the episode state after the write.
+    """
+    draft = result.get("draft")
+    disposition = getattr(draft, "disposition", None)
+    if disposition is None:
+        action = result.get("action")
+        disposition = getattr(action, "disposition", None)
+
+    if disposition is None or result.get("status") not in ("closed", "unresolved"):
+        row = conn.execute(
+            "SELECT state FROM episodes WHERE episode_id = ?", (episode_id,)
+        ).fetchone()
+        return str(row["state"]) if row else "OPEN"
+
+    value = disposition.value if hasattr(disposition, "value") else str(disposition)
+    conn.execute(
+        """UPDATE episodes
+           SET state = 'CLOSED', disposition = ?, closed_on = ?
+           WHERE episode_id = ?""",
+        (value, datetime.now(UTC).date().isoformat(), episode_id),
+    )
+    return "CLOSED"
+
+
 def step_episode(
     episode_id: str,
     db_path: Path | None = None,
     conn: sqlite3.Connection | None = None,
+    resume: Any = None,
 ) -> dict[str, Any]:
     """Advance an episode by one step synchronously.
 
@@ -659,7 +782,7 @@ def step_episode(
 
     try:
         ep_row = conn.execute(
-            """SELECT episode_id, subject_id, thread_id, state, disposition, step_count
+            """SELECT episode_id, subject_id, thread_id, opened_on, state, disposition, step_count
                FROM episodes WHERE episode_id = ?""",
             (episode_id,),
         ).fetchone()
@@ -682,23 +805,37 @@ def step_episode(
         # tick is visible to this one. Building a fresh graph here gave every tick an
         # empty in-memory saver, so no interrupt could ever be resumed.
         graph = get_agent_graph(db_path)
+        # Seed the episode's evidence. Passing only the identifiers left the agent to
+        # reason over an empty night sequence, so the belief never moved off its prior
+        # and every episode concluded benign without asking anything.
         initial_state = {
             "episode_id": episode_id,
             "subject_id": ep_row["subject_id"],
             "step": ep_row["step_count"],
+            "nights": _episode_nights(conn, ep_row["subject_id"], ep_row["opened_on"]),
+            "features": _episode_features(conn, ep_row["subject_id"], ep_row["opened_on"]),
         }
-        res = run_episode_step(graph, episode_id=episode_id, initial_state=initial_state)
+        res = run_episode_step(
+            graph,
+            episode_id=episode_id,
+            initial_state=initial_state,
+            resume=resume,
+        )
 
         new_step = int(ep_row["step_count"]) + 1
         conn.execute(
             "UPDATE episodes SET step_count = ? WHERE episode_id = ?",
             (new_step, episode_id),
         )
+
+        # Persist the outcome. The graph reached a disposition in state and nothing wrote
+        # it back, so an episode that had finished still read as OPEN with no disposition.
+        final_state = _close_if_concluded(conn, episode_id, res)
         conn.commit()
 
         return {
             "episode_id": episode_id,
-            "state": ep_row["state"],
+            "state": final_state,
             "step_count": new_step,
             "result": res,
         }

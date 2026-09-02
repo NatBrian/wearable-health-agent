@@ -10,6 +10,11 @@ from wha.db import apply_schema, connect
 from wha.detect import detect_range
 from wha.features.derivation import compute_range
 from wha.models import Detection, NightlyFeatures
+from wha.service.episode_lifecycle import (
+    check_close_conditions,
+    get_open_episode,
+    open_episodes_for_flagged_nights,
+)
 
 
 def parse_date_range(range_str: str | None, tz_name: str = "Asia/Singapore") -> tuple[date, date]:
@@ -109,5 +114,15 @@ def run_nightly(
 
     # Run detection
     detections = detect_range(conn, subj, start_date, end_date)
+
+    # Open the investigation. Detection previously ended here, so a flagged night set a
+    # boolean and nothing ever acted on it: no episode existed for the agent to advance,
+    # and the link between the monitor and the investigation was absent entirely.
+    open_episodes_for_flagged_nights(conn, subj, detections)
+
+    open_episode = get_open_episode(conn, subj)
+    if open_episode is not None:
+        check_close_conditions(conn, str(open_episode["episode_id"]), detections)
+
     conn.close()
     return detections

@@ -119,8 +119,8 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
 
     # 6. Datasets check
     data_dir = settings.data_dir
-    stanford_exists = (data_dir / "stanford").exists()
-    pmdata_exists = (data_dir / "pmdata").exists()
+    stanford_exists = (data_dir / "stanford").is_dir() and any((data_dir / "stanford").iterdir())
+    pmdata_exists = (data_dir / "pmdata").is_dir() and any((data_dir / "pmdata").iterdir())
     if stanford_exists and pmdata_exists:
         items.append(DoctorItem(name="datasets", status="ok", detail="stanford and pmdata present"))
     else:

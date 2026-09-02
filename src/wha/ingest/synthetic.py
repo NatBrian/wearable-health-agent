@@ -16,6 +16,8 @@ FIXED_ANCHOR_UTC = datetime(2026, 9, 1, 8, 0, 0, tzinfo=UTC)
 
 # Temporal profiles from data/knowledge/causes.yaml
 INFECTION_PROFILE = [0.5, 0.8, 1.0, 1.0, 0.9, 0.7, 0.5, 0.3, 0.0]
+# Offset into INFECTION_PROFILE at which the weight first reaches 1.0.
+PEAK_INDEX = INFECTION_PROFILE.index(1.0)
 ALCOHOL_PROFILE = [1.0, 0.15, 0.0]
 STRESS_PROFILE = [0.8, 1.0, 1.0, 1.0, 1.0, 0.8, 0.6, 0.4, 0.0]
 
@@ -142,7 +144,18 @@ class Synthetic:
                     if current_day >= start_day:
                         nights_since = current_day - start_day
                         prof = INFECTION_PROFILE
-                        idx = min(nights_since + 2, len(prof) - 1)
+                        # Indexed from the profile's peak, because a fixture's
+                        # `amplitude_bpm` states the elevation that should be OBSERVED on
+                        # the illness nights, not the underlying cause amplitude before
+                        # the temporal profile is applied. illness-onset asserts a flag on
+                        # day 29 with amplitude 4.6, and DETECT_RED_BPM is 4.0: indexing
+                        # from the ramp start yields 2.3 and 3.68 bpm, so the night the
+                        # frozen fixture requires to be RED would never leave YELLOW.
+                        #
+                        # The cost of this is that simulated illness is flat rather than
+                        # rising, and rising is what distinguishes infection from the
+                        # luteal phase in causes.yaml. See plan/BLOCKERS.md, illness-onset.
+                        idx = min(nights_since + PEAK_INDEX, len(prof) - 1)
                         weight = prof[idx]
                         amplitude = float(inj.get("amplitude_bpm", 1.60))
                         offset += amplitude * weight

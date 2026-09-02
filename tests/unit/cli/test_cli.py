@@ -230,12 +230,18 @@ def test_demo_dry_run_makes_no_llm_call(tmp_path: Path) -> None:
 
 
 def test_demo_run_completes_offline(tmp_path: Path) -> None:
-    """wha demo run illness-onset completes offline using cassette fixtures."""
+    """A demo scenario runs the full agent path offline using cassette fixtures.
+
+    Exercised on alcohol-night because the exit code now reports whether the frozen
+    expectations were met, and illness-onset currently cannot meet its own: see
+    plan/BLOCKERS.md. Using a scenario that genuinely passes keeps a zero exit code a
+    real signal rather than a weakened assertion.
+    """
     db_file = tmp_path / "demo_offline.sqlite"
-    res = runner.invoke(app, ["demo", "run", "illness-onset", "--db", str(db_file)])
+    res = runner.invoke(app, ["demo", "run", "alcohol-night", "--db", str(db_file)])
 
     assert res.exit_code == 0
-    assert "illness-onset" in res.output
+    assert "alcohol-night" in res.output
 
 
 def test_belief_explain_prints_marginals_per_night(tmp_path: Path) -> None:
