@@ -252,6 +252,23 @@ uv run wha eval policy           # One suite, as JSON
 
 ## Web Dashboard Overview (`wha serve`)
 
+![Today](docs/screenshots/today.png)
+
+*Today: how last night looked, and anything that needs you. The numbers sit behind
+"show the numbers" rather than leading.*
+
+![History](docs/screenshots/history.png)
+
+*History: your nights against your own usual range. The axis is deliberately not
+anchored at zero.*
+
+![The record](docs/screenshots/audit.png)
+
+*The record: every action taken, whether it can still be shown to be unaltered, and an
+explanation of the pipeline whose figures are read from the code rather than written by
+hand.*
+
+
 * **📅 Today (`/Today`)**: Real-time status banner (bridge freshness, baseline maturity rung, 24h errors), active clinical episodes, and pending symptom questionnaires.
 * **📊 History (`/History`)**: Multi-month interactive nocturnal RHR charts, shrinkage baseline bands, and color-coded episode spans (`GREEN`, `YELLOW`, `RED`).
 * **🛡️ Audit (`/Audit`)**: Full cryptographic SHA-256 tamper-evident log viewer with hash-chain integrity verification and JSON/CSV export.

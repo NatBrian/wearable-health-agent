@@ -57,8 +57,9 @@ desktop.ini
 syn.json
 *.sample.json
 
-# Playwright MCP artifacts & screenshots
+# Playwright MCP artifacts and ad-hoc screenshots taken at the repository root.
+# docs/screenshots/ is committed deliberately and is not covered by this.
 .playwright-mcp/
-screenshot_*.png
+/screenshot_*.png
 view_db.py
 seed_*.py
