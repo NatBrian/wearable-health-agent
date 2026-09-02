@@ -11,6 +11,7 @@ from wha.notify import (
     MessageKind,
     TelegramNotifier,
     format_callback_data,
+    format_callback_token,
 )
 from wha.policy.probes import load_probes
 
@@ -29,8 +30,22 @@ def test_callback_data_within_limit() -> None:
             # Verifies structure: a:<short_id>:<option_id>
             parts = cb.split(":")
             assert len(parts) == 3
-            assert parts[1] == interaction_id[:8]
+            assert parts[1] == format_callback_token(interaction_id)
             assert parts[2] == opt.option_id
+
+
+def test_callback_token_distinguishes_interactions_in_one_episode() -> None:
+    """Two questions in the same episode must produce different callback tokens.
+
+    Interaction ids are f"int_{episode_id}_{probe_id}", so for any episode id starting
+    "ep_2" the first eight characters are the constant "int_ep_2". Truncating to a prefix
+    made every question in an episode share a token, and a button answer could be
+    recorded against a different probe entirely.
+    """
+    first = format_callback_token("int_ep_20260901abcd_probe_symptoms")
+    second = format_callback_token("int_ep_20260901abcd_probe_alcohol")
+
+    assert first != second
 
 
 def test_outbound_rejects_url() -> None:

@@ -132,6 +132,19 @@ def select_action(
     )
 
 
+# Causes that correspond to a discrete, datable occurrence rather than an ongoing state.
+# Only these can justify EXPLAINED_BY_EVENT.
+EVENT_CAUSES = frozenset(
+    {
+        CauseId.EXERTION,
+        CauseId.ALCOHOL,
+        CauseId.VACCINATION,
+        CauseId.TRAVEL,
+        CauseId.MEDICATION,
+    }
+)
+
+
 def determine_disposition(
     belief: BeliefState,
     rung: BaselineRung,
@@ -146,11 +159,17 @@ def determine_disposition(
 
     p_inf = belief.p_illness
 
-    # Check if a non-illness confounder dominates and explains the residual
+    # Check if a discrete event explains the residual.
+    #
+    # Restricted to causes that correspond to something that actually happened and was
+    # recorded or reported: a workout, a drink, a jab, a flight, a medication change.
+    # Ongoing states such as stress, short sleep or cycle phase are not events, and
+    # reporting "explained by event" for them overstates what the system knows. Those
+    # resolve as LIKELY_BENIGN, which is the honest reading of a low illness probability
+    # with no discrete cause behind it.
     top_cause, top_prob = belief.top(1)[0]
     if (
-        top_cause != CauseId.INFECTION
-        and top_cause != CauseId.UNEXPLAINED
+        top_cause in EVENT_CAUSES
         and top_prob >= 0.50
         and p_inf < DERIVED_TREATMENT_THRESHOLD
     ):

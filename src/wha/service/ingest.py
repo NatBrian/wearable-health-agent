@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from wha.config import get_settings
+from wha.constants import DEFAULT_SYNTHETIC_BASE_BPM, DEFAULT_SYNTHETIC_SEED
 from wha.db import apply_schema, connect
 from wha.errors import SourceUnavailable
 from wha.ingest.live_bridge import LiveBridge
@@ -57,7 +58,18 @@ def run_ingest(
         return len(norm.heart_rate_samples)
 
     # Fallback to deterministic synthetic source
-    scenario = Scenario(scenario_id="default_ingest", name="Default Ingest", days=days)
+    # Scenario forbids extra fields and requires all five of these. The previous call
+    # passed a scenario_id the model does not define and omitted description, base_bpm,
+    # seed and timezone, so this path raised ValidationError on every run without a live
+    # bridge, which is the default path.
+    scenario = Scenario(
+        name="default-ingest",
+        description="Deterministic synthetic fallback when no live bridge is configured.",
+        days=days,
+        base_bpm=DEFAULT_SYNTHETIC_BASE_BPM,
+        seed=DEFAULT_SYNTHETIC_SEED,
+        timezone=settings.timezone,
+    )
     syn = Synthetic(scenario=scenario)
     raw_payload = syn.fetch(subject_id=subj)
     norm = normalise_and_store(conn, raw_payload)

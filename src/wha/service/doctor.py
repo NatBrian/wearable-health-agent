@@ -34,11 +34,16 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
 
         subj_count = conn.execute("SELECT COUNT(*) FROM subjects").fetchone()[0]
         night_count = conn.execute("SELECT COUNT(*) FROM nightly_features").fetchone()[0]
+        version_row = conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
+        schema_version = version_row[0] if version_row else "unknown"
         items.append(
             DoctorItem(
                 name="database",
                 status="ok",
-                detail=f"{target_db}, schema v1, {night_count} nights, {subj_count} subjects",
+                detail=(
+                    f"{target_db}, schema v{schema_version}, {night_count} nights, "
+                    f"{subj_count} subjects"
+                ),
             )
         )
     except Exception as e:  # noqa: BLE001
@@ -105,7 +110,7 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
             DoctorItem(
                 name="telegram",
                 status="ok",
-                detail=f"chat_id={settings.telegram_chat_id} (token configured)",
+                detail="chat id and token configured",
             )
         )
     else:

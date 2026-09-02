@@ -95,7 +95,7 @@ def run_episode_tick(db_path: Path | None = None) -> dict[str, Any]:
         # 2. Expire timed out measurements
         meas_rows = conn.execute(
             """SELECT id, episode_id, requested_at_utc FROM measurements
-               WHERE status = 'REQUESTED'"""
+               WHERE status = 'PENDING'"""
         ).fetchall()
         for r in meas_rows:
             req_at = datetime.fromisoformat(r["requested_at_utc"])

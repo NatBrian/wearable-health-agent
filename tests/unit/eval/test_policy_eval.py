@@ -108,13 +108,22 @@ def test_injection_sweep_produces_heatmap(tmp_path: Path) -> None:
     assert res.suite == "policy"
     assert "injection_heatmap" in res.tables
     heatmap = res.tables["injection_heatmap"]
-    # 5 amplitudes x 4 durations = 20 sweep cells
-    assert len(heatmap) == 20
+    # 5 amplitudes x 4 durations x 2 ground truths = 40 cells. Each elevation is presented
+    # twice, once as a real infection and once as a benign mimic producing an identical
+    # residual. Without the mimic, accuracy is unmeasurable: a policy that always answers
+    # "illness" would score perfectly.
+    assert len(heatmap) == 40
+    assert {c["truth"] for c in heatmap} == {"illness", "benign"}
     for cell in heatmap:
         assert "amplitude_bpm" in cell
         assert "duration_days" in cell
-        assert "evsi_accuracy" in cell
-        assert "threshold_accuracy" in cell
+        # Per-case correctness, measured by running the policy, not a formula.
+        assert isinstance(cell["evsi_correct"], bool)
+        assert isinstance(cell["threshold_correct"], bool)
+
+    # The comparators must actually differ, or the benchmark is not measuring anything.
+    assert res.metrics["always_ask_mean_interruptions"] > res.metrics["evsi_mean_interruptions"]
+    assert res.metrics["never_ask_mean_interruptions"] == 0.0
 
 
 def test_result_records_provenance(tmp_path: Path) -> None:

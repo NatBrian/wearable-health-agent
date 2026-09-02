@@ -10,6 +10,12 @@ HR_PLAUSIBLE_MAX_BPM = 220
 INGEST_STALE_WARN_HOURS = 36  # status strip turns amber
 INGEST_STALE_REFUSE_HOURS = 72  # nightly batch refuses rather than guessing
 
+# Defaults for the synthetic fallback source used when no live bridge is configured.
+# Not clinical figures: base_bpm is a plausible adult nocturnal resting heart rate, and the
+# seed exists only so the fallback is reproducible.
+DEFAULT_SYNTHETIC_BASE_BPM = 60.0
+DEFAULT_SYNTHETIC_SEED = 1
+
 # --- baseline ladder ------------------------------------------------------
 RUNG_COLD_MAX_NIGHTS = 2  # 0-2   -> COLD
 RUNG_PRIOR_MAX_NIGHTS = 6  # 3-6   -> PRIOR_DOMINATED
@@ -61,7 +67,26 @@ LEAK_EFFECT_SD_BPM = 3.0  # width of the `unexplained` effect prior
 UTILITY_MISS_ILLNESS = -9.0  # concluded benign, was illness
 UTILITY_FALSE_ALARM = -1.0  # concluded illness, was benign
 UTILITY_CORRECT = 0.0
-POLICY_COST_PER_INTERRUPT = 0.30  # same utility units. Swept
+# Same utility units. Annotated "Swept" here and in plan/02-contracts.md, and exposed to
+# the user as policy_cost_weight, so this is a tuning parameter rather than a clinical
+# figure. Set from the sweep in wha.eval.policy_oracle, measured over 40 simulated cases
+# split evenly between infections and benign mimics presenting identically:
+#
+#   weight   accuracy   interruptions per episode
+#     0.05     0.825          0.80
+#     0.10     0.725          0.55
+#     0.15     0.675          0.40
+#     0.30     0.600          0.25      <- previous value
+#     0.50     0.525          0.05
+#     1.00     0.500          0.00      (degenerates to never asking)
+#
+# 0.15 is not the accuracy-maximising point, deliberately. It buys a materially wider
+# margin over the threshold-only comparator (0.500) while still spending well under one
+# question per episode, so the weekly budget of two remains the binding constraint and
+# the quiet band that makes EVSI worth having is preserved. Picking 0.05 would maximise
+# the metric by nearly always asking, which is the alarm fatigue this project exists to
+# avoid.
+POLICY_COST_PER_INTERRUPT = 0.15
 INTERRUPTION_BUDGET_PER_WEEK = 2
 DEPTH_BUDGET_PER_EPISODE = 5
 

@@ -27,11 +27,12 @@ from wha.errors import ConfigError
 from wha.features.derivation import compute_range
 from wha.ingest.store import normalise_and_store
 from wha.ingest.synthetic import Synthetic
-from wha.models import Detection, Scenario
+from wha.models import Detection, Disposition, Scenario
 from wha.service.episode_lifecycle import (
     get_open_episode,
     open_episodes_for_flagged_nights,
 )
+from wha.service.symptom_report import report_symptoms
 
 
 @dataclass(frozen=True)
@@ -212,15 +213,39 @@ def run_demo(
         questions_asked = 0
         escalated = False
 
-        if not dry_run and episode_ids:
+        # A scenario whose person volunteers alarming words must reach the safety floor
+        # whether or not the detector flagged a night. Escalation that depended on an
+        # open episode would mean reporting chest pain on an ordinary night did nothing.
+        oracle = dict(scenario.oracle or {})
+        if not dry_run and oracle.get("free_text") and not episode_ids:
+            report = report_symptoms(subj_id, str(oracle["free_text"]), conn=conn)
+            if report.escalated:
+                disposition = report.disposition
+                escalated = True
+                if report.episode_id:
+                    episode_ids = [report.episode_id]
+
+        if not dry_run and episode_ids and disposition is None:
             disposition, questions_asked, escalated = _run_episode_to_completion(
                 conn,
                 subj_id,
                 episode_ids[0],
                 target_db,
-                oracle=dict(scenario.oracle or {}),
+                oracle=oracle,
                 live=live,
             )
+
+        # A subject whose baseline is not yet established has a disposition even though no
+        # episode opens: the system's answer is that it does not have enough data yet.
+        if disposition is None and not episode_ids:
+            rung_row = conn.execute(
+                """SELECT rung FROM baselines WHERE subject_id = ?
+                   ORDER BY night_date DESC LIMIT 1""",
+                (subj_id,),
+            ).fetchone()
+            rung = str(rung_row["rung"]) if rung_row else "COLD"
+            if rung == "COLD":
+                disposition = Disposition.INSUFFICIENT_DATA.value
 
         expectations = _evaluate_expectations(
             scenario,

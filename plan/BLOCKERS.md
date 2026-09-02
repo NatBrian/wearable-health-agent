@@ -165,3 +165,74 @@ blocker stands: no cohort data is present, so A-25 to A-28 remain blocked on the
 on the missing `cohort_labels.yaml` already recorded above.
 
 **What I need:** the datasets fetched, or confirmation that cohort evaluation is out of scope.
+
+
+---
+
+## RESOLVED: illness-onset, and the cause of most scenario failures
+
+Recorded above as unresolvable without changing a cited clinical figure. That reading was
+wrong, and the measurement that settled it is worth keeping.
+
+Neither the infection effect size (1.60 bpm, DERIVED from published percentages) nor the
+detection thresholds (3.0 and 4.0 bpm, cited from Alavi 2022 NightSignal, which reaches
+80 percent sensitivity at exactly those cutoffs) needed to move. Both are well sourced and
+both are correct.
+
+The defect was in code. `update_belief` took `luteal_applicable: bool = True`, collapsing
+the three-state fact the contract defines (`cycle_applicable: bool | None`, "None means
+not yet asked") into an assumption that every unasked subject menstruates. luteal is the
+largest benign effect in causes.yaml at 3.91 bpm on a 0.450 base rate, so assuming it
+applied let it explain away exactly the elevations the system exists to investigate.
+
+Measured on illness-onset: p(infection) 0.025 assuming applicability, 0.070 treating it as
+unestablished. The second figure is inside the band where the EVSI policy finds a question
+worth its interruption cost, so the policy asks, the answer arrives, and the episode
+reaches LIKELY_ILLNESS.
+
+The sweep of POLICY_COST_PER_INTERRUPT, annotated "Swept" and never actually swept, moved
+the default from 0.30 to 0.15 on measured evidence. Scenario pass rate went from 4 of 11
+to 10 of 11.
+
+---
+
+## no-response-timeout — the injected elevation never reaches the RED threshold
+
+**What I tried:** `uv run wha demo run no-response-timeout`.
+
+**What happened:**
+
+```
+[FAIL] disposition: expected 'UNRESOLVED', got None
+[FAIL] asks_at_least: expected 1, got 0
+```
+
+No episode opens, so no question is asked and no disposition is reached.
+
+**What I think is wrong:** the fixture requires an alert event, which needs a run of
+YELLOW-or-above nights containing at least one RED. The scenario's injected elevation
+produces a residual of 3.65 bpm on its two illness nights. `DETECT_YELLOW_BPM` is 3.0 and
+`DETECT_RED_BPM` is 4.0, so both nights are YELLOW and no run ever contains a RED.
+
+Measured, with `explained_bpm` at 0.0, so nothing is being subtracted:
+
+| scenario | fixture amplitude | observed residual | level | flags? |
+|---|---|---|---|---|
+| illness-onset | 4.6 | 4.25 | RED | yes |
+| red-flag | 4.2 | 3.45 | YELLOW | no |
+| no-response-timeout | ~4.4 | 3.65 | YELLOW | no |
+
+The roughly 0.75 bpm gap between the injected amplitude and the observed residual comes
+from the baseline centre sitting above the scenario's clean-night level and from the
+nightly resting heart rate being derived from integer-quantised samples. So a fixture
+needs an amplitude of about 4.8 or more to produce a RED night.
+
+red-flag was resolved on its own merits, not by changing an amplitude: escalation must not
+depend on the detector having flagged anything, so an unsolicited symptom report now runs
+the deterministic floor directly. no-response-timeout has no free text and genuinely needs
+an episode.
+
+**What I need:** a decision on the fixture, which is read-only to me. Either its amplitude
+rises to roughly 4.8 so the scenario produces the RED night it assumes, or the scenario is
+re-authored to open its episode some other way. Nothing in the code is wrong here, so I
+have not changed anything to force it green.

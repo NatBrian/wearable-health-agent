@@ -24,6 +24,7 @@ from wha.db.audit_chain import append_audit as append_audit_row
 from wha.db.connection import connect
 from wha.db.iso import to_iso
 from wha.models import AuditEvent, Baseline, BaselineRung, BeliefState, NightlyFeatures
+from wha.notify.telegram import format_callback_token
 
 
 def _row_to_nightly_features(row: sqlite3.Row) -> NightlyFeatures:
@@ -271,6 +272,30 @@ class EpisodeRepository:
             ),
         )
         self._conn.commit()
+
+    def find_interaction_by_prefix(self, token: str) -> dict[str, Any] | None:
+        """Resolve a Telegram callback token back to the interaction that issued it.
+
+        The token is a hash of the full interaction id rather than a prefix of it, because
+        ids are built as ``int_{episode_id}_{probe_id}`` and any two interactions in the
+        same episode share their leading characters. Matching is done over open
+        interactions only, so a stale button cannot answer a closed question.
+        """
+        rows = self._conn.execute(
+            """SELECT i.id, i.episode_id, i.probe_id, i.status, i.options_json
+               FROM interactions i
+               WHERE i.status = 'PENDING'"""
+        ).fetchall()
+        for row in rows:
+            if format_callback_token(row["id"]) == token:
+                return {
+                    "id": row["id"],
+                    "episode_id": row["episode_id"],
+                    "probe_id": row["probe_id"],
+                    "status": row["status"],
+                    "options": json.loads(row["options_json"]) if row["options_json"] else [],
+                }
+        return None
 
     def has_notification_for(self, interaction_id: str) -> bool:
         """True when this question or measurement has already been delivered."""

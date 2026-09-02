@@ -139,6 +139,18 @@ def delete_all_subject_data(
                 conn.execute("DELETE FROM outcomes WHERE episode_id = ?", (ep_id,))
                 conn.execute("DELETE FROM beliefs WHERE episode_id = ?", (ep_id,))
 
+            # The agent's checkpointed state is keyed by thread_id, which is the episode
+            # id. It holds the person's answers and beliefs verbatim, so a delete that
+            # left it behind would not be a delete. These tables are created by the
+            # LangGraph SQLite saver and may not exist before the first episode runs.
+            for ep in ep_rows:
+                ep_id = ep["episode_id"]
+                for table in ("checkpoints", "writes"):
+                    try:
+                        conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (ep_id,))
+                    except sqlite3.OperationalError:
+                        pass
+
             conn.execute("DELETE FROM episodes WHERE subject_id = ?", (subject_id,))
             conn.execute("DELETE FROM subjects WHERE subject_id = ?", (subject_id,))
     finally:
