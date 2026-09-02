@@ -178,7 +178,11 @@ def format_report(report: CapabilityReport) -> str:
     lines.append("Not arriving, though Health Connect defines it")
     for key in report.absent_but_supported:
         lines.append(f"  {key:22s} {UNSUPPORTED_HEALTH_CONNECT_CHANNELS[key]}")
-    lines.append("  Whether these appear depends on your watch, its firmware, and which")
-    lines.append("  features you have switched on. They are not missing by choice here.")
+    lines.append("  These are not excluded by choice. The bridge app supports them and")
+    lines.append("  Health Connect defines them, so a channel is absent for one of three")
+    lines.append("  reasons: your watch does not record it, the feature is switched off,")
+    lines.append("  or the app was never granted permission to read it. Only the last is")
+    lines.append("  checkable here: open Health Connect, App permissions, and confirm")
+    lines.append("  every type is allowed.")
 
     return "\n".join(lines)
