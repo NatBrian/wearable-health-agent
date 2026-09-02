@@ -277,9 +277,17 @@ Each of these produces code that runs and is wrong.
 - The bridge delivers **heart rate in 1-minute buckets** and **steps in daily buckets**. There is no
   per-minute step data, which is why the published activity-masking method is impossible and the
   detector uses the nocturnal window instead.
-- Samsung Health writes **only heart rate, steps, sleep stages and exercise** to Health Connect. No
-  HRV, no respiratory rate, no skin temperature, no resting heart rate. **Any design assuming those
-  will not run.** Sleep and exercise may never arrive at all; treat them as optional everywhere.
+- Samsung Health writes **heart rate, steps, sleep stages, exercise, blood oxygen, distance and
+  total calories** to Health Connect. Still **no HRV, no respiratory rate, no skin temperature, no
+  resting heart rate**. **Any design assuming those will not run.** Sleep and exercise may never
+  arrive at all; treat them as optional everywhere.
+
+  > **Corrected 3 September 2026.** This previously read "only heart rate, steps, sleep stages and
+  > exercise", which was the state on day zero. A probe of the live bridge found blood oxygen,
+  > distance and total calories as well, stable across 7, 30 and 90-day windows. All seven are now
+  > ingested. The second half of the claim still holds and was re-verified at the same time. Skin
+  > temperature is Galaxy Watch 6 and later, so it will not appear on this device at all.
+  > See `docs/DESIGN-DATA-CHANNELS.md`.
 - The self-hosted endpoint sustains about **9.2 tokens per second** and its URL and key regenerate
   every session. **It is expected to be down most of the time.** Every test runs against recorded
   cassettes with `WHA_LLM_PROVIDER=cassette`, and `LLMUnavailable` parks an episode rather than

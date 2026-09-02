@@ -40,13 +40,31 @@ Consumer smartwatches detect that something in your body changed--a raised overn
 
 ---
 
+## What data it uses, and why not more
+
+Health Connect defines around sixty kinds of health data. This system uses the seven a
+Galaxy Watch 5 actually provides, and four of those can change a conclusion. Nothing is
+filtered out, and the full raw payload is retained regardless.
+
+Supporting the rest is not planned. Most of it has no bearing on illness, and the three
+channels that would help (heart rate variability, respiratory rate, skin temperature) are
+not recorded by this device, cannot be computed from one-minute heart rate averages, and
+would not solve the problem the system exists for: they move in the same direction for
+infection, stress, poor sleep and the luteal phase alike.
+
+The reasoning, the measurements behind it and the sources are in
+**[docs/DESIGN-DATA-CHANNELS.md](docs/DESIGN-DATA-CHANNELS.md)**. Run
+`uv run wha data capability` to see what your own device provides.
+
+---
+
 ## Key Clinical & Architectural Invariants
 
-1. **Zero-LLM Passive Monitoring**: Every morning at 09:00 AM, the nightly batch processes the 00:00–07:00 sleep window using robust statistics (MAD scaling, empirical Bayes shrinkage towards population prior $\mu_0=62.0\text{ bpm}, \sigma_0=7.5\text{ bpm}$, and explained-variance subtraction). On normal nights, **execution cost is zero and no language model is invoked**.
+1. **Zero-LLM Passive Monitoring**: Every morning at 09:00 AM, the nightly batch processes the 00:00–07:00 sleep window using robust statistics (MAD scaling, empirical Bayes shrinkage towards population prior $\mu_0=62.75\text{ bpm}, \sigma_0=8.64\text{ bpm}$, and explained-variance subtraction). On normal nights, **execution cost is zero and no language model is invoked**.
 2. **Deterministic Emergency Safety Floor**: If critical symptoms are reported (e.g., acute chest pain, severe dyspnea, confusion from `data/knowledge/red_flags.yaml`), the system **immediately executes `ESCALATE` and completely bypasses generative models**.
 3. **Exact 12-Cause Bayesian Belief Engine**: Evaluates joint probabilities over all $2^{12} = 4,096$ discrete causal combinations in log-space, using peer-reviewed effect sizes and temporal onset/decay curves.
 4. **Arithmetic Value-of-Information Policy**: Decides whether to stay silent (`OBSERVE`), ask a targeted symptom question (`ASK`), order a spot check (`MEASURE`), or draft a differential (`CONCLUDE`) strictly via **Expected Value of Sample Information (EVSI) minus Interruption Cost**. The LLM cannot decide to interrupt or spam the patient on its own.
-5. **Fail-Closed Data Quality Gates**: Requires $\ge 240\text{ minutes}$ (4 hours) of nocturnal sensor coverage and refuses biometrics older than 48 hours. The system never fabricates heart rates or invents missing data.
+5. **Fail-Closed Data Quality Gates**: Requires $\ge 180\text{ minutes}$ (3 hours) of nocturnal sensor coverage and refuses biometrics older than 72 hours. The system never fabricates heart rates or invents missing data.
 6. **Strict Outbound Safety & Grounding**: Outbound messages pass 6 deterministic checks (length, control characters, URL whitelisting, slot matching, callback sizes). All clinical assertions are strictly grounded against cited medical literature in `data/knowledge/`.
 7. **Cryptographic Immutability**: Every tool call, Bayesian update, human interaction, and LLM reasoning step is logged with **SHA-256 cryptographic hash chaining** into SQLite for tamper-evident clinical auditability.
 

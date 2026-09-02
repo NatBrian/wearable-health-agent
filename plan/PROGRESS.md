@@ -215,3 +215,48 @@ Now measured, and moved from 0.30 to 0.15 on the frontier.
   residual against a 4.0 bpm threshold, so no alert event forms. That is a fixture defect,
   not a code defect, and forcing it green would mean editing a frozen fixture or nudging a
   constant. Recorded in BLOCKERS.md with the measurements.
+
+
+---
+
+## Data channel decision and documentation correction, 3 September 2026
+
+Probed the live bridge with the phone and laptop on the same network. Findings and the
+decision taken are written up in `docs/DESIGN-DATA-CHANNELS.md`.
+
+**The device sends seven channels, not four.** Blood oxygen, distance and total calories
+arrive alongside heart rate, steps, sleep and exercise, stable across 7, 30 and 90-day
+windows. All seven are now ingested. Heart rate variability, respiratory rate and skin
+temperature remain absent, and skin temperature is Galaxy Watch 6 and later so it will not
+appear on this device at all.
+
+**Neither missing channel can be computed from what we have.** The bridge delivers one
+heart rate value every 60 seconds with min, avg and max equal. Heart rate variability needs
+beat-to-beat intervals in milliseconds; respiratory rate needs sampling faster than the
+four-second respiratory cycle. Both are absent rather than weak at this sampling rate.
+
+**Supporting the remaining Health Connect types is not planned**, and the reasoning is
+recorded rather than assumed: most are irrelevant to illness, and the three that are not
+would add roughly five AUC points at best while moving in the same direction for infection,
+stress, poor sleep and the luteal phase. The measured benchmark already shows a sensor-only
+policy at chance.
+
+### Documentation corrected
+
+`HANDOFF.md` section 10 stated as a fact "measured on real hardware" that Samsung Health
+writes only heart rate, steps, sleep stages and exercise. That was true on day zero and is
+now false. Corrected in place with a dated note, because a wrong fact under that heading is
+worse than an edit to a read-only file.
+
+The README quoted four figures that had drifted from `constants.py`:
+
+| Claim | README said | Actual |
+|---|---|---|
+| Nocturnal coverage minimum | 240 minutes | **180** |
+| Staleness refusal | 48 hours | **72** |
+| Population prior mean | 62.0 bpm | **62.75** |
+| Population prior sd | 7.5 bpm | **8.64** |
+
+All corrected, and `tests/unit/test_documented_numbers.py` now asserts the documented
+figures against the constants so they cannot drift again. This is the same failure the
+audit dashboard page had, where hand-written numbers had diverged from the code.
