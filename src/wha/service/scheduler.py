@@ -108,16 +108,167 @@ def run_episode_tick(db_path: Path | None = None) -> dict[str, Any]:
 
         conn.commit()
 
-        # 3. Advance episodes that had timeouts or are active
-        for ep_id in timed_out_episodes:
-            try:
-                step_episode(ep_id, conn=conn)
-            except Exception as exc:  # noqa: BLE001
-                logger.warning("Failed to step episode %s after timeout: %s", ep_id, exc)
+        # 3. Advance every open episode, not only the ones that timed out.
+        #
+        # This loop used to iterate `timed_out_episodes`, so a freshly opened episode was
+        # never touched: it sat at step_count 0 until a human ran `wha episode step`. The
+        # detection half therefore ran unattended and the agentic half never started.
+        open_rows = conn.execute(
+            "SELECT episode_id FROM episodes WHERE state != 'CLOSED'"
+        ).fetchall()
 
-        return {"timed_out_episodes": list(timed_out_episodes)}
+        advanced: list[str] = []
+        for r in open_rows:
+            ep_id = r["episode_id"]
+            try:
+                if _advance_episode(ep_id, conn=conn, db_path=db_path):
+                    advanced.append(ep_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Failed to advance episode %s: %s", ep_id, exc)
+
+        return {
+            "timed_out_episodes": list(timed_out_episodes),
+            "advanced_episodes": advanced,
+        }
     finally:
         conn.close()
+
+
+def _advance_episode(
+    episode_id: str,
+    conn: Any,
+    db_path: Path | None = None,
+    max_steps: int = 24,
+) -> bool:
+    """Run one episode forward until it closes, parks on a person, or stops progressing.
+
+    Stepping once per tick would leave an episode needing hours of ticks to reach a
+    disposition, so the tick drives it as far as it can go unattended. It stops the moment
+    the graph parks on an ``interrupt()``, which is the point where the system is waiting
+    on the human rather than on itself. Returns whether any progress was made.
+    """
+    from wha.agent.graph import get_agent_graph, get_pending_interrupt
+
+    graph = get_agent_graph(db_path)
+    progressed = False
+
+    for _ in range(max_steps):
+        row = conn.execute(
+            "SELECT state, step_count FROM episodes WHERE episode_id = ?",
+            (episode_id,),
+        ).fetchone()
+        if row is None or row["state"] == "CLOSED":
+            break
+
+        pending = get_pending_interrupt(graph, episode_id)
+        resume = _resume_value(conn, episode_id, pending) if pending is not None else None
+        if pending is not None and resume is None:
+            # Parked on a question the person has not answered yet. Leaving it parked is
+            # the correct behaviour; the answer arrives via Telegram or the dashboard, and
+            # the interaction timeout above eventually releases it.
+            break
+
+        before = row["step_count"]
+        step_episode(episode_id, conn=conn, resume=resume)
+        after_row = conn.execute(
+            "SELECT state, step_count FROM episodes WHERE episode_id = ?",
+            (episode_id,),
+        ).fetchone()
+
+        # Reaching a disposition is progress even when it took no further steps, so an
+        # episode that closes on its first step is not reported as having done nothing.
+        if after_row["step_count"] != before or after_row["state"] == "CLOSED":
+            progressed = True
+        if after_row["state"] == "CLOSED":
+            break
+
+        if get_pending_interrupt(graph, episode_id) is None:
+            snapshot = graph.get_state({"configurable": {"thread_id": episode_id}})
+            if not getattr(snapshot, "next", ()):
+                # The graph ran to a stopping point without closing and without asking
+                # anyone anything, which is what an OBSERVE decision looks like: wait for
+                # another night rather than act. step_count increments on every call, so
+                # "did the counter move" cannot detect this, and the tick re-ran a settled
+                # episode until it hit the step ceiling, spending an LLM call each time.
+                break
+
+    return progressed
+
+
+def _resume_value(conn: Any, episode_id: str, pending: Any) -> dict[str, Any] | None:
+    """Build the value an ``interrupt()`` is waiting for from what the person has sent.
+
+    Returns None when the episode is parked on a question nobody has answered yet, which
+    tells the caller to leave it parked. Mirrors the shape the demo harness feeds from a
+    fixture oracle, so live answers and scenario answers enter the graph identically.
+    """
+    if not isinstance(pending, dict):
+        return {"decision": "approve"}
+
+    kind = pending.get("kind")
+
+    if kind == "question":
+        probe_id = pending.get("probe_id") or ""
+        row = conn.execute(
+            """SELECT answer_option_id, free_text, status FROM interactions
+                WHERE episode_id = ? AND probe_id = ?
+                ORDER BY asked_at_utc DESC LIMIT 1""",
+            (episode_id, probe_id),
+        ).fetchone()
+        if row is None or row["status"] == "PENDING":
+            return None
+        if row["status"] == "TIMED_OUT":
+            return {"timed_out": True}
+        if row["status"] == "DECLINED":
+            return {"probe_id": probe_id, "declined": True}
+
+        response: dict[str, Any] = {"probe_id": probe_id}
+        if row["answer_option_id"]:
+            response["option_id"] = row["answer_option_id"]
+        else:
+            response["declined"] = True
+        if row["free_text"]:
+            response["free_text"] = row["free_text"]
+        return response
+
+    if kind == "measurement":
+        return {"measurement_id": pending.get("interaction_id"), "declined": True}
+
+    return {"decision": "approve"}
+
+
+def poll_telegram_once(db_path: Path | None = None) -> dict[str, Any]:
+    """Read replies from Telegram and record them against the questions that asked.
+
+    Nothing in any runtime path constructed a ``TelegramReceiver``, so the system could
+    ask a question and never hear the answer. This closes that half of the loop; the
+    episode tick that follows resumes the graph with whatever arrived.
+    """
+    from wha.agent.repository import EpisodeRepository
+    from wha.config import get_settings
+    from wha.notify.receiver import TelegramReceiver
+
+    settings = get_settings()
+    # Mirror get_notifier's own test rather than inventing a second one: if the outbound
+    # half falls back to NullNotifier, there is nothing inbound to listen for either.
+    token = settings.telegram_bot_token
+    secret = token.get_secret_value() if token is not None else ""
+    if not secret or not settings.telegram_chat_id:
+        return {"polled": False, "reason": "telegram not configured"}
+
+    conn = connect(db_path) if db_path is not None else connect()
+    apply_schema(conn)
+    try:
+        receiver = TelegramReceiver(
+            token=secret,
+            authorized_chat_id=settings.telegram_chat_id,
+            db=EpisodeRepository(conn=conn),
+        )
+        results = receiver.poll_once()
+    finally:
+        conn.close()
+
+    return {"polled": True, "updates": len(results), "results": results}
 
 
 def create_scheduler(db_path: Path | None = None) -> BackgroundScheduler:
@@ -156,6 +307,21 @@ def create_scheduler(db_path: Path | None = None) -> BackgroundScheduler:
         trigger=IntervalTrigger(minutes=15),
         id="episode_tick",
         name="Check interaction timeouts and step episodes",
+        max_instances=1,
+        coalesce=True,
+    )
+
+    # 4. Telegram receive: poll for replies. The module docstring has always named four
+    #    jobs; only three were ever registered, so the agent could ask a question and
+    #    never hear the answer. getUpdates long-polls for 30s, so a 45s interval keeps a
+    #    steady listener without overlapping calls.
+    scheduler.add_job(
+        func=lambda: safe_job_wrapper(
+            "telegram_poll", lambda: poll_telegram_once(db_path=db_path), db_path=db_path
+        ),
+        trigger=IntervalTrigger(seconds=45),
+        id="telegram_poll",
+        name="Poll Telegram for replies",
         max_instances=1,
         coalesce=True,
     )

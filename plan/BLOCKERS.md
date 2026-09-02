@@ -283,3 +283,81 @@ Two further points a human should weigh before that changes:
 **What I need:** a cited likelihood row in `causes.yaml` for blood oxygen, or a decision
 that it stays captured-but-unused. Distance and calories need no such row: they are
 activity context for the agent to read, not evidence the belief model weighs.
+
+---
+
+## production-loop — an OBSERVE decision is never revisited on later nights
+
+**What I tried:** ran the mock watch bridge (`tools/mock_watch.py`) forward a day at a
+time through an illness arc: 35 healthy nights, then RED at +4.65 bpm on 2026-09-04,
+flagged on 09-05, RED again 09-06, YELLOW 09-07, GREEN 09-08 and 09-09.
+
+**What happened:** the episode opened, the agent asked `probe_symptoms`, the answer
+`fever` moved p(infection) from 0.071 to 0.3893, and the policy then chose OBSERVE
+("Belief is inside uncertainty band; observing next night data"). From that point the
+belief never moved again. Every later tick incremented `step_count` and wrote no new
+belief row, and p(infection) stayed at 0.3893 through three further nights. The episode
+eventually closed `LIKELY_BENIGN` on the quiet-run condition in
+`check_close_conditions`, not through the agent.
+
+**What I think is wrong:** nothing is crashing; this is a control-flow question the
+contract does not settle. `run_episode_step` passes `payload = None` once a checkpoint
+exists, which is correct for an episode parked on an `interrupt()`. But a settled episode
+has `next == ()`, so invoking it with `None` runs no nodes at all. OBSERVE therefore means
+"stop thinking permanently" rather than "wait for another night and reconsider", and the
+only remaining exits are the two time-based conditions in `check_close_conditions`.
+
+The consequence worth weighing: if the person had got sicker after the OBSERVE, more RED
+nights would not have re-entered the belief and the agent could not have escalated. The
+deterministic red-flag floor still applies, so this is not a safety hole, but it does blunt
+the thing the project is arguing for.
+
+**What I need:** a decision on when a settled episode should be re-entered at START with
+the nights that have arrived since. Re-entering on every tick would re-run the LLM nodes
+against unchanged evidence; re-entering only when a new detection has landed since the last
+belief row looks right, but it is a design choice, not a bug fix, so I have not made it.
+
+---
+
+## production-loop — episode dates come from the wall clock, not the data
+
+**What I tried:** the same forward simulation, where night dates run ahead of the real
+calendar date.
+
+**What happened:** the episode opened on `2026-09-05` (a night date) and closed with
+`closed_on = 2026-09-02` (the wall-clock date). `check_close_conditions` computes
+`today = datetime.now(UTC).date()`, so its `EPISODE_MAX_NIGHTS` arm compares a night date
+against the real clock and yields a negative elapsed count, which can never fire.
+
+**What I think is wrong:** the assumption that the system always runs in real time, one
+night behind the data. That holds in production and does not hold under simulation. I have
+deliberately NOT changed production code to accommodate the simulator, because making the
+lifecycle read its clock from the data would be a real behavioural change and the wrong
+direction to take on a simulator's behalf.
+
+**What I need:** confirmation that real-time operation is the intended and only supported
+mode, in which case this is a documented limitation of `tools/mock_watch.py` rather than a
+defect. The quiet-run close arm is unaffected and does fire correctly.
+
+---
+
+## production-loop — the synthetic generator covers four of the seven live channels
+
+**What I tried:** compared the mock bridge payload against the last real Galaxy Watch 5
+payload stored in `raw_payloads`.
+
+**What happened:** the real payload carries `heart_rate`, `sleep`, `steps`, `exercise`,
+`oxygen_saturation`, `distance` and `total_calories`. `Synthetic` emits only the first
+four. Sleep stages also differ in encoding: synthetic writes `LIGHT`/`DEEP`/`REM`, the
+device writes numeric codes such as `"4"`, `"1"`, `"5"`. Both normalise, so this is
+cosmetic, but it is a difference.
+
+**What I think is wrong:** nothing. Blood oxygen has no likelihood in `causes.yaml`, so
+adding it to the generator would produce a channel the belief model still ignores, and
+distance and calories are activity context the agent reads rather than evidence. Writing
+generators for all three to make a dashboard look fuller would be fabrication for its own
+sake.
+
+**What I need:** nothing, unless the blood oxygen likelihood above is ever authored, at
+which point the generator should grow a matching channel so the two halves stay testable
+together.

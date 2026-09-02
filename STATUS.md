@@ -11,7 +11,7 @@ file describes where things actually stand.
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 364 passed, 1 skipped
+uv run pytest                     # 378 passed, 1 skipped
 uv run ruff check src tests       # clean
 uv run ruff format --check src tests
 uv run wha doctor                 # no fail rows
@@ -47,7 +47,7 @@ All of the above is fixed. The detail is in `plan/PROGRESS.md`.
 
 | Check | Result |
 |---|---|
-| Tests | **364 passed, 1 skipped**, no ignore list |
+| Tests | **378 passed, 1 skipped**, no ignore list |
 | Lint and format | clean |
 | `wha doctor` | no fail rows |
 | Frozen scenarios | **10 of 11** |
@@ -93,6 +93,37 @@ why supporting the rest of Health Connect is not planned, is in
 
 **The bridge is only reachable when the phone hotspot is on.** Its address in `.env` is the
 Wi-Fi gateway. Everything except `wha ingest` works without it.
+
+---
+
+## The production loop now closes
+
+A production simulation, driven by a mock Health Connect bridge that speaks the real
+protocol (`tools/mock_watch.py`, guide in `docs/RUNBOOK-SIMULATION.md`), found that
+`wha serve` never completed a cycle. Five defects, all of the same shape as the ones the
+earlier review caught, code that existed and never ran:
+
+- `run_episode_tick` iterated only timed-out episodes, so a **newly opened episode was
+  never stepped**. It sat at `step_count` 0 until a human ran `wha episode step`.
+- `create_scheduler` registered three jobs while its docstring named four. The **Telegram
+  polling job was absent**, and nothing anywhere constructed a `TelegramReceiver`.
+- `EpisodeRepository` was **missing all five methods** the receiver reaches for through
+  `hasattr`, so a tapped button was acknowledged to the user and then discarded.
+- The ask node **dropped the answer space and the channel**, storing every question as
+  having no options, asked over no transport.
+- The ask node also **dropped `evsi`, `interruption_cost` and `rejected`**, so the one row
+  that evidences the project's central claim recorded 0.0 against every question.
+
+All fixed, with `tests/integration/test_production_loop.py` covering each. Measured end to
+end against the mock watch: episode opens at `MATURE` baseline, agent asks
+`probe_symptoms` with EVSI 0.357 against a 1.0 interruption cost having beaten eight
+alternatives, the answer `fever` moves p(infection) from 0.071 to 0.3893, and the episode
+closes `LIKELY_BENIGN` on the quiet-run condition once nights return to GREEN.
+
+Three findings were recorded rather than fixed, because each is a design decision rather
+than a defect. They are in `plan/BLOCKERS.md`: an OBSERVE decision is never revisited on
+later nights, episode dates come from the wall clock rather than the data, and the
+synthetic generator covers four of the seven live channels.
 
 ---
 

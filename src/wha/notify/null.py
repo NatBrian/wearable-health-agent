@@ -9,6 +9,8 @@ from wha.notify.protocol import MessageKind, Notifier
 class NullNotifier(Notifier):
     """No-op notifier transport that silently accepts all messages."""
 
+    channel = "none"
+
     def send(
         self,
         recipient_id: str,

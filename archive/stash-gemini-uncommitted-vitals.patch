@@ -1,0 +1,286 @@
+diff --git a/src/wha/db/schema.sql b/src/wha/db/schema.sql
+index b82a48c..750b2de 100644
+--- a/src/wha/db/schema.sql
++++ b/src/wha/db/schema.sql
+@@ -53,6 +53,49 @@ CREATE TABLE IF NOT EXISTS exercise_sessions (
+   PRIMARY KEY (subject_id, start_utc)
+ );
+ 
++CREATE TABLE IF NOT EXISTS oxygen_saturation_samples (
++  subject_id    TEXT NOT NULL,
++  ts_utc        TEXT NOT NULL,
++  avg_pct       REAL NOT NULL,
++  min_pct       REAL,
++  max_pct       REAL,
++  origin        TEXT,
++  PRIMARY KEY (subject_id, ts_utc)
++);
++
++CREATE TABLE IF NOT EXISTS respiratory_rate_samples (
++  subject_id TEXT NOT NULL,
++  ts_utc     TEXT NOT NULL,
++  rate_bpm   REAL NOT NULL,
++  origin     TEXT,
++  PRIMARY KEY (subject_id, ts_utc)
++);
++
++CREATE TABLE IF NOT EXISTS skin_temperature_samples (
++  subject_id    TEXT NOT NULL,
++  ts_utc        TEXT NOT NULL,
++  temp_celsius  REAL,
++  delta_celsius REAL,
++  origin        TEXT,
++  PRIMARY KEY (subject_id, ts_utc)
++);
++
++CREATE TABLE IF NOT EXISTS distance_buckets (
++  subject_id TEXT NOT NULL,
++  start_utc  TEXT NOT NULL,
++  end_utc    TEXT NOT NULL,
++  meters     REAL NOT NULL,
++  PRIMARY KEY (subject_id, start_utc)
++);
++
++CREATE TABLE IF NOT EXISTS calorie_buckets (
++  subject_id    TEXT NOT NULL,
++  start_utc     TEXT NOT NULL,
++  end_utc       TEXT NOT NULL,
++  calories_kcal REAL NOT NULL,
++  PRIMARY KEY (subject_id, start_utc)
++);
++
+ CREATE TABLE IF NOT EXISTS nightly_features (
+   subject_id            TEXT NOT NULL,
+   night_date            TEXT NOT NULL,
+@@ -63,6 +106,12 @@ CREATE TABLE IF NOT EXISTS nightly_features (
+   steps_prev_day        INTEGER,
+   sleep_hours           REAL,
+   exercise_end_offset_h REAL,
++  min_spo2              REAL,
++  avg_spo2              REAL,
++  respiratory_rate_bpm  REAL,
++  temp_delta_celsius    REAL,
++  distance_prev_day_m   REAL,
++  calories_prev_day_kcal REAL,
+   computed_at_utc       TEXT NOT NULL,
+   PRIMARY KEY (subject_id, night_date)
+ );
+diff --git a/src/wha/ingest/base.py b/src/wha/ingest/base.py
+index 2338691..16f40aa 100644
+--- a/src/wha/ingest/base.py
++++ b/src/wha/ingest/base.py
+@@ -68,12 +68,72 @@ class NormalisedExerciseSession:
+     kind: str | None
+ 
+ 
++@dataclass(frozen=True)
++class NormalisedOxygenSaturation:
++    subject_id: str
++    ts_utc: str
++    avg_pct: float
++    min_pct: float | None
++    max_pct: float | None
++    origin: str | None
++
++
++@dataclass(frozen=True)
++class NormalisedRespiratoryRate:
++    subject_id: str
++    ts_utc: str
++    rate_bpm: float
++    origin: str | None
++
++
++@dataclass(frozen=True)
++class NormalisedSkinTemperature:
++    subject_id: str
++    ts_utc: str
++    temp_celsius: float | None
++    delta_celsius: float | None
++    origin: str | None
++
++
++@dataclass(frozen=True)
++class NormalisedDistance:
++    subject_id: str
++    start_utc: str
++    end_utc: str
++    meters: float
++
++
++@dataclass(frozen=True)
++class NormalisedCalories:
++    subject_id: str
++    start_utc: str
++    end_utc: str
++    calories_kcal: float
++
++
+ @dataclass(frozen=True)
+ class NormalisedData:
+     heart_rate_samples: list[NormalisedHeartRate]
+     step_buckets: list[NormalisedStepBucket]
+     sleep_stages: list[NormalisedSleepStage]
+     exercise_sessions: list[NormalisedExerciseSession]
++    oxygen_saturation_samples: list[NormalisedOxygenSaturation] = None  # type: ignore
++    respiratory_rate_samples: list[NormalisedRespiratoryRate] = None  # type: ignore
++    skin_temperature_samples: list[NormalisedSkinTemperature] = None  # type: ignore
++    distance_buckets: list[NormalisedDistance] = None  # type: ignore
++    calorie_buckets: list[NormalisedCalories] = None  # type: ignore
++
++    def __post_init__(self) -> None:
++        if self.oxygen_saturation_samples is None:
++            object.__setattr__(self, "oxygen_saturation_samples", [])
++        if self.respiratory_rate_samples is None:
++            object.__setattr__(self, "respiratory_rate_samples", [])
++        if self.skin_temperature_samples is None:
++            object.__setattr__(self, "skin_temperature_samples", [])
++        if self.distance_buckets is None:
++            object.__setattr__(self, "distance_buckets", [])
++        if self.calorie_buckets is None:
++            object.__setattr__(self, "calorie_buckets", [])
+ 
+ 
+ class DataSource(Protocol):
+@@ -246,9 +306,124 @@ def normalise(subject_id: str, payload_input: dict[str, Any] | str) -> Normalise
+             )
+         )
+ 
++    # 5. Oxygen Saturation (SpO2)
++    spo2_raw = payload.get("oxygen_saturation") or payload.get("spo2") or []
++    spo2_samples: list[NormalisedOxygenSaturation] = []
++    for item in spo2_raw:
++        ts_val = item.get("time") or item.get("start_time") or item.get("startTime")
++        if not ts_val:
++            continue
++        ts_utc = _parse_iso_utc(str(ts_val))
++        avg_pct = float(item.get("percentage") or item.get("avg") or item.get("value") or 0.0)
++        min_pct = float(item["min"]) if item.get("min") is not None else None
++        max_pct = float(item["max"]) if item.get("max") is not None else None
++        origin = None
++        if isinstance(item.get("metadata"), dict):
++            origin = item["metadata"].get("data_origin")
++
++        spo2_samples.append(
++            NormalisedOxygenSaturation(
++                subject_id=subject_id,
++                ts_utc=ts_utc,
++                avg_pct=avg_pct,
++                min_pct=min_pct,
++                max_pct=max_pct,
++                origin=origin,
++            )
++        )
++
++    # 6. Respiratory Rate
++    resp_raw = payload.get("respiratory_rate") or payload.get("breathing_rate") or []
++    resp_samples: list[NormalisedRespiratoryRate] = []
++    for item in resp_raw:
++        ts_val = item.get("time") or item.get("start_time") or item.get("startTime")
++        if not ts_val:
++            continue
++        ts_utc = _parse_iso_utc(str(ts_val))
++        rate_bpm = float(item.get("rate") or item.get("rate_bpm") or item.get("value") or 0.0)
++        origin = None
++        if isinstance(item.get("metadata"), dict):
++            origin = item["metadata"].get("data_origin")
++        resp_samples.append(
++            NormalisedRespiratoryRate(
++                subject_id=subject_id,
++                ts_utc=ts_utc,
++                rate_bpm=rate_bpm,
++                origin=origin,
++            )
++        )
++
++    # 7. Skin Temperature
++    temp_raw = payload.get("skin_temperature") or payload.get("temperature") or []
++    temp_samples: list[NormalisedSkinTemperature] = []
++    for item in temp_raw:
++        ts_val = item.get("time") or item.get("start_time") or item.get("startTime")
++        if not ts_val:
++            continue
++        ts_utc = _parse_iso_utc(str(ts_val))
++        temp_c = float(item["temperature"]) if item.get("temperature") is not None else None
++        delta_c = float(item["delta"]) if item.get("delta") is not None else None
++        origin = None
++        if isinstance(item.get("metadata"), dict):
++            origin = item["metadata"].get("data_origin")
++        temp_samples.append(
++            NormalisedSkinTemperature(
++                subject_id=subject_id,
++                ts_utc=ts_utc,
++                temp_celsius=temp_c,
++                delta_celsius=delta_c,
++                origin=origin,
++            )
++        )
++
++    # 8. Distance
++    dist_raw = payload.get("distance") or []
++    dist_buckets: list[NormalisedDistance] = []
++    for item in dist_raw:
++        st_val = item.get("start_time") or item.get("startTime")
++        et_val = item.get("end_time") or item.get("endTime")
++        if not st_val or not et_val:
++            continue
++        start_utc = _parse_iso_utc(str(st_val))
++        end_utc = _parse_iso_utc(str(et_val))
++        meters = float(item.get("meters") or item.get("distance_meters") or item.get("distance") or 0.0)
++        dist_buckets.append(
++            NormalisedDistance(
++                subject_id=subject_id,
++                start_utc=start_utc,
++                end_utc=end_utc,
++                meters=meters,
++            )
++        )
++
++    # 9. Calories
++    cal_raw = payload.get("total_calories") or payload.get("calories") or payload.get("active_calories") or []
++    cal_buckets: list[NormalisedCalories] = []
++    for item in cal_raw:
++        st_val = item.get("start_time") or item.get("startTime")
++        et_val = item.get("end_time") or item.get("endTime")
++        if not st_val or not et_val:
++            continue
++        start_utc = _parse_iso_utc(str(st_val))
++        end_utc = _parse_iso_utc(str(et_val))
++        calories_kcal = float(item.get("calories") or item.get("kcal") or item.get("energy_kcal") or 0.0)
++        cal_buckets.append(
++            NormalisedCalories(
++                subject_id=subject_id,
++                start_utc=start_utc,
++                end_utc=end_utc,
++                calories_kcal=calories_kcal,
++            )
++        )
++
+     return NormalisedData(
+         heart_rate_samples=hr_samples,
+         step_buckets=step_buckets,
+         sleep_stages=sleep_stages,
+         exercise_sessions=exercise_sessions,
++        oxygen_saturation_samples=spo2_samples,
++        respiratory_rate_samples=resp_samples,
++        skin_temperature_samples=temp_samples,
++        distance_buckets=dist_buckets,
++        calorie_buckets=cal_buckets,
+     )
+diff --git a/src/wha/models.py b/src/wha/models.py
+index c79f7af..f2b2d52 100644
+--- a/src/wha/models.py
++++ b/src/wha/models.py
+@@ -110,6 +110,12 @@ class NightlyFeatures(BaseModel):
+     steps_prev_day: int | None = None
+     sleep_hours: float | None = None
+     exercise_end_offset_h: float | None = None
++    min_spo2: float | None = None
++    avg_spo2: float | None = None
++    respiratory_rate_bpm: float | None = None
++    temp_delta_celsius: float | None = None
++    distance_prev_day_m: float | None = None
++    calories_prev_day_kcal: float | None = None
+ 
+ 
+ class Baseline(BaseModel):

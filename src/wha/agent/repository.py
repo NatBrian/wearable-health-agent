@@ -366,6 +366,95 @@ class EpisodeRepository:
         )
         self._conn.commit()
 
+    # -- the receive half of the Telegram loop ----------------------------------
+    #
+    # TelegramReceiver reaches its database through hasattr guards. Until these methods
+    # existed every guard was False, so a tapped button or a typed reply was accepted,
+    # acknowledged to the user, and then silently discarded: the interaction stayed
+    # PENDING and the episode never resumed. Same failure mode as the twelve-method `db`
+    # interface that had no implementation.
+
+    def get_pending_interaction_for_chat(self, chat_id: str | int | None = None) -> dict | None:
+        """The question currently awaiting a free-text reply, if there is one.
+
+        `chat_id` is accepted because the receiver passes it, but this build notifies a
+        single configured subject, so there is nothing to disambiguate. Only one question
+        may be outstanding at a time, which the ask node enforces via
+        `has_pending_interaction`, so the newest PENDING row is the one being answered.
+        """
+        row = self._conn.execute(
+            """SELECT id, episode_id, probe_id, status, options_json
+               FROM interactions WHERE status = 'PENDING'
+               ORDER BY asked_at_utc DESC LIMIT 1"""
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row["id"],
+            "episode_id": row["episode_id"],
+            "probe_id": row["probe_id"],
+            "status": row["status"],
+            "options": json.loads(row["options_json"]) if row["options_json"] else [],
+        }
+
+    def record_interaction_answer(
+        self,
+        interaction_id: str,
+        option_id: str | None = None,
+        free_text: str | None = None,
+    ) -> None:
+        """Record the person's answer against the question that asked it.
+
+        Guarded on status so a duplicate button tap racing a typed reply cannot overwrite
+        an answer already recorded, and so a TIMED_OUT question cannot be revived.
+        """
+        self._conn.execute(
+            """UPDATE interactions
+                  SET answer_option_id = COALESCE(?, answer_option_id),
+                      free_text        = COALESCE(?, free_text),
+                      answered_at_utc  = ?,
+                      status           = 'ANSWERED'
+                WHERE id = ? AND status = 'PENDING'""",
+            (option_id, free_text, to_iso(datetime.now(UTC)), interaction_id),
+        )
+        self._conn.commit()
+
+    def record_interaction_declined(self, interaction_id: str) -> None:
+        """Record a 'not now'. The interruption budget is still consumed by design."""
+        self._conn.execute(
+            """UPDATE interactions
+                  SET answered_at_utc = ?, status = 'DECLINED'
+                WHERE id = ? AND status = 'PENDING'""",
+            (to_iso(datetime.now(UTC)), interaction_id),
+        )
+        self._conn.commit()
+
+    def get_answered_interactions(self) -> list[dict]:
+        """Episode ids with an answer recorded but not yet consumed by the graph.
+
+        The poller uses this to decide which episodes to resume.
+        """
+        rows = self._conn.execute(
+            """SELECT id, episode_id, probe_id, answer_option_id, free_text, status
+                 FROM interactions
+                WHERE status IN ('ANSWERED', 'DECLINED')"""
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def get_telegram_offset(self) -> int:
+        """The next Telegram update id to request. Zero when nothing has been seen."""
+        row = self._conn.execute("SELECT update_id FROM telegram_offset WHERE id = 1").fetchone()
+        return int(row["update_id"]) if row is not None else 0
+
+    def set_telegram_offset(self, update_id: int) -> None:
+        """Persist the acknowledged offset so a restart does not reprocess old updates."""
+        self._conn.execute(
+            """INSERT INTO telegram_offset (id, update_id) VALUES (1, ?)
+               ON CONFLICT(id) DO UPDATE SET update_id = excluded.update_id""",
+            (int(update_id),),
+        )
+        self._conn.commit()
+
     def append_audit(self, event: AuditEvent) -> str:
         """Chain one audit event onto the subject's tamper-evident log."""
         event_hash = append_audit_row(self._conn, event)

@@ -63,3 +63,6 @@ syn.json
 /screenshot_*.png
 view_db.py
 seed_*.py
+
+# Mock watch simulation cursor (tools/mock_watch.py)
+data/sim_state.json

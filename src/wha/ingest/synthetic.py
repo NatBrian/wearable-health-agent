@@ -33,12 +33,21 @@ class Synthetic:
 
     source_kind = "synthetic"
 
-    def __init__(self, scenario: Scenario | dict[str, Any], seed: int | None = None) -> None:
+    def __init__(
+        self,
+        scenario: Scenario | dict[str, Any],
+        seed: int | None = None,
+        anchor: datetime | None = None,
+    ) -> None:
         if isinstance(scenario, dict):
             self.scenario = Scenario.model_validate(scenario)
         else:
             self.scenario = scenario
         self.seed = seed if seed is not None else self.scenario.seed
+        # The end of the generated window. Frozen scenarios rely on the fixed anchor, so it
+        # stays the default; the mock watch bridge passes a moving anchor to advance a day
+        # at a time without touching any other code path.
+        self.anchor = anchor if anchor is not None else FIXED_ANCHOR_UTC
 
     def _get_utc_offset_hours(self) -> int:
         tz = self.scenario.timezone.lower()
@@ -57,7 +66,7 @@ class Synthetic:
         base_bpm = self.scenario.base_bpm
         utc_offset_h = self._get_utc_offset_hours()
 
-        now = FIXED_ANCHOR_UTC
+        now = self.anchor
         start = now - timedelta(days=num_days)
 
         # 1. Daily step buckets

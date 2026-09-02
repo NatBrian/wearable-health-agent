@@ -39,6 +39,8 @@ def format_callback_data(interaction_id: str, option_id: str) -> str:
 class TelegramNotifier(Notifier):
     """Telegram bot notification transport using raw httpx."""
 
+    channel = "telegram"
+
     def __init__(
         self,
         token: str,

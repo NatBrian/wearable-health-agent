@@ -494,6 +494,19 @@ def node_ask(
             subject_id=state.get("subject_id"),
             probe_id=probe_id,
             question_text=updated_question.text,
+            # The answer space and the transport were both dropped on the floor here, so
+            # the stored row said a question with no options had been asked over no
+            # channel. The dashboard renders the answer choices from this row, and the
+            # audit trail is meant to show what the person was actually offered.
+            options=[opt.model_dump() for opt in updated_question.options],
+            channel=getattr(notifier, "channel", "none"),
+            # Every question was stored with evsi 0.0, interruption_cost 0.0 and no
+            # rejected list, so the row could not evidence the one claim the system makes:
+            # that this interruption was worth more than it cost, and which alternatives
+            # it beat. All three are on the action the policy already chose.
+            evsi=question.probe.evsi,
+            interruption_cost=question.probe.interruption_cost,
+            rejected=list(action.rejected),
         )
 
     # 3. Idempotent send notification: check if already sent
