@@ -33,7 +33,12 @@ def get_service_settings() -> Settings:
         llm_provider=provider,  # type: ignore[arg-type]
         llm_model=os.environ.get("WHA_LLM_MODEL", "deepseek-chat"),
         llm_base_url=os.environ.get("WHA_LLM_BASE_URL", "https://api.gptplus5.com/v1"),
-        bridge_host=os.environ.get("WHA_BRIDGE_URL", os.environ.get("WHA_BRIDGE_HOST", "http://192.168.198.181:8787")),
+        # WHA_BRIDGE_URL is the canonical name, and the one config.py reads. This used to
+        # read URL first but update_settings wrote HOST, so .env permanently shadowed every
+        # change made in the Settings page: the displayed value never moved and ingestion
+        # kept using the old address. The default is empty rather than a hardcoded address,
+        # which was a specific person's phone on a specific network.
+        bridge_host=os.environ.get("WHA_BRIDGE_URL", ""),
     )
 
 
@@ -58,6 +63,8 @@ def update_settings(
     if patch.llm_base_url is not None:
         os.environ["WHA_LLM_BASE_URL"] = patch.llm_base_url
     if patch.bridge_host is not None:
+        os.environ["WHA_BRIDGE_URL"] = patch.bridge_host
+        # Kept in step for anything still reading the older name.
         os.environ["WHA_BRIDGE_HOST"] = patch.bridge_host
     if patch.bridge_token is not None:
         os.environ["WHA_BRIDGE_TOKEN"] = patch.bridge_token.get_secret_value()

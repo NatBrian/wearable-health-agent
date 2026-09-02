@@ -1,6 +1,6 @@
 """Baseline age evaluation suite comparing shrinkage baseline against Chronos."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -13,9 +13,30 @@ from wha.eval.metrics import (
     extract_alert_events,
 )
 from wha.ingest.cohort import load_cohort_labels
-from wha.models import Detection, EvaluationResult, NightlyFeatures
+from wha.models import (
+    Detection,
+    DetectionLevel,
+    EvaluationResult,
+    NightlyFeatures,
+)
 
 TRUNCATION_POINTS = [3, 5, 7, 10, 14, 21, 28]
+
+
+def _preceding_elevated_levels(
+    prior: list[Detection],
+    night_date: date,
+) -> list[DetectionLevel]:
+    """Levels of the unbroken run of elevated nights ending the day before night_date."""
+    by_date = {d.night_date: d for d in prior}
+    levels: list[DetectionLevel] = []
+    cursor = night_date - timedelta(days=1)
+    while True:
+        det = by_date.get(cursor)
+        if det is None or det.level not in (DetectionLevel.YELLOW, DetectionLevel.RED):
+            return levels
+        levels.append(det.level)
+        cursor -= timedelta(days=1)
 
 
 def evaluate_truncated_history(
@@ -36,7 +57,19 @@ def evaluate_truncated_history(
             curr_feat = hist[-1]
             bl = compute_baseline(hist[:-1])
             fc = forecast_night(hist[:-1], actual_rhr=curr_feat.rhr_bpm) if use_chronos else None
-            det = compute_detection_for_features(features=curr_feat, baseline=bl, forecast=fc)
+
+            # The run of consecutive elevated nights immediately before this one. Omitting
+            # it left the default empty tuple, so no night could ever satisfy the
+            # persistence rule, flagged was always False and this whole curve was
+            # structurally zero regardless of the data.
+            preceding = _preceding_elevated_levels(p_dets, curr_feat.night_date)
+
+            det = compute_detection_for_features(
+                features=curr_feat,
+                baseline=bl,
+                preceding_consecutive_levels=preceding,
+                forecast=fc,
+            )
             p_dets.append(det)
 
         truncated_dets[p] = p_dets

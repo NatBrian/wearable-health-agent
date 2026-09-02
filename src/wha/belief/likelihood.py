@@ -61,7 +61,11 @@ def compute_residual_loglik(
         sd_eff_list.append(cp.effect_sd_bpm)
 
         prof = cp.profile
-        idx = min(elapsed_nights, len(prof) - 1)
+        # Clamped at both ends. Only the upper bound was applied, so a negative elapsed
+        # count, which arises the moment nights are not in ascending order, indexed the
+        # profile from its tail. prof[-1] is the fully-resolved weight, so an out-of-order
+        # night silently asserted that every cause had already passed.
+        idx = max(0, min(elapsed_nights, len(prof) - 1))
         w_t_list.append(prof[idx])
 
     mu_eff = np.array(mu_eff_list, dtype=np.float64)

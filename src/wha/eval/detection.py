@@ -1,5 +1,6 @@
 """Cohort detection evaluation suite with mandatory comparator baselines."""
 
+import random
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,7 +16,50 @@ from wha.eval.metrics import (
     extract_alert_events,
 )
 from wha.ingest.cohort import load_cohort_labels
-from wha.models import Detection, EvaluationResult, NightlyFeatures
+from wha.models import (
+    Detection,
+    DetectionLevel,
+    EvaluationResult,
+    Forecast,
+    ForecastStatus,
+    NightlyFeatures,
+)
+
+# Fixed so a comparator is reproducible between runs, and large enough that the mean
+# recall is stable. Neither is a clinical figure.
+RANDOM_BASELINE_TRIALS = 100
+RANDOM_BASELINE_SEED = 20260901
+
+
+def _all_time_median(nights: Sequence[NightlyFeatures]) -> float | None:
+    """Median resting heart rate over every usable night, or None if there are none."""
+    values = [n.rhr_bpm for n in nights if n.usable and n.rhr_bpm is not None]
+    return float(np.median(values)) if values else None
+
+
+def _alerts_to_detections(
+    subject_id: str,
+    nights: Sequence[NightlyFeatures],
+    alerts: Sequence[bool],
+) -> list[Detection]:
+    """Attach a comparator's boolean alert series to the nights it was computed over.
+
+    The comparators return plain booleans while the recall metric reads Detections by
+    night_date, so the two cannot be connected without this.
+    """
+    detections: list[Detection] = []
+    for night, alerted in zip(nights, alerts, strict=False):
+        detections.append(
+            Detection(
+                subject_id=subject_id,
+                night_date=night.night_date,
+                level=DetectionLevel.RED if alerted else DetectionLevel.GREEN,
+                flagged=bool(alerted),
+                residual_bpm=None,
+                forecast=Forecast(status=ForecastStatus.NOT_RUN),
+            )
+        )
+    return detections
 
 
 def run_detection_eval(
@@ -66,18 +110,33 @@ def run_detection_eval(
     auprc = max(prevalence, recall * (1.0 - fraction_days_alerting))
     nne = 1.0 / max(1e-4, recall / max(1.0, float(total_false_events + k_detected)))
 
-    # Mandatory baseline 1: Trivial detector
+    # Mandatory baseline 1: trivial detector.
+    #
+    # Both comparators were previously called with signatures that do not exist:
+    # detect_trivial omitted its required all_time_median, and detect_random received the
+    # feature list in its positional alert_rate slot with n_days missing. Both also return
+    # a boolean series, not Detections, so evaluate_episode_recall could not have read
+    # them. The only test omitted features_by_participant, leaving feats empty and the
+    # whole branch unexecuted, so the suite reported 0.0 as a measured comparator.
     trivial_dets: dict[str, list[Detection]] = {}
     for p, p_feats in feats.items():
-        trivial_dets[p] = detect_trivial(p_feats)
+        median = _all_time_median(p_feats)
+        if median is None:
+            continue
+        trivial_dets[p] = _alerts_to_detections(p, p_feats, detect_trivial(p_feats, median))
     trivial_recall = evaluate_episode_recall(trivial_dets, stanford_labels) if trivial_dets else 0.0
 
-    # Mandatory baseline 2: Random detector matched on alert rate
+    # Mandatory baseline 2: random detector matched on the real detector's alert rate.
     random_recalls: list[float] = []
     if feats:
-        for _ in range(100):
+        rng = random.Random(RANDOM_BASELINE_SEED)
+        for _ in range(RANDOM_BASELINE_TRIALS):
             rand_dets = {
-                p: detect_random(p_feats, alert_rate=fraction_days_alerting)
+                p: _alerts_to_detections(
+                    p,
+                    p_feats,
+                    detect_random(fraction_days_alerting, len(p_feats), rng=rng),
+                )
                 for p, p_feats in feats.items()
             }
             random_recalls.append(evaluate_episode_recall(rand_dets, stanford_labels))

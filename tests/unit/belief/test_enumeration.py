@@ -10,6 +10,7 @@ from wha.belief import (
     run_exact_inference,
 )
 from wha.models import (
+    CauseId,
     Detection,
     DetectionLevel,
     Forecast,
@@ -66,14 +67,33 @@ def test_marginals_do_not_sum_to_one() -> None:
 
 
 def test_no_evidence_returns_priors() -> None:
-    """With zero nights and zero answers, marginals equal the base rates from causes.yaml."""
+    """With zero nights and zero answers, marginals equal the base rates from causes.yaml.
+
+    Cycle applicability is stated explicitly. luteal's 0.450 base rate is conditional on
+    the subject menstruating, and applicability now defaults to "not yet asked", under
+    which the cause is inert with base_rate_if_not_applicable 0.0.
+    """
     priors = load_causes()
     prior_map = {p.cause: p.base_rate for p in priors}
 
-    belief = run_exact_inference([])
+    belief = run_exact_inference([], luteal_applicable=True)
     for cause, prob in belief.marginals.items():
         expected_prob = prior_map[cause]
         assert abs(prob - expected_prob) < 1e-5
+
+
+def test_unasked_cycle_leaves_luteal_inert() -> None:
+    """Until the cycle question is answered, luteal carries no prior mass.
+
+    Assuming it applies is wrong for everyone who does not menstruate, and it fails in one
+    direction only: luteal is the largest benign effect in causes.yaml, so granting it a
+    0.450 base rate lets it explain away the elevations the system exists to investigate.
+    """
+    unknown = run_exact_inference([])
+    applicable = run_exact_inference([], luteal_applicable=True)
+
+    assert unknown.marginals[CauseId.LUTEAL] < 1e-6
+    assert applicable.marginals[CauseId.LUTEAL] > 0.4
 
 
 def test_log_space_no_underflow() -> None:

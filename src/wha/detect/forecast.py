@@ -84,26 +84,37 @@ def forecast_night(
     # 4. Predict quantiles
     try:
         if hasattr(pipe, "predict_quantiles"):
+            # The first parameter is `inputs`, not `context`. Passing `context=` raised
+            # TypeError on both the primary call and its fallback, so this path could
+            # never reach the parsing below.
             try:
                 import torch  # type: ignore
 
-                tensor_ctx = torch.tensor(context, dtype=torch.float32).unsqueeze(0)
-                pred_out = pipe.predict_quantiles(
-                    context=tensor_ctx,
-                    prediction_length=1,
-                    quantile_levels=[FORECAST_Q_LO, 0.5, FORECAST_Q_HI],
-                )
-            except (ImportError, TypeError, AttributeError):
-                pred_out = pipe.predict_quantiles(
-                    context=context,
-                    prediction_length=1,
-                    quantile_levels=[FORECAST_Q_LO, 0.5, FORECAST_Q_HI],
-                )
+                model_input: Any = torch.tensor(context, dtype=torch.float32).unsqueeze(0)
+            except ImportError:
+                model_input = context
+
+            pred_out = pipe.predict_quantiles(
+                model_input,
+                prediction_length=1,
+                quantile_levels=[FORECAST_Q_LO, 0.5, FORECAST_Q_HI],
+            )
         else:
             pred_out = pipe(context)
 
-        # Parse quantile outputs
-        if isinstance(pred_out, dict):
+        # Parse quantile outputs.
+        #
+        # Chronos-Bolt returns (quantiles, mean), a 2-tuple, where quantiles has shape
+        # (batch, prediction_length, num_quantiles). The previous parser required a
+        # sequence of at least three, then looked for .quantile and .shape, neither of
+        # which a tuple has, so every real call fell through to FAILED and the advertised
+        # forecast path could never produce a result.
+        if isinstance(pred_out, tuple) and len(pred_out) == 2:
+            quantiles = pred_out[0]
+            lo_bpm = float(quantiles[0, 0, 0])
+            pred_bpm = float(quantiles[0, 0, 1])
+            hi_bpm = float(quantiles[0, 0, 2])
+        elif isinstance(pred_out, dict):
             pred_bpm = float(pred_out[0.5])
             lo_bpm = float(pred_out[FORECAST_Q_LO])
             hi_bpm = float(pred_out[FORECAST_Q_HI])

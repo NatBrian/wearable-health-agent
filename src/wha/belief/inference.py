@@ -80,24 +80,37 @@ def run_exact_inference(
     detections: Sequence[Detection] = (),
     extra_log_factors: Sequence[np.ndarray] = (),
     priors: Sequence[CausePrior] | None = None,
-    luteal_applicable: bool = True,
+    luteal_applicable: bool | None = None,
 ) -> BeliefState:
     """Perform exact Bayesian enumeration over 4096 states and return marginals.
 
     Pure and deterministic. Always operates in log-space.
+
+    ``luteal_applicable`` is three-state and defaults to unknown, matching update_belief.
+    Defaulting it to True here while update_belief treated unknown as inert made the two
+    entry points return different posteriors for identical input.
     """
     cause_priors = priors if priors is not None else load_causes()
-    log_post = compute_prior_logprobs(cause_priors, luteal_applicable=luteal_applicable)
+    luteal_is_live = luteal_applicable is True
+    log_post = compute_prior_logprobs(cause_priors, luteal_applicable=luteal_is_live)
 
-    # Add residual likelihoods from each detection
-    for t, det in enumerate(detections):
-        if det.residual_bpm is not None and det.level != "NA":
-            log_lik_t = compute_residual_loglik(
-                residual_bpm=det.residual_bpm,
-                elapsed_nights=t,
-                priors=cause_priors,
-            )
-            log_post = log_post + log_lik_t
+    # Add residual likelihoods from each detection.
+    #
+    # Indexed by calendar nights elapsed, matching update_belief. This used the position
+    # in the list, so a sequence with a gap in it gave the two entry points different
+    # posteriors for identical data: a cause three days into its course was treated as
+    # being on its second night.
+    ordered = sorted(detections, key=lambda d: d.night_date)
+    if ordered:
+        first_night = ordered[0].night_date
+        for det in ordered:
+            if det.residual_bpm is not None and det.level != "NA":
+                log_lik_t = compute_residual_loglik(
+                    residual_bpm=det.residual_bpm,
+                    elapsed_nights=(det.night_date - first_night).days,
+                    priors=cause_priors,
+                )
+                log_post = log_post + log_lik_t
 
     # Add external evidence log-factors (answers, sensor quality, etc.)
     for factor in extra_log_factors:

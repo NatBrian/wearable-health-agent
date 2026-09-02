@@ -73,10 +73,15 @@ def update_belief(
 
     log_post = compute_prior_logprobs(cause_priors, luteal_applicable=luteal_is_live)
 
-    # 1. Residual likelihoods per calendar elapsed night
+    # 1. Residual likelihoods per calendar elapsed night.
+    #
+    # Sorted, because elapsed counts are measured from the first night and a caller
+    # passing nights in any other order would produce negative offsets into the temporal
+    # profiles.
     if episode_nights:
-        start_date = episode_nights[0].night_date
-        for det in episode_nights:
+        ordered_nights = sorted(episode_nights, key=lambda d: d.night_date)
+        start_date = ordered_nights[0].night_date
+        for det in ordered_nights:
             elapsed_t = (det.night_date - start_date).days
             if det.level != "NA" and det.residual_bpm is not None:
                 log_lik_t = compute_residual_loglik(

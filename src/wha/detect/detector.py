@@ -139,14 +139,16 @@ def detect_night(
                nf.exercise_end_offset_h
         FROM nightly_features nf
         WHERE nf.subject_id = ? AND nf.night_date < ? AND nf.usable = 1
-          AND nf.night_date NOT IN (
-              SELECT e.opened_on FROM episodes e
-              WHERE e.subject_id = ? AND e.state = 'CLOSED'
+          AND NOT EXISTS (
+              SELECT 1 FROM episodes e
+              WHERE e.subject_id = nf.subject_id AND e.state = 'CLOSED'
                 AND e.disposition IN ('LIKELY_ILLNESS', 'ESCALATED')
+                AND nf.night_date BETWEEN e.opened_on
+                                      AND COALESCE(e.closed_on, e.opened_on)
           )
         ORDER BY nf.night_date ASC;
         """,
-        (subject_id, night_date.isoformat(), subject_id),
+        (subject_id, night_date.isoformat()),
     )
     history_rows = cur.fetchall()
     history = [

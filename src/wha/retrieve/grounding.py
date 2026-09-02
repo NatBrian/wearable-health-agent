@@ -57,8 +57,12 @@ def enforce_grounding(
                 break
 
         if matched_source_id is not None:
-            if not claim.citation:
-                claim.citation = matched_source_id
+            # Attribution is decided here, not by the model. A claim whose span is found
+            # in source A while the model cited source B previously kept B, and
+            # output_checks then filtered the displayed sources down to B, dropping the
+            # passage that actually supports the sentence. The reader would be shown a
+            # citation that does not contain the claim.
+            claim.citation = matched_source_id
             grounded.append(claim)
         else:
             claim.citation = None
