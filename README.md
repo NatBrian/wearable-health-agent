@@ -52,6 +52,39 @@ Consumer smartwatches detect that something in your body changed--a raised overn
 
 ---
 
+## Failure-Mode Philosophy & Fault Tolerance
+
+In medical software engineering (IEC 62304 / ISO 14971), **an auxiliary model outage must never block a safety-critical health alert.** The system enforces strict graceful degradation:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ SUBSYSTEM FAILURE SCENARIOS & RECOVERY PATHS                           │
+├──────────────────────────┬──────────────────────┬──────────────────────┤
+│ Component Failure        │ System Behavior      │ User & UI Visibility │
+├──────────────────────────┼──────────────────────┼──────────────────────┤
+│ Chronos Forecaster       │ Forecast marked as   │ Audit log records    │
+│ (PyTorch OOM / Crash)    │ FAILED; statistical  │ 'forecast_unavail';  │
+│                          │ detector continues.  │ RHR baseline active. │
+├──────────────────────────┼──────────────────────┼──────────────────────┤
+│ Live LLM API             │ Safety filter trips; │ Conversation badge   │
+│ (Malformed/Bad Syntax)   │ substitutes clinical │ shows 'Source:       │
+│                          │ fallback template.   │ FALLBACK'.           │
+├──────────────────────────┼──────────────────────┼──────────────────────┤
+│ Total LLM API Outage     │ Checkpoints state;   │ Status strip turns   │
+│ (503 / Network Cut)      │ parks episode in DB; │ red; trace tab logs  │
+│                          │ never guesses claims │ 'status = parked'.   │
+├──────────────────────────┼──────────────────────┼──────────────────────┤
+│ Phone Bridge             │ Rejects stale data;  │ Status strip warns   │
+│ (Phone Unreachable)      │ refuses to synthesize│ 'Watch: Connection   │
+│                          │ fake heart rates.    │ Error (:8787)'.      │
+└──────────────────────────┴──────────────────────┴──────────────────────┘
+```
+
+* **Why we do NOT halt the pipeline indefinitely**: If a patient develops an acute infection, an auxiliary LLM or PyTorch failure must never prevent their resting heart rate anomaly from being flagged. The deterministic statistical detector and clinical fallback questions deliver immediate alerts regardless of cloud uptime.
+* **Full Transparency**: Every fallback, skipped stage, stripped claim, and tool call is recorded in the **Episode Trace Tab** and cryptographic **Audit Journal (`/Audit`)**.
+
+---
+
 ## Production Hardware & Subsystem Integrations
 
 WHA connects live wearable sensors, language models, and mobile notifications:
