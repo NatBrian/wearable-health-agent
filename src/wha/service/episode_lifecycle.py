@@ -160,18 +160,45 @@ def check_close_conditions(
     return None
 
 
+def monitoring_since(conn: sqlite3.Connection, subject_id: str) -> date | None:
+    """The date this subject's first sync happened, or None if the subject is unknown.
+
+    The subject row is written on first ingest, so ``created_at_utc`` is the moment the
+    person started being monitored. Nights before it are history the system was given, not
+    nights it was watching.
+    """
+    row = conn.execute(
+        "SELECT created_at_utc FROM subjects WHERE subject_id = ?", (subject_id,)
+    ).fetchone()
+    if row is None or not row[0]:
+        return None
+    try:
+        return date.fromisoformat(str(row[0])[:10])
+    except ValueError:
+        return None
+
+
 def open_episodes_for_flagged_nights(
     conn: sqlite3.Connection,
     subject_id: str,
     detections: list[Detection],
 ) -> list[str]:
-    """Open or append an episode for every flagged night, in date order.
+    """Open or append an episode for every flagged night the system was actually watching.
 
     This is the link between the deterministic monitor and the investigation.
+
+    A first sync backfills weeks of history, and this ran over all of it with no notion of
+    when monitoring began. Two elevated nights anywhere in that history opened an episode
+    and the agent messaged the person about a night from before they owned the system.
+    Those nights are still scored, because that is how the baseline learns the person, but
+    they cannot raise an investigation.
     """
+    started = monitoring_since(conn, subject_id)
     episode_ids: list[str] = []
     for detection in sorted(detections, key=lambda d: d.night_date):
         if not detection.flagged:
+            continue
+        if started is not None and detection.night_date < started:
             continue
         episode_id = open_or_append_episode(conn, subject_id, detection.night_date)
         if episode_id not in episode_ids:

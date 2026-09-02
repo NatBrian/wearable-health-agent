@@ -19,8 +19,11 @@ uv run wha doctor
 ```
 
 `doctor` creates `data/wha.sqlite` if it is missing. Expect `datasets miss` (the cohort
-datasets are absent and detection accuracy is honestly reported as not evaluated) and
-`chronos` reporting on the model cache. No row should say `fail`.
+datasets are absent and detection accuracy is honestly reported as not evaluated). No row
+should say `fail`.
+
+`wha doctor --live` is the same check plus the probes that need the network and the phone,
+in one report with one verdict. `wha check-live` is an alias for it.
 
 The `.env` values that matter:
 
@@ -32,13 +35,6 @@ The `.env` values that matter:
 | `WHA_LLM_*` | the live provider; `wha demo run` defaults to cassettes, everything else uses this |
 | `WHA_BRIDGE_URL` | **the phone in Phase 2, the mock in Phase 4** |
 | `WHA_TELEGRAM_*` | bot token and chat id; without both, the system falls back to `NullNotifier` and asks nobody |
-
-Note on the Chronos check: `doctor` only asks whether `data/model_cache` is non-empty. To
-confirm the model itself is really there:
-
-```bash
-uv run python -c "from chronos import ChronosBoltPipeline; ChronosBoltPipeline.from_pretrained('amazon/chronos-bolt-small', device_map='cpu'); print('model loads')"
-```
 
 ## Phase 2 — the real watch
 
@@ -54,6 +50,10 @@ uv run wha data capability    # what the device actually sends
 With only three nights the baseline sits at `COLD` or `PRIOR_DOMINATED` and Chronos
 correctly declines to forecast: `FORECAST_MIN_NIGHTS` is 5. That refusal is right, and it
 is worth seeing once before there is enough history to hide it.
+
+`nightly` marks each night `history` or `watched`. Nights recorded before your first sync
+are history: they build your baseline and can never raise an alert, so a first sync cannot
+open an investigation into a night from before you owned the system.
 
 ## Phase 3 — start the system
 

@@ -9,6 +9,7 @@ from wha.config import get_settings
 from wha.db import apply_schema, connect
 from wha.detect.baseline import rung_for
 from wha.policy import load_probes
+from wha.service.checks import chronos_weights_cached, dataset_present, read_schema_version
 
 DoctorStatus = Literal["ok", "warn", "fail", "miss", "off", "info"]
 
@@ -34,8 +35,7 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
 
         subj_count = conn.execute("SELECT COUNT(*) FROM subjects").fetchone()[0]
         night_count = conn.execute("SELECT COUNT(*) FROM nightly_features").fetchone()[0]
-        version_row = conn.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
-        schema_version = version_row[0] if version_row else "unknown"
+        schema_version = read_schema_version(conn)
         items.append(
             DoctorItem(
                 name="database",
@@ -124,8 +124,8 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
 
     # 6. Datasets check
     data_dir = settings.data_dir
-    stanford_exists = (data_dir / "stanford").is_dir() and any((data_dir / "stanford").iterdir())
-    pmdata_exists = (data_dir / "pmdata").is_dir() and any((data_dir / "pmdata").iterdir())
+    stanford_exists = dataset_present(data_dir, "stanford")
+    pmdata_exists = dataset_present(data_dir, "pmdata")
     if stanford_exists and pmdata_exists:
         items.append(DoctorItem(name="datasets", status="ok", detail="stanford and pmdata present"))
     else:
@@ -143,17 +143,14 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
         )
 
     # 7. Chronos model check
-    cache_dir = settings.model_cache_dir
-    if cache_dir.exists() and any(cache_dir.iterdir()):
-        items.append(DoctorItem(name="chronos", status="ok", detail="model cache present"))
-    else:
-        items.append(
-            DoctorItem(
-                name="chronos",
-                status="info",
-                detail="amazon/chronos-bolt-small not yet cached",
-            )
+    chronos_ok, chronos_detail = chronos_weights_cached()
+    items.append(
+        DoctorItem(
+            name="chronos",
+            status="ok" if chronos_ok else "info",
+            detail=chronos_detail,
         )
+    )
 
     # 8. Baseline for default subject
     if conn is not None:

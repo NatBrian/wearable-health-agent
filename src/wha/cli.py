@@ -13,6 +13,7 @@ from wha.service import (
     describe_device_capability,
     explain_belief,
     fetch_data,
+    get_monitoring_since,
     list_episodes,
     run_demo,
     run_doctor,
@@ -22,6 +23,7 @@ from wha.service import (
     step_episode,
     write_evaluation_report,
 )
+from wha.service.doctor import DoctorItem
 
 app = typer.Typer(
     name="wha",
@@ -53,11 +55,12 @@ def doctor(
     ] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
-    """Check all system components, models, and knowledge tables."""
-    if live:
-        check_live(as_json=as_json)
-        return
+    """Check all system components, models, and knowledge tables.
 
+    ``--live`` is this same check plus the probes that need the network and the phone. It
+    used to be a wholly separate diagnostic that merely shared the name: different checks,
+    a different output format, its own verdict, and nothing telling you which to run.
+    """
     try:
         items = run_doctor(db_path=db)
     except ConfigError as e:
@@ -66,6 +69,10 @@ def doctor(
     except Exception as e:  # noqa: BLE001
         typer.echo(f"Doctor error: {e}", err=True)
         sys.exit(1)
+
+    if live:
+        _render_live_report(as_json=as_json, offline_items=items)
+        return
 
     if as_json:
         out = [{"name": i.name, "status": i.status, "detail": i.detail} for i in items]
@@ -86,7 +93,24 @@ def doctor(
 def check_live(
     as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
-    """Execute live diagnostic tests across mandatory and optional production subsystems."""
+    """Execute live diagnostic tests across mandatory and optional production subsystems.
+
+    Alias for ``wha doctor --live``.
+    """
+    try:
+        items = run_doctor()
+    except Exception:  # noqa: BLE001
+        items = []
+    _render_live_report(as_json=as_json, offline_items=items)
+
+
+def _render_live_report(as_json: bool, offline_items: list[DoctorItem]) -> None:
+    """Print the configuration checks and the live probes as one report with one verdict.
+
+    The configuration checks belong in this report rather than in a separate command.
+    Running only the live probes meant ``--live`` could print PRODUCTION READY while
+    ``doctor`` reported a local failure, and nothing told the operator to run both.
+    """
     from wha.service.status import check_live_production_suite
 
     try:
@@ -95,12 +119,23 @@ def check_live(
         typer.echo(f"Live diagnostic error: {e}", err=True)
         sys.exit(1)
 
+    offline_failed = [i for i in offline_items if i.status == "fail"]
+
     if as_json:
+        res = dict(res)
+        res["configuration"] = [
+            {"name": i.name, "status": i.status, "detail": i.detail} for i in offline_items
+        ]
+        res["configuration_ok"] = not offline_failed
         typer.echo(json.dumps(res, default=str, indent=2))
     else:
         typer.echo("=" * 80)
         typer.echo("CLINICAL PRODUCTION SYSTEM DIAGNOSTIC & HEALTH SUITE")
         typer.echo("=" * 80)
+        typer.echo("\n[CONFIGURATION AND LOCAL STATE]")
+        for i in offline_items:
+            symbol = {"ok": "[PASS]", "fail": "[FAIL]", "warn": "[WARN]"}.get(i.status, "[INFO]")
+            typer.echo(f"  {symbol:<8}  {i.name:<36} -> {i.detail}")
         typer.echo("\n[MANDATORY PRODUCTION SUBSYSTEMS]")
         for c in res["mandatory"]:
             status_symbol = "[PASS]" if c["ok"] else "[FAIL]"
@@ -116,13 +151,16 @@ def check_live(
             typer.echo(f"  {status_symbol:<8}  {component_name:<36} -> {detail}")
 
         typer.echo("\n" + "=" * 80)
-        if res["mandatory_ok"]:
+        if res["mandatory_ok"] and not offline_failed:
             typer.echo("RESULT: ALL MANDATORY SUBSYSTEMS OPERATIONAL. PRODUCTION READY.")
+        elif offline_failed:
+            names = ", ".join(i.name for i in offline_failed)
+            typer.echo(f"RESULT: CRITICAL - LOCAL CONFIGURATION FAILED: {names}")
         else:
             typer.echo("RESULT: CRITICAL - ONE OR MORE MANDATORY SUBSYSTEMS FAILED.")
         typer.echo("=" * 80)
 
-    if not res["mandatory_ok"]:
+    if not res["mandatory_ok"] or offline_failed:
         sys.exit(1)
     sys.exit(0)
 
@@ -189,10 +227,27 @@ def nightly(
         ]
         typer.echo(json.dumps(out, indent=2))
     else:
+        # Which nights the system was actually watching, and which are history it was
+        # handed on first sync. Without this the two are indistinguishable in the output,
+        # and a first run looks like a week of live monitoring that never happened.
+        started = get_monitoring_since(subject_id=subject, db_path=db)
+        history = 0
         for d in dets:
             res_str = f"{d.residual_bpm} bpm" if d.residual_bpm is not None else "N/A"
+            if started is not None and d.night_date < started:
+                origin = "history "
+                history += 1
+            else:
+                origin = "watched "
             typer.echo(
-                f"{d.night_date} | Level: {d.level.ljust(6)} | Flagged: {str(d.flagged).ljust(5)} | Residual: {res_str}"
+                f"{d.night_date} | {origin}| Level: {d.level.ljust(6)} | "
+                f"Flagged: {str(d.flagged).ljust(5)} | Residual: {res_str}"
+            )
+        if started is not None and history:
+            typer.echo("")
+            typer.echo(
+                f"{history} night(s) marked history: recorded before monitoring began on "
+                f"{started}. They build your baseline and cannot raise an alert."
             )
     sys.exit(0)
 

@@ -13,6 +13,7 @@ from wha.models import Detection, NightlyFeatures
 from wha.service.episode_lifecycle import (
     check_close_conditions,
     get_open_episode,
+    monitoring_since,
     open_episodes_for_flagged_nights,
 )
 
@@ -126,3 +127,15 @@ def run_nightly(
 
     conn.close()
     return detections
+
+
+def get_monitoring_since(subject_id: str | None = None, db_path: Path | None = None) -> date | None:
+    """When monitoring began for a subject, for callers that need to label history."""
+    settings = get_settings()
+    subj = subject_id if subject_id is not None else settings.subject
+    conn = connect(db_path) if db_path is not None else connect()
+    apply_schema(conn)
+    try:
+        return monitoring_since(conn, subj)
+    finally:
+        conn.close()

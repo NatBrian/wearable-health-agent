@@ -23,6 +23,7 @@ from wha.models import (
     NightlyFeatures,
     SystemStatus,
 )
+from wha.service.checks import chronos_weights_cached, dataset_present, read_schema_version
 
 
 def record_component_status(
@@ -425,12 +426,15 @@ def check_live_production_suite() -> dict[str, Any]:
         conn = connect()
         apply_schema(conn)
         cnt = conn.execute("SELECT COUNT(*) FROM nightly_features").fetchone()[0]
+        # "Schema v1 verified" was a hardcoded string that never read the database, so this
+        # command and `wha doctor` reported different versions for the same file.
+        version = read_schema_version(conn)
         conn.close()
         mandatory.append(
             {
                 "component": "Database & Cryptographic Audit Log",
                 "ok": True,
-                "detail": f"Schema v1 verified ({cnt} feature nights recorded)",
+                "detail": f"Schema v{version} verified ({cnt} feature nights recorded)",
             }
         )
     except Exception as exc:  # noqa: BLE001
@@ -534,22 +538,25 @@ def check_live_production_suite() -> dict[str, Any]:
         )
 
     # 7. Mandatory: Chronos Neural Forecaster
-    cache_dir = settings.model_cache_dir
-    chronos_ok = cache_dir.exists() and any(cache_dir.iterdir())
+    # This asked whether data/model_cache held any file. It holds a five-byte marker, so it
+    # passed on a machine with no model; the weights live in the HuggingFace cache.
+    chronos_ok, chronos_detail = chronos_weights_cached()
     mandatory.append(
         {
             "component": "Chronos Neural Forecaster",
             "ok": chronos_ok,
-            "detail": "Amazon Chronos-Bolt model weights cached (Advisory Evidence Band)"
+            "detail": f"{chronos_detail} (Advisory Evidence Band)"
             if chronos_ok
-            else "Missing model weights in data/model_cache (run 'uv run wha data fetch chronos')",
+            else chronos_detail,
         }
     )
 
     # --- RESEARCH BENCHMARKS (EVALUATION ONLY) ---
 
-    stanford_exists = (settings.data_dir / "stanford").exists()
-    pmdata_exists = (settings.data_dir / "pmdata").exists()
+    # `.exists()` was true for the empty directories `wha data fetch` creates, so this
+    # reported benchmark data present on a machine that had none.
+    stanford_exists = dataset_present(settings.data_dir, "stanford")
+    pmdata_exists = dataset_present(settings.data_dir, "pmdata")
     benchmarks_ok = stanford_exists and pmdata_exists
     optional.append(
         {

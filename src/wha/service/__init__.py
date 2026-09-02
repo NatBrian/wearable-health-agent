@@ -40,6 +40,7 @@ from wha.service.evaluation import (
 )
 from wha.service.ingest import describe_device_capability, run_ingest
 from wha.service.nightly import (
+    get_monitoring_since,
     parse_date_range,
     run_nightly,
 )
@@ -82,6 +83,7 @@ __all__ = [
     "fetch_data",
     "get_episode",
     "get_evaluation_results",
+    "get_monitoring_since",
     "get_night_detail",
     "get_pending_interaction",
     "get_permitted_tool_names",
