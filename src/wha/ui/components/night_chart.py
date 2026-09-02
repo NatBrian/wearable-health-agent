@@ -6,20 +6,28 @@ import streamlit as st
 
 from wha.constants import (
     DETECT_CITATION,
+    DETECT_CITATION_PLAIN,
     DETECT_DIRECTION_NOTE,
     POP_PRIOR_CITATION,
+    POP_PRIOR_CITATION_PLAIN,
     POP_PRIOR_RHR_MEAN_BPM,
     POP_PRIOR_RHR_SD_BPM,
 )
 from wha.models import BaselineRung, DetectionLevel, NightRow
 
-# The three lines, named as a reader would describe them. "Usual range, low" and
-# "Usual range, high" were the series names, which reads as two unrelated measurements
-# rather than the two edges of one band.
+# Two things are plotted, not three. The band's edges were separate legend entries with
+# the same colour and the same dash, so they were indistinguishable from each other and
+# read as two unrelated measurements rather than the top and bottom of one range. They now
+# share a series and are kept apart as lines by a `detail` encoding, which splits a mark
+# without adding a legend entry.
 SERIES_NIGHT = "Your sleeping heart rate"
-SERIES_HI = "Usual range, upper edge"
-SERIES_LO = "Usual range, lower edge"
-SERIES_ORDER = [SERIES_NIGHT, SERIES_HI, SERIES_LO]
+SERIES_RANGE = "Your usual range"
+SERIES_ORDER = [SERIES_NIGHT, SERIES_RANGE]
+
+# Distinguishable in a small swatch: a dark solid navy against a mid amber dashed line.
+# Two shades of the same blue are not tellable apart at legend size.
+COLOUR_NIGHT = "#1f4e79"
+COLOUR_RANGE = "#d08c26"
 
 # Below this rung the band is still mostly the population estimate, so a night sitting
 # outside it says more about how little the system knows than about the person.
@@ -88,11 +96,13 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
         value_name="bpm",
     ).dropna(subset=["bpm"])
 
+    # `edge` keeps the two band edges as separate lines; `series` is what the legend shows.
+    long_df["edge"] = long_df["series"]
     long_df["series"] = long_df["series"].map(
         {
             "rhr_bpm": SERIES_NIGHT,
-            "lo_band": SERIES_LO,
-            "hi_band": SERIES_HI,
+            "lo_band": SERIES_RANGE,
+            "hi_band": SERIES_RANGE,
         }
     )
 
@@ -126,7 +136,7 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
                 sort=SERIES_ORDER,
                 scale=alt.Scale(
                     domain=SERIES_ORDER,
-                    range=["#1f4e79", "#9ecae1", "#9ecae1"],
+                    range=[COLOUR_NIGHT, COLOUR_RANGE],
                 ),
             ),
             # Set explicitly. Left to Altair these are assigned alphabetically, which made
@@ -142,7 +152,7 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
                 title="What each line means",
                 scale=alt.Scale(
                     domain=SERIES_ORDER,
-                    range=[[1, 0], [4, 3], [4, 3]],
+                    range=[[1, 0], [5, 4]],
                 ),
             ),
             size=alt.Size(
@@ -150,9 +160,13 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
                 title="What each line means",
                 scale=alt.Scale(
                     domain=SERIES_ORDER,
-                    range=[2.5, 1.2, 1.2],
+                    range=[2.5, 1.5],
                 ),
             ),
+            # Splits the upper and lower edges into two lines without giving each its own
+            # legend entry. Without it they share a series name and are drawn as one
+            # zigzag joining top to bottom.
+            detail=alt.Detail("edge:N"),
             tooltip=[
                 alt.Tooltip("date:T", title="Night", format="%d %b %Y"),
                 alt.Tooltip("series:N", title=None),
@@ -171,10 +185,10 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
         f"""
 **Reading this chart**
 
-- **{SERIES_NIGHT}** — the solid dark line. One point per night.
-- **{SERIES_HI}** and **{SERIES_LO}** — the dashed lines. Together they are the range
-  expected for you on that night. The band is wider when the system has less to go on and
-  narrows as your own nights accumulate.
+- **{SERIES_NIGHT}** — the solid dark blue line. One point per night.
+- **{SERIES_RANGE}** — the two dashed amber lines above and below it. They are the top and
+  bottom of the range expected for you on that night. The gap between them is wider when
+  the system has less to go on, and narrows as your own nights accumulate.
 
 {DETECT_DIRECTION_NOTE}
 """
@@ -190,7 +204,15 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
         )
 
     st.caption(
-        f"Range starts from the population figure in {POP_PRIOR_CITATION}, and shifts "
-        f"toward your own nights as they accumulate. The thresholds that decide when a "
-        f"raised night is investigated come from {DETECT_CITATION}."
+        f"The starting range comes from {POP_PRIOR_CITATION_PLAIN}, and moves toward your "
+        f"own nights as they accumulate. The thresholds that decide when a raised night is "
+        f"worth investigating come from {DETECT_CITATION_PLAIN}."
     )
+    with st.expander("Full references"):
+        st.markdown(
+            f"""
+- Starting range, {POP_PRIOR_RHR_MEAN_BPM:.2f} bpm plus or minus
+  {POP_PRIOR_RHR_SD_BPM:.2f} — {POP_PRIOR_CITATION}
+- Thresholds for a raised night — {DETECT_CITATION}
+"""
+        )

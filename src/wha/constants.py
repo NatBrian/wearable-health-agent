@@ -42,8 +42,14 @@ MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 # Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473, n=525, Oura.
 POP_PRIOR_RHR_MEAN_BPM = 62.75
 POP_PRIOR_RHR_SD_BPM = 8.64
-# Rendered to the person alongside the figure it justifies. Held as a string rather than
+# Rendered to the person alongside the figure it justifies. Held as strings rather than
 # retyped in the interface so the citation cannot drift away from the number.
+#
+# Two forms on purpose. Journal notation like "3(4):e0000473" is volume, issue and article
+# number, which a reader who is not an academic reads as a corrupted string on a dashboard
+# otherwise written in plain English. The plain form is what gets shown; the full form
+# stays one click away so the claim is still checkable.
+POP_PRIOR_CITATION_PLAIN = "a 2024 study of 525 adults, published in PLOS Digital Health"
 POP_PRIOR_CITATION = "Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473, n=525"
 
 # --- detection ------------------------------------------------------------
@@ -51,6 +57,7 @@ POP_PRIOR_CITATION = "Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473,
 DETECT_YELLOW_BPM = 3.0
 DETECT_RED_BPM = 4.0
 DETECT_PERSISTENCE_NIGHTS = 2
+DETECT_CITATION_PLAIN = "a 2022 study published in Nature Medicine, known as NightSignal"
 DETECT_CITATION = "Alavi et al. 2022, Nature Medicine 28:175-184 (NightSignal)"
 # Only elevation is investigated. The thresholds above are cited; this one-sidedness is a
 # SCOPE decision rather than a cited finding: infection raises nocturnal heart rate, and a
