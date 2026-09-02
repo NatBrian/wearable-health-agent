@@ -88,28 +88,31 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
             detail = get_night_detail(subject_id, sel_date)
             if detail:
                 col_a, col_b, col_c = st.columns(3)
+                feat = detail.features
+                base = detail.baseline
+                det = detail.detection
                 with col_a:
                     st.metric(
                         "Overnight Resting HR",
-                        f"{detail.rhr_bpm:.1f} bpm" if detail.rhr_bpm else "N/A",
+                        f"{feat.rhr_bpm:.1f} bpm" if feat.rhr_bpm is not None else "N/A",
                     )
                     st.metric(
                         "Personal Baseline (Median)",
-                        f"{detail.centre_bpm:.1f} bpm" if detail.centre_bpm else "N/A",
+                        f"{base.centre_bpm:.1f} bpm" if base.centre_bpm is not None else "N/A",
                     )
                 with col_b:
-                    st.metric("Valid Nocturnal Minutes", f"{detail.coverage_minutes} min")
+                    st.metric("Valid Nocturnal Minutes", f"{feat.coverage_minutes} min")
                     st.metric(
                         "Sleep Duration",
-                        f"{detail.sleep_duration_seconds // 3600}h {(detail.sleep_duration_seconds % 3600) // 60}m"
-                        if detail.sleep_duration_seconds
+                        f"{feat.sleep_duration_seconds // 3600}h {(feat.sleep_duration_seconds % 3600) // 60}m"
+                        if feat.sleep_duration_seconds is not None
                         else "N/A",
                     )
                 with col_c:
-                    st.metric("Post-Exercise Tachycardia Offset", f"{detail.explained_bpm:.1f} bpm")
+                    st.metric("Post-Exercise Tachycardia Offset", f"{det.explained_bpm:.1f} bpm")
                     st.metric(
                         "Final Residual Deviation",
-                        f"{detail.residual_bpm:+.1f} bpm" if detail.residual_bpm else "N/A",
+                        f"{det.residual_bpm:+.1f} bpm" if det.residual_bpm is not None else "N/A",
                     )
 
                 st.markdown("#### Full Raw Computation Output:")
