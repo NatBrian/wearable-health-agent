@@ -1,7 +1,7 @@
 """DataSource protocol, normalised data shapes, and pure normalisation function."""
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Literal, Protocol
 
@@ -69,11 +69,42 @@ class NormalisedExerciseSession:
 
 
 @dataclass(frozen=True)
+class NormalisedOxygenSaturation:
+    """A spot blood oxygen reading. The device sends these individually, not as a stream."""
+
+    subject_id: str
+    ts_utc: str
+    percentage: float
+    origin: str | None
+
+
+@dataclass(frozen=True)
+class NormalisedDistance:
+    subject_id: str
+    start_utc: str
+    end_utc: str
+    meters: float
+
+
+@dataclass(frozen=True)
+class NormalisedCalories:
+    subject_id: str
+    start_utc: str
+    end_utc: str
+    calories_kcal: float
+
+
+@dataclass(frozen=True)
 class NormalisedData:
     heart_rate_samples: list[NormalisedHeartRate]
     step_buckets: list[NormalisedStepBucket]
     sleep_stages: list[NormalisedSleepStage]
     exercise_sessions: list[NormalisedExerciseSession]
+    # Verified present on the live bridge on 2026-09-02. Respiratory rate and skin
+    # temperature are not returned by this device and are deliberately absent.
+    oxygen_saturation_samples: list[NormalisedOxygenSaturation] = field(default_factory=list)
+    distance_buckets: list[NormalisedDistance] = field(default_factory=list)
+    calorie_buckets: list[NormalisedCalories] = field(default_factory=list)
 
 
 class DataSource(Protocol):
@@ -246,9 +277,67 @@ def normalise(subject_id: str, payload_input: dict[str, Any] | str) -> Normalise
             )
         )
 
+    # 5. Blood oxygen. Field names read off the live bridge rather than guessed: the
+    #    payload key is "oxygen_saturation" and each record carries "percentage" and
+    #    "time". These arrive as a handful of spot readings, not a continuous stream.
+    spo2_samples: list[NormalisedOxygenSaturation] = []
+    for item in payload.get("oxygen_saturation") or []:
+        ts_val = item.get("time")
+        pct = item.get("percentage")
+        if not ts_val or pct is None:
+            continue
+        origin = None
+        if isinstance(item.get("metadata"), dict):
+            origin = item["metadata"].get("data_origin")
+        spo2_samples.append(
+            NormalisedOxygenSaturation(
+                subject_id=subject_id,
+                ts_utc=_parse_iso_utc(str(ts_val)),
+                percentage=float(pct),
+                origin=origin,
+            )
+        )
+
+    # 6. Distance covered, in daily buckets like steps.
+    distance_buckets: list[NormalisedDistance] = []
+    for item in payload.get("distance") or []:
+        start_val = item.get("start_time")
+        end_val = item.get("end_time")
+        meters = item.get("meters")
+        if not start_val or not end_val or meters is None:
+            continue
+        distance_buckets.append(
+            NormalisedDistance(
+                subject_id=subject_id,
+                start_utc=_parse_iso_utc(str(start_val)),
+                end_utc=_parse_iso_utc(str(end_val)),
+                meters=float(meters),
+            )
+        )
+
+    # 7. Energy expenditure.
+    calorie_buckets: list[NormalisedCalories] = []
+    for item in payload.get("total_calories") or []:
+        start_val = item.get("start_time")
+        end_val = item.get("end_time")
+        calories = item.get("calories")
+        if not start_val or not end_val or calories is None:
+            continue
+        calorie_buckets.append(
+            NormalisedCalories(
+                subject_id=subject_id,
+                start_utc=_parse_iso_utc(str(start_val)),
+                end_utc=_parse_iso_utc(str(end_val)),
+                calories_kcal=float(calories),
+            )
+        )
+
     return NormalisedData(
         heart_rate_samples=hr_samples,
         step_buckets=step_buckets,
         sleep_stages=sleep_stages,
         exercise_sessions=exercise_sessions,
+        oxygen_saturation_samples=spo2_samples,
+        distance_buckets=distance_buckets,
+        calorie_buckets=calorie_buckets,
     )

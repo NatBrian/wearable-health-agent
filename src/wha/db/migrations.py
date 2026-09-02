@@ -5,12 +5,23 @@ from pathlib import Path
 
 from wha.errors import ConfigError
 
-DB_VERSION = 2
+DB_VERSION = 3
 
 # Columns added after version 1. CREATE TABLE IF NOT EXISTS does not alter a table that
 # already exists, so a database created before a column was introduced would silently
 # lack it and fail at the first write. Each entry is applied only when absent.
 _ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (("beliefs", "state_logprob_json", "TEXT"),)
+
+
+# Tables whose shape changed after they were first created. CREATE TABLE IF NOT EXISTS
+# leaves an existing table alone, so a database carrying an earlier shape keeps it and
+# fails at the first write with a confusing "no such column".
+_RESHAPED_TABLES: tuple[tuple[str, frozenset[str]], ...] = (
+    (
+        "oxygen_saturation_samples",
+        frozenset({"subject_id", "ts_utc", "percentage", "origin"}),
+    ),
+)
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> bool:
@@ -22,12 +33,40 @@ def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str)
     return True
 
 
+def _ensure_table_shape(conn: sqlite3.Connection, table: str, expected: frozenset[str]) -> bool:
+    """Recreate a table whose columns no longer match the schema, if it holds no rows.
+
+    Dropping is only ever done on an empty table. A mismatched table with data in it is
+    reported rather than destroyed, because silently discarding a person's readings to
+    resolve a schema disagreement is never the right trade.
+    """
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table});").fetchall()}
+    if not existing or existing == expected:
+        return False
+
+    row_count = conn.execute(f"SELECT COUNT(*) FROM {table};").fetchone()[0]
+    if row_count:
+        raise ConfigError(
+            f"Table '{table}' has columns {sorted(existing)} where {sorted(expected)} is "
+            f"expected, and holds {row_count} rows. Refusing to drop data. Export the "
+            "table, remove it, and re-open the database."
+        )
+
+    conn.execute(f"DROP TABLE {table};")
+    return True
+
+
 def apply_schema(conn: sqlite3.Connection) -> None:
     """Idempotently apply database schema, migrate older databases, and verify version."""
     schema_path = Path(__file__).parent / "schema.sql"
     sql_script = schema_path.read_text(encoding="utf-8")
 
     conn.executescript(sql_script)
+
+    # Drop any table left in an earlier shape, then re-run the script so it is recreated
+    # from the current definition.
+    if any(_ensure_table_shape(conn, table, cols) for table, cols in _RESHAPED_TABLES):
+        conn.executescript(sql_script)
 
     for table, column, decl in _ADDED_COLUMNS:
         _ensure_column(conn, table, column, decl)

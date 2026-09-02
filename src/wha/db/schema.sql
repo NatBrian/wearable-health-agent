@@ -53,6 +53,33 @@ CREATE TABLE IF NOT EXISTS exercise_sessions (
   PRIMARY KEY (subject_id, start_utc)
 );
 
+-- Verified present on the device bridge on 2026-09-02. Sparse: oxygen saturation
+-- arrives as a handful of spot readings rather than a continuous stream, so a night
+-- frequently has none.
+CREATE TABLE IF NOT EXISTS oxygen_saturation_samples (
+  subject_id TEXT NOT NULL,
+  ts_utc     TEXT NOT NULL,
+  percentage REAL NOT NULL,
+  origin     TEXT,
+  PRIMARY KEY (subject_id, ts_utc)
+);
+
+CREATE TABLE IF NOT EXISTS distance_buckets (
+  subject_id TEXT NOT NULL,
+  start_utc  TEXT NOT NULL,
+  end_utc    TEXT NOT NULL,
+  meters     REAL NOT NULL,
+  PRIMARY KEY (subject_id, start_utc)
+);
+
+CREATE TABLE IF NOT EXISTS calorie_buckets (
+  subject_id    TEXT NOT NULL,
+  start_utc     TEXT NOT NULL,
+  end_utc       TEXT NOT NULL,
+  calories_kcal REAL NOT NULL,
+  PRIMARY KEY (subject_id, start_utc)
+);
+
 CREATE TABLE IF NOT EXISTS nightly_features (
   subject_id            TEXT NOT NULL,
   night_date            TEXT NOT NULL,

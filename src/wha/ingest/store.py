@@ -76,6 +76,36 @@ def normalise_and_store(conn: sqlite3.Connection, payload: RawPayload) -> Normal
                 (step.subject_id, step.start_utc, step.end_utc, step.count),
             )
 
+        for spo2 in norm.oxygen_saturation_samples:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO oxygen_saturation_samples (
+                    subject_id, ts_utc, percentage, origin
+                ) VALUES (?, ?, ?, ?);
+                """,
+                (spo2.subject_id, spo2.ts_utc, spo2.percentage, spo2.origin),
+            )
+
+        for dist in norm.distance_buckets:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO distance_buckets (
+                    subject_id, start_utc, end_utc, meters
+                ) VALUES (?, ?, ?, ?);
+                """,
+                (dist.subject_id, dist.start_utc, dist.end_utc, dist.meters),
+            )
+
+        for cal in norm.calorie_buckets:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO calorie_buckets (
+                    subject_id, start_utc, end_utc, calories_kcal
+                ) VALUES (?, ?, ?, ?);
+                """,
+                (cal.subject_id, cal.start_utc, cal.end_utc, cal.calories_kcal),
+            )
+
         for slp in norm.sleep_stages:
             conn.execute(
                 """

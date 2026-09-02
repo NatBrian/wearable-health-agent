@@ -144,6 +144,36 @@ class EpisodeRepository:
                 }
             )
 
+        # Distance and energy expenditure, where the device reports them. They corroborate
+        # a hard day that steps alone can understate, such as cycling.
+        for row in self._conn.execute(
+            """SELECT start_utc, meters FROM distance_buckets
+               WHERE subject_id = ? AND DATE(start_utc) BETWEEN ? AND ?
+               ORDER BY start_utc ASC""",
+            (subject_id, start.isoformat(), end.isoformat()),
+        ).fetchall():
+            events.append(
+                {
+                    "kind": "distance",
+                    "meters": row["meters"],
+                    "start_utc": row["start_utc"],
+                }
+            )
+
+        for row in self._conn.execute(
+            """SELECT start_utc, calories_kcal FROM calorie_buckets
+               WHERE subject_id = ? AND DATE(start_utc) BETWEEN ? AND ?
+               ORDER BY start_utc ASC""",
+            (subject_id, start.isoformat(), end.isoformat()),
+        ).fetchall():
+            events.append(
+                {
+                    "kind": "calories",
+                    "kcal": row["calories_kcal"],
+                    "start_utc": row["start_utc"],
+                }
+            )
+
         return events
 
     def find_similar_episodes(

@@ -236,3 +236,50 @@ an episode.
 rises to roughly 4.8 so the scenario produces the RED night it assumes, or the scenario is
 re-authored to open its episode some other way. Nothing in the code is wrong here, so I
 have not changed anything to force it green.
+
+
+---
+
+## Blood oxygen is now ingested but cannot yet inform the belief model
+
+**What I tried:** probing the live Health Connect bridge on 2026-09-02 with the token from
+`.env`, after the phone and laptop were on the same network.
+
+**What happened:** the device returns **seven** populated types, not the four
+`HANDOFF.md` section 10 records as measured fact:
+
+| Type | Records over 7 days | Previously ingested |
+|---|---|---|
+| heart_rate | 3,652 | yes |
+| steps | 4 | yes |
+| sleep | 3 | yes |
+| exercise | 3 | yes |
+| **oxygen_saturation** | 5 | no |
+| **distance** | 1 | no |
+| **total_calories** | 3 | no |
+
+Respiratory rate, skin temperature and HRV are still absent, so that half of section 10
+holds.
+
+All three new types are now normalised, stored and exposed to the agent through
+`get_known_events`. Field names were read off the live payload rather than guessed:
+`percentage`/`time` for blood oxygen, `meters` and `calories` with `start_time`/`end_time`
+for the other two.
+
+**What I think is wrong:** nothing, but there is a gap worth naming. Blood oxygen is the
+one of the three with real diagnostic value for infection, and it cannot be used yet.
+`causes.yaml` has no likelihood relating a blood oxygen reading to any of the twelve
+causes, and inventing one would be exactly the fabrication this repository exists to
+avoid. So the readings are captured and shown, and the belief model ignores them.
+
+Two further points a human should weigh before that changes:
+
+1. The readings are **spot measurements, not a stream**. Five over seven days, and two of
+   those a minute apart. There is no nightly value to speak of on most nights.
+2. They are **noisy**. The observed set includes a 94, a 92, a 94, and then an 80 followed
+   66 seconds later by a 92. A likelihood written against consumer wrist readings would
+   need to model that noise or it will manufacture alarm.
+
+**What I need:** a cited likelihood row in `causes.yaml` for blood oxygen, or a decision
+that it stays captured-but-unused. Distance and calories need no such row: they are
+activity context for the agent to read, not evidence the belief model weighs.
