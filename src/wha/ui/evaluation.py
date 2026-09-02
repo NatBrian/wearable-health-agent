@@ -48,8 +48,9 @@ def render_evaluation_page(eval_dir: Path | None = None) -> None:
                     run_evaluation_suite("adversarial", eval_dir=eval_dir)
                     st.rerun()
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
         [
+            "🤖 Agentic AI & LLM Workflow",
             "🎯 Detection & Lead Time",
             "⚖️ Value-of-Information Policy",
             "📈 Baseline Maturity & Shrinkage",
@@ -57,6 +58,87 @@ def render_evaluation_page(eval_dir: Path | None = None) -> None:
             "🛡️ Safety Architecture & Grounding",
         ]
     )
+
+    # TAB 1: AGENTIC WORKFLOW & LLM BOUNDARIES
+    with tab1:
+        st.subheader("Agentic AI Workflow & Live LLM Boundaries")
+
+        st.markdown(
+            """
+            WHA uses a **Neuro-Symbolic Agentic Architecture**: an autonomous LangGraph state machine orchestrates 
+            closed-form mathematical engines (exact Bayes + EVSI) alongside **live LLM generative reasoning** (`deepseek-chat` / `gpt-4o`).
+            """
+        )
+
+        st.markdown("#### The 9-Node Cyclic State Graph (`src/wha/agent/graph.py`):")
+        st.code(
+            """
+[Morning Sleep Window Flagged]
+          │
+          ▼
+    1. preload      ──> Loads historical RHR baseline & recent exercise sessions from SQLite
+          │
+          ▼
+    2. investigate  ──> Extracts physiological features & evaluates emergency red flags
+          │
+          ▼
+    3. believe      ──> Computes exact 4,096-state joint Bayesian posterior over 12 causes
+          │
+          ▼
+    4. decide       ──> Evaluates EVSI: chooses ActionKind (OBSERVE, ASK, MEASURE, CONCLUDE)
+          │
+          ├────────► OBSERVE: No question justified; parks episode silently in SQLite
+          ├────────► ASK:
+          │            │
+          │            ▼
+          │          5. ask        ──> [LIVE LLM API] Formulates conversational question
+          │            │               ──> [SAFETY CHECK] Validates 6 deterministic rules
+          │            │               ──> [INTERRUPT] Pushes Telegram inline buttons & pauses
+          │            │               ──> [INGEST] Extracts user's answer into typed facts
+          │            │               ──> Loops back to 'believe' for Bayesian update
+          │
+          └────────► CONCLUDE:
+                       │
+                       ▼
+                     6. conclude   ──> [LIVE LLM API] Synthesizes structured clinical differential
+                       │
+                       ▼
+                     7. critique   ──> [GROUNDING] Verifies assertions against data/knowledge/sources.yaml
+                       │
+                       ▼
+                     8. review     ──> Appends SHA-256 cryptographic audit record & closes episode
+            """,
+            language="text",
+        )
+
+        col_w1, col_w2 = st.columns(2)
+        with col_w1:
+            st.markdown("#### Where the Live LLM API is Used:")
+            st.markdown(
+                """
+                * **Question Generation (`node_ask`)**: Transforms structured clinical probes into empathetic, natural conversational questions.
+                * **Symptom Extraction (`node_investigate`)**: Parses unstructured free-text into strictly typed schema objects (`ExtractedFact`).
+                * **Differential Synthesis (`node_conclude`)**: Summarizes the mathematical posterior into a human-readable clinical assessment.
+                """
+            )
+        with col_w2:
+            st.markdown("#### Where Pure Math Governs (Zero LLM):")
+            st.markdown(
+                """
+                * **Anomaly Flagging**: Pure closed-form MAD scaling & James-Stein shrinkage.
+                * **Diagnostic Probabilities**: Exact $2^{12} = 4,096$-state log-space Bayesian network.
+                * **Question Selection**: Shannon entropy EVSI minus interruption penalty.
+                * **Emergency Red Flags**: Hard-coded deterministic regex pattern matcher.
+                """
+            )
+
+        st.markdown("#### Why Evaluation Benchmarks Run on Deterministic Fixtures:")
+        st.info(
+            "**Medical Verification Rationale:** The evaluation benchmark suites (Detection, Policy, Baseline, Ablation) "
+            "run on closed-form mathematics on CPU to ensure **100% deterministic reproducibility** across builds and machines, "
+            "independent of live API network latency, token costs, or non-deterministic temperature drift. "
+            "Live LLM inference is evaluated during runtime execution and via `wha demo run illness-onset --live`."
+        )
 
     # TAB 1: DETECTION PERFORMANCE
     with tab1:
