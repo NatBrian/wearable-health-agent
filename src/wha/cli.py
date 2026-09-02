@@ -46,9 +46,14 @@ app.add_typer(llm_app, name="llm")
 @app.command("doctor")
 def doctor(
     db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
+    live: Annotated[bool, typer.Option("--live", help="Execute live network and hardware probe checks")] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Check all system components, models, and knowledge tables."""
+    if live:
+        check_live(as_json=as_json)
+        return
+
     try:
         items = run_doctor(db_path=db)
     except ConfigError as e:
@@ -69,6 +74,51 @@ def doctor(
 
     has_fail = any(i.status == "fail" for i in items)
     if has_fail:
+        sys.exit(1)
+    sys.exit(0)
+
+
+@app.command("check-live")
+def check_live(
+    as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Execute live diagnostic tests across mandatory and optional production subsystems."""
+    from wha.service.status import check_live_production_suite
+
+    try:
+        res = check_live_production_suite()
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Live diagnostic error: {e}", err=True)
+        sys.exit(1)
+
+    if as_json:
+        typer.echo(json.dumps(res, default=str, indent=2))
+    else:
+        typer.echo("=" * 80)
+        typer.echo("CLINICAL PRODUCTION SYSTEM DIAGNOSTIC & HEALTH SUITE")
+        typer.echo("=" * 80)
+        typer.echo("\n[MANDATORY PRODUCTION SUBSYSTEMS]")
+        for c in res["mandatory"]:
+            status_symbol = "[PASS]" if c["ok"] else "[FAIL]"
+            component_name = c["component"]
+            detail = c["detail"]
+            typer.echo(f"  {status_symbol:<8}  {component_name:<36} -> {detail}")
+
+        typer.echo("\n[OPTIONAL / ADVISORY SUBSYSTEMS]")
+        for c in res["optional"]:
+            status_symbol = "[INFO]" if c["ok"] else "[WARN]"
+            component_name = c["component"]
+            detail = c["detail"]
+            typer.echo(f"  {status_symbol:<8}  {component_name:<36} -> {detail}")
+
+        typer.echo("\n" + "=" * 80)
+        if res["mandatory_ok"]:
+            typer.echo("RESULT: ALL MANDATORY SUBSYSTEMS OPERATIONAL. PRODUCTION READY.")
+        else:
+            typer.echo("RESULT: CRITICAL - ONE OR MORE MANDATORY SUBSYSTEMS FAILED.")
+        typer.echo("=" * 80)
+
+    if not res["mandatory_ok"]:
         sys.exit(1)
     sys.exit(0)
 

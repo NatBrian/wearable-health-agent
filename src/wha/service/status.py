@@ -3,8 +3,9 @@
 import os
 import sqlite3
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import httpx
 
@@ -19,6 +20,7 @@ from wha.models import (
     BaselineRung,
     ComponentStatus,
     ConnectionCheck,
+    NightlyFeatures,
     SystemStatus,
 )
 
@@ -273,15 +275,25 @@ def test_bridge_connection(
     """Attempt a live bridge connection check with short timeout. Never returns secrets."""
     settings = get_settings()
     host = bridge_host or settings.bridge_url or "http://localhost:8080"
-    endpoint = f"{host.rstrip('/')}/health"
+    if not host.startswith("http://") and not host.startswith("https://"):
+        host = f"http://{host}"
+    token = (
+        bridge_token
+        or (settings.bridge_token.get_secret_value() if settings.bridge_token else None)
+        or os.environ.get("WHA_BRIDGE_TOKEN")
+    )
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
+    endpoint = f"{host.rstrip('/')}/health"
     start_time = time.perf_counter()
     try:
         if client is not None:
-            resp = client.get(endpoint, timeout=3.0)
+            resp = client.get(endpoint, headers=headers, timeout=3.0)
         else:
             with httpx.Client(timeout=3.0) as http_client:
-                resp = http_client.get(endpoint)
+                resp = http_client.get(endpoint, headers=headers)
 
         latency_ms = int((time.perf_counter() - start_time) * 1000)
         if resp.status_code == 200:
@@ -323,22 +335,27 @@ def test_llm_connection(
 
     start_time = time.perf_counter()
     try:
-        from wha.llm.client import get_llm_client
+        from pydantic import BaseModel
+
+        from wha.llm.client import Prompt, get_llm_client
+
+        class PingResponse(BaseModel):
+            status: str = "ok"
 
         client = get_llm_client()
-        # Test short ping
-        client.complete("Ping", temperature=0.0)
+        prompt = Prompt(prompt_id="ping", user="Respond with status ok")
+        client.complete(prompt, schema=PingResponse, temperature=0.0)
         latency_ms = int((time.perf_counter() - start_time) * 1000)
         return ConnectionCheck(
             ok=True,
             detail=f"LLM provider '{prov}' responded for model '{mod}'",
             latency_ms=latency_ms,
         )
-    except (httpx.HTTPError, OSError, ValueError, RuntimeError, KeyError) as exc:
+    except Exception as exc:  # noqa: BLE001
         latency_ms = int((time.perf_counter() - start_time) * 1000)
         return ConnectionCheck(
             ok=False,
-            detail=f"LLM connectivity error for provider '{prov}': {type(exc).__name__}",
+            detail=f"LLM connectivity error for provider '{prov}': {exc}",
             latency_ms=latency_ms,
         )
 
@@ -393,3 +410,137 @@ def test_telegram_connection(
             detail=f"Telegram network error: {type(exc).__name__}",
             latency_ms=latency_ms,
         )
+
+
+def check_live_production_suite() -> dict[str, Any]:
+    """Execute live diagnostic tests across mandatory and optional subsystems."""
+    settings = get_settings()
+
+    mandatory: list[dict[str, Any]] = []
+    optional: list[dict[str, Any]] = []
+
+    # 1. Mandatory: SQLite Database
+    try:
+        conn = connect()
+        apply_schema(conn)
+        cnt = conn.execute("SELECT COUNT(*) FROM nightly_features").fetchone()[0]
+        conn.close()
+        mandatory.append({
+            "component": "Database & Cryptographic Audit Log",
+            "ok": True,
+            "detail": f"Schema v1 verified ({cnt} feature nights recorded)",
+        })
+    except Exception as exc:  # noqa: BLE001
+        mandatory.append({
+            "component": "Database & Cryptographic Audit Log",
+            "ok": False,
+            "detail": f"Database failure: {exc}",
+        })
+
+    # 2. Mandatory: Clinical Knowledge Tables
+    try:
+        from wha.belief import load_causes
+        from wha.policy import load_probes
+
+        causes = load_causes()
+        probes = load_probes()
+        mandatory.append({
+            "component": "Clinical Knowledge Tables",
+            "ok": True,
+            "detail": f"Loaded {len(causes)} cited causes, {len(probes)} clinical probes",
+        })
+    except Exception as exc:  # noqa: BLE001
+        mandatory.append({
+            "component": "Clinical Knowledge Tables",
+            "ok": False,
+            "detail": f"Knowledge files error: {exc}",
+        })
+
+    # 3. Mandatory: Phone Hardware Bridge
+    bridge_chk = test_bridge_connection()
+    mandatory.append({
+        "component": "Phone Hardware Bridge",
+        "ok": bridge_chk.ok,
+        "detail": f"{bridge_chk.detail} ({bridge_chk.latency_ms}ms)"
+        if bridge_chk.latency_ms
+        else bridge_chk.detail,
+    })
+
+    # 4. Mandatory: Live LLM Inference API
+    llm_chk = test_llm_connection()
+    mandatory.append({
+        "component": "Live LLM Inference API",
+        "ok": llm_chk.ok,
+        "detail": f"{llm_chk.detail} ({llm_chk.latency_ms}ms)"
+        if llm_chk.latency_ms
+        else llm_chk.detail,
+    })
+
+    # 5. Mandatory: Telegram Bot Transport
+    tg_chk = test_telegram_connection()
+    mandatory.append({
+        "component": "Telegram Mobile Bot",
+        "ok": tg_chk.ok,
+        "detail": f"{tg_chk.detail} ({tg_chk.latency_ms}ms)"
+        if tg_chk.latency_ms
+        else tg_chk.detail,
+    })
+
+    # 6. Mandatory: Statistical Anomaly & Bayesian Engines
+    try:
+        from wha.belief import update_belief
+        from wha.detect.baseline import compute_baseline
+
+        test_history = [
+            NightlyFeatures(
+                subject_id="test",
+                night_date=date(2026, 9, 1),
+                rhr_bpm=60.0,
+                coverage_minutes=360,
+                usable=True,
+            )
+        ]
+        b = compute_baseline(test_history)
+        _ = update_belief(episode_nights=[])
+        mandatory.append({
+            "component": "Statistical & Bayesian Engine",
+            "ok": True,
+            "detail": f"Deterministic shrinkage (Rung: {b.rung.name}), 4096-state exact posterior ready",
+        })
+    except Exception as exc:  # noqa: BLE001
+        mandatory.append({
+            "component": "Statistical & Bayesian Engine",
+            "ok": False,
+            "detail": f"Engine calculation error: {exc}",
+        })
+
+    # 7. Mandatory: Chronos Neural Forecaster
+    cache_dir = settings.model_cache_dir
+    chronos_ok = cache_dir.exists() and any(cache_dir.iterdir())
+    mandatory.append({
+        "component": "Chronos Neural Forecaster",
+        "ok": chronos_ok,
+        "detail": "Amazon Chronos-Bolt model weights cached (Advisory Evidence Band)"
+        if chronos_ok
+        else "Missing model weights in data/model_cache (run 'uv run wha data fetch chronos')",
+    })
+
+    # --- RESEARCH BENCHMARKS (EVALUATION ONLY) ---
+
+    stanford_exists = (settings.data_dir / "stanford").exists()
+    pmdata_exists = (settings.data_dir / "pmdata").exists()
+    benchmarks_ok = stanford_exists and pmdata_exists
+    optional.append({
+        "component": "Research Benchmark Cohorts",
+        "ok": benchmarks_ok,
+        "detail": "Stanford & PMData benchmark targets present (for 'wha eval')"
+        if benchmarks_ok
+        else "Absent (run 'uv run wha data fetch <name>')",
+    })
+
+    all_mandatory_ok = all(c["ok"] for c in mandatory)
+    return {
+        "mandatory_ok": all_mandatory_ok,
+        "mandatory": mandatory,
+        "optional": optional,
+    }

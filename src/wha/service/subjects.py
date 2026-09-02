@@ -22,7 +22,7 @@ def list_subjects(
 
     try:
         rows = conn.execute(
-            "SELECT subject_id, label, source_kind, timezone FROM subjects ORDER BY subject_id"
+            "SELECT subject_id, label, source_kind, timezone FROM subjects ORDER BY CASE WHEN subject_id = 'me' THEN 0 ELSE 1 END, subject_id"
         ).fetchall()
 
         subjects: list[Subject] = []

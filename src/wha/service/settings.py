@@ -31,8 +31,9 @@ def get_service_settings() -> Settings:
         policy_cost_weight=float(os.environ.get("WHA_POLICY_COST_WEIGHT", "0.2")),
         notify_channel=channel,  # type: ignore[arg-type]
         llm_provider=provider,  # type: ignore[arg-type]
-        llm_model=os.environ.get("WHA_LLM_MODEL", "deepseek-v3.2"),
-        bridge_host=os.environ.get("WHA_BRIDGE_HOST", "http://localhost:8080"),
+        llm_model=os.environ.get("WHA_LLM_MODEL", "deepseek-chat"),
+        llm_base_url=os.environ.get("WHA_LLM_BASE_URL", "https://api.gptplus5.com/v1"),
+        bridge_host=os.environ.get("WHA_BRIDGE_URL", os.environ.get("WHA_BRIDGE_HOST", "http://192.168.198.181:8787")),
     )
 
 
@@ -54,6 +55,8 @@ def update_settings(
         os.environ["WHA_LLM_PROVIDER"] = patch.llm_provider
     if patch.llm_model is not None:
         os.environ["WHA_LLM_MODEL"] = patch.llm_model
+    if patch.llm_base_url is not None:
+        os.environ["WHA_LLM_BASE_URL"] = patch.llm_base_url
     if patch.bridge_host is not None:
         os.environ["WHA_BRIDGE_HOST"] = patch.bridge_host
     if patch.bridge_token is not None:

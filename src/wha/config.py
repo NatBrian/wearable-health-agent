@@ -43,7 +43,11 @@ class Settings(BaseModel):
         default_factory=lambda: (
             SecretStr(os.environ["WHA_TELEGRAM_BOT_TOKEN"])
             if "WHA_TELEGRAM_BOT_TOKEN" in os.environ
-            else None
+            else (
+                SecretStr(os.environ["WHA_TELEGRAM_TOKEN"])
+                if "WHA_TELEGRAM_TOKEN" in os.environ
+                else None
+            )
         )
     )
     telegram_chat_id: str | None = Field(

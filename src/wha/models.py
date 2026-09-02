@@ -517,6 +517,7 @@ class Settings(BaseModel):
     notify_channel: Literal["none", "telegram"]
     llm_provider: Literal["cassette", "ollama_native", "openai_compatible"]
     llm_model: str
+    llm_base_url: str | None = None
     bridge_host: str | None = None
     # secrets are NEVER present on this model
 
@@ -532,6 +533,7 @@ class SettingsPatch(BaseModel):
     notify_channel: Literal["none", "telegram"] | None = None
     llm_provider: Literal["cassette", "ollama_native", "openai_compatible"] | None = None
     llm_model: str | None = None
+    llm_base_url: str | None = None
     bridge_host: str | None = None
     bridge_token: SecretStr | None = None
     llm_api_key: SecretStr | None = None

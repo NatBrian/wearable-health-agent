@@ -33,9 +33,17 @@ def render_connection_section(subject_id: str) -> None:
         )
 
     if st.button("🧪 Test Bridge Connection", key="btn_test_bridge"):
-        st.info(f"Pinging bridge at `{bridge_host}`...")
-        # Simulating check for UI test
-        st.success("✅ Bridge connection check succeeded.")
+        from wha.service.status import test_bridge_connection
+        clean_host = bridge_host.strip()
+        if clean_host and not clean_host.startswith("http://") and not clean_host.startswith("https://"):
+            clean_host = f"http://{clean_host}"
+        token_val = st.session_state.get("sett_bridge_token") or None
+        st.info(f"Pinging bridge at `{clean_host}`...")
+        chk = test_bridge_connection(bridge_host=clean_host, bridge_token=token_val)
+        if chk.ok:
+            st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
+        else:
+            st.error(f"❌ {chk.detail} ({chk.latency_ms}ms)")
 
     with st.expander("📖 Health Connect Webhook App Setup Guide"):
         st.markdown(
@@ -68,12 +76,17 @@ def render_llm_section(subject_id: str) -> None:
             index=provider_idx,
             key="sett_llm_provider",
         )
+        llm_base_url = st.text_input(
+            "Base URL (for OpenAI compatible / Ollama)",
+            value=getattr(current_settings, "llm_base_url", None) or os.environ.get("WHA_LLM_BASE_URL", "https://api.gptplus5.com/v1"),
+            key="sett_llm_base_url",
+        )
+    with col2:
         llm_model = st.text_input(
             "Model Name",
             value=current_settings.llm_model,
             key="sett_llm_model",
         )
-    with col2:
         # Secrets are rendered as password fields and never echoed back
         st.text_input(
             "API Key",
@@ -84,7 +97,19 @@ def render_llm_section(subject_id: str) -> None:
         )
 
     if st.button("🧪 Test LLM Provider", key="btn_test_llm"):
-        st.success(f"✅ Provider `{llm_provider}` with model `{llm_model}` is reachable.")
+        from wha.service.status import test_llm_connection
+        if st.session_state.get("sett_llm_key"):
+            os.environ["WHA_LLM_API_KEY"] = st.session_state["sett_llm_key"]
+        if llm_base_url:
+            os.environ["WHA_LLM_BASE_URL"] = llm_base_url
+        if llm_model:
+            os.environ["WHA_LLM_MODEL"] = llm_model
+        st.info(f"Testing inference for provider `{llm_provider}` with model `{llm_model}` at `{llm_base_url}`...")
+        chk = test_llm_connection(provider=llm_provider, model=llm_model)
+        if chk.ok:
+            st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
+        else:
+            st.error(f"❌ {chk.detail} ({chk.latency_ms}ms)")
 
 
 def render_notifications_section(subject_id: str) -> None:
@@ -124,8 +149,14 @@ def render_notifications_section(subject_id: str) -> None:
             )
 
         if st.button("📨 Send Test Notification", key="btn_test_notify"):
+            from wha.service.status import test_telegram_connection
             st.info("Sending test notification message...")
-            st.success("✅ Test notification sent.")
+            token_val = st.session_state.get("sett_tg_token") or None
+            chk = test_telegram_connection(token=token_val)
+            if chk.ok:
+                st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
+            else:
+                st.error(f"❌ {chk.detail} ({chk.latency_ms}ms)")
 
         with st.expander("🤖 Telegram Bot Setup Guide"):
             st.markdown(
@@ -177,6 +208,7 @@ def render_policy_section(subject_id: str) -> None:
             notify_channel=st.session_state.get("sett_notify_channel"),
             llm_provider=st.session_state.get("sett_llm_provider"),
             llm_model=st.session_state.get("sett_llm_model"),
+            llm_base_url=st.session_state.get("sett_llm_base_url"),
             bridge_host=st.session_state.get("sett_bridge_host"),
             bridge_token=SecretStr(st.session_state["sett_bridge_token"])
             if st.session_state.get("sett_bridge_token")
