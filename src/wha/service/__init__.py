@@ -35,6 +35,7 @@ from wha.service.episodes import (
 from wha.service.evaluation import (
     get_evaluation_results,
     run_evaluation_suite,
+    write_evaluation_report,
 )
 from wha.service.ingest import run_ingest
 from wha.service.nightly import (
@@ -104,4 +105,5 @@ __all__ = [
     "test_telegram_connection",
     "update_settings",
     "verify_hash_chain",
+    "write_evaluation_report",
 ]

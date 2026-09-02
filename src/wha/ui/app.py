@@ -34,7 +34,7 @@ def main() -> None:
     st.write("---")
     st.title("Wearable Health Agent Dashboard")
     st.info(
-        "Select a page from the sidebar to view Today, History, Audit, Evaluation, or Settings."
+        "Select a page from the sidebar: Today, History, Audit, or Settings."
     )
 
 

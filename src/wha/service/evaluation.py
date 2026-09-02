@@ -66,3 +66,13 @@ def get_evaluation_results(suite: str, eval_dir: Path | None = None) -> Evaluati
             f"Evaluation results missing for suite '{suite}'. Run 'uv run wha eval run {suite}' to generate."
         ],
     )
+
+
+def write_evaluation_report(
+    output_path: Path | None = None,
+    eval_dir: Path | None = None,
+) -> Path:
+    """Run the offline evaluation suites and write the markdown report."""
+    from wha.eval.report import write_report
+
+    return write_report(output_path=output_path, eval_dir=eval_dir)

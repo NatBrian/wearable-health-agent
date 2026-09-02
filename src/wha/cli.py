@@ -19,6 +19,7 @@ from wha.service import (
     run_ingest,
     run_nightly,
     step_episode,
+    write_evaluation_report,
 )
 
 app = typer.Typer(
@@ -405,6 +406,28 @@ def data_fetch_cmd(
     except Exception as e:  # noqa: BLE001
         typer.echo(f"Data fetch error: {e}", err=True)
         sys.exit(1)
+    sys.exit(0)
+
+
+@app.command("eval-report")
+def eval_report_cmd(
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Where to write the report")
+    ] = None,
+) -> None:
+    """Run the offline evaluation suites and write EVALUATION.md.
+
+    Evaluation results live in a file rather than a dashboard page. The dashboard is for
+    a person checking their own health; benchmark accuracy against comparator policies is
+    evidence for someone assessing the system, and reads better in the repository.
+    """
+    try:
+        written = write_evaluation_report(output_path=output)
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Evaluation report failed: {e}", err=True)
+        sys.exit(1)
+
+    typer.echo(f"Wrote {written}")
     sys.exit(0)
 
 
