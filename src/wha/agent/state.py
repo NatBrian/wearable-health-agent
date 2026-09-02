@@ -56,3 +56,5 @@ class EpisodeState(TypedDict, total=False):
     tool_call_count: int
     depth_used: int
     status: Literal["active", "parked", "closed", "unresolved"]
+    safety_event: str | None
+    escalation_level: str | None

@@ -31,6 +31,18 @@ from wha.constants import EPISODE_MAX_STEPS
 from wha.models import ActionKind
 
 
+def route_after_ask(state: EpisodeState) -> str:
+    """Send a safety escalation straight to the outcome, bypassing belief and policy.
+
+    red_flags.yaml requires the deterministic floor to be unreachable by reasoning, so an
+    answer that trips it must not be handed to the belief model or the policy.
+    """
+    action = state.get("action")
+    if action is not None and action.kind == ActionKind.ESCALATE:
+        return "conclude"
+    return "believe"
+
+
 def route_after_decide(state: EpisodeState) -> str:
     """Route graph to next execution step based on selected ActionKind."""
     action = state.get("action")
@@ -150,7 +162,11 @@ def build_agent_graph(
         },
     )
 
-    builder.add_edge("ask", "believe")
+    builder.add_conditional_edges(
+        "ask",
+        route_after_ask,
+        {"conclude": "conclude", "believe": "believe"},
+    )
     builder.add_edge("measure", "believe")
     builder.add_edge("conclude", "critique")
     builder.add_edge("critique", "review")

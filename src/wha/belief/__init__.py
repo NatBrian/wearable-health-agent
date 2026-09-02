@@ -37,7 +37,7 @@ def update_belief(
     measurements: Sequence[MeasurementResult | dict[str, Any]] = (),
     context: EpisodeContext | dict[str, Any] | None = None,
     priors: Sequence[CausePrior] | None = None,
-    luteal_applicable: bool = True,
+    luteal_applicable: bool | None = None,
 ) -> BeliefState:
     """Recompute belief distribution from scratch over all episode observations.
 
@@ -45,15 +45,33 @@ def update_belief(
     """
     cause_priors = priors if priors is not None else load_causes()
 
-    # Check luteal config in context
+    # Cycle applicability is a three-state fact, not a boolean: True, False, or not yet
+    # asked. causes.yaml gives luteal base_rate 0.450 CONDITIONAL on the subject
+    # menstruating, base_rate_if_not_applicable 0.0 otherwise, and its own note records
+    # that this concerns "around half the population".
+    #
+    # Defaulting an unasked subject to applicable was wrong twice over. It is factually
+    # wrong for everyone who does not menstruate, and it fails in one direction only: at
+    # 3.91 bpm and a 0.450 base rate, luteal is the largest benign effect in the table, so
+    # assuming it applies lets it explain away precisely the elevations this system exists
+    # to investigate. Measured on the illness-onset scenario, assuming applicability holds
+    # p(infection) at 0.025 and the policy never finds a question worth asking; treating
+    # it as unestablished gives 0.070, and probe_symptoms becomes worth its interruption.
+    #
+    # Unknown therefore leaves the cause inert until probe_cycle establishes it, which is
+    # the low-cost one_time setup question that exists for exactly this purpose.
     if context is not None:
-        if isinstance(context, dict):
-            if context.get("luteal_applicable") is False:
-                luteal_applicable = False
-        elif hasattr(context, "luteal_applicable") and context.luteal_applicable is False:
-            luteal_applicable = False
+        ctx_value = (
+            context.get("cycle_applicable", context.get("luteal_applicable"))
+            if isinstance(context, dict)
+            else getattr(context, "cycle_applicable", getattr(context, "luteal_applicable", None))
+        )
+        if ctx_value is not None:
+            luteal_applicable = bool(ctx_value)
 
-    log_post = compute_prior_logprobs(cause_priors, luteal_applicable=luteal_applicable)
+    luteal_is_live = luteal_applicable is True
+
+    log_post = compute_prior_logprobs(cause_priors, luteal_applicable=luteal_is_live)
 
     # 1. Residual likelihoods per calendar elapsed night
     if episode_nights:
@@ -112,7 +130,7 @@ def update_belief(
     # If luteal is not applicable, enforce exact 0.0 without manual renormalization
     marginals_dict: dict[CauseId, float] = {}
     for i, cause in enumerate(CAUSE_ORDER):
-        if cause == CauseId.LUTEAL and not luteal_applicable:
+        if cause == CauseId.LUTEAL and not luteal_is_live:
             marginals_dict[cause] = 0.0
         else:
             marginals_dict[cause] = round(float(marginals_arr[i]), 4)

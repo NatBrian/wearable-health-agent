@@ -119,12 +119,18 @@ def test_unusable_night_still_advances_profile() -> None:
 
 
 def test_answer_updates_only_target_cause_materially() -> None:
-    """An answer about alcohol updates alcohol strongly while having minimal impact on stress."""
+    """An answer about alcohol updates alcohol strongly while having minimal impact on stress.
+
+    Cycle applicability is stated explicitly. It is now a three-state fact defaulting to
+    "not yet asked", and leaving it unstated would change which causes carry prior mass
+    and so change the shift this test measures, testing cycle handling rather than answer
+    targeting.
+    """
     dets = [_make_det(0, 3.5)]
-    b_before = update_belief(dets)
+    b_before = update_belief(dets, luteal_applicable=True)
 
     ans_drinking = Answer(probe_id="probe_alcohol", option_id="three")
-    b_after = update_belief(dets, answers=[ans_drinking])
+    b_after = update_belief(dets, answers=[ans_drinking], luteal_applicable=True)
 
     alc_shift = abs(b_after.marginals[CauseId.ALCOHOL] - b_before.marginals[CauseId.ALCOHOL])
     stress_shift = abs(b_after.marginals[CauseId.STRESS] - b_before.marginals[CauseId.STRESS])

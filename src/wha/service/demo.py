@@ -260,6 +260,10 @@ def _oracle_response(oracle: dict[str, Any], payload: Any) -> Any:
     kind = payload.get("kind")
 
     if kind == "question":
+        # A scenario may specify that the person never replies at all.
+        if oracle.get("__no_response__"):
+            return {"timed_out": True}
+
         probe_id = payload.get("probe_id") or ""
         answer = oracle.get(probe_id)
         response: dict[str, Any] = {"probe_id": probe_id}

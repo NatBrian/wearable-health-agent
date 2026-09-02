@@ -36,6 +36,7 @@ from wha.safety.output_checks import (
     FALSE_REASSURANCE_PHRASES,
     validate_and_sanitize_outcome,
 )
+from wha.safety.tier_c import check_red_flags_with_tier_c
 
 
 class ToolCallArgs(BaseModel):
@@ -555,6 +556,31 @@ def node_ask(
             free_text=str(raw_response),
             declined=False,
         )
+
+    # 6. Deterministic safety floor over the person's own words.
+    #
+    # Free text was collected and never checked. A person answering "feels like an
+    # elephant is sitting on my chest" had that stored as evidence and passed to the
+    # belief model, when the contract requires it to escalate on the RULES and never
+    # reach the belief or policy nodes at all.
+    if answer.free_text:
+        safety = check_red_flags_with_tier_c(user_text=answer.free_text)
+        if safety.escalate:
+            return {
+                "answers": [answer],
+                "action": Action(
+                    kind=ActionKind.ESCALATE,
+                    disposition=Disposition.ESCALATED,
+                    rationale=(
+                        f"Deterministic safety floor triggered on the answer text: "
+                        f"{', '.join(safety.triggered_flags)}"
+                    ),
+                    rejected=[],
+                ),
+                "safety_event": "red_flag_escalation",
+                "escalation_level": safety.level,
+                "step": state.get("step", 0) + 1,
+            }
 
     return {
         "answers": [answer],
