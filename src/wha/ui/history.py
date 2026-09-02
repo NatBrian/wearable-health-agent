@@ -104,8 +104,8 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
                     st.metric("Valid Nocturnal Minutes", f"{feat.coverage_minutes} min")
                     st.metric(
                         "Sleep Duration",
-                        f"{feat.sleep_duration_seconds // 3600}h {(feat.sleep_duration_seconds % 3600) // 60}m"
-                        if feat.sleep_duration_seconds is not None
+                        f"{feat.sleep_hours:.1f}h"
+                        if feat.sleep_hours is not None
                         else "N/A",
                     )
                 with col_c:
