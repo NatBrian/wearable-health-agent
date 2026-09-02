@@ -1,5 +1,20 @@
 # HANDOFF: build this
 
+> ### THIS DESCRIBES A JOB THAT IS FINISHED
+>
+> **Read [`STATUS.md`](STATUS.md) first.** It describes where the project actually stands.
+>
+> This file was written on 1 September 2026 to brief an agent starting from an empty
+> `src/`. That work is complete and has since been reviewed and repaired. Section 0 below
+> still says "State of the code: **There is none**", which was true then and is not now:
+> there are around 15,000 lines of source, 364 passing tests, and 10 of the 11 frozen
+> scenarios pass end to end.
+>
+> The rest of this file is still worth reading. The five rules in section 5, the traps in
+> section 8 and the constraints throughout all still hold, and several of them turned out
+> to describe defects that were actually present. It is the *status* that is out of date,
+> not the *rules*.
+
 **Read this file to the end before doing anything else.**
 
 You have no prior knowledge of this project. This file gives you everything you need to start.

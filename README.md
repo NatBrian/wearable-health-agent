@@ -40,6 +40,9 @@ Consumer smartwatches detect that something in your body changed--a raised overn
 
 ---
 
+> **Project status:** see **[STATUS.md](STATUS.md)** for what works, what does not, and
+> what still needs a human decision.
+
 ## What data it uses, and why not more
 
 Health Connect defines around sixty kinds of health data. This system uses the seven a
