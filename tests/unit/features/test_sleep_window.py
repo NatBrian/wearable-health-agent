@@ -8,6 +8,7 @@ sleep, moving the readings by up to 11 bpm and inflating the night-to-night spre
 
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from wha.db import connect
 from wha.db.migrations import apply_schema
@@ -39,11 +40,14 @@ def _db(tmp_path: Path, stages: list[tuple[str, str, str]]) -> Path:
     return db_file
 
 
+def _local(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:
+    """A moment in the subject's timezone."""
+    return datetime(year, month, day, hour, minute, tzinfo=ZoneInfo(TZ))
+
+
 def _span(start_local: datetime, minutes: int, stage: str) -> tuple[str, str, str]:
     """A stage expressed in Singapore local time, stored as UTC."""
-    from zoneinfo import ZoneInfo
-
-    a = start_local.replace(tzinfo=ZoneInfo(TZ)).astimezone(UTC)
+    a = start_local.astimezone(UTC)
     b = a + timedelta(minutes=minutes)
     fmt = "%Y-%m-%dT%H:%M:%SZ"
     return a.strftime(fmt), b.strftime(fmt), stage
@@ -59,14 +63,12 @@ def test_awake_stages_are_recognised_by_word_and_by_code() -> None:
 
 def test_a_late_sleeper_is_measured_over_their_own_sleep(tmp_path: Path) -> None:
     """The real case: asleep 03:00 to 09:00, entirely outside a 00:00-07:00 assumption."""
-    stages = [_span(datetime(2026, 9, 2, 3, 0), 360, "DEEP")]
+    stages = [_span(_local(2026, 9, 2, 3, 0), 360, "DEEP")]
     db_file = _db(tmp_path, stages)
 
     conn = connect(db_file)
     window = resolve_sleep_window(conn, "me", date(2026, 9, 2), TZ)
     conn.close()
-
-    from zoneinfo import ZoneInfo
 
     assert window.source == "sleep"
     assert window.start_utc.astimezone(ZoneInfo(TZ)).hour == 3
@@ -76,9 +78,9 @@ def test_a_late_sleeper_is_measured_over_their_own_sleep(tmp_path: Path) -> None
 def test_waking_spells_inside_a_session_are_excluded(tmp_path: Path) -> None:
     """Measuring session start to session end would keep the awake time it contains."""
     stages = [
-        _span(datetime(2026, 9, 2, 3, 0), 120, "DEEP"),
-        _span(datetime(2026, 9, 2, 5, 0), 30, "AWAKE"),
-        _span(datetime(2026, 9, 2, 5, 30), 120, "REM"),
+        _span(_local(2026, 9, 2, 3, 0), 120, "DEEP"),
+        _span(_local(2026, 9, 2, 5, 0), 30, "AWAKE"),
+        _span(_local(2026, 9, 2, 5, 30), 120, "REM"),
     ]
     db_file = _db(tmp_path, stages)
 
@@ -97,8 +99,8 @@ def test_a_nap_does_not_displace_the_main_sleep(tmp_path: Path) -> None:
     Whitehurst, Naji and Mednick 2018, Neurobiol Sleep Circadian Rhythms 5:52-57.
     """
     stages = [
-        _span(datetime(2026, 9, 2, 2, 0), 300, "DEEP"),  # main sleep, 5h
-        _span(datetime(2026, 9, 2, 14, 0), 45, "LIGHT"),  # afternoon nap
+        _span(_local(2026, 9, 2, 2, 0), 300, "DEEP"),  # main sleep, 5h
+        _span(_local(2026, 9, 2, 14, 0), 45, "LIGHT"),  # afternoon nap
     ]
     db_file = _db(tmp_path, stages)
 
@@ -111,7 +113,7 @@ def test_a_nap_does_not_displace_the_main_sleep(tmp_path: Path) -> None:
 
 def test_a_night_shift_sleeper_is_measured_over_their_daytime_sleep(tmp_path: Path) -> None:
     """Someone sleeping 08:00 to 16:00 gets almost nothing from a midnight-to-7am window."""
-    stages = [_span(datetime(2026, 9, 2, 8, 0), 420, "DEEP")]
+    stages = [_span(_local(2026, 9, 2, 8, 0), 420, "DEEP")]
     db_file = _db(tmp_path, stages)
 
     conn = connect(db_file)
@@ -130,8 +132,6 @@ def test_no_recorded_sleep_falls_back_to_the_clock_and_says_so(tmp_path: Path) -
     window = resolve_sleep_window(conn, "me", date(2026, 9, 2), TZ)
     conn.close()
 
-    from zoneinfo import ZoneInfo
-
     assert window.source == "clock"
     assert window.start_utc.astimezone(ZoneInfo(TZ)).hour == 0
     assert window.end_utc.astimezone(ZoneInfo(TZ)).hour == 7
@@ -139,7 +139,7 @@ def test_no_recorded_sleep_falls_back_to_the_clock_and_says_so(tmp_path: Path) -
 
 def test_a_session_of_only_awake_stages_falls_back(tmp_path: Path) -> None:
     """Time in bed is not sleep, and must not be measured as though it were."""
-    stages = [_span(datetime(2026, 9, 2, 2, 0), 300, "AWAKE")]
+    stages = [_span(_local(2026, 9, 2, 2, 0), 300, "AWAKE")]
     db_file = _db(tmp_path, stages)
 
     conn = connect(db_file)
@@ -166,7 +166,7 @@ def test_the_window_source_is_recorded_on_the_night(tmp_path: Path) -> None:
     """A health figure must be able to say how it was produced."""
     from wha.features.derivation import compute_night
 
-    stages = [_span(datetime(2026, 9, 2, 3, 0), 300, "DEEP")]
+    stages = [_span(_local(2026, 9, 2, 3, 0), 300, "DEEP")]
     db_file = _db(tmp_path, stages)
 
     conn = connect(db_file)
