@@ -1,4 +1,9 @@
-"""History view rendering night chart with maturing band, episode spans, and night table."""
+"""History: how your nights have looked, and what was looked into.
+
+Column headings and badges name what a reading means to the person rather than what
+the field is called in the database. The raw computation stays available underneath
+for anyone who wants to check it.
+"""
 
 from datetime import date, timedelta
 
@@ -10,22 +15,24 @@ from wha.service.episodes import get_episode, list_episodes
 from wha.service.nights import get_night_detail, list_nights
 from wha.ui.components.night_chart import render_night_chart
 from wha.ui.components.status_strip import render_status_strip
+from wha.ui.components.wording import (
+    disposition_phrase,
+    episode_state_phrase,
+    level_phrase,
+)
 
-LEVEL_BADGES = {
-    "GREEN": "🟢 Normal Baseline",
-    "YELLOW": "🟡 Elevated (Investigating)",
-    "RED": "🔴 Acute Red-Flag Alert",
-    "NA": "⏸️ Non-Wear / Insufficient Data",
-}
+LEVEL_ICONS = {"GREEN": "🟢", "YELLOW": "🟡", "RED": "🔴", "NA": "⏸️"}
 
 
 def render_episode_spans(episodes: list[EpisodeSummary]) -> str | None:
     """Render horizontal clickable episode spans beneath the chart."""
-    st.subheader("🏷️ Clinical Investigation Episodes")
+    st.subheader("Investigations")
+    st.caption(
+        "An investigation opens when a raised reading persists for more than one night. "
+        "Most nights never open one."
+    )
     if not episodes:
-        st.caption(
-            "No episodes recorded for this subject (all nights within normal physiological thresholds)."
-        )
+        st.caption("None so far. Every night has been within your usual range.")
         return None
 
     selected_ep_id = None
@@ -33,17 +40,20 @@ def render_episode_spans(episodes: list[EpisodeSummary]) -> str | None:
     for idx, ep in enumerate(episodes):
         col = cols[idx % len(cols)]
         with col:
-            disp = ep.disposition.value if ep.disposition else ep.state.value
-            disp_badge = (
-                "🩺"
-                if "ILLNESS" in disp
-                else "🚨"
-                if "ESCALATE" in disp
-                else "🧘"
-                if "BENIGN" in disp
-                else "🔍"
-            )
-            btn_label = f"{disp_badge} Ep {ep.episode_id[:8]} ({disp})\n{ep.opened_on} -> {ep.closed_on or 'now'}"
+            if ep.disposition is not None:
+                phrase = disposition_phrase(ep.disposition)
+                icon = (
+                    "🚨"
+                    if ep.disposition.value == "ESCALATED"
+                    else "🩺"
+                    if ep.disposition.value == "LIKELY_ILLNESS"
+                    else "🧘"
+                )
+            else:
+                phrase = episode_state_phrase(ep.state)
+                icon = "🔍"
+            ended = ep.closed_on.isoformat() if ep.closed_on else "ongoing"
+            btn_label = f"{icon} {phrase.label}\n{ep.opened_on} to {ended}"
             if st.button(btn_label, key=f"span_{ep.episode_id}", use_container_width=True):
                 selected_ep_id = ep.episode_id
                 st.query_params["episode"] = ep.episode_id
@@ -53,33 +63,43 @@ def render_episode_spans(episodes: list[EpisodeSummary]) -> str | None:
 
 def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
     """Render night table with detailed computation expander."""
-    st.subheader("📊 Night-by-Night Physiological Detail")
+    st.subheader("Night by night")
     if not nights:
-        st.info("No nights recorded.")
+        st.info("No nights recorded yet.")
         return
 
     table_data = []
     for n in sorted(nights, key=lambda x: x.night_date, reverse=True):
-        status_label = LEVEL_BADGES.get(n.level.value, n.level.value)
+        phrase = level_phrase(n.level)
+        icon = LEVEL_ICONS.get(n.level.value, "")
         table_data.append(
             {
-                "Date": n.night_date.isoformat(),
-                "Resting HR": f"{n.rhr_bpm:.1f} bpm" if n.rhr_bpm is not None else "-",
-                "Deviation": f"{n.deviation_bpm:+.1f} bpm" if n.deviation_bpm is not None else "-",
-                "Explained Offset": f"{n.explained_bpm:.1f} bpm",
-                "Residual": f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "-",
-                "Coverage": f"{n.coverage_minutes} min",
-                "Clinical Status": status_label,
-                "Episode": n.episode_id or "-",
+                "Night": n.night_date.isoformat(),
+                "How it looked": f"{icon} {phrase.label}",
+                "Resting heart rate": f"{n.rhr_bpm:.1f} bpm" if n.rhr_bpm is not None else "-",
+                "vs your usual": (
+                    f"{n.deviation_bpm:+.1f} bpm" if n.deviation_bpm is not None else "-"
+                ),
+                "Explained by activity": f"{n.explained_bpm:.1f} bpm",
+                "Left unexplained": (
+                    f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "-"
+                ),
+                "Watch worn": f"{n.coverage_minutes} min",
+                "Investigation": "yes" if n.episode_id else "-",
             }
         )
 
     df_table = pd.DataFrame(table_data)
     st.dataframe(df_table, use_container_width=True)
+    st.caption(
+        "'Left unexplained' is the column that matters. It is how far the night sat "
+        "above your usual after subtracting what a recorded workout or a short night's "
+        "sleep would be expected to add."
+    )
 
-    with st.expander("🔍 Inspect Full Night Computation & Physiological Breakdown"):
+    with st.expander("Look at one night in detail"):
         selected_date_str = st.selectbox(
-            "Select a specific night to inspect sensor breakdown:",
+            "Which night",
             options=[d["Date"] for d in table_data],
             key="history_night_inspect_select",
         )
@@ -93,32 +113,35 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
                 det = detail.detection
                 with col_a:
                     st.metric(
-                        "Overnight Resting HR",
-                        f"{feat.rhr_bpm:.1f} bpm" if feat.rhr_bpm is not None else "N/A",
+                        "Resting heart rate",
+                        f"{feat.rhr_bpm:.1f} bpm" if feat.rhr_bpm is not None else "n/a",
                     )
+                    st.caption("Measured between midnight and 7am.")
                     st.metric(
-                        "Personal Baseline (Median)",
-                        f"{base.centre_bpm:.1f} bpm" if base.centre_bpm is not None else "N/A",
+                        "Your usual for this period",
+                        f"{base.centre_bpm:.1f} bpm" if base.centre_bpm is not None else "n/a",
                     )
+                    st.caption("The middle of your recent nights, not an average.")
                 with col_b:
-                    st.metric("Valid Nocturnal Minutes", f"{feat.coverage_minutes} min")
+                    st.metric("Watch worn", f"{feat.coverage_minutes} min")
+                    st.caption("Out of the 420 minutes between midnight and 7am.")
                     st.metric(
-                        "Sleep Duration",
-                        f"{feat.sleep_hours:.1f}h"
-                        if feat.sleep_hours is not None
-                        else "N/A",
+                        "Time asleep",
+                        f"{feat.sleep_hours:.1f} h" if feat.sleep_hours is not None else "n/a",
                     )
                 with col_c:
-                    st.metric("Post-Exercise Tachycardia Offset", f"{det.explained_bpm:.1f} bpm")
+                    st.metric("Explained by activity", f"{det.explained_bpm:.1f} bpm")
+                    st.caption("What a recorded workout would be expected to add.")
                     st.metric(
-                        "Final Residual Deviation",
-                        f"{det.residual_bpm:+.1f} bpm" if det.residual_bpm is not None else "N/A",
+                        "Left unexplained",
+                        f"{det.residual_bpm:+.1f} bpm" if det.residual_bpm is not None else "n/a",
                     )
+                    st.caption("This is the number the system judges.")
 
-                st.markdown("#### Full Raw Computation Output:")
-                st.json(detail.model_dump(mode="json"))
+                with st.expander("Everything recorded for this night"):
+                    st.json(detail.model_dump(mode="json"))
             else:
-                st.write("Detail not found for selected night.")
+                st.write("Nothing was recorded for that night.")
 
 
 def render_history_page(subject_id: str) -> None:
@@ -133,12 +156,12 @@ def render_history_page(subject_id: str) -> None:
         if ep_detail:
             from wha.ui.components.episode_panel import render_episode_panel
 
-            if st.button("⬅️ Back to Full History"):
+            if st.button("Back to all nights"):
                 del st.query_params["episode"]
                 st.rerun()
             render_episode_panel(ep_detail)
             return
-        st.warning(f"Episode `{ep_param}` not found.")
+        st.warning("That investigation could not be found.")
 
     from datetime import UTC, datetime
 

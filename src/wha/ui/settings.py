@@ -1,4 +1,8 @@
-"""Settings view rendering configuration forms, connection tests, policy adjustments, and data purging."""
+"""Settings: where your data comes from, how you get asked, and how often.
+
+Each control says what it changes from the person's point of view, and every
+number that affects how often they are interrupted explains what moving it does.
+"""
 
 import os
 
@@ -12,40 +16,52 @@ from wha.ui.components.status_strip import render_status_strip
 
 def render_connection_section(subject_id: str) -> None:
     """Render Bridge Connection settings, test button, and setup instructions."""
-    st.subheader("🔌 Health Connect Bridge Connection")
+    st.subheader("Where your readings come from")
+    st.caption(
+        "The companion app on your phone sends heart rate and step data to this "
+        "address. Nothing is read from your phone unless it is running."
+    )
     current_settings = get_service_settings()
 
     col1, col2 = st.columns(2)
     with col1:
         bridge_host = st.text_input(
-            "Bridge Host URL",
-            value=current_settings.bridge_host or "http://localhost:8080",
+            "Phone address",
+            value=current_settings.bridge_host or "",
+            placeholder="http://192.168.1.20:8787",
+            help="The address shown in the companion app on your phone.",
             key="sett_bridge_host",
         )
     with col2:
         # Secrets are rendered as password fields and never echoed back
         st.text_input(
-            "Bridge Token",
+            "Phone access code",
             value="",
             type="password",
-            placeholder="Enter token to update (never echoed)",
+            placeholder="Only needed to change it",
+            help="Shown in the companion app. Never displayed back to you.",
             key="sett_bridge_token",
         )
 
-    if st.button("🧪 Test Bridge Connection", key="btn_test_bridge"):
+    if st.button("Check the connection", key="btn_test_bridge"):
         from wha.service.status import test_bridge_connection
+
         clean_host = bridge_host.strip()
-        if clean_host and not clean_host.startswith("http://") and not clean_host.startswith("https://"):
+        if (
+            clean_host
+            and not clean_host.startswith("http://")
+            and not clean_host.startswith("https://")
+        ):
             clean_host = f"http://{clean_host}"
         token_val = st.session_state.get("sett_bridge_token") or None
-        st.info(f"Pinging bridge at `{clean_host}`...")
+        st.info(f"Trying `{clean_host}`...")
         chk = test_bridge_connection(bridge_host=clean_host, bridge_token=token_val)
         if chk.ok:
             st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
         else:
             st.error(f"❌ {chk.detail} ({chk.latency_ms}ms)")
 
-    with st.expander("📖 Health Connect Webhook App Setup Guide"):
+    with st.expander("How to set the phone up"):
         st.markdown(
             """
             1. Install the **Health Connect Webhook** companion app on your Android device.
@@ -58,7 +74,11 @@ def render_connection_section(subject_id: str) -> None:
 
 def render_llm_section(subject_id: str) -> None:
     """Render LLM provider settings, key input (password), and model choice."""
-    st.subheader("🤖 LLM Inference Provider")
+    st.subheader("The AI model")
+    st.caption(
+        "Used to word questions and write summaries. It never decides whether to "
+        "interrupt you, and it cannot switch off the safety rules."
+    )
     current_settings = get_service_settings()
 
     provider_options = ["cassette", "ollama_native", "openai_compatible"]
@@ -78,7 +98,8 @@ def render_llm_section(subject_id: str) -> None:
         )
         st.text_input(
             "Base URL (for OpenAI compatible / Ollama)",
-            value=getattr(current_settings, "llm_base_url", None) or os.environ.get("WHA_LLM_BASE_URL", "https://api.gptplus5.com/v1"),
+            value=getattr(current_settings, "llm_base_url", None)
+            or os.environ.get("WHA_LLM_BASE_URL", "https://api.gptplus5.com/v1"),
             key="sett_llm_base_url",
         )
     with col2:
@@ -112,7 +133,7 @@ def render_llm_section(subject_id: str) -> None:
 
 def render_notifications_section(subject_id: str) -> None:
     """Render Telegram notification settings and bot setup instructions."""
-    st.subheader("📬 Notifications")
+    st.subheader("How you get asked")
     current_settings = get_service_settings()
 
     channel_options = ["none", "telegram"]
@@ -148,6 +169,7 @@ def render_notifications_section(subject_id: str) -> None:
 
         if st.button("📨 Send Test Notification", key="btn_test_notify"):
             from wha.service.status import test_telegram_connection
+
             st.info("Sending test notification message...")
             token_val = st.session_state.get("sett_tg_token") or None
             chk = test_telegram_connection(token=token_val)
@@ -168,37 +190,48 @@ def render_notifications_section(subject_id: str) -> None:
 
 def render_policy_section(subject_id: str) -> None:
     """Render policy decision parameters and audit-logged save button."""
-    st.subheader("⚖️ Policy & Budget Thresholds")
+    st.subheader("How often you get asked")
+    st.caption(
+        "The system only asks a question when the answer would genuinely change what "
+        "it concludes. These limits cap it regardless."
+    )
     current_settings = get_service_settings()
 
     col1, col2, col3 = st.columns(3)
     with col1:
         inter_budget = st.number_input(
-            "Interruptions / Week",
+            "Most questions per week",
             min_value=1,
             max_value=14,
             value=current_settings.interruption_budget_per_week,
+            help="A hard cap. Once reached, nothing else will ask you until next week.",
             key="sett_inter_budget",
         )
     with col2:
         depth_budget = st.number_input(
-            "Depth / Episode",
+            "Most questions per investigation",
             min_value=1,
             max_value=10,
             value=current_settings.depth_budget_per_episode,
+            help="Stops one investigation asking you over and over.",
             key="sett_depth_budget",
         )
     with col3:
         cost_weight = st.number_input(
-            "Policy Cost Weight",
+            "How much being interrupted bothers you",
             min_value=0.0,
             max_value=2.0,
             step=0.05,
             value=current_settings.policy_cost_weight,
+            help=(
+                "Higher means the system needs to be more certain a question is worth "
+                "it before asking. Lower means it asks more often and is right more "
+                "often. See EVALUATION.md for the measured trade-off."
+            ),
             key="sett_cost_weight",
         )
 
-    if st.button("💾 Save Settings", key="btn_save_settings"):
+    if st.button("Save", key="btn_save_settings"):
         patch = SettingsPatch(
             interruption_budget_per_week=int(inter_budget),
             depth_budget_per_episode=int(depth_budget),
@@ -219,28 +252,29 @@ def render_policy_section(subject_id: str) -> None:
             else None,
         )
         update_settings(patch, subject_id=subject_id)
-        st.success("✅ Settings updated and policy changes logged to audit trail.")
+        st.success("Saved. The change is recorded in the audit record.")
 
 
 def render_data_privacy_section(subject_id: str) -> None:
     """Render Data Management and Delete-All under typed confirmation."""
-    st.subheader("🗑️ Data Privacy & Purge")
+    st.subheader("Delete everything")
     st.warning(
-        "Deleting subject data will permanently remove all biometric time-series, features, "
-        "episodes, interactions, and audit records for this subject."
+        "This removes every heart rate reading, every night, every investigation, "
+        "every question and answer, the audit record, and what the AI remembered "
+        "between steps. It cannot be undone and there is no backup."
     )
 
     confirm_text = st.text_input(
-        "Type `DELETE` to confirm permanent data destruction:",
+        "Type DELETE to confirm",
         key="sett_delete_confirm",
     )
 
-    if st.button("🚨 Delete All My Data", type="primary", key="btn_delete_all"):
+    if st.button("Delete all my data", type="primary", key="btn_delete_all"):
         if confirm_text.strip() == "DELETE":
             delete_all_subject_data(subject_id)
-            st.error(f"💥 All data for subject `{subject_id}` has been permanently deleted.")
+            st.error("Everything has been deleted.")
         else:
-            st.warning("⚠️ Deletion aborted: You must type 'DELETE' exactly to confirm.")
+            st.warning("Nothing was deleted. Type DELETE exactly to confirm.")
 
 
 def render_settings_page(subject_id: str) -> None:

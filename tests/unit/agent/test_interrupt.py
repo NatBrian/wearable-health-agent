@@ -115,7 +115,9 @@ def test_ask_node_calls_the_real_notifier_protocol_method() -> None:
     db = MagicMock()
     db.has_notification_for.return_value = False
 
-    with patch("wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}):
+    with patch(
+        "wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+    ):
         node_ask(state, notifier=notifier, db=db)
 
     assert notifier.send.call_count == 1
@@ -143,7 +145,9 @@ def test_failed_delivery_is_not_recorded_as_sent() -> None:
     db = MagicMock()
     db.has_notification_for.return_value = False
 
-    with patch("wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}):
+    with patch(
+        "wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+    ):
         node_ask(state, notifier=notifier, db=db)
 
     assert notifier.send.call_count == 1

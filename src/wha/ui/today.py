@@ -1,4 +1,4 @@
-"""Today view rendering inbox, active clinical interview, last night summary, and open episodes."""
+"""Today view: what happened last night, and anything that needs the person."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -19,81 +19,101 @@ from wha.service.episodes import (
 from wha.service.nights import list_nights
 from wha.service.status import get_system_status
 from wha.ui.components.status_strip import render_status_strip
+from wha.ui.components.wording import (
+    describe_bpm_difference,
+    disposition_phrase,
+    episode_state_phrase,
+    level_phrase,
+)
 
 
 def render_inbox(
     subject_id: str, pending: PendingInteraction | None, status: SystemStatus | None = None
 ) -> None:
-    """Render the single active pending interaction or the reassuring nothing-pending state."""
-    st.subheader("📬 Inbox & AI Clinical Interview")
-
+    """Render the one thing that needs the person, or say that nothing does."""
     if pending is None:
-        # Reassuring nothing-pending state
         stat = status or get_system_status(subject_id)
-        now_str = datetime.now(UTC).strftime("%H:%M UTC")
-        st.success(
-            f"✨ **Nothing needs your attention.** Last checked {now_str}. "
-            f"**{stat.quiet_nights_streak} quiet nights** in a row."
-        )
+        streak = stat.quiet_nights_streak
+        if streak <= 0:
+            st.success("**Nothing needs you right now.**")
+        else:
+            nights_word = "night" if streak == 1 else "nights"
+            st.success(f"**Nothing needs you right now.** {streak} quiet {nights_word} in a row.")
         return
 
     if pending.kind == "question" and pending.question:
         q = pending.question
-        st.markdown("### 💬 Active AI Clinical Investigation")
-        st.info(f"**Question for you:** {q.text}")
+        st.subheader("One question for you")
+        st.info(q.text)
         st.caption(
-            "Our algorithm detected a physiological deviation. The AI agent is asking a targeted clinical probe to evaluate your symptoms and update the Bayesian diagnostic differential."
+            "Your overnight heart rate was higher than usual and several things could "
+            "explain it. This is the single question whose answer would most change what "
+            "we think, which is why it is the only one being asked."
         )
 
-        free_text = st.text_input("Additional notes or symptoms (optional)", key="q_free_text")
+        free_text = st.text_input(
+            "Anything else you want to add (optional)",
+            key="q_free_text",
+            placeholder="For example: sore throat since yesterday",
+        )
 
         cols = st.columns(len(q.probe.answer_space) + 1)
         for idx, opt in enumerate(q.probe.answer_space):
             with cols[idx]:
                 if st.button(opt.label, key=f"opt_{opt.option_id}", use_container_width=True):
-                    ans = Answer(
-                        probe_id=q.probe.probe_id,
-                        option_id=opt.option_id,
-                        free_text=free_text or None,
-                        declined=False,
+                    submit_answer(
+                        pending.episode_id,
+                        Answer(
+                            probe_id=q.probe.probe_id,
+                            option_id=opt.option_id,
+                            free_text=free_text or None,
+                            declined=False,
+                        ),
                     )
-                    submit_answer(pending.episode_id, ans)
                     st.rerun()
 
         with cols[-1]:
-            if st.button("Not now", key="btn_decline", use_container_width=True):
-                ans = Answer(
-                    probe_id=q.probe.probe_id,
-                    option_id=q.probe.answer_space[0].option_id,
-                    free_text=None,
-                    declined=True,
+            if st.button("Skip", key="btn_decline", use_container_width=True):
+                submit_answer(
+                    pending.episode_id,
+                    Answer(
+                        probe_id=q.probe.probe_id,
+                        option_id=q.probe.answer_space[0].option_id,
+                        free_text=None,
+                        declined=True,
+                    ),
                 )
-                submit_answer(pending.episode_id, ans)
                 st.rerun()
+
+        st.caption("Skipping is fine. You will not be asked this again for this episode.")
 
     elif pending.kind == "measurement" and pending.measurement:
         m = pending.measurement
-        st.warning(f"**Measurement requested:** {m.instruction}")
+        st.subheader("A quick reading would help")
+        st.warning(m.instruction)
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("Done", key=f"m_done_{m.measurement_id}", type="primary"):
+            if st.button("I've done it", key=f"m_done_{m.measurement_id}", type="primary"):
                 submit_measurement_done(m.measurement_id)
                 st.rerun()
         with col2:
-            if st.button("Can't right now", key=f"m_cant_{m.measurement_id}"):
-                st.info("Measurement skipped for today.")
+            if st.button("Not right now", key=f"m_cant_{m.measurement_id}"):
+                st.info("No problem. This will be skipped for today.")
 
     elif pending.kind == "review" and pending.draft_outcome:
         draft = pending.draft_outcome
-        st.warning(f"**Review requested for Episode {pending.episode_id}**")
-        st.write(f"**Draft Disposition:** `{draft.disposition.value}`")
-        st.write(f"**Observation:** {draft.observation}")
-        edit_prose = st.text_area("Edit outcome observation (optional)", value=draft.observation)
-        rationale = st.text_input("Reviewer rationale (optional)")
+        phrase = disposition_phrase(draft.disposition)
+        st.subheader("A summary is ready to check")
+        st.write(f"**Conclusion:** {phrase.label}")
+        st.caption(phrase.explanation)
+        st.write(draft.observation)
+
+        edit_prose = st.text_area("Change the wording (optional)", value=draft.observation)
+        rationale = st.text_input("Why (optional)")
 
         col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("Approve", key="rev_approve", type="primary"):
+            if st.button("Looks right", key="rev_approve", type="primary"):
                 submit_human_decision(
                     episode_id=pending.episode_id,
                     decision="approve",
@@ -102,74 +122,100 @@ def render_inbox(
                 )
                 st.rerun()
         with col2:
-            if st.button("Reject", key="rev_reject"):
+            if st.button("Not right", key="rev_reject"):
                 submit_human_decision(
                     episode_id=pending.episode_id,
                     decision="reject",
-                    rationale=rationale or "Rejected by human reviewer",
+                    rationale=rationale or "Rejected on review",
                 )
                 st.rerun()
         with col3:
-            if st.button("Escalate", key="rev_escalate"):
+            if st.button("This needs a doctor", key="rev_escalate"):
                 submit_human_decision(
                     episode_id=pending.episode_id,
                     decision="escalate",
-                    rationale=rationale or "Escalated by human reviewer",
+                    rationale=rationale or "Escalated on review",
                 )
                 st.rerun()
 
 
 def render_last_night_summary(subject_id: str) -> None:
-    """Render last night status in a clean card."""
-    st.subheader("🌙 Last Night Vitals & Clinical Assessment")
+    """Say plainly how last night looked, with the numbers available underneath."""
+    st.subheader("Last night")
     end_d = datetime.now(UTC).date()
     start_d = end_d - timedelta(days=14)
     nights = list_nights(subject_id, start=start_d, end=end_d)
     usable_nights = [n for n in reversed(nights) if n.usable and n.rhr_bpm is not None]
+
     if not usable_nights:
-        st.info("No night vitals recorded yet.")
+        st.info("No nights recorded yet. Wear the watch overnight and readings will appear here.")
         return
 
     n = usable_nights[0]
-    rhr = f"{n.rhr_bpm:.1f} bpm" if n.rhr_bpm is not None else "N/A"
-    dev = f"{n.deviation_bpm:+.1f} bpm" if n.deviation_bpm is not None else "N/A"
-    res = f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "N/A"
+    phrase = level_phrase(n.level)
 
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Resting Heart Rate", rhr)
-    with col2:
-        st.metric("Baseline Deviation", dev)
-    with col3:
-        st.metric("Unexplained Residual", res)
-    with col4:
-        st.metric("Detection Level", n.level.value)
+    if n.level.value == "GREEN":
+        st.success(f"**{phrase.label}.** {phrase.explanation}")
+    elif n.level.value == "YELLOW":
+        st.warning(f"**{phrase.label}.** {phrase.explanation}")
+    elif n.level.value == "RED":
+        st.error(f"**{phrase.label}.** {phrase.explanation}")
+    else:
+        st.info(f"**{phrase.label}.** {phrase.explanation}")
 
     st.caption(
-        f"Recorded for night of **{n.night_date}** with {n.coverage_minutes} minutes of valid nocturnal watch contact."
+        f"Night of {n.night_date}. Your watch was in contact for "
+        f"{n.coverage_minutes} minutes between midnight and 7am."
     )
+
+    with st.expander("Show the numbers"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Resting heart rate", f"{n.rhr_bpm:.1f} bpm")
+            st.caption("Your lowest sustained rate between midnight and 7am.")
+        with col2:
+            st.metric(
+                "Compared with your usual",
+                f"{n.deviation_bpm:+.1f} bpm" if n.deviation_bpm is not None else "n/a",
+            )
+            st.caption("How far this night sat above or below your own baseline.")
+        with col3:
+            st.metric(
+                "After known causes",
+                f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "n/a",
+            )
+            st.caption(
+                "The same difference after subtracting what a recorded workout or "
+                "short sleep would be expected to add. This is what gets judged."
+            )
+
+        st.write(f"In words: {describe_bpm_difference(n.residual_bpm)}.")
+        st.caption(f"Internal level for this night: {phrase.technical}")
 
 
 def render_open_episodes(subject_id: str) -> None:
-    """Render one-line summaries of open episodes."""
-    st.subheader("📋 Active Clinical Episodes")
+    """List anything currently being looked into."""
+    st.subheader("Being looked into")
     episodes = list_episodes(subject_id)
     open_eps = [e for e in episodes if e.state.value not in ("CLOSED", "RESOLVED")]
 
     if not open_eps:
-        st.caption("No open episodes. All physiological signals within normal bounds.")
+        st.caption("Nothing open. Quiet nights are not shown here.")
         return
 
     for ep in open_eps:
-        disp = ep.disposition.value if ep.disposition else "IN_PROGRESS"
-        disp_icon = "🩺" if "ILLNESS" in disp else "🚨" if "ESCALATE" in disp else "🔍"
-        st.write(
-            f"{disp_icon} **Episode `{ep.episode_id}`** (opened {ep.opened_on}) — State: `{ep.state.value}`, Disposition: `{disp}`"
-        )
+        state = episode_state_phrase(ep.state)
+        st.write(f"**{state.label}** — started {ep.opened_on}")
+        st.caption(state.explanation)
+        if ep.disposition is not None:
+            phrase = disposition_phrase(ep.disposition)
+            st.caption(f"So far: {phrase.label}")
+        with st.expander("Reference"):
+            st.caption(f"Investigation id `{ep.episode_id}`, internal state `{ep.state.value}`.")
 
 
 def render_today_page(subject_id: str) -> None:
-    """Render complete Today surface."""
+    """Render the Today surface."""
     render_status_strip(subject_id)
     st.write("---")
 

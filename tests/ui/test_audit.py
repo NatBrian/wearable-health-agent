@@ -20,7 +20,7 @@ def test_audit_hash_chain_verifies() -> None:
         assert intact is True
         assert mock_success.called
         assert not mock_error.called
-        assert "Intact" in mock_success.call_args[0][0]
+        assert "intact" in mock_success.call_args[0][0].lower()
 
     # 2. Tampered chain
     with (
@@ -33,7 +33,9 @@ def test_audit_hash_chain_verifies() -> None:
         assert mock_error.called
         assert not mock_success.called
         err_msg = mock_error.call_args[0][0]
-        assert "TAMPER DETECTED" in err_msg
+        # Asserts the meaning, not the exact wording: the reader is told the record
+        # was altered, and where the sequence breaks.
+        assert "altered" in err_msg.lower()
         assert "evt_tampered_004" in err_msg
 
 

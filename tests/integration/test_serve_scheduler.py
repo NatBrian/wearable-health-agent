@@ -145,7 +145,9 @@ def test_first_run_produces_insufficient_data(tmp_path: Path) -> None:
     ):
         render_today_page("sub_empty")
         assert mock_success.called
-        # Contains reassuring empty state
+        # Contains the reassuring empty state. Asserts the meaning rather than exact prose:
+        # a person opening an empty dashboard must be told nothing is required of them,
+        # not shown a blank page they cannot distinguish from a broken one.
         assert any(
-            "Nothing needs your attention" in call[0][0] for call in mock_success.call_args_list
+            "nothing needs you" in call[0][0].lower() for call in mock_success.call_args_list
         )

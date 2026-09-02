@@ -44,7 +44,10 @@ def test_today_nothing_pending() -> None:
         render_inbox(subject_id="sub_test", pending=None, status=status)
         assert mock_success.called
         msg = mock_success.call_args[0][0]
-        assert "Nothing needs your attention" in msg
+        # Asserts the meaning rather than the exact prose: the person is told nothing is
+        # required of them, and the quiet streak is shown so the silence is evidently
+        # deliberate rather than the system having stopped working.
+        assert "Nothing needs you" in msg
         assert "14 quiet nights" in msg
 
 
@@ -149,14 +152,20 @@ def test_today_pending_review() -> None:
     )
 
     with (
-        patch("streamlit.warning") as mock_warning,
+        patch("streamlit.write") as mock_write,
         patch("streamlit.button", side_effect=[True, False, False]),
         patch("streamlit.columns", return_value=[MagicMock(), MagicMock(), MagicMock()]),
+        patch("streamlit.text_area", return_value="Elevated RHR observed."),
+        patch("streamlit.text_input", return_value=""),
         patch("streamlit.rerun"),
         patch("wha.ui.today.submit_human_decision") as mock_decision,
     ):
         render_inbox(subject_id="sub_test", pending=pending)
-        assert mock_warning.called
+        # The draft must actually reach the screen, which is a stronger check than
+        # asserting that a particular Streamlit call was made to display it.
+        written = " ".join(str(c[0][0]) for c in mock_write.call_args_list if c[0])
+        assert "Possibly coming down with something" in written
+        assert "Elevated RHR observed" in written
         assert mock_decision.called
         call_args = mock_decision.call_args
         assert call_args.kwargs["episode_id"] == "ep_001"

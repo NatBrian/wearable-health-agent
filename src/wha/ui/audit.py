@@ -1,220 +1,290 @@
-"""Audit view rendering end-to-end pipeline transparency, architectural inspector, cryptographic verification, and exports."""
+"""Audit: what the system did with your data, and proof the record has not been altered.
+
+Every threshold quoted on this page is read from the constants and the knowledge tables
+at render time rather than written into the prose. The previous version hardcoded its
+figures and had drifted away from the code: it claimed a 120-minute coverage minimum
+against an actual 180, a 1.0 bpm scale floor against an actual 1.5, baseline tiers that
+did not match the ladder, and tool names that are not in the registry. It also promised
+"zero cloud leakage" while the language model runs against a remote endpoint. Numbers
+written by hand in an explanation drift; numbers read from the source cannot.
+"""
 
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
+from wha.constants import (
+    BASELINE_SCALE_FLOOR_BPM,
+    DETECT_PERSISTENCE_NIGHTS,
+    DETECT_RED_BPM,
+    DETECT_YELLOW_BPM,
+    HR_PLAUSIBLE_MAX_BPM,
+    HR_PLAUSIBLE_MIN_BPM,
+    INTERRUPTION_BUDGET_PER_WEEK,
+    MIN_NOCTURNAL_MINUTES,
+    N_CAUSES,
+    RUNG_COLD_MAX_NIGHTS,
+    RUNG_PERSONAL_MAX_NIGHTS,
+    RUNG_PRIOR_MAX_NIGHTS,
+    RUNG_SHRINKING_MAX_NIGHTS,
+)
 from wha.models import AuditFilter
-from wha.service.audit import export_audit, query_audit, verify_hash_chain
+from wha.service.audit import (
+    export_audit,
+    get_permitted_tool_names,
+    query_audit,
+    verify_hash_chain,
+)
 from wha.service.episodes import get_episode, list_episodes
 from wha.ui.components.status_strip import render_status_strip
+from wha.ui.components.wording import disposition_phrase, episode_state_phrase
 
 
 def render_hash_chain_panel(subject_id: str) -> bool:
-    """Render tamper-evidence hash-chain verification card."""
-    st.subheader("🔒 Cryptographic Hash-Chain Verification")
+    """Say whether the record has been altered since it was written."""
+    st.subheader("Has the record been changed?")
     intact, bad_id = verify_hash_chain(subject_id)
     if intact:
         st.success(
-            "✅ **Hash-Chain Intact**: All audit event hashes match their SHA-256 chain links. Every model call, safety rule, and user interaction is immutably recorded."
+            "**No. The record is intact.** Every entry still matches the fingerprint "
+            "taken when it was written, and each fingerprint includes the one before it. "
+            "Changing or removing any entry after the fact would break the sequence from "
+            "that point on."
         )
         return True
-    else:
-        st.error(f"🚨 **TAMPER DETECTED**: Cryptographic mismatch at event `{bad_id}`.")
-        return False
 
-
-def render_pipeline_architecture_inspector(subject_id: str) -> None:
-    """Render visual interactive 8-stage end-to-end architectural pipeline inspector."""
-    st.markdown("## 🔍 End-to-End System Pipeline & Architecture Inspector")
-    st.markdown(
-        "This interactive inspector provides **100% transparent and honest visibility** into how your wearable health data travels through every deterministic logic gate, statistical model, deterministic safety rule, and AI agent workflow."
+    st.error(
+        f"**The record has been altered.** The sequence breaks at entry `{bad_id}`. "
+        "Everything before that point is still intact; nothing after it can be trusted."
     )
+    return False
 
-    # Let user select an episode or inspect general subject pipeline
-    episodes = list_episodes(subject_id)
-    ep_options = {
-        ep.episode_id: f"Episode {ep.episode_id} ({ep.disposition.value if ep.disposition else ep.state.value}) - Opened: {ep.opened_on}"
-        for ep in episodes
-    }
 
-    selected_ep_id = None
-    if ep_options:
-        selected_ep_id = st.selectbox(
-            "Select an Episode to inspect its end-to-end execution path:",
-            options=list(ep_options.keys()),
-            format_func=lambda x: ep_options[x],
-            key="audit_pipeline_ep_selector",
+def render_how_it_works(subject_id: str) -> None:
+    """Explain the pipeline, with every figure read from the code."""
+    st.subheader("How a night gets judged")
+    st.caption("The numbers below are read from the running system, not written into this page.")
+
+    with st.expander("1. Reading the watch", expanded=False):
+        st.markdown(
+            f"""
+- Only the window from midnight to 7am is used, because daytime heart rate reflects
+  whatever you were doing.
+- At least **{MIN_NOCTURNAL_MINUTES} minutes** of contact are needed, or the night is
+  marked unusable rather than guessed at.
+- Readings below **{HR_PLAUSIBLE_MIN_BPM} bpm** or above **{HR_PLAUSIBLE_MAX_BPM} bpm**
+  are treated as sensor error and dropped.
+"""
         )
 
-    ep_detail = get_episode(selected_ep_id) if selected_ep_id else None
+    with st.expander("2. Learning your normal", expanded=False):
+        st.markdown(
+            f"""
+Your baseline is the middle of your recent nights, not an average, so one bad night
+cannot drag it. How much it relies on you rather than on typical adults depends on how
+many nights it has:
 
-    st.markdown("### 🗺️ System Execution Layers (8 Stages)")
+| Nights of your own | What it uses |
+|---|---|
+| 0 to {RUNG_COLD_MAX_NIGHTS} | Nothing is judged yet |
+| {RUNG_COLD_MAX_NIGHTS + 1} to {RUNG_PRIOR_MAX_NIGHTS} | Mostly typical adults |
+| {RUNG_PRIOR_MAX_NIGHTS + 1} to {RUNG_SHRINKING_MAX_NIGHTS} | A blend |
+| {RUNG_SHRINKING_MAX_NIGHTS + 1} to {RUNG_PERSONAL_MAX_NIGHTS} | Mostly you |
+| {RUNG_PERSONAL_MAX_NIGHTS + 1} and up | You alone |
 
-    # 1. Ingestion Layer
-    with st.expander("1️⃣ **Layer 1: Ingestion & Privacy Boundary**", expanded=True):
-        st.markdown("""
-        - **Source:** Health Connect HTTP Bridge / Synthetic / Cohort Replay.
-        - **Privacy Guarantee:** All processing is strictly local (edge-first). Raw JSON payloads are hashed with **SHA-256** before parsing and stored locally in SQLite (`raw_payloads`).
-        - **Zero Cloud Leakage:** Intraday telemetry is never uploaded to remote servers without explicit user approval.
-        """)
-        if ep_detail:
-            st.info(f"**Ingested Context:** Subject `{subject_id}` | Privacy boundary verified.")
+The measure of your night-to-night spread never goes below **{BASELINE_SCALE_FLOOR_BPM} bpm**.
+Watches report whole numbers, so a run of identical nights would otherwise give a spread
+of exactly zero and make every later night look infinitely unusual.
+"""
+        )
 
-    # 2. Feature Derivation Layer
-    with st.expander("2️⃣ **Layer 2: Feature Derivation & Quality Gate**", expanded=False):
-        st.markdown("""
-        - **Nocturnal Extraction Window:** Extracts resting heart rate strictly during 00:00 - 07:00 deep sleep periods to eliminate daytime orthostatic and emotional noise.
-        - **Coverage Quality Gate:** Requires a minimum of 120 valid nocturnal minutes. Implausible heart rate samples (<30 bpm or >220 bpm) are quarantined.
-        - **Covariates Extracted:** Sleep architecture (Deep, REM, Light, Awake) and exercise sessions (METs and post-workout timing).
-        """)
+    with st.expander("3. Deciding a night is worth looking at", expanded=False):
+        st.markdown(
+            f"""
+- Anything a recorded workout would be expected to add is subtracted first.
+- What remains is compared with your usual: **{DETECT_YELLOW_BPM} bpm** above is slightly
+  raised, **{DETECT_RED_BPM} bpm** above is clearly raised.
+- A single raised night is not enough. It takes **{DETECT_PERSISTENCE_NIGHTS} nights** in a
+  row, including at least one clearly raised, before anything opens. That is what keeps a
+  late drink from starting an investigation.
+"""
+        )
 
-    # 3. Statistical Baseline & ML Anomaly Detection Layer
-    with st.expander("3️⃣ **Layer 3: Adaptive Baseline & Anomaly Detection**", expanded=False):
-        st.markdown("""
-        - **Multi-tier Empirical Shrinkage:** 
-          - `Cold` (0-2 days): Broad population bounds.
-          - `Prior Dominated` (3-6 days): Shrinkage estimation.
-          - `Shrinking` (7-20 days): Blending individual history with cohort prior.
-          - `Personal` (21+ days): High-confidence individual median & Median Absolute Deviation (MAD).
-        - **Mathematical Scale Floor:** $\\text{MAD} = \\max(\\text{MAD}, 1.0\\text{ bpm})$ to prevent division-by-zero on quantized wearable sensors.
-        - **Chronos Foundation Model:** Advisory zero-shot neural time-series forecast running locally for trend validation.
-        """)
-        if ep_detail and ep_detail.outcome:
-            st.code(
-                f"Baseline Rung: {ep_detail.outcome.baseline_rung.value} | Calibration Nights: {ep_detail.outcome.baseline_nights} nights"
+    with st.expander("4. The safety rules, which run before anything else", expanded=True):
+        st.markdown(
+            """
+If you describe certain symptoms in your own words, the system stops and tells you to
+seek care. That check is plain pattern matching against a human-written list, it runs
+before any model is consulted, and no amount of model output can switch it off. A
+language model can only **add** a flag to that list, never remove one.
+"""
+        )
+
+    with st.expander("5. What the AI is and is not allowed to do", expanded=True):
+        tool_names = get_permitted_tool_names()
+        tools = "\n".join(f"- `{name}`" for name in tool_names)
+        st.markdown(
+            f"""
+The model can only call these {len(tool_names)} read-only tools, and nothing
+else. Any other request is refused and recorded:
+
+{tools}
+
+It cannot write to your record, send you anything, or decide whether to interrupt you.
+"""
+        )
+
+    with st.expander("6. Working out the likely cause", expanded=False):
+        st.markdown(
+            f"""
+The system tracks **{N_CAUSES} possible causes** at once and considers every combination
+of them being present or absent, which is {2**N_CAUSES:,} possibilities. This is ordinary
+arithmetic, not a model, so the same evidence always gives the same answer.
+"""
+        )
+
+    with st.expander("7. Deciding whether to interrupt you", expanded=True):
+        st.markdown(
+            f"""
+This is the one decision the AI does not make. Before asking anything, the system works
+out how much the answer could actually change what it does. If that is worth less than
+the cost of interrupting you, it stays quiet. You are asked at most
+**{INTERRUPTION_BUDGET_PER_WEEK} times a week**.
+
+This is why most raised nights never produce a question.
+"""
+        )
+
+    with st.expander("8. Where your data goes", expanded=False):
+        st.markdown(
+            """
+Readings, nightly figures and the full record stay in a database file on this machine.
+
+The one exception is the language model. Unless it is set to the offline recorded
+provider, the text of a question or summary is sent to whichever model endpoint is
+configured, which may be a remote service. The Settings page shows which is in use.
+"""
+        )
+
+
+def render_episode_trace(subject_id: str) -> None:
+    """Show what actually happened inside one investigation."""
+    st.subheader("Step by step through one investigation")
+
+    episodes = list_episodes(subject_id)
+    if not episodes:
+        st.caption("Nothing has been investigated yet, so there is no trace to show.")
+        return
+
+    def _describe(ep_id: str) -> str:
+        ep = next((e for e in episodes if e.episode_id == ep_id), None)
+        if ep is None:
+            return ep_id
+        phrase = (
+            disposition_phrase(ep.disposition)
+            if ep.disposition is not None
+            else episode_state_phrase(ep.state)
+        )
+        return f"{ep.opened_on} - {phrase.label}"
+
+    selected = st.selectbox(
+        "Which investigation",
+        options=[e.episode_id for e in episodes],
+        format_func=_describe,
+        key="audit_trace_selector",
+    )
+    detail = get_episode(selected) if selected else None
+    if detail is None:
+        return
+
+    if detail.stages:
+        st.markdown("**What ran, and what was skipped**")
+        for stg in detail.stages:
+            icon = "✅" if stg.status.value == "RAN" else "⏭️"
+            duration = f" ({stg.duration_ms} ms)" if stg.duration_ms else ""
+            st.write(f"{icon} **{stg.name}**{duration} — {stg.reason}")
+
+    if detail.belief_history:
+        st.markdown("**How the thinking changed as evidence arrived**")
+        for seq, trigger, belief in detail.belief_history:
+            if not belief.marginals:
+                continue
+            top_cause, top_prob = max(belief.marginals.items(), key=lambda x: x[1])
+            st.write(
+                f"Step {seq} (after {trigger}): most likely **{top_cause}** at "
+                f"{top_prob:.0%}, chance of illness {belief.p_illness:.0%}"
             )
 
-    # 4. Covariate Subtraction & Persistence Filter Layer
-    with st.expander(
-        "4️⃣ **Layer 4: Explained-Variance Subtraction & Persistence Filter**", expanded=False
-    ):
-        st.markdown("""
-        - **Post-Exercise Tachycardia Subtraction:** Subtracts $+4.14\\text{ bpm}$ expected exercise elevation for late workouts, preventing false alarms.
-        - **Persistence Gating:** Requires 2 consecutive nights of elevation for non-acute signals, cleanly filtering single-night alcohol artifacts without user interruption.
-        """)
-
-    # 5. Deterministic Safety & Red-Flag Gate
-    with st.expander(
-        "5️⃣ **Layer 5: Deterministic Safety Rules & Red-Flag Intercept**", expanded=True
-    ):
-        st.markdown("""
-        - **Deterministic Rule Engine:** Scans for cardinal symptoms (e.g. crushing chest pain, severe dyspnea, cyanosis).
-        - **Hallucination Prevention Guarantee:** If a red-flag condition is matched, the system **bypasses LLM agent reasoning completely** and triggers immediate emergency triage advice (`seek_urgent_care`).
-        """)
-        if ep_detail and ep_detail.outcome and ep_detail.outcome.disposition.value == "ESCALATED":
-            st.error(f"🚨 **Red-Flag Rule Triggered**: {ep_detail.outcome.observation}")
-
-    # 6. LangGraph Agentic Workflow & Tool Calling
-    with st.expander("6️⃣ **Layer 6: LangGraph Agentic Workflow (State Machine)**", expanded=True):
-        st.markdown("""
-        - **State Machine Nodes:** `Investigate` $\\rightarrow$ `Decide` $\\rightarrow$ `Conclude`.
-        - **Tool Calling (Bounded & Audited):**
-          - `get_history`: Retrieves 14-day physiological trends.
-          - `get_surveillance`: Checks local public health pathogen activity (ILI/COVID-19).
-          - `get_evidence`: Hybrid BM25 + Dense vector retrieval over peer-reviewed medical corpus.
-          - `get_comparable_episodes`: Queries past historical episodes for the same subject.
-        """)
-        if ep_detail and ep_detail.stages:
-            st.markdown("#### Execution Trace Stages for Selected Episode:")
-            for stg in ep_detail.stages:
-                status_icon = "✅" if stg.status.value == "RAN" else "⏭️"
-                dur = f"({stg.duration_ms} ms)" if stg.duration_ms else ""
-                st.write(
-                    f"{status_icon} **{stg.name}** — `{stg.status.value}` {dur} — *{stg.reason}*"
-                )
-
-    # 7. Exact Bayesian Causal Belief State & EVSI Optimizer
-    with st.expander(
-        "7️⃣ **Layer 7: Bayesian Causal Belief State & EVSI Decision Policy**", expanded=True
-    ):
-        st.markdown("""
-        - **Exact Discrete Enumeration:** Evaluates $2^{12} = 4,096$ causal configurations (Infection, Alcohol, Exertion, Sleep, Stress, Vaccination, Medication, etc.) using log-space arithmetic to prevent floating-point underflow.
-        - **Information-Gain Math (EVSI):**
-          $$\\text{EVSI}(P) = \\mathbb{E}[\\max_a U(a, \\theta)] - \\max_a \\mathbb{E}[U(a, \\theta)]$$
-        - **Decision Rule:** Ask question only if $\\text{EVSI}(P) - \\text{Interruption Cost} > 0$ and weekly interruption budget is available.
-        """)
-        if ep_detail and ep_detail.belief_history:
-            st.markdown("#### Probability Evolution across Investigation Steps:")
-            for seq, trig, b_view in ep_detail.belief_history:
-                top_c = (
-                    max(b_view.marginals.items(), key=lambda x: x[1])
-                    if b_view.marginals
-                    else ("None", 0.0)
-                )
-                st.write(
-                    f"- Step {seq} (`{trig}`): **Top Cause: {top_c[0]} ({top_c[1]:.1%})** | $P(\\text{{Illness}}) = {b_view.p_illness:.1%}$"
-                )
-
-    # 8. Human-in-the-Loop Interaction & Grounded Outcome
-    with st.expander(
-        "8️⃣ **Layer 8: Human Interaction & Grounded Clinical Differential**", expanded=True
-    ):
-        st.markdown("""
-        - **Interactive Questionnaire:** Delivered via Web Dashboard or Telegram inline keyboards.
-        - **Verbatim Grounding Check:** Automated safety check ensures every sentence in the generated differential is strictly supported by retrieved medical literature. Any hallucinated claim is automatically stripped.
-        - **Cryptographic Audit:** SHA-256 hash linking previous event hash to current event hash.
-        """)
-        if ep_detail and ep_detail.outcome:
-            st.success(
-                f"**Final Grounded Outcome:** `{ep_detail.outcome.disposition.value}` | Action: `{ep_detail.outcome.action}` | Confidence: `{ep_detail.outcome.confidence.upper()}`"
-            )
-            st.write(f"*{ep_detail.outcome.observation}*")
+    if detail.outcome:
+        phrase = disposition_phrase(detail.outcome.disposition)
+        st.markdown("**What it concluded**")
+        st.info(f"**{phrase.label}.** {detail.outcome.observation}")
+        st.caption(
+            f"Internal disposition `{phrase.technical}`, confidence {detail.outcome.confidence}."
+        )
 
 
 def render_audit_table(subject_id: str, f: AuditFilter, limit: int = 50, offset: int = 0) -> None:
-    """Render filterable, paginated audit trail table."""
-    st.subheader("📜 Cryptographic Event Log Table")
+    """Render the event log."""
+    st.subheader("Every recorded action")
     events = query_audit(f, limit=limit, offset=offset)
 
     if not events:
-        st.info("No audit events match the selected criteria.")
+        st.info("Nothing matches those filters.")
         return
 
     data = []
     for e in events:
         data.append(
             {
-                "Event ID": e.event_id,
-                "Timestamp (UTC)": e.timestamp_utc.strftime("%Y-%m-%d %H:%M:%S"),
-                "Episode": e.episode_id or "-",
-                "Actor": e.actor,
-                "Operation": e.operation,
-                "Tier": e.control_tier.value,
-                "Tool": e.tool_name or "-",
-                "Permission": e.permission_decision or "-",
-                "Safety Event": e.safety_event or "-",
-                "Hash Status": "VALID" if e.hash_ok else "INVALID",
+                "When (UTC)": e.timestamp_utc.strftime("%Y-%m-%d %H:%M:%S"),
+                "Who": e.actor,
+                "What": e.operation,
+                "Tool used": e.tool_name or "-",
+                "Allowed": e.permission_decision or "-",
+                "Safety": e.safety_event or "-",
+                "Unaltered": "yes" if e.hash_ok else "NO",
+                "Investigation": e.episode_id or "-",
+                "Entry id": e.event_id,
             }
         )
 
-    df = pd.DataFrame(data)
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(pd.DataFrame(data), use_container_width=True)
+    st.caption(
+        "'Who' is either you, the scheduled nightly job, or the AI agent. "
+        "'Allowed' records whether a tool request was permitted or refused."
+    )
 
 
 def render_audit_page(subject_id: str) -> None:
-    """Render complete Audit page."""
+    """Render the Audit page."""
     render_status_strip(subject_id)
     st.write("---")
 
+    st.title("The record")
+    st.caption(
+        "Everything this system does is written down as it happens, including what the AI "
+        "asked for and what it was refused."
+    )
+
     render_hash_chain_panel(subject_id)
     st.write("---")
-
-    render_pipeline_architecture_inspector(subject_id)
+    render_how_it_works(subject_id)
+    st.write("---")
+    render_episode_trace(subject_id)
     st.write("---")
 
-    # Filter form
-    st.markdown("### 🔍 Search & Filter Cryptographic Audit Trail")
+    st.subheader("Search the record")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        ep_filter = st.text_input("Filter by Episode ID", key="audit_ep_filter")
+        ep_filter = st.text_input("Investigation id", key="audit_ep_filter")
     with col2:
-        actor_filter = st.text_input("Filter by Actor", key="audit_actor_filter")
+        actor_filter = st.text_input("Who (you, agent, scheduler)", key="audit_actor_filter")
     with col3:
-        op_filter = st.text_input("Filter by Operation", key="audit_op_filter")
+        op_filter = st.text_input("What happened", key="audit_op_filter")
     with col4:
-        safety_filter = st.text_input("Filter by Safety Event", key="audit_safety_filter")
+        safety_filter = st.text_input("Safety events only", key="audit_safety_filter")
 
     audit_f = AuditFilter(
         subject_id=subject_id,
@@ -227,15 +297,16 @@ def render_audit_page(subject_id: str) -> None:
     render_audit_table(subject_id, audit_f)
 
     st.write("---")
-    st.markdown("### 📥 Export Tamper-Proof Audit Trail")
+    st.subheader("Take a copy")
+    st.caption("The exported file includes the fingerprints, so it can be checked elsewhere.")
     col_csv, col_json = st.columns(2)
     with col_csv:
-        if st.button("Export to CSV", key="btn_export_csv"):
+        if st.button("Download as CSV", key="btn_export_csv"):
             export_path = Path("scratch") / f"audit_{subject_id}.csv"
             export_audit(audit_f, export_path)
-            st.success(f"Exported to `{export_path}`")
+            st.success(f"Saved to `{export_path}`")
     with col_json:
-        if st.button("Export to JSON", key="btn_export_json"):
+        if st.button("Download as JSON", key="btn_export_json"):
             export_path = Path("scratch") / f"audit_{subject_id}.json"
             export_audit(audit_f, export_path)
-            st.success(f"Exported to `{export_path}`")
+            st.success(f"Saved to `{export_path}`")

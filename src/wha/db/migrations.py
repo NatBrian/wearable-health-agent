@@ -10,9 +10,7 @@ DB_VERSION = 2
 # Columns added after version 1. CREATE TABLE IF NOT EXISTS does not alter a table that
 # already exists, so a database created before a column was introduced would silently
 # lack it and fail at the first write. Each entry is applied only when absent.
-_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
-    ("beliefs", "state_logprob_json", "TEXT"),
-)
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (("beliefs", "state_logprob_json", "TEXT"),)
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, decl: str) -> bool:

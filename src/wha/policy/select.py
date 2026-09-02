@@ -168,11 +168,7 @@ def determine_disposition(
     # resolve as LIKELY_BENIGN, which is the honest reading of a low illness probability
     # with no discrete cause behind it.
     top_cause, top_prob = belief.top(1)[0]
-    if (
-        top_cause in EVENT_CAUSES
-        and top_prob >= 0.50
-        and p_inf < DERIVED_TREATMENT_THRESHOLD
-    ):
+    if top_cause in EVENT_CAUSES and top_prob >= 0.50 and p_inf < DERIVED_TREATMENT_THRESHOLD:
         return Disposition.EXPLAINED_BY_EVENT
 
     # Check budget/caps exhaustion inside the band

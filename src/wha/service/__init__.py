@@ -6,6 +6,7 @@ from wha.errors import (
 )
 from wha.service.audit import (
     export_audit,
+    get_permitted_tool_names,
     query_audit,
     verify_hash_chain,
 )
@@ -82,6 +83,7 @@ __all__ = [
     "get_evaluation_results",
     "get_night_detail",
     "get_pending_interaction",
+    "get_permitted_tool_names",
     "get_service_settings",
     "get_system_status",
     "list_episodes",

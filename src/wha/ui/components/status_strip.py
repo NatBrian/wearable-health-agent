@@ -1,4 +1,9 @@
-"""Status strip component refreshed in an isolated fragment every 10 seconds."""
+"""The strip across the top of every page: is the system actually working right now.
+
+Six pills, each naming a thing that can silently stop working. The labels say what the
+thing does for the person rather than what it is called in the code, so "LLM Provider"
+is "AI model" and the baseline rung is described rather than spelled.
+"""
 
 from typing import Any
 
@@ -6,6 +11,7 @@ import streamlit as st
 
 from wha.models import SystemStatus
 from wha.service.status import get_system_status
+from wha.ui.components.wording import rung_phrase
 
 
 def format_status_indicator(comp_name: str, status: Any) -> tuple[str, str, str]:
@@ -39,57 +45,62 @@ def render_status_strip(subject_id: str, status: SystemStatus | None = None) -> 
 
     cols = st.columns(6)
 
-    # 1. Watch Data (Bridge / Ingest)
+    # 1. Is data arriving from the watch at all
     bridge_comp = next((c for c in status.components if c.component == "bridge"), None)
     with cols[0]:
         if bridge_comp and bridge_comp.severity == "error":
-            st.error(f"Watch: {bridge_comp.detail}", icon="⚠️")
+            st.error(f"Watch data: {bridge_comp.detail}", icon="⚠️")
         elif bridge_comp and bridge_comp.severity == "warn":
-            st.warning(f"Watch: {bridge_comp.detail}", icon="⏳")
+            st.warning(f"Watch data: {bridge_comp.detail}", icon="⏳")
         else:
             last_in = (
-                status.last_ingest_utc.strftime("%H:%M") if status.last_ingest_utc else "Current"
+                status.last_ingest_utc.strftime("%H:%M") if status.last_ingest_utc else "just now"
             )
-            html = _render_pill("⌚", "Watch Data", f"OK ({last_in})", severity="ok")
+            html = _render_pill("⌚", "Watch data", f"Arriving ({last_in})", severity="ok")
             st.markdown(html, unsafe_allow_html=True)
 
-    # 2. Baseline
+    # 2. How well the system knows this person's normal
     with cols[1]:
-        rung_label = status.rung.value
+        phrase = rung_phrase(status.rung)
+        nights = status.usable_nights
         html = _render_pill(
-            "📈", "Baseline", f"{status.usable_nights}d ({rung_label})", severity="info"
+            "📈",
+            "Your baseline",
+            phrase.label,
+            severity="ok" if nights >= 14 else "info",
         )
         st.markdown(html, unsafe_allow_html=True)
 
-    # 3. Scheduler
+    # 3. Is the nightly check running
     sched_comp = next((c for c in status.components if c.component == "scheduler"), None)
     with cols[2]:
         if sched_comp and not sched_comp.ok:
-            html = _render_pill("⏰", "Scheduler", "Degraded", severity="error")
+            html = _render_pill("⏰", "Nightly check", "Not running", severity="error")
         else:
-            html = _render_pill("⏰", "Scheduler", "Active", severity="ok")
+            html = _render_pill("⏰", "Nightly check", "Running", severity="ok")
         st.markdown(html, unsafe_allow_html=True)
 
-    # 4. LLM
+    # 4. The model that writes questions and summaries
     llm_comp = next((c for c in status.components if c.component == "llm"), None)
     with cols[3]:
-        detail = llm_comp.detail if llm_comp else "Active"
-        html = _render_pill("🤖", "LLM Provider", detail, severity="info")
+        detail = llm_comp.detail if llm_comp else "Ready"
+        severity = "warn" if llm_comp and not llm_comp.ok else "info"
+        html = _render_pill("🤖", "AI model", detail, severity=severity)
         st.markdown(html, unsafe_allow_html=True)
 
-    # 5. Telegram / Notifications
+    # 5. How the person gets asked
     tg_comp = next((c for c in status.components if c.component == "telegram"), None)
     with cols[4]:
-        detail = tg_comp.detail if tg_comp else "Disabled"
-        html = _render_pill("💬", "Notifications", detail, severity="info")
+        detail = tg_comp.detail if tg_comp else "Off"
+        html = _render_pill("💬", "How you're asked", detail, severity="info")
         st.markdown(html, unsafe_allow_html=True)
 
-    # 6. Errors 24h
+    # 6. Anything that went wrong recently
     with cols[5]:
         if status.errors_24h > 0:
             html = _render_pill(
-                "🚨", "Errors (24h)", f"{status.errors_24h} detected", severity="error"
+                "🚨", "Problems today", f"{status.errors_24h} to look at", severity="error"
             )
         else:
-            html = _render_pill("✅", "System Errors", "0 in 24h", severity="ok")
+            html = _render_pill("✅", "Problems today", "None", severity="ok")
         st.markdown(html, unsafe_allow_html=True)

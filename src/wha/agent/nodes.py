@@ -355,11 +355,11 @@ def node_decide(
         if hasattr(db, "get_baseline_rung"):
             rung = db.get_baseline_rung(subject_id, today)
         if hasattr(db, "get_answered_probe_ids"):
-            asked_probe_ids = sorted(set(asked_probe_ids) | set(db.get_answered_probe_ids(episode_id)))
+            asked_probe_ids = sorted(
+                set(asked_probe_ids) | set(db.get_answered_probe_ids(episode_id))
+            )
 
-    has_symptoms_evidence = any(
-        a.probe_id == "probe_symptoms" and not a.declined for a in answers
-    )
+    has_symptoms_evidence = any(a.probe_id == "probe_symptoms" and not a.declined for a in answers)
 
     action = select_action(
         belief=belief,

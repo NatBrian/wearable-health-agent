@@ -163,9 +163,10 @@ def get_system_status(
         # 4. LLM
         settings = get_settings()
         provider = settings.llm_provider
-        llm_detail = f"Provider {provider}"
+        # Kept short: this is displayed in a fixed-width pill that clips.
+        llm_detail = settings.llm_model or provider
         if provider == "cassette":
-            llm_detail = "Provider cassette (offline deterministic)"
+            llm_detail = "Offline (recorded)"
         components.append(
             ComponentStatus(
                 component="llm",
@@ -178,9 +179,9 @@ def get_system_status(
 
         # 5. Telegram
         notify_channel = os.environ.get("WHA_NOTIFY_CHANNEL", "none")
-        tg_detail = f"Channel {notify_channel}"
+        tg_detail = "Telegram" if notify_channel == "telegram" else notify_channel
         if notify_channel == "none":
-            tg_detail = "Channel disabled (none)"
+            tg_detail = "In this app only"
         components.append(
             ComponentStatus(
                 component="telegram",
@@ -425,17 +426,21 @@ def check_live_production_suite() -> dict[str, Any]:
         apply_schema(conn)
         cnt = conn.execute("SELECT COUNT(*) FROM nightly_features").fetchone()[0]
         conn.close()
-        mandatory.append({
-            "component": "Database & Cryptographic Audit Log",
-            "ok": True,
-            "detail": f"Schema v1 verified ({cnt} feature nights recorded)",
-        })
+        mandatory.append(
+            {
+                "component": "Database & Cryptographic Audit Log",
+                "ok": True,
+                "detail": f"Schema v1 verified ({cnt} feature nights recorded)",
+            }
+        )
     except Exception as exc:  # noqa: BLE001
-        mandatory.append({
-            "component": "Database & Cryptographic Audit Log",
-            "ok": False,
-            "detail": f"Database failure: {exc}",
-        })
+        mandatory.append(
+            {
+                "component": "Database & Cryptographic Audit Log",
+                "ok": False,
+                "detail": f"Database failure: {exc}",
+            }
+        )
 
     # 2. Mandatory: Clinical Knowledge Tables
     try:
@@ -444,47 +449,57 @@ def check_live_production_suite() -> dict[str, Any]:
 
         causes = load_causes()
         probes = load_probes()
-        mandatory.append({
-            "component": "Clinical Knowledge Tables",
-            "ok": True,
-            "detail": f"Loaded {len(causes)} cited causes, {len(probes)} clinical probes",
-        })
+        mandatory.append(
+            {
+                "component": "Clinical Knowledge Tables",
+                "ok": True,
+                "detail": f"Loaded {len(causes)} cited causes, {len(probes)} clinical probes",
+            }
+        )
     except Exception as exc:  # noqa: BLE001
-        mandatory.append({
-            "component": "Clinical Knowledge Tables",
-            "ok": False,
-            "detail": f"Knowledge files error: {exc}",
-        })
+        mandatory.append(
+            {
+                "component": "Clinical Knowledge Tables",
+                "ok": False,
+                "detail": f"Knowledge files error: {exc}",
+            }
+        )
 
     # 3. Mandatory: Phone Hardware Bridge
     bridge_chk = test_bridge_connection()
-    mandatory.append({
-        "component": "Phone Hardware Bridge",
-        "ok": bridge_chk.ok,
-        "detail": f"{bridge_chk.detail} ({bridge_chk.latency_ms}ms)"
-        if bridge_chk.latency_ms
-        else bridge_chk.detail,
-    })
+    mandatory.append(
+        {
+            "component": "Phone Hardware Bridge",
+            "ok": bridge_chk.ok,
+            "detail": f"{bridge_chk.detail} ({bridge_chk.latency_ms}ms)"
+            if bridge_chk.latency_ms
+            else bridge_chk.detail,
+        }
+    )
 
     # 4. Mandatory: Live LLM Inference API
     llm_chk = test_llm_connection()
-    mandatory.append({
-        "component": "Live LLM Inference API",
-        "ok": llm_chk.ok,
-        "detail": f"{llm_chk.detail} ({llm_chk.latency_ms}ms)"
-        if llm_chk.latency_ms
-        else llm_chk.detail,
-    })
+    mandatory.append(
+        {
+            "component": "Live LLM Inference API",
+            "ok": llm_chk.ok,
+            "detail": f"{llm_chk.detail} ({llm_chk.latency_ms}ms)"
+            if llm_chk.latency_ms
+            else llm_chk.detail,
+        }
+    )
 
     # 5. Mandatory: Telegram Bot Transport
     tg_chk = test_telegram_connection()
-    mandatory.append({
-        "component": "Telegram Mobile Bot",
-        "ok": tg_chk.ok,
-        "detail": f"{tg_chk.detail} ({tg_chk.latency_ms}ms)"
-        if tg_chk.latency_ms
-        else tg_chk.detail,
-    })
+    mandatory.append(
+        {
+            "component": "Telegram Mobile Bot",
+            "ok": tg_chk.ok,
+            "detail": f"{tg_chk.detail} ({tg_chk.latency_ms}ms)"
+            if tg_chk.latency_ms
+            else tg_chk.detail,
+        }
+    )
 
     # 6. Mandatory: Statistical Anomaly & Bayesian Engines
     try:
@@ -502,41 +517,49 @@ def check_live_production_suite() -> dict[str, Any]:
         ]
         b = compute_baseline(test_history)
         _ = update_belief(episode_nights=[])
-        mandatory.append({
-            "component": "Statistical & Bayesian Engine",
-            "ok": True,
-            "detail": f"Deterministic shrinkage (Rung: {b.rung.name}), 4096-state exact posterior ready",
-        })
+        mandatory.append(
+            {
+                "component": "Statistical & Bayesian Engine",
+                "ok": True,
+                "detail": f"Deterministic shrinkage (Rung: {b.rung.name}), 4096-state exact posterior ready",
+            }
+        )
     except Exception as exc:  # noqa: BLE001
-        mandatory.append({
-            "component": "Statistical & Bayesian Engine",
-            "ok": False,
-            "detail": f"Engine calculation error: {exc}",
-        })
+        mandatory.append(
+            {
+                "component": "Statistical & Bayesian Engine",
+                "ok": False,
+                "detail": f"Engine calculation error: {exc}",
+            }
+        )
 
     # 7. Mandatory: Chronos Neural Forecaster
     cache_dir = settings.model_cache_dir
     chronos_ok = cache_dir.exists() and any(cache_dir.iterdir())
-    mandatory.append({
-        "component": "Chronos Neural Forecaster",
-        "ok": chronos_ok,
-        "detail": "Amazon Chronos-Bolt model weights cached (Advisory Evidence Band)"
-        if chronos_ok
-        else "Missing model weights in data/model_cache (run 'uv run wha data fetch chronos')",
-    })
+    mandatory.append(
+        {
+            "component": "Chronos Neural Forecaster",
+            "ok": chronos_ok,
+            "detail": "Amazon Chronos-Bolt model weights cached (Advisory Evidence Band)"
+            if chronos_ok
+            else "Missing model weights in data/model_cache (run 'uv run wha data fetch chronos')",
+        }
+    )
 
     # --- RESEARCH BENCHMARKS (EVALUATION ONLY) ---
 
     stanford_exists = (settings.data_dir / "stanford").exists()
     pmdata_exists = (settings.data_dir / "pmdata").exists()
     benchmarks_ok = stanford_exists and pmdata_exists
-    optional.append({
-        "component": "Research Benchmark Cohorts",
-        "ok": benchmarks_ok,
-        "detail": "Stanford & PMData benchmark targets present (for 'wha eval')"
-        if benchmarks_ok
-        else "Absent (run 'uv run wha data fetch <name>')",
-    })
+    optional.append(
+        {
+            "component": "Research Benchmark Cohorts",
+            "ok": benchmarks_ok,
+            "detail": "Stanford & PMData benchmark targets present (for 'wha eval')"
+            if benchmarks_ok
+            else "Absent (run 'uv run wha data fetch <name>')",
+        }
+    )
 
     all_mandatory_ok = all(c["ok"] for c in mandatory)
     return {

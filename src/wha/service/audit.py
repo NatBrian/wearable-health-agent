@@ -199,3 +199,14 @@ def export_audit(
                 writer.writerow(row_dict)
 
     return target_path
+
+
+def get_permitted_tool_names() -> list[str]:
+    """Names of every tool the agent is allowed to call, for display in the audit view.
+
+    Exposed here because the UI layer may not import from wha.agent, and because a page
+    that lists the tools by hand drifts from the registry that actually enforces them.
+    """
+    from wha.agent.tools.registry import CLOSED_TOOL_REGISTRY
+
+    return sorted(CLOSED_TOOL_REGISTRY)

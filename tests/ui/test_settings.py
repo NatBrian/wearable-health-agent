@@ -20,11 +20,15 @@ def test_settings_secrets_not_echoed() -> None:
         patch("streamlit.expander", return_value=MagicMock()),
     ):
         render_connection_section("sub_01")
-        # Find password field call for bridge_token
-        token_calls = [call for call in mock_input.call_args_list if call[0][0] == "Bridge Token"]
-        assert len(token_calls) == 1
-        assert token_calls[0][1].get("type") == "password"
-        assert token_calls[0][1].get("value") == ""
+        # Asserts the property rather than a label: every masked field on this section is
+        # a password input that starts empty, so renaming a field cannot quietly turn a
+        # secret into a plain text box that echoes it back.
+        secret_calls = [
+            call for call in mock_input.call_args_list if call[1].get("type") == "password"
+        ]
+        assert len(secret_calls) == 1
+        for call in secret_calls:
+            assert call[1].get("value") == ""
 
     with (
         patch("streamlit.text_input") as mock_input,
@@ -33,10 +37,12 @@ def test_settings_secrets_not_echoed() -> None:
         patch("streamlit.button"),
     ):
         render_llm_section("sub_01")
-        key_calls = [call for call in mock_input.call_args_list if call[0][0] == "API Key"]
-        assert len(key_calls) == 1
-        assert key_calls[0][1].get("type") == "password"
-        assert key_calls[0][1].get("value") == ""
+        secret_calls = [
+            call for call in mock_input.call_args_list if call[1].get("type") == "password"
+        ]
+        assert len(secret_calls) == 1
+        for call in secret_calls:
+            assert call[1].get("value") == ""
 
 
 def test_policy_change_logged() -> None:
@@ -70,7 +76,8 @@ def test_delete_all_requires_typed_confirmation() -> None:
         render_data_privacy_section("sub_test")
         assert not mock_delete.called
         assert mock_warn.called
-        assert "aborted" in mock_warn.call_args[0][0]
+        # The message must make clear nothing happened, without matching exact prose.
+        assert "nothing was deleted" in mock_warn.call_args[0][0].lower()
 
     # 2. Correct text 'DELETE' -> calls delete
     with (
@@ -83,4 +90,4 @@ def test_delete_all_requires_typed_confirmation() -> None:
         assert mock_delete.called
         assert mock_delete.call_args[0][0] == "sub_test"
         assert mock_err.called
-        assert "permanently deleted" in mock_err.call_args[0][0]
+        assert "deleted" in mock_err.call_args[0][0].lower()

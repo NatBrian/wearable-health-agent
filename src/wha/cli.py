@@ -47,7 +47,9 @@ app.add_typer(llm_app, name="llm")
 @app.command("doctor")
 def doctor(
     db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
-    live: Annotated[bool, typer.Option("--live", help="Execute live network and hardware probe checks")] = False,
+    live: Annotated[
+        bool, typer.Option("--live", help="Execute live network and hardware probe checks")
+    ] = False,
     as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Check all system components, models, and knowledge tables."""
@@ -277,8 +279,7 @@ def demo_run(
     if not res.ok:
         failed = [e.name for e in res.expectations if not e.ok]
         typer.echo(
-            f"Scenario '{res.scenario}' did not meet its frozen expectations: "
-            f"{', '.join(failed)}",
+            f"Scenario '{res.scenario}' did not meet its frozen expectations: {', '.join(failed)}",
             err=True,
         )
         sys.exit(1)
@@ -491,7 +492,7 @@ def serve_cmd(
         scheduler.start()
         typer.echo("Background scheduler started (ingest, nightly, episode_tick).")
 
-    app_path = Path(__file__).parent / "ui" / "app.py"
+    app_path = Path(__file__).parent / "ui" / "Home.py"
     typer.echo(f"Starting Streamlit dashboard on http://{host}:{port}...")
     try:
         subprocess.run(

@@ -92,7 +92,7 @@ def render_markdown(results: dict[str, EvaluationResult]) -> str:
             "",
             f"Cases: **{policy.sample_size}**, split evenly between real infections and benign",
             "mimics producing an identical heart rate elevation. The even split is deliberate:",
-            "with infections only, a policy that always answered \"illness\" would score 100%.",
+            'with infections only, a policy that always answered "illness" would score 100%.',
             "",
         ]
         lines += _format_policy_table(policy.metrics)

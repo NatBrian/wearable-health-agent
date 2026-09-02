@@ -190,9 +190,7 @@ def run_policy_eval(
     }
 
     cases = _simulated_cases()
-    detections_by_case = {
-        (amp, dur): _detections_for(amp, dur) for amp, dur, _ in cases
-    }
+    detections_by_case = {(amp, dur): _detections_for(amp, dur) for amp, dur, _ in cases}
     beliefs_by_case = {
         key: update_belief(episode_nights=dets) for key, dets in detections_by_case.items()
     }
