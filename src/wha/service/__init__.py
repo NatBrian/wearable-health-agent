@@ -38,7 +38,7 @@ from wha.service.evaluation import (
     run_evaluation_suite,
     write_evaluation_report,
 )
-from wha.service.ingest import run_ingest
+from wha.service.ingest import describe_device_capability, run_ingest
 from wha.service.nightly import (
     parse_date_range,
     run_nightly,
@@ -76,6 +76,7 @@ __all__ = [
     "ask_about_episode",
     "create_scheduler",
     "delete_all_subject_data",
+    "describe_device_capability",
     "explain_belief",
     "export_audit",
     "fetch_data",

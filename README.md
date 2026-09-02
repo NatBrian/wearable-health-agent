@@ -231,6 +231,7 @@ uv run wha doctor --live         # Live network, hardware, and LLM probe check
 uv run wha ingest --days 3       # Fetch & normalize live biometrics from phone bridge
 uv run wha nightly               # Run daily baseline calculation & anomaly detector
 uv run wha data fetch chronos    # Download Amazon Chronos-Bolt neural forecaster
+uv run wha data capability       # What your watch sends, and how far each channel gets
 uv run wha data fetch stanford   # Initialize Stanford benchmark evaluation cohort
 uv run wha data fetch pmdata     # Initialize PMData benchmark evaluation cohort
 

@@ -10,6 +10,7 @@ import typer
 from wha.service import (
     ConfigError,
     SourceUnavailable,
+    describe_device_capability,
     explain_belief,
     fetch_data,
     list_episodes,
@@ -406,6 +407,25 @@ def data_fetch_cmd(
         typer.echo(msg)
     except Exception as e:  # noqa: BLE001
         typer.echo(f"Data fetch error: {e}", err=True)
+        sys.exit(1)
+    sys.exit(0)
+
+
+@data_app.command("capability")
+def data_capability_cmd(
+    subject: Annotated[str | None, typer.Option("--subject", "-s", help="Subject ID")] = None,
+    db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
+) -> None:
+    """Show what your watch sends, and how far each channel gets.
+
+    Answers a question the dashboard cannot: which of the sixty-odd Health Connect
+    channels your device actually populates, which of those this build parses, and which
+    reach the decision.
+    """
+    try:
+        typer.echo(describe_device_capability(subject_id=subject, db_path=db))
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Capability check failed: {e}", err=True)
         sys.exit(1)
     sys.exit(0)
 

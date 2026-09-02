@@ -75,3 +75,38 @@ def run_ingest(
     norm = normalise_and_store(conn, raw_payload)
     conn.close()
     return len(norm.heart_rate_samples)
+
+
+def describe_device_capability(
+    subject_id: str | None = None,
+    db_path: Path | None = None,
+) -> str:
+    """Report what the subject's device sends and how far each channel travels.
+
+    Reads the most recent stored raw payload rather than calling the bridge, so it works
+    offline and describes what was actually received.
+    """
+    import json
+
+    from wha.ingest.capability import describe_payload, format_report
+
+    settings = get_settings()
+    subj = subject_id if subject_id is not None else settings.subject
+    conn = connect(db_path) if db_path is not None else connect()
+    apply_schema(conn)
+    try:
+        row = conn.execute(
+            """SELECT payload_json FROM raw_payloads
+               WHERE subject_id = ? ORDER BY fetched_at_utc DESC LIMIT 1""",
+            (subj,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if row is None:
+        return (
+            f"No data has been received for '{subj}' yet. "
+            "Run 'uv run wha ingest' with the phone bridge reachable."
+        )
+
+    return format_report(describe_payload(json.loads(row["payload_json"])))
