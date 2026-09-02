@@ -11,6 +11,45 @@ from wha.safety.models import RedFlagsConfig, SafetyCheckResult
 
 DEFAULT_RED_FLAGS_PATH = Path("data/knowledge/red_flags.yaml")
 
+# A negation reaches forward only as far as the end of its own clause. In
+# "no fever, but chest pain" the "no" denies the fever and asserts the chest pain,
+# so the guard must stop at the comma and at "but" rather than suppressing the
+# Tier A match that follows. This is the termination half of the standard NegEx
+# rule, kept as a fixed list rather than a parser to preserve the "deliberately
+# simple" posture recorded in red_flags.yaml. Suppressing a Tier A symptom is the
+# one direction this layer must never fail in.
+NEGATION_SCOPE_TERMINATORS = (
+    "but",
+    "however",
+    "although",
+    "though",
+    "except",
+    "aside from",
+    "apart from",
+    "other than",
+    "still",
+    "yet",
+)
+
+_CLAUSE_PUNCTUATION = re.compile(r"[,;.!?]")
+
+
+def negation_scope(preceding_text: str, window_words: int) -> str:
+    """Return the span of text in which a negation still applies to the phrase that follows.
+
+    Everything up to and including the last clause boundary is discarded, then the
+    configured word window is applied to what remains.
+    """
+    cut = 0
+    for match in _CLAUSE_PUNCTUATION.finditer(preceding_text):
+        cut = max(cut, match.end())
+    for terminator in NEGATION_SCOPE_TERMINATORS:
+        for match in re.finditer(rf"\b{re.escape(terminator)}\b", preceding_text):
+            cut = max(cut, match.end())
+
+    words = preceding_text[cut:].split()
+    return " ".join(words[-window_words:]) if words else ""
+
 
 def load_red_flags(path: Path | str | None = None) -> RedFlagsConfig:
     """Load and validate red_flags.yaml configuration, raising ConfigError if malformed."""
@@ -46,8 +85,7 @@ def is_phrase_negated(
     has_unnegated_match = False
     for start_idx in matches:
         preceding_text = lower_text[:start_idx]
-        words = preceding_text.split()
-        window_text = " ".join(words[-window_words:]) if words else ""
+        window_text = negation_scope(preceding_text, window_words)
 
         is_negated = any(
             re.search(rf"\b{re.escape(neg)}\b", window_text) for neg in negation_phrases

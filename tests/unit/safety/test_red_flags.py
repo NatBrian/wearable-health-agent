@@ -7,6 +7,7 @@ import pytest
 from wha.errors import ConfigError
 from wha.models import BaselineRung
 from wha.safety import check_red_flags_deterministic, load_red_flags
+from wha.safety.rules import negation_scope
 
 
 def test_tier_a_single_symptom_escalates() -> None:
@@ -137,3 +138,32 @@ def test_red_flags_yaml_malformed_raises_at_startup(tmp_path: Path) -> None:
 
     with pytest.raises(ConfigError):
         load_red_flags(bad_file)
+
+
+def test_negation_does_not_reach_past_a_clause_boundary() -> None:
+    """A negation binds to its own clause only.
+
+    "No fever, but chest pain" denies the fever and asserts the chest pain. Suppressing
+    the Tier A match here is the single most dangerous failure this layer can have.
+    """
+    contrast_texts = [
+        "No fever, but chest pain since this morning.",
+        "I have no appetite but my chest pressure is bad.",
+        "No cough. Chest tightness started an hour ago.",
+        "Not dizzy, however I passed out at work.",
+        "I have no headache; crushing pain in my chest though.",
+    ]
+
+    for text in contrast_texts:
+        res = check_red_flags_deterministic(user_text=text)
+        assert res.escalate is True, f"Negation leaked past the clause boundary for: {text}"
+        assert res.level == "urgent", f"Expected urgent escalation for: {text}"
+        assert len(res.triggered_flags) > 0
+
+
+def test_negation_scope_stops_at_boundary() -> None:
+    """The scope helper discards everything up to and including the last clause boundary."""
+    assert negation_scope("no fever, but ", 4) == ""
+    assert negation_scope("i have no ", 4) == "i have no"
+    assert negation_scope("no cough. ", 4) == ""
+    assert negation_scope("patient denies ", 4) == "patient denies"

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from wha.constants import TEMP_DETERMINISTIC
 from wha.errors import LLMUnavailable
@@ -13,12 +13,21 @@ from wha.safety.rules import check_red_flags_deterministic, load_red_flags
 
 
 class LLMRedFlagOutput(BaseModel):
-    """Schema expected from red_flag_check prompt."""
+    """Schema expected from red_flag_check prompt.
 
-    model_config = ConfigDict(extra="ignore")
+    The aliases exist because this layer fails silently when they are absent: with
+    ``extra="ignore"`` and empty defaults, a correct model response under a different
+    field name parses to zero flags and raises nothing, disabling the Tier C backstop
+    without any signal. Accepting the common alternatives is cheap insurance.
+    """
 
-    suspected_flag_ids: list[str] = Field(default_factory=list)
-    reason: str = ""
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
+    suspected_flag_ids: list[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("suspected_flag_ids", "flag_ids", "flags"),
+    )
+    reason: str = Field(default="", validation_alias=AliasChoices("reason", "rationale"))
 
 
 def check_red_flags_with_tier_c(
@@ -63,7 +72,9 @@ def check_red_flags_with_tier_c(
         prompt = RED_FLAG_CHECK_PROMPT.render(
             {
                 "user_text": text,
-                "criteria_list": str(list(tier_a_ids | tier_b_ids)),
+                # Sorted, because a set's repr order varies between runs and would make
+                # the rendered prompt, and therefore the cassette key, nondeterministic.
+                "criteria_list": str(sorted(tier_a_ids | tier_b_ids)),
             }
         )
         output, _usage = client.complete(

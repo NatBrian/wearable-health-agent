@@ -9,18 +9,19 @@ PROMPT = PromptDefinition(
     temperature=TEMP_DETERMINISTIC,
     instruction="Identify any acute red flag symptoms in user communications requiring urgent clinical escalation.",
     context_template="User Text: {user_text}\nKnown Red Flag Criteria: {criteria_list}",
-    output_schema='{"flag_ids": [str], "rationale": str, "escalate_immediately": bool}',
+    output_schema='{"suspected_flag_ids": [str], "reason": str}',
     constraints=[
         "Additive only: LLM may add flags, never remove flags identified by deterministic rules.",
         "Be conservative on cardiac, respiratory, and neurological warning signs.",
+        "Every id in suspected_flag_ids MUST be copied verbatim from the supplied criteria list. "
+        "Never invent an id. An id that is not on that list is discarded and the symptom is missed.",
     ],
     examples=[
         {
             "input": "I have sudden severe chest tightness and trouble breathing.",
             "output": {
-                "flag_ids": ["chest_pain_acute", "dyspnea_rest"],
-                "rationale": "Acute chest tightness with dyspnea",
-                "escalate_immediately": True,
+                "suspected_flag_ids": ["rf_chest_pain", "rf_breathless_at_rest"],
+                "reason": "Acute chest tightness with breathlessness.",
             },
         }
     ],
