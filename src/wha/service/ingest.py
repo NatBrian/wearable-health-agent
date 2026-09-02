@@ -36,7 +36,7 @@ def run_ingest(
         (
             subj,
             subj,
-            "synthetic" if not settings.bridge_url else "live_bridge",
+            "live" if settings.bridge_url else "synthetic",
             settings.timezone,
             now_utc,
         ),
