@@ -17,6 +17,37 @@ def render_evaluation_page(eval_dir: Path | None = None) -> None:
     st.title("📊 System Evaluation & Technical Reference")
     st.caption("Technical benchmarks, clinical evidence sources, algorithmic formulations, and measurement methodologies.")
 
+    # Benchmark Execution Controls
+    with st.expander("⚡ Run / Recompute Evaluation Suites (Local CPU)", expanded=False):
+        st.write("Execute the mathematical evaluation suites directly on local CPU (~5 seconds runtime, 0 API tokens):")
+        col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+        with col_r1:
+            if st.button("▶️ Run Full Suite", type="primary", use_container_width=True):
+                with st.spinner("Executing full evaluation suite..."):
+                    try:
+                        run_evaluation_suite("policy", eval_dir=eval_dir)
+                        run_evaluation_suite("ablation", eval_dir=eval_dir)
+                        run_evaluation_suite("adversarial", eval_dir=eval_dir)
+                        st.success("✅ All evaluation suites completed.")
+                        st.rerun()
+                    except Exception as exc:
+                        st.error(f"Execution error: {exc}")
+        with col_r2:
+            if st.button("⚖️ Run Policy Suite", use_container_width=True):
+                with st.spinner("Running policy oracle sweep..."):
+                    run_evaluation_suite("policy", eval_dir=eval_dir)
+                    st.rerun()
+        with col_r3:
+            if st.button("🔬 Run Ablation Suite", use_container_width=True):
+                with st.spinner("Running component ablations..."):
+                    run_evaluation_suite("ablation", eval_dir=eval_dir)
+                    st.rerun()
+        with col_r4:
+            if st.button("🛡️ Run Security Suite", use_container_width=True):
+                with st.spinner("Running adversarial tests..."):
+                    run_evaluation_suite("adversarial", eval_dir=eval_dir)
+                    st.rerun()
+
     tab1, tab2, tab3, tab4, tab5 = st.tabs(
         [
             "🎯 Detection & Lead Time",
