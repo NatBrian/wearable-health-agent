@@ -10,7 +10,7 @@ from wha.features.covariates import (
     derive_sleep_hours,
 )
 from wha.features.rhr import compute_nocturnal_rhr
-from wha.features.window import nocturnal_window
+from wha.features.sleep_window import resolve_sleep_window
 from wha.models import NightlyFeatures
 
 
@@ -21,21 +21,29 @@ def compute_night(conn: sqlite3.Connection, subject_id: str, night_date: date) -
     row = cur.fetchone()
     tz_str = row["timezone"] if row else "Asia/Singapore"
 
-    # 2. Nocturnal window
-    w_start, w_end = nocturnal_window(night_date, tz_str)
+    # 2. The window this night is measured over. Read from the watch's own sleep session
+    #    where it recorded one, because a clock window measures whoever happens to sleep
+    #    between midnight and 7am and measures waking heart rate for everyone else.
+    window = resolve_sleep_window(conn, subject_id, night_date, tz_str)
+    w_start, w_end = window.start_utc, window.end_utc
     w_start_str, w_end_str = to_iso(w_start), to_iso(w_end)
 
-    # 3. Heart rate samples
-    cur = conn.execute(
-        """
-        SELECT ts_utc, avg_bpm, min_bpm, max_bpm, origin
-        FROM heart_rate_samples
-        WHERE subject_id = ? AND ts_utc >= ? AND ts_utc < ?
-        ORDER BY ts_utc ASC;
-        """,
-        (subject_id, w_start_str, w_end_str),
-    )
-    hr_samples = cur.fetchall()
+    # 3. Heart rate samples, taken only from the spans the person was actually asleep.
+    #    A sleep session contains waking spells; reading across them would reintroduce in
+    #    miniature the error this window removes.
+    hr_samples: list = []
+    for a, b in window.intervals:
+        hr_samples.extend(
+            conn.execute(
+                """
+                SELECT ts_utc, avg_bpm, min_bpm, max_bpm, origin
+                FROM heart_rate_samples
+                WHERE subject_id = ? AND ts_utc >= ? AND ts_utc < ?
+                ORDER BY ts_utc ASC;
+                """,
+                (subject_id, to_iso(a), to_iso(b)),
+            ).fetchall()
+        )
     rhr_bpm, coverage_min, implausible_dropped, usable = compute_nocturnal_rhr(hr_samples)
 
     # 4. Covariates: previous-day steps
@@ -76,6 +84,7 @@ def compute_night(conn: sqlite3.Connection, subject_id: str, night_date: date) -
         steps_prev_day=steps_prev_day,
         sleep_hours=sleep_hours,
         exercise_end_offset_h=exercise_offset_h,
+        rhr_window_source=window.source,
     )
 
     now_str = to_iso(datetime.now(UTC))
@@ -85,8 +94,8 @@ def compute_night(conn: sqlite3.Connection, subject_id: str, night_date: date) -
             INSERT OR REPLACE INTO nightly_features (
                 subject_id, night_date, rhr_bpm, coverage_minutes,
                 implausible_dropped, usable, steps_prev_day, sleep_hours,
-                exercise_end_offset_h, computed_at_utc
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                exercise_end_offset_h, rhr_window_source, computed_at_utc
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
             (
                 features.subject_id,
@@ -98,6 +107,7 @@ def compute_night(conn: sqlite3.Connection, subject_id: str, night_date: date) -
                 features.steps_prev_day,
                 features.sleep_hours,
                 features.exercise_end_offset_h,
+                features.rhr_window_source,
                 now_str,
             ),
         )

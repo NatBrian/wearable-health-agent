@@ -8,10 +8,14 @@ from wha.constants import (
     DETECT_CITATION,
     DETECT_CITATION_PLAIN,
     DETECT_DIRECTION_NOTE,
+    NAP_EXCLUSION_CITATION,
+    NAP_EXCLUSION_CITATION_PLAIN,
     POP_PRIOR_CITATION,
     POP_PRIOR_CITATION_PLAIN,
     POP_PRIOR_RHR_MEAN_BPM,
     POP_PRIOR_RHR_SD_BPM,
+    SLEEP_WINDOW_CITATION,
+    SLEEP_WINDOW_CITATION_PLAIN,
 )
 from wha.models import BaselineRung, DetectionLevel, NightRow
 
@@ -77,8 +81,9 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
 
     st.subheader("Your overnight heart rate")
     st.caption(
-        "Your resting heart rate while asleep, measured between midnight and 7am. "
-        "Daytime and exercise heart rate are never used."
+        "Your resting heart rate while asleep, measured over the sleep your watch actually "
+        "recorded. Waking spells during the night are excluded, and daytime or exercise "
+        "heart rate is never used."
     )
 
     # Trim to the span that actually has readings. The query looks back a fixed number of
@@ -191,6 +196,18 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
   the system has less to go on, and narrows as your own nights accumulate.
 
 {DETECT_DIRECTION_NOTE}
+
+**What this measures, and what it does not**
+
+- The reading comes from your **main overnight sleep**, taken from your watch rather than
+  from a fixed clock window, so it works whatever hours you keep. Where your watch recorded
+  no sleep for a night, midnight to 7am is used instead and that night is labelled.
+- **Naps are not included.** Heart rate during a daytime nap is measurably higher than
+  during overnight sleep at the same sleep stage, so pooling them would move your reading
+  by however much you happened to nap. A second sleep block is therefore ignored.
+- **Sleep apnoea is not detected.** A condition that raises your heart rate every night
+  becomes part of what this system learns as your normal, so it will not be flagged.
+  Detecting it needs signals this watch does not provide.
 """
     )
 
@@ -206,7 +223,9 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
     st.caption(
         f"The starting range comes from {POP_PRIOR_CITATION_PLAIN}, and moves toward your "
         f"own nights as they accumulate. The thresholds that decide when a raised night is "
-        f"worth investigating come from {DETECT_CITATION_PLAIN}."
+        f"worth investigating come from {DETECT_CITATION_PLAIN}. Measuring over your "
+        f"recorded sleep follows {SLEEP_WINDOW_CITATION_PLAIN}, and leaving naps out "
+        f"follows {NAP_EXCLUSION_CITATION_PLAIN}."
     )
     with st.expander("Full references"):
         st.markdown(
@@ -214,5 +233,7 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
 - Starting range, {POP_PRIOR_RHR_MEAN_BPM:.2f} bpm plus or minus
   {POP_PRIOR_RHR_SD_BPM:.2f} — {POP_PRIOR_CITATION}
 - Thresholds for a raised night — {DETECT_CITATION}
+- Measuring over the device's reported sleep period — {SLEEP_WINDOW_CITATION}
+- Excluding naps from the reading — {NAP_EXCLUSION_CITATION}
 """
         )

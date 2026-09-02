@@ -4,7 +4,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from wha.config import get_settings
-from wha.constants import DEFAULT_SYNTHETIC_BASE_BPM, DEFAULT_SYNTHETIC_SEED
+from wha.constants import (
+    DEFAULT_SYNTHETIC_BASE_BPM,
+    DEFAULT_SYNTHETIC_SEED,
+    STARTUP_CATCHUP_DAYS,
+)
+
+# How many days a manual `wha ingest` pulls. Exposed here rather than read from
+# wha.constants by the CLI, which is only permitted to import from config and service.
+# It matches the startup catch up so both routes give the same result from one watch.
+DEFAULT_INGEST_DAYS = STARTUP_CATCHUP_DAYS
 from wha.db import apply_schema, connect
 from wha.errors import SourceUnavailable
 from wha.ingest.live_bridge import LiveBridge

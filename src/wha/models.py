@@ -110,6 +110,10 @@ class NightlyFeatures(BaseModel):
     steps_prev_day: int | None = None
     sleep_hours: float | None = None
     exercise_end_offset_h: float | None = None
+    # Which window the reading was taken over: "sleep" when the watch reported when the
+    # person slept, "clock" when it did not and local 00:00-07:00 was assumed. A health
+    # figure has to be able to say how it was produced.
+    rhr_window_source: str = "clock"
 
 
 class Baseline(BaseModel):

@@ -47,6 +47,10 @@ uv run wha nightly --range 2026-08-28:2026-09-03
 uv run wha data capability    # what the device actually sends
 ```
 
+Readings are taken over the sleep your watch recorded, not over a fixed clock window. See
+`docs/DESIGN-SLEEP-WINDOW.md` for the evidence and the stated limitations, including naps
+and sleep apnoea.
+
 With only three nights the baseline sits at `COLD` or `PRIOR_DOMINATED` and Chronos
 correctly declines to forecast: `FORECAST_MIN_NIGHTS` is 5. That refusal is right, and it
 is worth seeing once before there is enough history to hide it.
@@ -61,9 +65,13 @@ open an investigation into a night from before you owned the system.
 uv run wha serve
 ```
 
-Four background jobs start: ingest every 30 minutes, nightly at 09:00, an episode tick
-every 15 minutes, and Telegram polling every 45 seconds. The dashboard is on
-<http://localhost:8501>.
+Five background jobs start: a first-run catch up that fires immediately, ingest every 30
+minutes, night scoring every 3 hours, an episode tick every 15 minutes, and Telegram
+polling every 45 seconds. The dashboard is on <http://localhost:8501>.
+
+Night scoring runs on an interval rather than at a fixed hour, because a night is measured
+over the sleep the watch recorded and that is not finished at any particular clock time. A
+night settles as soon as its sleep has synced, whether the person wakes at 07:00 or 13:00.
 
 ## Phase 4 — the mock watch
 

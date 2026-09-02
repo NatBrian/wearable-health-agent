@@ -4,7 +4,30 @@ All constants are single-sourced here as specified in plan/02-contracts.md secti
 """
 
 # --- coverage and quality -------------------------------------------------
-MIN_NOCTURNAL_MINUTES = 180  # 3h of the 7h window
+MIN_NOCTURNAL_MINUTES = 180  # 3h of measured sleep
+
+# --- the window a night is measured over ----------------------------------
+# Health Connect reports sleep as sessions of contiguous stages. Stages inside a session
+# abut one another; separate sessions are hours apart. Sixty minutes cleanly separates the
+# two and needs no session identifier, which the stored rows do not carry.
+SLEEP_SESSION_GAP_MINUTES = 60
+
+# Naps are excluded from the reading rather than pooled with overnight sleep.
+# Whitehurst, Naji and Mednick 2018: 32 adults, within-subjects, polysomnography and ECG,
+# a daytime nap and a night of sleep at least a week apart. RR intervals were longer, so
+# heart rate was lower, during nighttime sleep than during daytime naps in both stage 2
+# and slow wave sleep. Pooling the two would mix distributions with different means and
+# bias the night's reading by however much the person happened to nap, which is precisely
+# the night-to-night noise this window exists to remove.
+NAP_EXCLUSION_CITATION = (
+    "Whitehurst, Naji and Mednick 2018, Neurobiology of Sleep and Circadian Rhythms 5:52-57"
+)
+NAP_EXCLUSION_CITATION_PLAIN = (
+    "a 2018 laboratory study of 32 adults comparing naps with overnight sleep"
+)
+# Measuring over the period the device reports as sleep, rather than a fixed clock window.
+SLEEP_WINDOW_CITATION = "Dial et al. 2025, Physiological Reports 13:e70527"
+SLEEP_WINDOW_CITATION_PLAIN = "a 2025 validation study of consumer wearables"
 HR_PLAUSIBLE_MIN_BPM = 25
 HR_PLAUSIBLE_MAX_BPM = 220
 INGEST_STALE_WARN_HOURS = 36  # status strip turns amber
@@ -13,6 +36,12 @@ INGEST_STALE_REFUSE_HOURS = 72  # nightly batch refuses rather than guessing
 # scoring what it hands over is what builds the baseline; without this a new install shows
 # an empty dashboard until the 09:00 cron.
 STARTUP_CATCHUP_DAYS = 30
+
+# A night is scored when its sleep has been recorded, not at a fixed hour. Re-scoring a
+# trailing window every few hours means someone who wakes at 11:00, or works nights, gets
+# the same treatment as someone who wakes at 07:00.
+NIGHTLY_RESCORE_INTERVAL_HOURS = 3
+NIGHTLY_RESCORE_DAYS = 3
 
 # How far back the dashboard looks when reporting nights with no reading. This is a
 # reporting window, NOT a threshold: the pipeline behaves identically at three nights or

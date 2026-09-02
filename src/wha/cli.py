@@ -7,8 +7,8 @@ from typing import Annotated
 
 import typer
 
-from wha.constants import STARTUP_CATCHUP_DAYS
 from wha.service import (
+    DEFAULT_INGEST_DAYS,
     ConfigError,
     SourceUnavailable,
     describe_device_capability,
@@ -187,12 +187,11 @@ def ingest(
     # baseline is the person rather than a population prior: 3 to 6 nights is
     # PRIOR_DOMINATED and below the 5-night floor Chronos needs. A default of 7 left
     # someone who typed the documented command short of data their watch was already
-    # holding, and gave a different result from the startup catch up, which pulls
-    # STARTUP_CATCHUP_DAYS. Asking for more days than the watch has is harmless: the
+    # holding, and gave a different result from the startup catch up. Asking for more days than the watch has is harmless: the
     # bridge returns what it has and the missing nights are simply unusable.
     days: Annotated[
         int, typer.Option("--days", "-d", help="Number of days to pull")
-    ] = STARTUP_CATCHUP_DAYS,
+    ] = DEFAULT_INGEST_DAYS,
     db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
     as_json: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:

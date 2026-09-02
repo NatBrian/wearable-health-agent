@@ -100,8 +100,21 @@ Not negotiable. Everything else depends on these.
 2026-09-01 through 07:00 on 2026-09-02 belongs to `night_date = 2026-09-02`. All storage is UTC and
 the subject's IANA timezone performs the conversion.
 
-**Nocturnal window.** Local **00:00 to 07:00** on `night_date`. This is the NightSignal definition
-and it is used because it needs no sleep-stage data, which may never arrive.
+**Nocturnal window.** AMENDED 3 September 2026. Was local **00:00 to 07:00** on `night_date`, the
+NightSignal definition, chosen because it needs no sleep-stage data. It is now the **main overnight
+sleep session the device recorded**, restricted to its non-awake spans, with local 00:00 to 07:00 as
+the fallback when the device recorded no sleep. The night is still named for the local date the
+session ends, so the rule above is unchanged.
+
+> **Why the amendment.** NightSignal used a clock window because its data had no sleep staging.
+> This build has staging. Measured on the first real subject, who sleeps roughly 03:00 to 11:00, the
+> clock window counted 2.6 to 3.6 hours of waking time as sleep and discarded about 40 percent of the
+> actual sleep; recomputing over recorded sleep moved the readings by -7, -11 and -3 bpm and cut the
+> night-to-night spread from 8 bpm to 1 bpm. Since baseline and observation share the window, a
+> constant offset cancels but variance does not, and inflated variance widens the detection band and
+> costs sensitivity. Only the longest session is used and naps are excluded, on the evidence in
+> `docs/DESIGN-SLEEP-WINDOW.md`. Which window produced a night is recorded in
+> `nightly_features.rhr_window_source`.
 
 **Nocturnal resting heart rate (`rhr_bpm`).** The **median** of per-minute `avg` heart-rate samples
 inside the nocturnal window, after dropping implausible values.

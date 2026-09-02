@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
@@ -17,6 +16,8 @@ from wha.config import get_settings
 from wha.constants import (
     ANSWER_TIMEOUT_HOURS,
     MEASUREMENT_TIMEOUT_HOURS,
+    NIGHTLY_RESCORE_DAYS,
+    NIGHTLY_RESCORE_INTERVAL_HOURS,
     STARTUP_CATCHUP_DAYS,
 )
 from wha.db import connect
@@ -297,11 +298,18 @@ def create_scheduler(db_path: Path | None = None) -> BackgroundScheduler:
     # 2. Nightly batch: Daily at 09:00 local time
     scheduler.add_job(
         func=lambda: safe_job_wrapper(
-            "nightly", lambda: run_nightly(db_path=db_path), db_path=db_path
+            "nightly", lambda: _rescore_recent(db_path=db_path), db_path=db_path
         ),
-        trigger=CronTrigger(hour=9, minute=0),
+        # Not a fixed hour. A cron at 09:00 assumes the person is awake and their watch
+        # has synced by then. The first real subject wakes around 11:00, so their night
+        # was scored before it had finished being recorded, and never revisited. Now that
+        # the window is read from the sleep session rather than the clock, the trigger
+        # cannot stay on the clock either. Scoring is idempotent and cheap, so it runs on
+        # an interval over a trailing window and a night settles as soon as its sleep
+        # arrives, whatever time that is.
+        trigger=IntervalTrigger(hours=NIGHTLY_RESCORE_INTERVAL_HOURS),
         id="nightly",
-        name="Run nightly detection batch",
+        name="Score nights as their sleep arrives",
         max_instances=1,
         coalesce=True,
     )
@@ -363,6 +371,19 @@ def scheduled_job_summary(scheduler: BackgroundScheduler) -> str:
     off the scheduler means it cannot drift again.
     """
     return ", ".join(sorted(j.id for j in scheduler.get_jobs()))
+
+
+def _rescore_recent(db_path: Path | None = None) -> list[Any]:
+    """Re-score the last few nights, so a night settles when its sleep data arrives.
+
+    Recomputation is idempotent: features, baseline and detection are all derived, and
+    re-running over a night the watch has since filled in simply replaces a provisional
+    reading with a complete one.
+    """
+    settings = get_settings()
+    end = local_today(settings.timezone)
+    start = end - timedelta(days=NIGHTLY_RESCORE_DAYS)
+    return run_nightly(date_or_range=f"{start.isoformat()}:{end.isoformat()}", db_path=db_path)
 
 
 def run_startup_catchup(db_path: Path | None = None) -> dict[str, Any]:

@@ -127,6 +127,41 @@ synthetic generator covers four of the seven live channels.
 
 ---
 
+## The night is measured over recorded sleep, not the clock
+
+A production simulation with a real subject found the largest defect so far. The nocturnal
+window was local 00:00 to 07:00 for everyone, the NightSignal definition, which that study
+used because its data had no sleep staging. This build has staging and was ignoring it.
+
+The subject sleeps roughly 03:00 to 11:00. The clock window counted 2.6 to 3.6 hours of
+waking time as sleep on each of three nights and discarded about 40 percent of the real
+sleep. Recomputed over the recorded sleep:
+
+| Night | RHR, clock | RHR, sleep | Change |
+|---|---|---|---|
+| 31 Aug | 51.0 | 44.0 | -7.0 |
+| 01 Sep | 56.0 | 45.0 | -11.0 |
+| 02 Sep | 48.0 | 45.0 | -3.0 |
+
+The spread matters more than the level: 8 bpm (48 to 56) became 1 bpm (44 to 45). Baseline
+and observation share the window so a constant offset cancels, but variance does not, and
+inflated variance widens the detection band and costs sensitivity. This subject's personal
+scale fell from about 4.5 bpm to the 1.5 bpm floor.
+
+Naps are excluded on evidence, not preference: Whitehurst, Naji and Mednick 2018,
+Neurobiol Sleep Circadian Rhythms 5:52-57, found heart rate measurably higher during
+daytime naps than overnight sleep at matched sleep stages. Reasoning, citations and stated
+limitations, including that **sleep apnoea remains undetectable by design**, are in
+`docs/DESIGN-SLEEP-WINDOW.md` and disclosed on the History page.
+
+The nightly job no longer runs at 09:00. A clock trigger assumed the subject was awake and
+synced by then; this one wakes around 11:00. Nights are re-scored on an interval and settle
+when their sleep arrives.
+
+`plan/02-contracts.md` is amended, schema is v4 (`nightly_features.rhr_window_source`).
+
+---
+
 ## Open items for a human
 
 Nine entries in `plan/BLOCKERS.md`. The ones that matter:

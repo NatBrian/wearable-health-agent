@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS nightly_features (
   steps_prev_day        INTEGER,
   sleep_hours           REAL,
   exercise_end_offset_h REAL,
+  rhr_window_source     TEXT,
   computed_at_utc       TEXT NOT NULL,
   PRIMARY KEY (subject_id, night_date)
 );

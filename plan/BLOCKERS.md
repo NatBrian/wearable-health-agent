@@ -413,3 +413,29 @@ compares it against a night date reintroduces it, and nothing in the type system
 that.
 
 **What I need:** nothing. Noted so the next person does not reach for the UTC date again.
+
+---
+
+## sleep-window — the night was measured by the clock, not by when the person slept
+
+**What I tried:** compared the fixed local 00:00-07:00 window against the sleep sessions the
+first real subject's watch actually recorded.
+
+**What happened:** the subject sleeps roughly 03:00 to 11:00. The clock window counted 2.6
+to 3.6 hours of waking time as sleep on each of three nights and discarded about 40 percent
+of the real sleep. Recomputing over the recorded sleep moved the readings from 51, 56 and 48
+bpm to 44, 45 and 45, and cut the night-to-night spread from 8 bpm to 1 bpm.
+
+**What I think is wrong:** nothing in the arithmetic. The window was the NightSignal
+definition, correct for a study without sleep staging and wrong for a build that has it.
+Fixed in place, with the reasoning and citations in `docs/DESIGN-SLEEP-WINDOW.md` and the
+contract amended.
+
+**What I need:** two things a human should weigh.
+
+1. **Apnoea remains invisible and always will under this design.** A condition that raises
+   sleeping heart rate every night is absorbed into a personal baseline that adapts over 28
+   nights, so it becomes the subject's normal and is never flagged. This is disclosed on the
+   History page. Whether the system should attempt anything here is a clinical scope call.
+2. **Consumer sleep staging is not polysomnography.** A night whose staging is wrong yields
+   a window that is wrong. There is no cross-check for this in the build.

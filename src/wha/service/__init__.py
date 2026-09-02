@@ -38,7 +38,7 @@ from wha.service.evaluation import (
     run_evaluation_suite,
     write_evaluation_report,
 )
-from wha.service.ingest import describe_device_capability, run_ingest
+from wha.service.ingest import DEFAULT_INGEST_DAYS, describe_device_capability, run_ingest
 from wha.service.nightly import (
     get_monitoring_since,
     parse_date_range,
@@ -69,6 +69,7 @@ from wha.service.subjects import (
 )
 
 __all__ = [
+    "DEFAULT_INGEST_DAYS",
     "BeliefNightRecord",
     "ConfigError",
     "DemoRunResult",

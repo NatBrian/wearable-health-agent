@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from wha.constants import MIN_NOCTURNAL_MINUTES
 from wha.db import apply_schema, connect
 from wha.detect.detector import detect_range
 from wha.features.derivation import compute_range
@@ -193,7 +194,16 @@ def test_scenario_nonwear_gap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert len(rows) >= 5
     for r in rows:
         assert r["usable"] == 0
-        assert r["coverage_minutes"] == 0
+        # Below the minimum, rather than exactly zero.
+        #
+        # This asserted coverage_minutes == 0, which held only because the measurement
+        # window was local 00:00-07:00 and the fixture removes heart rate over exactly
+        # that span. The window is now the recorded sleep session, which begins at 23:30
+        # in this fixture, so the last non-wear night legitimately contains 30 minutes of
+        # pre-midnight heart rate and is still correctly unusable. What the test exists to
+        # protect is that a non-wear night is refused rather than interpolated, and that
+        # is what it now asserts.
+        assert r["coverage_minutes"] < MIN_NOCTURNAL_MINUTES
 
     assert scenario.expect["escalates"] is False
     conn.close()

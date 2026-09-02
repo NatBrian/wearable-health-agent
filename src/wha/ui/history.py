@@ -89,7 +89,7 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
                 "Left unexplained": (
                     f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "-"
                 ),
-                "Watch worn": f"{n.coverage_minutes} min",
+                "Measured over": f"{n.coverage_minutes} min",
                 "Investigation": "yes" if n.episode_id else "-",
             }
         )
@@ -131,8 +131,15 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
                     )
                     st.caption("The middle of your recent nights, not an average.")
                 with col_b:
-                    st.metric("Watch worn", f"{feat.coverage_minutes} min")
-                    st.caption("Out of the 420 minutes between midnight and 7am.")
+                    st.metric("Measured over", f"{feat.coverage_minutes} min")
+                    if getattr(feat, "rhr_window_source", "clock") == "sleep":
+                        st.caption("Minutes of recorded sleep this reading was taken from.")
+                    else:
+                        st.caption(
+                            "Your watch recorded no sleep for this night, so midnight to "
+                            "7am was used instead. This is a weaker basis than a night "
+                            "where sleep was recorded."
+                        )
                     st.metric(
                         "Time asleep",
                         f"{feat.sleep_hours:.1f} h" if feat.sleep_hours is not None else "n/a",

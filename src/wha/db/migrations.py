@@ -5,12 +5,16 @@ from pathlib import Path
 
 from wha.errors import ConfigError
 
-DB_VERSION = 3
+DB_VERSION = 4
 
 # Columns added after version 1. CREATE TABLE IF NOT EXISTS does not alter a table that
 # already exists, so a database created before a column was introduced would silently
 # lack it and fail at the first write. Each entry is applied only when absent.
-_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (("beliefs", "state_logprob_json", "TEXT"),)
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("beliefs", "state_logprob_json", "TEXT"),
+    # v4. Which window the night's reading came from, "sleep" or "clock".
+    ("nightly_features", "rhr_window_source", "TEXT"),
+)
 
 
 # Tables whose shape changed after they were first created. CREATE TABLE IF NOT EXISTS
