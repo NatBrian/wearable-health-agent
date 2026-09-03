@@ -782,8 +782,70 @@ def _close_if_concluded(
     # and History could show them a verdict with no reasoning behind it.
     if draft is not None:
         _persist_outcome(conn, episode_id, draft)
+        _notify_outcome(conn, episode_id, draft)
 
     return "CLOSED"
+
+
+def _notify_outcome(conn: sqlite3.Connection, episode_id: str, draft: Any) -> None:
+    """Tell the person what came of the question they answered.
+
+    The system asked, they replied, and nothing ever came back. Three send calls existed in
+    the whole application, for a question, a measurement and an escalation, and none for a
+    conclusion, so seven episodes reached a disposition and the person heard about only the
+    escalations. The transport was already built for this: MessageKind.OUTCOME is the one
+    kind Telegram attaches a dashboard link and a "View detail" button to, and the outbound
+    safety rules permit a URL only for it. Nothing ever sent one.
+
+    Only episodes the person was actually interrupted for are reported. Telling somebody
+    about an investigation they never knew had opened is noise, and the interruption budget
+    exists precisely to keep this system quiet.
+    """
+    asked = conn.execute(
+        """SELECT 1 FROM interactions
+            WHERE episode_id = ? AND status IN ('ANSWERED', 'DECLINED', 'TIMED_OUT') LIMIT 1""",
+        (episode_id,),
+    ).fetchone()
+    if asked is None:
+        return
+
+    row = conn.execute(
+        "SELECT subject_id FROM episodes WHERE episode_id = ?", (episode_id,)
+    ).fetchone()
+    if row is None:
+        return
+
+    from wha.notify.factory import get_notifier
+    from wha.notify.protocol import MessageKind
+    from wha.ui.components.wording import disposition_phrase
+
+    phrase = disposition_phrase(getattr(draft, "disposition", None))
+    observation = getattr(draft, "observation", "") or ""
+    text = f"{phrase.label}. {phrase.explanation}"
+    if observation:
+        text = text + "\n\n" + observation
+
+    try:
+        notifier = get_notifier()
+        delivered = notifier.send(
+            recipient_id=row["subject_id"],
+            kind=MessageKind.OUTCOME,
+            text=text,
+            interaction_id=episode_id,
+        )
+        if delivered:
+            from wha.agent.repository import EpisodeRepository
+
+            EpisodeRepository(conn=conn).record_notification(
+                interaction_id=episode_id,
+                recipient=row["subject_id"],
+                kind="OUTCOME",
+                channel=getattr(notifier, "channel", "none"),
+                episode_id=episode_id,
+            )
+    except Exception:  # noqa: BLE001, S110
+        # A transport failure must never stop an episode closing.
+        pass
 
 
 def _closing_date(conn: sqlite3.Connection, episode_id: str) -> date:

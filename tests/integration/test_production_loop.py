@@ -339,3 +339,70 @@ def test_startup_catchup_ingests_then_scores_the_window(tmp_path: Path) -> None:
     assert calls[0] == "ingest", "data must be pulled before it is scored"
     assert calls[1].startswith("nightly:")
     assert result["stored"] == 11337
+
+
+# -- the person hears back --------------------------------------------------------------
+
+
+def test_an_answered_episode_reports_its_conclusion(tmp_path: Path) -> None:
+    """The system asked, the person replied, and nothing ever came back.
+
+    Three send calls existed in the whole application: a question, a measurement and an
+    escalation. None for a conclusion. Seven episodes reached a disposition in a simulated
+    run and the person heard about only the escalations, even though Telegram already had
+    formatting for MessageKind.OUTCOME and the outbound rules permit a dashboard link only
+    for that kind.
+    """
+    from unittest.mock import MagicMock
+
+    from wha.service.episodes import _notify_outcome
+
+    db_file = _make_db(tmp_path)
+    _open_episode(db_file)
+    _add_interaction(db_file, "ep_test", "fever", "int_1")
+
+    conn = connect(db_file)
+    conn.execute("UPDATE interactions SET status = 'ANSWERED' WHERE id = 'int_1'")
+    conn.commit()
+
+    draft = MagicMock()
+    draft.disposition = "LIKELY_ILLNESS"
+    draft.observation = "Elevated readings over two nights."
+
+    notifier = MagicMock()
+    notifier.send.return_value = True
+    notifier.channel = "telegram"
+
+    with patch("wha.notify.factory.get_notifier", return_value=notifier):
+        _notify_outcome(conn, "ep_test", draft)
+
+    sent = notifier.send.call_args
+    kinds = [r[0] for r in conn.execute("SELECT kind FROM notifications")]
+    conn.close()
+
+    assert sent is not None, "a concluded episode must tell the person what came of it"
+    assert "OUTCOME" in str(sent.kwargs.get("kind"))
+    assert "Elevated readings over two nights." in sent.kwargs["text"]
+    assert "OUTCOME" in kinds
+
+
+def test_an_episode_nobody_was_asked_about_stays_quiet(tmp_path: Path) -> None:
+    """Telling someone about an investigation they never knew opened is noise."""
+    from unittest.mock import MagicMock
+
+    from wha.service.episodes import _notify_outcome
+
+    db_file = _make_db(tmp_path)
+    _open_episode(db_file)
+
+    conn = connect(db_file)
+    draft = MagicMock()
+    draft.disposition = "LIKELY_BENIGN"
+    draft.observation = "Settled on its own."
+
+    notifier = MagicMock()
+    with patch("wha.notify.factory.get_notifier", return_value=notifier):
+        _notify_outcome(conn, "ep_test", draft)
+    conn.close()
+
+    assert not notifier.send.called
