@@ -528,3 +528,23 @@ have not opened it.
 
 **What I need:** confirmation that a timed-out question should close an episode as
 UNRESOLVED rather than LIKELY_BENIGN, and then that path fixed.
+
+
+---
+
+## audit-scope — RESOLVED. The deterministic pipeline is now in the record
+
+The earlier entry asked whether the audit log should cover the deterministic pipeline as
+well as the agent. A user answered it by opening the page after a night had been fully
+processed and finding it empty: "what I expect is the audit will show any data and their
+system logic trail so user can fully understand what happened, not silent."
+
+Implemented in `src/wha/audit/monitor.py`. Ingest and night scoring write to the same
+hash chain, only when something actually changed, and refusals are recorded as well as
+actions. Each entry carries both the exact figures and a plain narrative, because the
+requirement was explicitly that a non-doctor, non-engineer can understand it.
+
+Two findings surfaced while building it and are fixed: `detect_night` rebuilt its features
+without `rhr_window_source`, so the record told a reader their watch had recorded no sleep
+on a night it had measured; and a negative residual was being reported as a signed number,
+which reads as a fault to someone who is simply below their usual.

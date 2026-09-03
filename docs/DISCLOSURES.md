@@ -37,6 +37,32 @@ Source: `src/wha/ui/components/disclaimer.py`.
 
 ---
 
+## The record itself
+
+Audit entries came only from the agent's tool calls and from settings changes, so after a
+full night of measuring, scoring and judging, the page that exists to show a person what
+happened to their data was blank. A user could not tell that from the system having done
+nothing at all.
+
+The deterministic half now writes to the same tamper-evident chain, under
+`src/wha/audit/monitor.py`, with two rules:
+
+- **Only changes are recorded.** Ingest polls every 30 minutes and night scoring runs every
+  few hours, mostly redoing identical work. A pass that finds nothing new writes nothing, so
+  the record stays a history of what happened to the person rather than a list of cron ticks.
+  A night's first scoring always writes, whether or not anything changed.
+- **Refusals are recorded too.** A stage that declined made a decision about the person.
+  "The forecasting model did not run: it needs 5 usable nights and there are 3" and "nothing
+  can be flagged yet: 3 of the 7 nights needed" are what turn silence into something a reader
+  can understand.
+
+Every entry carries two forms: the exact figures, so the arithmetic can be redone and
+checked, and a **plain narrative** written for someone with no medical or technical
+background, which is what the page shows first. A record nobody can read is not
+transparency.
+
+---
+
 ## The reasoning behind each
 
 - `docs/DESIGN-BASELINE-CENTRE.md` — why a night is compared against the person's own

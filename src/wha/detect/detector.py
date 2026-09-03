@@ -5,6 +5,7 @@ import sqlite3
 from collections.abc import Sequence
 from datetime import date, timedelta
 
+from wha.audit.monitor import record_night_scored
 from wha.constants import (
     BASELINE_MIN_NIGHTS_PERSONAL,
     BASELINE_SCALE_FLOOR_BPM,
@@ -121,7 +122,7 @@ def detect_night(
         """
         SELECT subject_id, night_date, rhr_bpm, coverage_minutes,
                implausible_dropped, usable, steps_prev_day, sleep_hours,
-               exercise_end_offset_h
+               exercise_end_offset_h, rhr_window_source
         FROM nightly_features
         WHERE subject_id = ? AND night_date = ?;
         """,
@@ -141,6 +142,10 @@ def detect_night(
             steps_prev_day=row["steps_prev_day"],
             sleep_hours=row["sleep_hours"],
             exercise_end_offset_h=row["exercise_end_offset_h"],
+            # Without this the reconstructed night claimed the clock fallback had been
+            # used, and the record then told the reader their watch had recorded no sleep
+            # on a night it had measured perfectly well.
+            rhr_window_source=row["rhr_window_source"] or "clock",
         )
 
     # 2. Fetch baseline history (strictly preceding nights < night_date)
@@ -200,6 +205,15 @@ def detect_night(
         else:
             break
 
+    # What this night said before, so the record can note a first scoring or a genuine
+    # change without an entry for every pass of a job that runs every few hours.
+    prior_row = conn.execute(
+        """SELECT level, flagged, residual_bpm FROM detections
+           WHERE subject_id = ? AND night_date = ?""",
+        (subject_id, night_date.isoformat()),
+    ).fetchone()
+    previous = dict(prior_row) if prior_row is not None else None
+
     # 4. Compute detection
     fc = forecast or Forecast(status=ForecastStatus.NOT_RUN)
     detection = compute_detection_for_features(features, baseline, preceding_levels, fc)
@@ -249,6 +263,16 @@ def detect_night(
                 reasons_json,
             ),
         )
+
+    # The record of what was decided about this night, and what declined to run. Written
+    # only on a first scoring or a real change, so a job that runs every few hours does not
+    # fill the record with identical entries.
+    try:
+        record_night_scored(conn, features, baseline, detection, previous)
+    except Exception:  # noqa: BLE001, S110
+        # The record is important, but never important enough to lose a night's reading
+        # over. A failure here must not take the pipeline down.
+        pass
 
     return detection
 

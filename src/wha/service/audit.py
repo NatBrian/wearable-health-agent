@@ -133,6 +133,58 @@ def query_audit(
             conn.close()
 
 
+def list_plain_records(
+    subject_id: str,
+    limit: int = 20,
+    conn: sqlite3.Connection | None = None,
+) -> list[dict]:
+    """Recent deterministic entries, as the sentences a person can actually read.
+
+    The raw event table is precise and unreadable. Every monitor entry carries a `plain`
+    narrative written for someone with no medical or technical background, and this is what
+    the page shows; the table underneath keeps the exact fields for anyone checking.
+    """
+    close_conn = False
+    if conn is None:
+        conn = connect()
+        apply_schema(conn)
+        close_conn = True
+    try:
+        rows = conn.execute(
+            """SELECT event_id, timestamp_utc, actor, operation, output_json
+                 FROM audit_events
+                WHERE subject_id = ? AND actor IN ('monitor', 'system')
+                ORDER BY timestamp_utc DESC, rowid DESC
+                LIMIT ?""",
+            (subject_id, limit),
+        ).fetchall()
+    finally:
+        if close_conn:
+            conn.close()
+
+    out: list[dict] = []
+    for r in rows:
+        try:
+            payload = json.loads(r["output_json"]) if r["output_json"] else {}
+        except (TypeError, ValueError):
+            payload = {}
+        sentences = payload.get("plain")
+        if not sentences:
+            summary = payload.get("summary")
+            sentences = [summary] if summary else []
+        out.append(
+            {
+                "event_id": r["event_id"],
+                "timestamp_utc": r["timestamp_utc"],
+                "operation": r["operation"],
+                "night": payload.get("night"),
+                "sentences": sentences,
+                "detail": payload,
+            }
+        )
+    return out
+
+
 def count_audit_events(subject_id: str, conn: sqlite3.Connection | None = None) -> int:
     """How many entries the record holds. An empty chain verifies, so callers must ask."""
     close_conn = False

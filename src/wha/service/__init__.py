@@ -7,6 +7,7 @@ from wha.errors import (
 from wha.service.audit import (
     export_audit,
     get_permitted_tool_names,
+    list_plain_records,
     query_audit,
     verify_hash_chain,
 )
@@ -94,6 +95,7 @@ __all__ = [
     "get_system_status",
     "list_episodes",
     "list_nights",
+    "list_plain_records",
     "list_subjects",
     "parse_date_range",
     "query_audit",

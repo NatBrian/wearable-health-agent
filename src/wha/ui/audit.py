@@ -34,6 +34,7 @@ from wha.service.audit import (
     count_audit_events,
     export_audit,
     get_permitted_tool_names,
+    list_plain_records,
     query_audit,
     verify_hash_chain,
 )
@@ -269,6 +270,41 @@ def render_audit_table(subject_id: str, f: AuditFilter, limit: int = 50, offset:
     )
 
 
+def render_plain_record(subject_id: str) -> None:
+    """What happened, in sentences, before any of the technical detail.
+
+    The event table is precise and unreadable to anyone who did not build the system. This
+    page exists so a person can understand what was done with their data, which means the
+    first thing on it has to be readable.
+    """
+    st.subheader("What happened, night by night")
+    records = list_plain_records(subject_id, limit=25)
+
+    if not records:
+        st.info(
+            "Nothing has been recorded yet. Entries appear here once your watch sends data "
+            "and a night has been measured."
+        )
+        return
+
+    for rec in records:
+        when = str(rec["timestamp_utc"])[:16].replace("T", " ")
+        if rec["operation"] == "nightly" and rec["night"]:
+            title = f"Night of {rec['night']}"
+        elif rec["operation"] == "ingest":
+            title = "Data arrived from your watch"
+        else:
+            title = rec["operation"]
+
+        with st.container(border=True):
+            st.markdown(f"**{title}**")
+            st.caption(f"Recorded {when} UTC")
+            for line in rec["sentences"]:
+                st.write(line)
+            with st.expander("The exact figures behind this"):
+                st.json(rec["detail"])
+
+
 def render_audit_page(subject_id: str) -> None:
     """Render the Audit page."""
     render_status_strip(subject_id)
@@ -276,12 +312,15 @@ def render_audit_page(subject_id: str) -> None:
 
     st.title("The record")
     st.caption(
-        "Every tool the AI used, every tool call it was refused, and every settings change "
-        "is written down as it happens. Pulling data from your watch and scoring a night "
-        "are deterministic steps and are not recorded here; History is where those appear."
+        "Everything this system does is written down as it happens: each night it measured "
+        "and how it judged it, every tool the AI used and every one it was refused, and "
+        "every settings change. Entries are written when something actually happens, so a "
+        "check that found nothing new does not appear."
     )
 
     render_hash_chain_panel(subject_id)
+    st.write("---")
+    render_plain_record(subject_id)
     st.write("---")
     render_how_it_works(subject_id)
     st.write("---")

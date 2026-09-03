@@ -3,6 +3,7 @@
 from datetime import UTC, datetime
 from pathlib import Path
 
+from wha.audit.monitor import record_ingest
 from wha.config import get_settings
 from wha.constants import (
     DEFAULT_SYNTHETIC_BASE_BPM,
@@ -63,8 +64,10 @@ def run_ingest(
             raise SourceUnavailable(f"Failed to fetch from LiveBridge: {e}") from e
 
         norm = normalise_and_store(conn, raw_payloads)
+        stored = len(norm.heart_rate_samples)
+        record_ingest(conn, subj, stored, "your watch")
         conn.close()
-        return len(norm.heart_rate_samples)
+        return stored
 
     # Fallback to deterministic synthetic source
     # Scenario forbids extra fields and requires all five of these. The previous call
@@ -82,8 +85,10 @@ def run_ingest(
     syn = Synthetic(scenario=scenario)
     raw_payload = syn.fetch(subject_id=subj)
     norm = normalise_and_store(conn, raw_payload)
+    stored = len(norm.heart_rate_samples)
+    record_ingest(conn, subj, stored, "simulated data")
     conn.close()
-    return len(norm.heart_rate_samples)
+    return stored
 
 
 def describe_device_capability(
