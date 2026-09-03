@@ -172,44 +172,37 @@ def test_today_pending_review() -> None:
         assert call_args.kwargs["decision"] == "approve"
 
 
-def test_an_urgent_self_report_outranks_the_reassurance() -> None:
-    """A person who has just described chest pain must not be told nothing needs them.
+def test_an_urgency_the_rules_set_outranks_the_reassurance() -> None:
+    """A person the rules have escalated must not be told nothing needs them.
 
-    The escalation banner was rendered inside the report box near the bottom of the page
-    while the top of the same screen still read "Nothing needs you right now". Both were
-    true statements about different things and together they were dangerous. The banner is
-    now drawn into a slot reserved above the reassurance, and only one of the two appears.
+    The escalation banner was once rendered near the bottom of the page while the top of
+    the same screen still read "Nothing needs you right now". Both were true statements
+    about different things and together they were dangerous. The banner is now drawn into a
+    slot reserved above the reassurance, and only one of the two ever appears.
     """
-    from wha.service.symptom_report import SymptomReportResult
-    from wha.ui.today import render_urgent_report
-
-    result = SymptomReportResult(
-        subject_id="sub_test",
-        text="it feels like an elephant is sitting on my chest",
-        escalated=True,
-        level="urgent",
-        triggered_flags=["rf_chest_pain"],
-        guidance=["Chest pain or pressure needs assessment now. Call 995 or go to an A&E."],
-    )
+    from wha.ui.today import render_urgency_banner
 
     with (
         patch("streamlit.error") as mock_error,
+        patch("streamlit.warning") as mock_warning,
         patch("streamlit.success") as mock_success,
+        patch("streamlit.info"),
         patch("streamlit.caption"),
+        patch("wha.service.conversation.latest_urgency_reason", return_value=""),
     ):
-        render_urgent_report(result)
+        render_urgency_banner("urgent", "sub_test")
 
     assert mock_error.called
-    assert any("995" in str(c[0][0]) for c in mock_error.call_args_list)
     assert not mock_success.called, "reassurance shown alongside an urgent escalation"
+    assert not mock_warning.called
 
 
-def test_the_page_reserves_the_urgent_slot_above_the_reassurance() -> None:
-    """The slot must be opened before the report form is handled, or ordering is lost."""
+def test_the_page_reserves_the_urgent_slot_above_the_conversation() -> None:
+    """The slot must be opened before the conversation is handled, or ordering is lost."""
     import inspect
 
     from wha.ui.today import render_today_page
 
     source = inspect.getsource(render_today_page)
-    assert source.index("st.container()") < source.index("render_tell_us")
-    assert source.index("render_tell_us") < source.index("render_inbox")
+    assert source.index("st.container()") < source.index("render_conversation")
+    assert source.index("render_conversation") < source.index("render_inbox")

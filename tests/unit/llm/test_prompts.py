@@ -9,7 +9,10 @@ from wha.llm.prompts import ALL_PROMPTS, get_prompt_definition
 
 def test_prompt_has_all_six_components() -> None:
     """Every prompt in the prompts registry has all six mandatory components."""
-    assert len(ALL_PROMPTS) == 9
+    # Eleven: `converse` for the multi-turn grounded conversation, and
+    # `extract_rule_items` for the separate zero-temperature pass that pulls decision-rule
+    # answers out of it. They are split because one call asked to do both only conversed.
+    assert len(ALL_PROMPTS) == 11
     for p in ALL_PROMPTS:
         assert p.prompt_id, "Missing prompt_id"
         assert p.prompt_version, f"{p.prompt_id}: Missing prompt_version"

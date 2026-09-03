@@ -235,8 +235,18 @@ class EpisodeRepository:
         private allowance pointing at the same phone. That is how a day of testing sent a
         real person seventeen questions from a system that permits two a week.
         """
+        # Only unsolicited contacts count. A follow-up asked inside a conversation the
+        # person is already having is not an interruption, and charging it to the same
+        # allowance is why the agent could never ask more than two questions in a week.
+        # The alarm fatigue evidence behind this budget concerns unsolicited alarms; see
+        # INTERRUPTION_BUDGET_CITATION.
+        #
+        # Rows written before the `initiation` column existed are NULL and are counted, so
+        # a migrated database never under-counts what it already spent.
         row = self._conn.execute(
-            "SELECT COUNT(*) AS n FROM interactions WHERE DATE(asked_at_utc) >= ?",
+            """SELECT COUNT(*) AS n FROM interactions
+                WHERE DATE(asked_at_utc) >= ?
+                  AND (initiation IS NULL OR initiation = 'unsolicited')""",
             (since.isoformat(),),
         ).fetchone()
         return int(row["n"]) if row else 0
@@ -305,13 +315,20 @@ class EpisodeRepository:
         interruption_cost: float = 0.0,
         rejected: list[Any] | None = None,
         channel: str = "none",
+        initiation: str = "unsolicited",
     ) -> None:
-        """Record a question, idempotently. Re-running the ask node must not duplicate it."""
+        """Record a question, idempotently. Re-running the ask node must not duplicate it.
+
+        ``initiation`` is "unsolicited" when the system contacted someone who was not
+        asking, and "conversation" when it asked inside an exchange already under way.
+        Only the first spends the weekly interruption budget.
+        """
         self._conn.execute(
             """INSERT INTO interactions
                  (id, episode_id, probe_id, question_text, text_source, options_json,
-                  evsi, interruption_cost, rejected_json, channel, asked_at_utc, status)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+                  evsi, interruption_cost, rejected_json, channel, asked_at_utc, status,
+                  initiation)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
                ON CONFLICT(id) DO UPDATE SET
                  question_text = excluded.question_text,
                  text_source = excluded.text_source,
@@ -328,6 +345,7 @@ class EpisodeRepository:
                 json.dumps(rejected or []),
                 channel,
                 to_iso(datetime.now(UTC)),
+                initiation,
             ),
         )
         self._conn.commit()

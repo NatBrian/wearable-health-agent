@@ -2,8 +2,10 @@
 
 from wha.llm.prompts.answer_about_episode import PROMPT as ANSWER_ABOUT_EPISODE_PROMPT
 from wha.llm.prompts.base import PromptDefinition
+from wha.llm.prompts.converse import PROMPT as CONVERSE_PROMPT
 from wha.llm.prompts.critique import PROMPT as CRITIQUE_PROMPT
 from wha.llm.prompts.extract_facts import PROMPT as EXTRACT_FACTS_PROMPT
+from wha.llm.prompts.extract_rule_items import PROMPT as EXTRACT_RULE_ITEMS_PROMPT
 from wha.llm.prompts.interview_followup import PROMPT as INTERVIEW_FOLLOWUP_PROMPT
 from wha.llm.prompts.investigate import PROMPT as INVESTIGATE_PROMPT
 from wha.llm.prompts.red_flag_check import PROMPT as RED_FLAG_CHECK_PROMPT
@@ -21,6 +23,8 @@ ALL_PROMPTS: list[PromptDefinition] = [
     WRITE_OUTCOME_PROMPT,
     CRITIQUE_PROMPT,
     ANSWER_ABOUT_EPISODE_PROMPT,
+    CONVERSE_PROMPT,
+    EXTRACT_RULE_ITEMS_PROMPT,
 ]
 
 PROMPTS_BY_ID: dict[str, PromptDefinition] = {p.prompt_id: p for p in ALL_PROMPTS}

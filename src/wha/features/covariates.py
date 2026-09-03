@@ -64,7 +64,16 @@ def derive_sleep_hours(
     if not sleep_stages:
         return None
 
-    non_awake_seconds = 0.0
+    # Intervals are merged before they are summed. Adding each stage's overlap separately
+    # counts the same minute once per record covering it, so a device that reports
+    # overlapping stages, or a night ingested more than once, produces a total larger than
+    # the window it was measured over. A live database held nights of "42.9 h sleep", which
+    # is not a wrong number so much as an impossible one, and it went into a document
+    # intended for a clinician.
+    #
+    # Merging also bounds the result by construction: the answer can never exceed the
+    # window, whatever the source data does.
+    spans: list[tuple[datetime, datetime]] = []
     has_overlapping_records = False
 
     for item in sleep_stages:
@@ -80,10 +89,23 @@ def derive_sleep_hours(
         if overlap_end > overlap_start:
             has_overlapping_records = True
             if stage != "AWAKE":
-                non_awake_seconds += (overlap_end - overlap_start).total_seconds()
+                spans.append((overlap_start, overlap_end))
 
     if not has_overlapping_records:
         return None
+
+    non_awake_seconds = 0.0
+    merged_end: datetime | None = None
+    merged_start: datetime | None = None
+    for span_start, span_end in sorted(spans):
+        if merged_end is None or span_start > merged_end:
+            if merged_start is not None and merged_end is not None:
+                non_awake_seconds += (merged_end - merged_start).total_seconds()
+            merged_start, merged_end = span_start, span_end
+        elif span_end > merged_end:
+            merged_end = span_end
+    if merged_start is not None and merged_end is not None:
+        non_awake_seconds += (merged_end - merged_start).total_seconds()
 
     return round(non_awake_seconds / 3600.0, 2)
 

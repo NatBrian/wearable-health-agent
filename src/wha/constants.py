@@ -190,7 +190,52 @@ UTILITY_CORRECT = 0.0
 # the metric by nearly always asking, which is the alarm fatigue this project exists to
 # avoid.
 POLICY_COST_PER_INTERRUPT = 0.15
-INTERRUPTION_BUDGET_PER_WEEK = 2
+# Two different resources, which were previously one counter and should never have been.
+#
+# The alarm fatigue evidence is about UNSOLICITED alarms: 72 to 99 percent of clinical
+# monitor alarms are technically false or non-actionable and only 5 to 13 percent are
+# actionable, and the consequence is desensitisation and delayed response (systematic
+# review, Front Digit Health 2022;4:843747). That is an argument about how often a system
+# may contact a person who is not asking. It is not an argument for cutting off a
+# conversation the person is already having.
+#
+# Counting both against one allowance of two meant a follow-up question inside a live
+# conversation cost the same as a push notification on an unrelated day, so the agent could
+# never ask more than two questions in a week and in practice asked one per episode. A
+# system whose only information beyond a heart rate is what the person tells it, when
+# history-taking alone yields the final diagnosis in 76 percent of cases (Peterson et al.,
+# West J Med 1992;156(2):163-5), should not be spending its best instrument that way.
+INTERRUPTION_BUDGET_PER_WEEK = 2  # unsolicited contacts only
+INTERRUPTION_BUDGET_CITATION = (
+    "Alarm fatigue: 72-99 percent of clinical monitor alarms are non-actionable, only "
+    "5-13 percent actionable. Systematic review, Front Digit Health 2022;4:843747"
+)
+
+# How many turns a conversation the person is already in may run to.
+#
+# Tu et al., Towards conversational diagnostic artificial intelligence, Nature
+# 2025;642:442-450, report that "both AMIE and the PCPs were able to acquire the
+# information necessary for formulating an accurate differential in the early stages
+# (first ten turns)", with comparable performance at all conversation lengths. Ten is
+# where the information was in hand; beyond it that study measured no gain.
+CONVERSATION_MAX_TURNS = 10
+
+# How many agent turns a validated rule may stay incomplete before the presentation is
+# resolved conservatively.
+#
+# UNEVIDENCED. No study says how long it is acceptable to leave someone describing chest
+# pain without an answer. It exists because the alternative measured worse: in a live run
+# the agent asked the Marburg questions correctly, failed to record the answers, and left
+# a person with chest pain in limbo with no urgency at all, which is worse than the
+# over-escalation this design replaced. Three is short enough that limbo cannot persist and
+# long enough to gather five items. Disclosed in docs/DISCLOSURES.md and on screen.
+TRIAGE_MAX_TURNS_BEFORE_ESCALATE = 3
+CONVERSATION_DEPTH_CITATION = (
+    "Tu et al. 2025, Nature 642:442-450 (AMIE): an accurate differential was reached "
+    "within the first ten turns of consultation"
+)
+
+# Questions the EVSI policy may ask across one episode, separate from the conversation.
 DEPTH_BUDGET_PER_EPISODE = 5
 
 # --- episode lifecycle ----------------------------------------------------

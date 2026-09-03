@@ -66,3 +66,7 @@ seed_*.py
 
 # Mock watch simulation cursor (tools/mock_watch.py)
 data/sim_state.json
+
+# Local run logs from `wha serve` and the mock watch.
+serve.log
+mockwatch.log

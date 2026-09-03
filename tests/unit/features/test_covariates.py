@@ -109,3 +109,78 @@ def test_recompute_is_idempotent(tmp_db_path: Path) -> None:
     assert count == 1
 
     conn.close()
+
+
+def test_overlapping_sleep_records_are_merged_not_added() -> None:
+    """A person cannot sleep two hours in one hour.
+
+    Each stage's overlap with the window used to be added separately, so any minute covered
+    by more than one record was counted more than once. A live database held nights
+    reporting "42.9 h sleep", which is not merely wrong but impossible, and that figure
+    reached a document written for a clinician.
+    """
+    from datetime import UTC, datetime
+
+    from wha.features.covariates import derive_sleep_hours
+
+    window_start = datetime(2026, 9, 1, 0, 0, tzinfo=UTC)
+    window_end = datetime(2026, 9, 1, 7, 0, tzinfo=UTC)
+
+    # Three records covering the same two hours, as a re-ingested night produces.
+    duplicated = [
+        {
+            "start_utc": datetime(2026, 9, 1, 1, 0, tzinfo=UTC),
+            "end_utc": datetime(2026, 9, 1, 3, 0, tzinfo=UTC),
+            "stage": "DEEP",
+        }
+    ] * 3
+
+    assert derive_sleep_hours(duplicated, window_start, window_end) == 2.0
+
+
+def test_sleep_hours_can_never_exceed_the_window_it_was_measured_over() -> None:
+    """Merging bounds the answer by construction, whatever the source data does."""
+    from datetime import UTC, datetime, timedelta
+
+    from wha.features.covariates import derive_sleep_hours
+
+    window_start = datetime(2026, 9, 1, 0, 0, tzinfo=UTC)
+    window_end = datetime(2026, 9, 1, 7, 0, tzinfo=UTC)
+
+    # Fifty overlapping records, each spanning the whole window.
+    piled_up = [
+        {
+            "start_utc": window_start - timedelta(hours=2),
+            "end_utc": window_end + timedelta(hours=2),
+            "stage": "LIGHT",
+        }
+        for _ in range(50)
+    ]
+
+    hours = derive_sleep_hours(piled_up, window_start, window_end)
+    assert hours == 7.0
+
+
+def test_separate_sleep_blocks_still_add_up() -> None:
+    """Merging must not collapse genuinely separate stretches of sleep."""
+    from datetime import UTC, datetime
+
+    from wha.features.covariates import derive_sleep_hours
+
+    window_start = datetime(2026, 9, 1, 0, 0, tzinfo=UTC)
+    window_end = datetime(2026, 9, 1, 7, 0, tzinfo=UTC)
+
+    blocks = [
+        {
+            "start_utc": datetime(2026, 9, 1, 0, 0, tzinfo=UTC),
+            "end_utc": datetime(2026, 9, 1, 2, 0, tzinfo=UTC),
+            "stage": "LIGHT",
+        },
+        {
+            "start_utc": datetime(2026, 9, 1, 3, 0, tzinfo=UTC),
+            "end_utc": datetime(2026, 9, 1, 6, 0, tzinfo=UTC),
+            "stage": "DEEP",
+        },
+    ]
+
+    assert derive_sleep_hours(blocks, window_start, window_end) == 5.0

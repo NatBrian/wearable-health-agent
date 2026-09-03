@@ -1,5 +1,6 @@
 """Today view: what happened last night, and anything that needs the person."""
 
+import json
 from datetime import timedelta
 
 import streamlit as st
@@ -20,7 +21,6 @@ from wha.service.episodes import (
 )
 from wha.service.nights import list_nights
 from wha.service.status import get_system_status
-from wha.service.symptom_report import SymptomReportResult, report_symptoms
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
     describe_bpm_difference,
@@ -255,48 +255,96 @@ def render_open_episodes(subject_id: str) -> None:
             st.caption(f"Investigation id `{ep.episode_id}`, internal state `{ep.state.value}`.")
 
 
-def render_tell_us(subject_id: str) -> SymptomReportResult | None:
-    """Let the person say how they feel without waiting to be asked.
+def render_conversation(subject_id: str) -> str | None:
+    """A real conversation, with the transcript, the citations and what is uncited.
 
-    The deterministic safety floor runs on free text, and it could only ever be reached
-    through a question the agent chose to ask. The agent frequently chooses not to ask, so
-    somebody with chest pain had no way to tell this system anything at all.
+    This replaced a text box over word-overlap matching that made no model call at all.
+    Returns the urgency the rules have established, so the caller can draw it above
+    everything else rather than under a reassurance.
     """
-    with st.expander("Tell us how you are feeling"):
-        st.caption(
-            "You do not have to wait to be asked. Anything you write here is checked "
-            "straight away, and anything that needs urgent attention is flagged before any "
-            "AI is involved."
-        )
-        text = st.text_area(
-            "In your own words",
-            key="tell_us_text",
-            placeholder="For example: sore throat since yesterday, or a bad headache that will not shift",
-        )
-        if st.button("Send", key="tell_us_send", type="primary") and text.strip():
-            result = report_symptoms(subject_id=subject_id, text=text.strip())
-            if result.escalated:
-                # Returned rather than rendered here. An escalation drawn under this box
-                # sat below a green "Nothing needs you right now" at the top of the same
-                # screen, so the person was told to call 995 and that nothing needed them.
-                # The caller draws it in a slot reserved above the reassurance instead.
-                return result
-            st.success(
-                "Thank you, that has been recorded. Nothing you described needs urgent "
-                "attention. It will be taken into account next time a night is looked into."
-            )
-    return None
+    from wha.service.conversation import get_transcript, send_message
 
-
-def render_urgent_report(result: SymptomReportResult) -> None:
-    """The banner for something the person reported that trips the safety floor."""
-    st.error("**This needs medical attention.**")
-    for line in result.guidance:
-        st.error(line)
+    st.subheader("Talk to it")
     st.caption(
-        "Based on what you just told us. This was decided by a fixed rule, before any AI "
-        "was involved."
+        "Ask anything about your readings, or tell it how you feel. It may ask you "
+        "questions back. Anything you write is checked by fixed rules before any AI sees "
+        "it, and those rules can raise how urgent this is but the AI can never lower it."
     )
+
+    turns = get_transcript(subject_id)
+    for turn in turns:
+        with st.chat_message("user" if turn["role"] == "user" else "assistant"):
+            st.write(turn["text"])
+            citations = json.loads(turn.get("citations_json") or "[]")
+            uncited = json.loads(turn.get("uncited_json") or "[]")
+            if citations:
+                with st.expander(f"Where this comes from ({len(citations)})"):
+                    for c in citations:
+                        st.caption(f"**{c['title']}** (`{c['source_id']}`)")
+                        st.caption(f'"{" ".join(str(c["passage"]).split())[:400]}"')
+            if uncited:
+                st.warning(
+                    "**Not from a cited source.** The following came from the AI's own "
+                    "general knowledge, not from anything in this system's references. "
+                    "Treat it as a starting point to check, not as evidence.",
+                    icon="⚠️",
+                )
+                for note in uncited:
+                    st.caption(f"• {note}")
+
+    message = st.chat_input("Say anything, or ask a question")
+    if message and message.strip():
+        with st.spinner("Thinking, and checking every claim against a source..."):
+            # The reply is read back from the transcript on the rerun below rather than
+            # rendered here, so the whole exchange is drawn from the stored record and a
+            # refresh cannot show a different conversation from the one that was saved.
+            send_message(subject_id=subject_id, text=message.strip())
+        st.rerun()
+
+    latest = [t for t in turns if t.get("urgency")]
+    return str(latest[-1]["urgency"]) if latest else None
+
+
+def render_urgency_banner(urgency: str, subject_id: str) -> None:
+    """What the rules concluded, drawn above everything else on the page."""
+    from wha.service.conversation import latest_urgency_reason
+
+    if urgency == "urgent":
+        st.error("**This needs medical attention today.**")
+    else:
+        st.warning("**You should see a doctor today.**")
+
+    reason = latest_urgency_reason(subject_id)
+    if reason:
+        st.info(reason)
+    st.caption(
+        "Decided by a fixed rule from what you told it, not by the AI. The AI cannot "
+        "lower this. Open **Summary for your doctor** below to take the detail with you."
+    )
+
+
+def render_handover(subject_id: str) -> None:
+    """Something to hand a clinician, so "seek care" is not the last useful thing said."""
+    from wha.service import build_handover
+
+    with st.expander("Summary for your doctor"):
+        st.caption(
+            "Everything here is either measured by your watch or something you said, with "
+            "the time it was said. Nothing is invented and nothing here is a diagnosis. "
+            "The structure is the one clinicians use for handovers."
+        )
+        if st.button("Build the summary", key="handover_build"):
+            st.session_state["handover_text"] = build_handover(subject_id).as_text()
+
+        text = st.session_state.get("handover_text")
+        if text:
+            st.code(text, language=None)
+            st.download_button(
+                "Download as a text file",
+                data=text,
+                file_name=f"summary-for-doctor-{subject_id}.txt",
+                mime="text/plain",
+            )
 
 
 def render_today_page(subject_id: str) -> None:
@@ -307,16 +355,17 @@ def render_today_page(subject_id: str) -> None:
     pending = get_pending_interaction(subject_id)
     status = get_system_status(subject_id)
 
-    # A slot held open above everything else. Whether the person has just reported
-    # something urgent is only known after the form below has been handled, and an
-    # escalation must not be drawn underneath a message saying nothing needs them.
+    # A slot held open above everything else. What the rules have concluded is only known
+    # after the conversation below has been handled, and an escalation must never be drawn
+    # underneath a message saying nothing needs the person.
     inbox_slot = st.container()
 
-    report = render_tell_us(subject_id)
+    urgency = render_conversation(subject_id)
+    render_handover(subject_id)
 
     with inbox_slot:
-        if report is not None and report.escalated:
-            render_urgent_report(report)
+        if urgency:
+            render_urgency_banner(urgency, subject_id)
         else:
             render_inbox(subject_id, pending, status)
     st.write("---")

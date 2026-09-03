@@ -37,6 +37,12 @@ Source: `src/wha/ui/components/disclaimer.py`.
 | What it can look up is limited to this repository's own knowledge | No consumer health corpus has been fetched. See `docs/CORPUS-VERIFICATION.md` | **Episode**, Evidence tab, above the citations |
 | The likelihood behind every question is assumed, not measured | probes.yaml records every row as ASSUMED; no published study measures next-morning self-report accuracy to an app | **Episode**, in each reason drawn from an answer, and in the retrieved passage itself |
 | Whether a cause is 'large enough' to explain a night is a presentation rule, not a clinical one | Unevidenced. The 0.5 and 0.25 fractions in `wha/agent/differential.py` were chosen to be legible, not derived | **Episode**, Evidence tab, above the citations |
+| A chest pain report is assessed by questions, not by matching the words | Marburg Heart Score: Bosner et al., CMAJ 2010;182(12):1295-1300; external validation Haasenritter et al., Br J Gen Pract 2012;62(599):e415-21. Sensitivity 87.1%, specificity 80.8% | **Today**, in the conversation, with the rule named and its source shown |
+| Some presentations still escalate with no questions at all, on purpose | Marburg's own contraindication, "do not use in an emergency setting"; and no history-only rule exists for syncope, meningism, GI bleeding or new confusion | **Today**, when it escalates; **Summary for your doctor**, under Recommendation |
+| The AI may say things with no source behind them, and they are labelled as such | Draelos et al. 2025, arXiv:2507.18905: 5 to 13 percent of unguarded frontier-model answers to patient questions were unsafe | **Today**, under an amber "Not from a cited source" heading |
+| The AI can never make anything less urgent | Design property enforced in code, not asked of the model | **Today**, under the urgency banner and in the conversation caption |
+| A conversation runs to ten turns; unsolicited interruptions stay capped at two a week | AMIE (Tu et al., Nature 2025;642:442-450): accurate differential within the first ten turns. Alarm fatigue: Front Digit Health 2022;4:843747 | **Today**, in the conversation caption |
+| If it cannot establish enough to run the rule within three replies, it escalates anyway | UNEVIDENCED. No study says how long someone may be left without an answer. Chosen because the measured alternative was worse: a live run left a person describing chest pain with no urgency at all | **Today**, stated in the escalation itself as the cautious direction rather than a finding |
 
 ---
 
@@ -77,6 +83,9 @@ transparency.
   captured but cannot move the belief.
 - `docs/CORPUS-VERIFICATION.md` — every figure in the retrievable corpus checked against
   the paper it cites, what did not hold up, and why the consumer health layer is absent.
+- `docs/RESEARCH-AGENTIC-TRIAGE.md` — the evidence behind the conversation, the triage
+  redesign and the clinician handover: why keyword matching was replaced, what a frontier
+  model may and may not say here, and what remains unevidenced.
 - `plan/BLOCKERS.md` — the decisions deliberately left to a human, including whether the
   step at seven nights should be smoothed and whether one population mean is the right
   cold-start prior across ages and sexes.

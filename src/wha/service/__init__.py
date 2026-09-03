@@ -15,6 +15,12 @@ from wha.service.belief import (
     BeliefNightRecord,
     explain_belief,
 )
+from wha.service.conversation import (
+    get_transcript,
+    latest_urgency,
+    latest_urgency_reason,
+    send_message,
+)
 from wha.service.corpus import (
     build_corpus_file,
     search_corpus,
@@ -44,6 +50,7 @@ from wha.service.evaluation import (
     run_evaluation_suite,
     write_evaluation_report,
 )
+from wha.service.handover import Handover, build_handover
 from wha.service.ingest import DEFAULT_INGEST_DAYS, describe_device_capability, run_ingest
 from wha.service.nightly import (
     get_monitoring_since,
@@ -82,10 +89,12 @@ __all__ = [
     "ConfigError",
     "DemoRunResult",
     "DoctorItem",
+    "Handover",
     "SourceUnavailable",
     "SymptomReportResult",
     "ask_about_episode",
     "build_corpus_file",
+    "build_handover",
     "create_scheduler",
     "delete_all_subject_data",
     "describe_device_capability",
@@ -100,6 +109,9 @@ __all__ = [
     "get_permitted_tool_names",
     "get_service_settings",
     "get_system_status",
+    "get_transcript",
+    "latest_urgency",
+    "latest_urgency_reason",
     "list_episodes",
     "list_nights",
     "list_plain_records",
@@ -115,6 +127,7 @@ __all__ = [
     "run_ingest",
     "run_nightly",
     "search_corpus",
+    "send_message",
     "step_episode",
     "submit_answer",
     "submit_human_decision",

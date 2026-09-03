@@ -272,6 +272,52 @@ CREATE TABLE IF NOT EXISTS telegram_offset (
   update_id  INTEGER NOT NULL
 );
 
+-- v6. The conversation, and the triage items gathered inside it.
+--
+-- Talking to the system used to be a text box over a word-overlap lookup that made no
+-- model call at all. A real conversation needs a transcript that outlives the process, so
+-- the agent can be resumed, the person can scroll back, and the audit can show what was
+-- actually said rather than what was last rendered.
+CREATE TABLE IF NOT EXISTS conversation_turns (
+  id                TEXT PRIMARY KEY,
+  episode_id        TEXT,
+  subject_id        TEXT NOT NULL,
+  seq               INTEGER NOT NULL,
+  role              TEXT NOT NULL CHECK (role IN ('user','agent')),
+  text              TEXT NOT NULL,
+  -- Grounded claims and the passages behind them, and separately the sentences the model
+  -- produced from its own knowledge with no citation. Kept apart on purpose: a reader is
+  -- entitled to know which is which, and Draelos et al. 2025 measured 5 to 13 percent of
+  -- unguarded model answers to patient questions as outright unsafe.
+  citations_json    TEXT NOT NULL DEFAULT '[]',
+  uncited_json      TEXT NOT NULL DEFAULT '[]',
+  -- What the deterministic floor made of this turn, never what the model thought.
+  urgency           TEXT,
+  triggered_flags_json TEXT NOT NULL DEFAULT '[]',
+  asked_item_id     TEXT,
+  -- Which discriminator conversation is open. Held here rather than inferred from the
+  -- answers gathered so far, because the answers can legitimately be empty for several
+  -- turns and the presentation must not be forgotten in between.
+  presentation      TEXT,
+  created_at_utc    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_conversation_seq ON conversation_turns(subject_id, seq);
+
+-- Answers to the items of a validated decision rule, gathered in conversation.
+-- The model elicits these; wha.safety.triage scores them. Stored separately from
+-- interactions because they are rule inputs, not policy questions, and because a score
+-- must be reconstructible from what the person actually said.
+CREATE TABLE IF NOT EXISTS triage_answers (
+  subject_id     TEXT NOT NULL,
+  episode_id     TEXT,
+  presentation   TEXT NOT NULL,
+  item_id        TEXT NOT NULL,
+  answer         INTEGER,
+  source_text    TEXT,
+  recorded_at_utc TEXT NOT NULL,
+  PRIMARY KEY (subject_id, presentation, item_id)
+);
+
 CREATE TABLE IF NOT EXISTS schema_version (
   version INTEGER PRIMARY KEY
 );

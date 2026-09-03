@@ -1,6 +1,6 @@
 # STATUS — read this first
 
-**Last updated:** 4 September 2026 (the agentic flow)
+**Last updated:** 4 September 2026 (conversation, triage and handover)
 **Branch:** `feat/agentic-early-warning-system` (14 commits ahead of the implementation work, nothing pushed)
 
 `HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
@@ -11,7 +11,7 @@ file describes where things actually stand.
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 477 passed, 1 skipped
+uv run pytest                     # 506 passed, 1 skipped
 uv run ruff check src tests       # clean
 uv run ruff format --check src tests
 uv run wha doctor                 # no fail rows
@@ -47,7 +47,7 @@ All of the above is fixed. The detail is in `plan/PROGRESS.md`.
 
 | Check | Result |
 |---|---|
-| Tests | **477 passed, 1 skipped**, no ignore list |
+| Tests | **506 passed, 1 skipped**, no ignore list |
 | Lint and format | clean |
 | `wha doctor` | no fail rows |
 | Frozen scenarios | **10 of 11** |
@@ -312,6 +312,78 @@ anchored while the lines are indented. Recorded in `plan/BLOCKERS.md`.
 
 Frozen scenarios remain **10 of 11**, with `no-response-timeout` failing for the reason
 already recorded: a timed-out question closes `LIKELY_BENIGN` where `UNRESOLVED` is honest.
+
+
+---
+
+## A red flag is now something it asks about, not a word it waits for
+
+The safety floor matched phrases. Someone typing "chest pain" was routed to an ambulance
+with no confirming question, which is not what a clinician does and not what the evidence
+supports. The research behind the replacement is in **`docs/RESEARCH-AGENTIC-TRIAGE.md`**.
+
+**The evidence.** Downie et al., BMJ 2013;347:f7095, reviewed red flags systematically:
+"many red flags in current guidelines provide virtually no change in probability ... or
+have untested diagnostic accuracy". Individually most were uninformative; combinations
+carried the information. Sutaria et al., BMC Health Serv Res 2025;25:1263, defines a red
+flag as a symptom that would be **sought**, and measured online symptom checkers seeking
+36.9 percent of the relevant ones against 71.8 percent for physicians.
+
+**The one rule this system can actually run.** The Marburg Heart Score rules out coronary
+disease in primary care from history and self-palpation alone: five items, cut-off 3,
+sensitivity 87.1 percent, specificity 80.8 percent, NPV about 98 percent (Bösner et al.,
+CMAJ 2010;182(12):1295-1300; external validation Haasenritter et al., Br J Gen Pract
+2012;62(599):e415-21). Transcribed item by item into `data/knowledge/triage_rules.yaml`.
+
+**The division of labour is the design.** The model elicits, in whatever words the person
+uses. `wha/safety/triage.py` decides. The model may raise urgency at any time and can never
+lower it; urgency falls only when a transcribed published rule returns a lower band from
+items the person actually gave. Marburg's own contraindication, "do not use in an emergency
+setting", is encoded as unconditional gates that are checked first and stop the score being
+computed at all.
+
+Measured live: "I have chest pain today" now asks about exertion instead of escalating.
+Answering the five items scored 0 of 5 and routed to **see a doctor today** rather than an
+ambulance, naming the rule and its source on screen. Every answer is stored with the
+person's own words beside it.
+
+## It is a conversation now
+
+`ask_about_episode` was a text box over word-overlap matching that made **no model call at
+all**. `wha/agent/conversation.py` replaces it: multi-turn, retrieval-grounded, persisted,
+and wrapped in deterministic checks on every turn.
+
+- **Cited or labelled, never silently asserted.** Draelos et al. 2025 (arXiv:2507.18905)
+  red-teamed four frontier chatbots over 222 patient-posed questions: 5 to 13 percent of
+  answers were outright unsafe. Anything the model writes from its own knowledge appears
+  under an amber "Not from a cited source" heading.
+- **Two calls per turn, not one.** Asked to converse and to extract rule answers together,
+  the model conversed: it asked the Marburg questions correctly and recorded none of the
+  answers, so the rule never completed and a person describing chest pain was left with no
+  urgency at all. Extraction is now its own zero-temperature pass.
+- **Nobody is left in limbo.** If a rule cannot be completed within three replies the
+  presentation resolves as urgent, stated as the cautious direction rather than a finding.
+
+## The budget was the wrong shape
+
+Alarm fatigue evidence concerns unsolicited alarms: 72 to 99 percent of monitor alarms are
+non-actionable (Front Digit Health 2022;4:843747). Counting a follow-up inside a live
+conversation against the same allowance is why the agent could never ask more than two
+questions a week. Now two resources: **2 unsolicited interruptions a week**, and **10 turns
+inside a conversation**, the figure at which AMIE reached an accurate differential (Tu et
+al., Nature 2025;642:442-450).
+
+## Something to hand a doctor
+
+`wha/service/handover.py` builds an SBAR summary with a question prompt list. SBAR is the
+WHO, Joint Commission, AHRQ and IHI recognised handover structure; question prompt lists
+increase the questions a patient asks without lengthening the consultation (2025
+meta-analysis of RCTs). Everything in it is measured or quoted with a timestamp.
+
+Building it found two defects it would otherwise have shipped to a clinician: nights
+reporting **42.9 hours of sleep**, because overlapping sleep records were summed rather
+than merged; and an inverted rule item printed as "pain not reproducible: yes" when the
+person had said pressing *does* reproduce it, which asserts the reverse of what they said.
 
 **The machine is left pointed at the simulation.** `.env` has `WHA_SUBJECT=sim` and the
 bridge on `127.0.0.1:8788`; the original is `.env.phase4-backup`. Restore it before using

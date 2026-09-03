@@ -5,7 +5,7 @@ from pathlib import Path
 
 from wha.errors import ConfigError
 
-DB_VERSION = 5
+DB_VERSION = 6
 
 # Columns added after version 1. CREATE TABLE IF NOT EXISTS does not alter a table that
 # already exists, so a database created before a column was introduced would silently
@@ -17,6 +17,11 @@ _ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     # v5. The most recent night the agent has actually reasoned over, so an episode that
     # decided to observe can be re-entered when a further night arrives.
     ("episodes", "last_evidence_night", "TEXT"),
+    # v6. Whether a question was pushed at a person who was not asking, or asked inside a
+    # conversation they were already having. Only the first kind spends the weekly budget.
+    ("interactions", "initiation", "TEXT"),
+    # v6. Which discriminator conversation a turn belongs to.
+    ("conversation_turns", "presentation", "TEXT"),
 )
 
 
