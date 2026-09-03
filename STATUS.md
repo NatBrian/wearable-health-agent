@@ -1,6 +1,6 @@
 # STATUS — read this first
 
-**Last updated:** 3 September 2026
+**Last updated:** 3 September 2026 (production simulation)
 **Branch:** `feat/agentic-early-warning-system` (14 commits ahead of the implementation work, nothing pushed)
 
 `HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
@@ -11,7 +11,7 @@ file describes where things actually stand.
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 378 passed, 1 skipped
+uv run pytest                     # 450 passed, 1 skipped
 uv run ruff check src tests       # clean
 uv run ruff format --check src tests
 uv run wha doctor                 # no fail rows
@@ -47,7 +47,7 @@ All of the above is fixed. The detail is in `plan/PROGRESS.md`.
 
 | Check | Result |
 |---|---|
-| Tests | **378 passed, 1 skipped**, no ignore list |
+| Tests | **450 passed, 1 skipped**, no ignore list |
 | Lint and format | clean |
 | `wha doctor` | no fail rows |
 | Frozen scenarios | **10 of 11** |
@@ -212,6 +212,35 @@ dashboard.
 Also removed a contradiction the disclosure exposed. Today said "4 quiet nights in a row"
 directly above "Not watching yet": a night cannot be quiet if nothing could have flagged
 it, so no streak is claimed below the alerting floor.
+
+---
+
+## A user ran the whole thing, and the next job is the agent itself
+
+A seven-scenario production simulation was run end to end as an ordinary person: healthy
+nights, exercise, an office party, feeling rough afterwards, a fever, a sore throat and
+severe diarrhoea. What works is described in `docs/HANDOFF-AGENTIC-FLOW.md`; the short
+version is that the deterministic half is sound. Twenty healthy nights produced no
+interruptions, a 4 bpm rise caused by a workout was correctly explained away rather than
+raised, and the same physiological signal reached opposite conclusions depending on what
+the person said about it.
+
+Fifteen defects were found and fixed, nearly all the same shape this codebase keeps
+producing: something defined, referenced elsewhere, and never reached. A person could not
+report a symptom at all; an escalation notified nobody; nothing was ever written to the
+outcomes table; an OBSERVE was never revisited; the model never worded a single question; a
+pending question never appeared in the dashboard. See the commits from `Close eleven gaps a
+simulated user walked into`.
+
+**The next task is planned and not started.** The agent gathers evidence once, before it
+has asked anything, and the graph never returns to `investigate`. So retrieval was called
+zero times in 145 tool calls, `citations` is hardcoded empty, and every episode asked one
+question and stopped. Five items, the research behind them and one open decision are in
+**`docs/HANDOFF-AGENTIC-FLOW.md`**. Read it before touching the agent.
+
+**The machine is left pointed at the simulation.** `.env` has `WHA_SUBJECT=sim` and the
+bridge on `127.0.0.1:8788`; the original is `.env.phase4-backup`. Restore it before using
+the real watch.
 
 ---
 
