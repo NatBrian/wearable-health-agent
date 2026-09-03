@@ -7,6 +7,8 @@ import streamlit as st
 from wha.constants import (
     BASELINE_MIN_NIGHTS_PERSONAL,
     BASELINE_PERSONAL_CITATION,
+    DAYTIME_EXCLUSION_CITATION,
+    DAYTIME_EXCLUSION_CITATION_PLAIN,
     DETECT_CITATION,
     DETECT_CITATION_PLAIN,
     DETECT_DIRECTION_NOTE,
@@ -204,6 +206,10 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
 - Your nights are compared against **your own median**, not against an average adult, once
   {BASELINE_MIN_NIGHTS_PERSONAL} nights of your sleep exist. Before that the comparison is
   to a typical adult and nothing is flagged.
+- **Only sleep is measured, never your waking heart rate.** Daytime readings mostly record
+  what you were doing: standing up or climbing stairs moves your heart rate by tens of
+  beats, while an illness moves it by a few. Asleep you are in one posture and still, which
+  is the only time a wrist sensor can see a change that small.
 - The reading comes from your **main overnight sleep**, taken from your watch rather than
   from a fixed clock window, so it works whatever hours you keep. Where your watch recorded
   no sleep for a night, midnight to 7am is used instead and that night is labelled.
@@ -233,7 +239,8 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
         f"own nights as they accumulate. The thresholds that decide when a raised night is "
         f"worth investigating come from {DETECT_CITATION_PLAIN}. Measuring over your "
         f"recorded sleep follows {SLEEP_WINDOW_CITATION_PLAIN}, and leaving naps out "
-        f"follows {NAP_EXCLUSION_CITATION_PLAIN}."
+        f"follows {NAP_EXCLUSION_CITATION_PLAIN}. Measuring asleep rather than across the day "
+        f"follows {DAYTIME_EXCLUSION_CITATION_PLAIN}."
     )
     with st.expander("Full references"):
         st.markdown(
@@ -245,5 +252,6 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
   {BASELINE_PERSONAL_CITATION}
 - Measuring over the device's reported sleep period — {SLEEP_WINDOW_CITATION}
 - Excluding naps from the reading — {NAP_EXCLUSION_CITATION}
+- Measuring asleep rather than across the day — {DAYTIME_EXCLUSION_CITATION}
 """
         )

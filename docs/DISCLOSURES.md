@@ -30,6 +30,7 @@ Source: `src/wha/ui/components/disclaimer.py`.
 | Only a *raised* heart rate is investigated | Scope decision, not a cited finding. Infection raises nocturnal RHR; a low rate is usually fitness | **Home** expander; **History**, beneath the chart |
 | Naps are excluded | Whitehurst, Naji & Mednick 2018: heart rate is higher during daytime naps than overnight sleep at matched stages | **Home** expander; **History**, chart notes |
 | Sleep apnoea cannot be detected | Design consequence: a nightly elevation is absorbed into a personal baseline | **Home** expander; **History**, chart notes |
+| Only sleep heart rate is used; waking heart rate never is | Mishica et al. 2022: morning measures significantly more variable, "during sleep, individuals are no longer affected by external stimuli" | **History**, chart notes and Full references |
 | Measured over recorded sleep, with a clock fallback | Dial et al. 2025, validation of nocturnal RHR in consumer wearables | **History**, chart caption; per-night source on the night detail |
 | The starting range is a population figure | Bloomfield et al. 2024, n=525 | **History**, chart caption and Full references |
 | Nights with no reading are not judged | — | **Today**, stated separately from the quiet-night count |

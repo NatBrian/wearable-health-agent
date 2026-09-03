@@ -8,6 +8,49 @@ This replaces a fixed local 00:00 to 07:00 window for every night and every pers
 
 ---
 
+## Why sleep at all, and not the whole day
+
+The watch reports heart rate around the clock. The system stores all of it and uses only
+the part recorded while asleep: for the first real subject, 11,853 samples stored and 1,473
+minutes used, about 12 percent.
+
+**Daytime heart rate measures behaviour, not physiology.** Standing up, coffee, a phone
+call or a flight of stairs move it by tens of beats per minute. An infection moves nocturnal
+resting heart rate by roughly 1.6 to 5 (`data/knowledge/causes.yaml`). The signal exists in
+daytime data and is buried under everything the person did that day.
+
+Sleep is the closest a wrist device gets to a controlled measurement: one posture, no
+motion artefact, no volitional input, at roughly the same point in the circadian cycle each
+night.
+
+**Evidence.** Mishica, Kyröläinen, Hynynen, Nummela, Holmberg and Linnamo 2022, *PLoS One*
+17(1):e0262333, compared heart rate indices measured during nocturnal sleep against morning
+orthostatic tests in young endurance athletes over three weeks. Morning values showed
+significantly higher variation, and the authors state: *"During sleep, individuals are no
+longer affected by external stimuli and therefore, enhanced reliability may exist for
+recordings that occur during sleep."*
+
+The two other sources this build depends on are built the same way: NightSignal (Alavi et
+al. 2022), which supplies the detection thresholds, operates entirely on overnight RHR, and
+Dial et al. 2025 validates nocturnal RHR in consumer wearables against ECG.
+
+**Daytime data is not discarded, only daytime heart rate.** The previous day's step count
+and any recorded exercise session are used as covariates, to subtract the elevation a
+workout would be expected to produce before a night is judged. The first real subject's
+night of 2 September carried 2.9 bpm of explained elevation from exercise for exactly this
+reason.
+
+**The cost, stated plainly.**
+
+1. **One reading per night.** Detection requires two consecutive elevated nights, so the
+   system runs up to about 48 hours behind. A daytime signal could in principle be faster;
+   it would also be far noisier, and a false alarm costs the interruption budget the whole
+   design exists to protect.
+2. **No sleep, no reading.** A night the watch records heart rate for but no sleep produces
+   nothing. The first real subject has six such nights, reported as `NA` rather than guessed.
+
+---
+
 ## Why the fixed window was wrong
 
 The fixed window is the NightSignal definition, from **Alavi et al. 2022, Nature Medicine

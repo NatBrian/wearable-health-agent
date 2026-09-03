@@ -28,6 +28,23 @@ NAP_EXCLUSION_CITATION_PLAIN = (
 # Measuring over the period the device reports as sleep, rather than a fixed clock window.
 SLEEP_WINDOW_CITATION = "Dial et al. 2025, Physiological Reports 13:e70527"
 SLEEP_WINDOW_CITATION_PLAIN = "a 2025 validation study of consumer wearables"
+
+# Why the reading comes from sleep rather than from the whole day.
+#
+# Daytime heart rate measures what a person was doing. Standing up, coffee, a flight of
+# stairs move it by tens of bpm; an infection moves it by 1.6 to 5. The signal is real and
+# buried. Sleep is the closest a wrist device gets to a controlled measurement: one
+# posture, no motion artefact, no volitional input, at roughly the same time each night.
+#
+# Mishica et al. compared nocturnal against morning heart rate measures and found morning
+# values significantly more variable, concluding that during sleep "individuals are no
+# longer affected by external stimuli and therefore, enhanced reliability may exist".
+DAYTIME_EXCLUSION_CITATION = (
+    "Mishica et al. 2022, PLoS One 17(1):e0262333, nocturnal versus morning heart rate measures"
+)
+DAYTIME_EXCLUSION_CITATION_PLAIN = (
+    "a 2022 study comparing overnight with morning heart rate measurements"
+)
 HR_PLAUSIBLE_MIN_BPM = 25
 HR_PLAUSIBLE_MAX_BPM = 220
 INGEST_STALE_WARN_HOURS = 36  # status strip turns amber
