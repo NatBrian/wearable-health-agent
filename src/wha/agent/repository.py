@@ -203,12 +203,17 @@ class EpisodeRepository:
     # -- policy inputs -----------------------------------------------------------
 
     def count_interruptions_since(self, subject_id: str, since: date) -> int:
-        """Questions actually put to this person since a date, for the weekly budget."""
+        """Questions put to the person since a date, for the weekly budget.
+
+        Counted across every subject rather than one, because this is a single-user app:
+        one person, one phone, one budget. Extra subjects exist only when demos or
+        simulations have been run, and filtering by subject gave each of those its own
+        private allowance pointing at the same phone. That is how a day of testing sent a
+        real person seventeen questions from a system that permits two a week.
+        """
         row = self._conn.execute(
-            """SELECT COUNT(*) AS n FROM interactions i
-               JOIN episodes e ON e.episode_id = i.episode_id
-               WHERE e.subject_id = ? AND DATE(i.asked_at_utc) >= ?""",
-            (subject_id, since.isoformat()),
+            "SELECT COUNT(*) AS n FROM interactions WHERE DATE(asked_at_utc) >= ?",
+            (since.isoformat(),),
         ).fetchone()
         return int(row["n"]) if row else 0
 

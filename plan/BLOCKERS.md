@@ -548,3 +548,27 @@ Two findings surfaced while building it and are fixed: `detect_night` rebuilt it
 without `rhr_window_source`, so the record told a reader their watch had recorded no sleep
 on a night it had measured; and a negative residual was being reported as a signed number,
 which reads as a fault to someone who is simply below their usual.
+
+---
+
+## interruption-budget — testing subjects each had their own allowance
+
+**What I tried:** opened the subject's real Telegram history after a day of simulation.
+
+**What happened:** seventeen questions, from a system whose design permits two interruptions
+per week.
+
+**What I think is wrong:** `count_interruptions_since` filtered by `subject_id`. This is a
+single-user application, one person and one phone, but the database had accumulated demo
+and simulation subjects, and each carried its own private allowance pointing at the same
+Telegram chat. Fixed by counting across all subjects, which for one real user is simply
+counting that user.
+
+Two contributing causes were mine rather than the system's, and are worth naming so they
+are not repeated: `wha serve` was left running against the live Telegram token throughout a
+day of testing, and deleting a subject between runs removed the `interactions` rows the
+budget counts, silently resetting it.
+
+**What I need:** a decision on whether a synthetic subject should be able to notify at all.
+`subjects.source_kind` already records `synthetic`, so the notifier could refuse on that
+basis, and a simulation would then be unable to message a real person however it is run.

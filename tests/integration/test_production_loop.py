@@ -406,3 +406,48 @@ def test_an_episode_nobody_was_asked_about_stays_quiet(tmp_path: Path) -> None:
     conn.close()
 
     assert not notifier.send.called
+
+
+def test_a_test_subject_cannot_spend_the_real_persons_budget(tmp_path: Path) -> None:
+    """One person, one phone, one budget.
+
+    Counting per subject gave every leftover demo or simulation subject its own private
+    allowance pointing at the same phone, which is how a day of testing sent a real person
+    seventeen questions from a system that permits two a week.
+    """
+    from datetime import date
+
+    from wha.agent.repository import EpisodeRepository
+
+    db_file = _make_db(tmp_path)
+    conn = connect(db_file)
+    conn.execute(
+        """INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)
+           VALUES ('sim', 'sim', 'synthetic', 'Asia/Singapore', ?)""",
+        (to_iso(datetime.now(UTC)),),
+    )
+    for subject, ep in (("me", "ep_me"), ("sim", "ep_sim")):
+        conn.execute(
+            """INSERT INTO episodes
+                 (episode_id, subject_id, thread_id, opened_on, state, baseline_nights,
+                  baseline_rung, step_count, tool_call_count, depth_used)
+               VALUES (?, ?, ?, '2026-09-05', 'OPEN', 28, 'MATURE', 0, 0, 0)""",
+            (ep, subject, ep),
+        )
+        conn.execute(
+            """INSERT INTO interactions
+                 (id, episode_id, probe_id, question_text, text_source, options_json, evsi,
+                  interruption_cost, rejected_json, channel, asked_at_utc, status)
+               VALUES (?, ?, 'probe_symptoms', 'q', 'llm', '[]', 0.2, 1.0, '[]', 'telegram',
+                       ?, 'ANSWERED')""",
+            (f"int_{ep}", ep, to_iso(datetime.now(UTC))),
+        )
+    conn.commit()
+
+    repo = EpisodeRepository(conn=conn)
+    counted = repo.count_interruptions_since("me", date(2026, 1, 1))
+    conn.close()
+
+    assert counted == 2, (
+        "both questions landed on the same phone, so both must count against the same budget"
+    )
