@@ -2,6 +2,7 @@
 
 import streamlit as st
 
+from wha.ui.components.disclaimer import render_disclaimer
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.subject_selector import render_subject_selector
 
@@ -33,6 +34,7 @@ def main() -> None:
 
     st.write("---")
     st.title("Wearable Health Agent")
+    render_disclaimer()
     st.write(
         "This watches your overnight heart rate and, when something looks off, works out "
         "why before deciding whether it is worth asking you about."

@@ -12,7 +12,7 @@ from pathlib import Path
 from wha.db import connect
 from wha.db.iso import to_iso
 from wha.db.migrations import apply_schema
-from wha.models import BaselineRung, DetectionLevel
+from wha.models import BaselineRung, DetectionLevel, SystemStatus
 from wha.service.audit import count_audit_events, verify_hash_chain
 from wha.service.status import get_system_status
 from wha.ui.components.wording import level_phrase
@@ -132,3 +132,39 @@ def test_an_empty_audit_log_verifies_but_holds_nothing(tmp_path: Path) -> None:
     assert intact is True
     assert bad is None
     assert count == 0, "the page must be able to tell 'intact' from 'nothing recorded'"
+
+
+def test_no_quiet_streak_is_claimed_while_the_system_cannot_flag() -> None:
+    """A night can only be quiet if it could have been anything else.
+
+    Below the alerting floor nothing can be flagged, so a streak claims reassurance the
+    system is not in a position to give, directly above a notice saying it is not watching.
+    """
+    from unittest.mock import patch
+
+    from wha.constants import BASELINE_MIN_NIGHTS_PERSONAL
+    from wha.ui.today import render_inbox
+
+    def _status(usable: int) -> SystemStatus:
+        return SystemStatus(
+            components=[],
+            last_ingest_utc=datetime.now(UTC),
+            last_nightly_utc=datetime.now(UTC),
+            usable_nights=usable,
+            rung=BaselineRung.MATURE,
+            errors_24h=0,
+            quiet_nights_streak=4,
+            unmeasured_recent_nights=0,
+        )
+
+    with patch("wha.ui.today.st") as learning:
+        render_inbox("me", None, _status(BASELINE_MIN_NIGHTS_PERSONAL - 1))
+    said = " ".join(str(c) for c in learning.success.call_args_list)
+    assert "quiet" not in said, "no streak may be claimed before the system can flag"
+    assert learning.warning.called, "and the reader must be told it is not watching yet"
+
+    with patch("wha.ui.today.st") as watching:
+        render_inbox("me", None, _status(BASELINE_MIN_NIGHTS_PERSONAL))
+    said = " ".join(str(c) for c in watching.success.call_args_list)
+    assert "4 quiet nights in a row" in said
+    assert not watching.warning.called

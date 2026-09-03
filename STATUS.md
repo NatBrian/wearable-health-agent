@@ -196,6 +196,25 @@ disposition. Recorded, not yet fixed.
 
 ---
 
+## Limitations are on screen, not only in files
+
+`DISCLAIMER.md` had been in this repository since the beginning and **nothing in the
+interface ever showed it**, so a person using the dashboard was never told this is not a
+medical device. It is now rendered where they land, with an expandable statement of what
+the system can and cannot do.
+
+`docs/DISCLOSURES.md` is the index: every clinical limitation, the evidence or the
+explicit lack of it, and the screen it appears on. It exists so the rule can be checked
+rather than assumed. The rule itself: a clinical choice is either backed by a citation next
+to the number it justifies, or recorded as unevidenced in the docs **and** disclosed in the
+dashboard.
+
+Also removed a contradiction the disclosure exposed. Today said "4 quiet nights in a row"
+directly above "Not watching yet": a night cannot be quiet if nothing could have flagged
+it, so no streak is claimed below the alerting floor.
+
+---
+
 ## Open items for a human
 
 Nine entries in `plan/BLOCKERS.md`. The ones that matter:

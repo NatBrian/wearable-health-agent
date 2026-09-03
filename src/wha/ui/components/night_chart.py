@@ -5,6 +5,8 @@ import pandas as pd
 import streamlit as st
 
 from wha.constants import (
+    BASELINE_MIN_NIGHTS_PERSONAL,
+    BASELINE_PERSONAL_CITATION,
     DETECT_CITATION,
     DETECT_CITATION_PLAIN,
     DETECT_DIRECTION_NOTE,
@@ -199,6 +201,9 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
 
 **What this measures, and what it does not**
 
+- Your nights are compared against **your own median**, not against an average adult, once
+  {BASELINE_MIN_NIGHTS_PERSONAL} nights of your sleep exist. Before that the comparison is
+  to a typical adult and nothing is flagged.
 - The reading comes from your **main overnight sleep**, taken from your watch rather than
   from a fixed clock window, so it works whatever hours you keep. Where your watch recorded
   no sleep for a night, midnight to 7am is used instead and that night is labelled.
@@ -213,11 +218,14 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
 
     if rung is not None and rung not in _PERSONAL_RUNGS:
         st.info(
-            "**This band is not yet yours.** With only a few nights recorded it is still "
-            f"mostly a typical-adult estimate, starting at {POP_PRIOR_RHR_MEAN_BPM:.1f} bpm "
-            f"plus or minus {POP_PRIOR_RHR_SD_BPM:.1f}. Your nights may sit outside it, "
-            "which reflects how little is known about you rather than anything about your "
-            "health. The band moves toward you as nights accumulate."
+            "**This band is not yet yours, and nothing can be flagged.** With fewer than "
+            f"{BASELINE_MIN_NIGHTS_PERSONAL} nights recorded it is still a typical-adult "
+            f"estimate, starting at {POP_PRIOR_RHR_MEAN_BPM:.1f} bpm plus or minus "
+            f"{POP_PRIOR_RHR_SD_BPM:.1f}, so your nights may sit well outside it. That "
+            "reflects how little is known about you, not anything about your health. At "
+            f"{BASELINE_MIN_NIGHTS_PERSONAL} nights the band switches to your own median "
+            "and closes around you, which is a visible step on this chart, and only then "
+            "can a raised night be acted on."
         )
 
     st.caption(
@@ -233,6 +241,8 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
 - Starting range, {POP_PRIOR_RHR_MEAN_BPM:.2f} bpm plus or minus
   {POP_PRIOR_RHR_SD_BPM:.2f} — {POP_PRIOR_CITATION}
 - Thresholds for a raised night — {DETECT_CITATION}
+- Comparing against your own median, and the {BASELINE_MIN_NIGHTS_PERSONAL}-night figure —
+  {BASELINE_PERSONAL_CITATION}
 - Measuring over the device's reported sleep period — {SLEEP_WINDOW_CITATION}
 - Excluding naps from the reading — {NAP_EXCLUSION_CITATION}
 """

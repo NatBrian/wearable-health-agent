@@ -5,7 +5,7 @@ from datetime import timedelta
 import streamlit as st
 
 from wha.clock import local_today
-from wha.constants import RECENT_NIGHTS_WINDOW
+from wha.constants import BASELINE_MIN_NIGHTS_PERSONAL, RECENT_NIGHTS_WINDOW
 from wha.models import (
     Answer,
     PendingInteraction,
@@ -35,12 +35,31 @@ def render_inbox(
     """Render the one thing that needs the person, or say that nothing does."""
     if pending is None:
         stat = status or get_system_status(subject_id)
+        still_learning = stat.usable_nights < BASELINE_MIN_NIGHTS_PERSONAL
         streak = stat.quiet_nights_streak
-        if streak <= 0:
+
+        # A "quiet night" only means something if the night could have been anything else.
+        # Below the alerting floor nothing can be flagged, so counting a streak claims
+        # reassurance the system is not in a position to give, directly above a notice
+        # saying it is not watching yet.
+        if streak <= 0 or still_learning:
             st.success("**Nothing needs you right now.**")
         else:
             nights_word = "night" if streak == 1 else "nights"
             st.success(f"**Nothing needs you right now.** {streak} quiet {nights_word} in a row.")
+
+        # Before the baseline is the person's own, nothing can be flagged at all, so
+        # "nothing needs you right now" would read as "we checked and you are fine" when
+        # the truth is that the system is not yet in a position to check.
+        if still_learning:
+            remaining = BASELINE_MIN_NIGHTS_PERSONAL - stat.usable_nights
+            nights_word = "night" if remaining == 1 else "nights"
+            st.warning(
+                f"**Not watching yet.** {remaining} more {nights_word} of sleep are needed "
+                "before this system knows your normal well enough to raise anything. Until "
+                "then it is learning, and it will not alert you even if a night is high.",
+                icon="⏳",
+            )
 
         # Missing nights are stated rather than folded into the reassurance above. The
         # streak used to include them, so a watch that recorded three nights of seven
