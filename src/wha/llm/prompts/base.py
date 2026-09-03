@@ -32,8 +32,15 @@ class PromptDefinition(BaseModel):
         ctx_dict = context_vars or {}
         try:
             rendered_context = self.context_template.format(**ctx_dict)
-        except (KeyError, IndexError, ValueError):
-            rendered_context = self.context_template
+        except (KeyError, IndexError, ValueError) as exc:
+            # Refuse rather than fall back to the unrendered template. A caller that
+            # forgets a key used to ship the literal text "{facts}" to the model, and the
+            # only visible symptom was a worse answer. It also silently disarmed the
+            # oversize guard below, because the unrendered template is always short.
+            raise LLMUnavailable(
+                f"Prompt '{self.prompt_id}' is missing a context variable: {exc}. "
+                "Refusing to send a partially rendered prompt."
+            ) from exc
 
         constraints_text = "\n".join(f"- {c}" for c in self.constraints)
         refusal_text = "\n".join(f"- {r}" for r in self.refusal_conditions)

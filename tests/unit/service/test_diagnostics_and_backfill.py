@@ -225,3 +225,62 @@ def test_a_demo_does_not_write_into_the_configured_database(tmp_path: Path) -> N
     assert samples == 0, "the demo wrote synthetic readings into the real database"
     assert demo_db.exists(), "the demo must still have run, just somewhere else"
     assert DEMO_DB_PATH != real_db
+
+
+def test_a_frozen_scenario_means_the_same_thing_whatever_ran_before_it(tmp_path: Path) -> None:
+    """The demo database is reset per run, so scenario results are not order-dependent.
+
+    The weekly interruption budget counts across every subject, which is right for a
+    single-user application. In a shared demo database that made it a global allowance of
+    two questions across all eleven scenarios: run back to back, the first two asked their
+    question and the rest silently asked nothing and reached the wrong disposition. Each
+    of those passed when run alone, so the suite reported a different result depending on
+    the order it was run in.
+    """
+    from unittest.mock import patch
+
+    from wha.service.demo import run_demo
+
+    demo_db = tmp_path / "demo.db"
+    demo_db.write_bytes(b"")
+    stale = tmp_path / "stale-marker"
+
+    with patch("wha.service.demo.DEMO_DB_PATH", demo_db):
+        run_demo(scenario_name="cold-start", dry_run=True)
+        first = connect(demo_db)
+        subjects_after_first = {r[0] for r in first.execute("SELECT subject_id FROM subjects")}
+        first.close()
+
+        run_demo(scenario_name="alcohol-night", dry_run=True)
+        second = connect(demo_db)
+        subjects_after_second = {r[0] for r in second.execute("SELECT subject_id FROM subjects")}
+        second.close()
+
+    assert subjects_after_first == {"demo-cold-start"}
+    # The earlier run's subject, and therefore its interactions and its share of the
+    # weekly budget, is gone rather than carried into the next scenario.
+    assert subjects_after_second == {"demo-alcohol-night"}
+    assert not stale.exists()
+
+
+def test_a_named_database_is_not_wiped_by_a_demo(tmp_path: Path) -> None:
+    """Resetting is for the default demo file only. --db means the caller owns it."""
+    from wha.service.demo import run_demo
+
+    named = tmp_path / "mine.db"
+    conn = connect(named)
+    apply_schema(conn)
+    conn.execute(
+        """INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)
+           VALUES ('keep-me', 'keep me', 'synthetic', 'Asia/Singapore', ?)""",
+        (to_iso(datetime.now(UTC)),),
+    )
+    conn.commit()
+    conn.close()
+
+    run_demo(scenario_name="cold-start", dry_run=True, db_path=named)
+
+    conn = connect(named)
+    subjects = {r[0] for r in conn.execute("SELECT subject_id FROM subjects")}
+    conn.close()
+    assert "keep-me" in subjects

@@ -196,6 +196,18 @@ def run_demo(
     subj_id = f"demo-{scenario_name}"
 
     target_db.parent.mkdir(parents=True, exist_ok=True)
+
+    # Each run starts from an empty database, because a frozen scenario has to mean the
+    # same thing whatever ran before it. The weekly interruption budget is counted across
+    # all subjects, correctly, since this is a single-user application. In a shared demo
+    # database that made the budget a global two questions across every scenario: running
+    # the eleven back to back, the first two asked their question and the rest silently
+    # asked nothing and reached the wrong disposition. Run alone each of those passed, so
+    # the suite reported a different result depending on the order it was run in.
+    #
+    # Only the default demo database is reset. A caller who named one with --db keeps it.
+    if db_path is None and target_db.exists():
+        target_db.unlink()
     conn = connect(target_db)
     apply_schema(conn)
 

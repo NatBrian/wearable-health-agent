@@ -1,6 +1,6 @@
 # STATUS — read this first
 
-**Last updated:** 3 September 2026 (production simulation)
+**Last updated:** 4 September 2026 (the agentic flow)
 **Branch:** `feat/agentic-early-warning-system` (14 commits ahead of the implementation work, nothing pushed)
 
 `HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
@@ -11,7 +11,7 @@ file describes where things actually stand.
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 450 passed, 1 skipped
+uv run pytest                     # 477 passed, 1 skipped
 uv run ruff check src tests       # clean
 uv run ruff format --check src tests
 uv run wha doctor                 # no fail rows
@@ -47,7 +47,7 @@ All of the above is fixed. The detail is in `plan/PROGRESS.md`.
 
 | Check | Result |
 |---|---|
-| Tests | **450 passed, 1 skipped**, no ignore list |
+| Tests | **477 passed, 1 skipped**, no ignore list |
 | Lint and format | clean |
 | `wha doctor` | no fail rows |
 | Frozen scenarios | **10 of 11** |
@@ -215,7 +215,7 @@ it, so no streak is claimed below the alerting floor.
 
 ---
 
-## A user ran the whole thing, and the next job is the agent itself
+## A user ran the whole thing, and the agent was the next job
 
 A seven-scenario production simulation was run end to end as an ordinary person: healthy
 nights, exercise, an office party, feeling rough afterwards, a fever, a sore throat and
@@ -232,11 +232,86 @@ outcomes table; an OBSERVE was never revisited; the model never worded a single 
 pending question never appeared in the dashboard. See the commits from `Close eleven gaps a
 simulated user walked into`.
 
-**The next task is planned and not started.** The agent gathers evidence once, before it
-has asked anything, and the graph never returns to `investigate`. So retrieval was called
-zero times in 145 tool calls, `citations` is hardcoded empty, and every episode asked one
-question and stopped. Five items, the research behind them and one open decision are in
-**`docs/HANDOFF-AGENTIC-FLOW.md`**. Read it before touching the agent.
+That task is now **done**. The next section describes it.
+
+
+---
+
+## The agent can now look something up, and say where it got it
+
+The five items in `docs/HANDOFF-AGENTIC-FLOW.md` are complete. The detail is in
+`plan/PROGRESS.md`; the short version is that the loop closes and the output is sourced.
+
+**The graph returns to `investigate` after an answer.** That one edge is what makes the
+cycle hypothesis-driven. Measured on a live run against the mock watch:
+`retrieve_clinical_evidence` fired for the first time in this project's history, at the
+step immediately after the answer, with the query `fever`. Belief moved 0.2954 to 0.7774 on
+that answer, and the episode closed LIKELY_ILLNESS with five citations and no unsupported
+claims.
+
+**Three defects had to be fixed for that edge to do anything.** The investigate prompt was
+rendered once before the loop, so the model was asked an identical question after every
+call and asked for the same tool again, which is the 101 calls to `get_nightly_features`
+the handover recorded. `tool_calls` reduces by concatenation and the node returned the
+whole accumulated list, which would have doubled the record on every re-entry. Fact
+extraction re-ran over the whole history, which would have duplicated every fact.
+
+**The corpus is 33 documents, and every figure in it was checked against its paper.**
+Generated from `causes.yaml`, `red_flags.yaml`, `probes.yaml` and `constants.py`, with the
+numbers interpolated from the constants rather than retyped. `wha corpus build` writes it
+out for review, `wha corpus search` queries it the way the agent does. Most citations
+matched verbatim, including every load-bearing one; two did not and are in
+`plan/BLOCKERS.md`. The record is **`docs/CORPUS-VERIFICATION.md`**.
+
+**No consumer health layer exists**, because writing one would be inventing clinical
+content. The agent can cite why a night was flagged, what else could explain it, what an
+answer implies, and the rule behind an escalation. It cannot cite general information about
+a condition. Disclosed on the episode Evidence tab, not only in a file.
+
+**`retrieval_index` was `None` and assigned by nothing**, so the retrieval tool was
+allow-listed, offered to the model, ran without error and could never return a passage.
+`citations` and `unsupported_claims` were hardcoded, and `claims` was a bare list of
+strings, so the verbatim containment test the contract specifies had nothing to check
+against and could not run even in principle.
+
+### What driving the dashboard found that reading the code did not
+
+Eight defects, all of the shape this codebase keeps producing.
+
+The one worth remembering: **the model called `retrieve_clinical_evidence({"symptom": "fever"})`
+against a handler that reads `query`.** It returned an empty list, reported ok, and the
+episode concluded with no citations and nothing looking wrong. The model had been given the
+tool names and nothing else, so it guessed. There is now a signature catalogue in the
+prompt, a test that every registered tool appears in it, and an argument-less call is a
+refusal that names the argument rather than a successful empty result.
+
+The others: the outcome was written without the person's answer and stated "No specific
+symptoms were reported" for an episode in which they had reported a fever; `tool_call_count`
+and `depth_used` were columns nothing wrote to; `interruptions_used_this_week` was hardcoded
+0; clicking an investigation on History did nothing, so the panel holding the differential
+and the citations was unreachable by clicking; an urgent self-report was drawn underneath a
+green "Nothing needs you right now"; and `PromptDefinition.render` swallowed a missing
+context variable and sent the unrendered template, which also disarmed its own oversize
+guard.
+
+### The open decision, answered by measurement
+
+The handover asked whether item 1 would make the agent nag. Across three live episodes it
+asked **exactly one question each**, and in the episode with budget headroom it still asked
+one and then concluded, because after the answer the EVSI for every remaining probe fell
+below its interruption cost. The weekly budget was not the binding constraint there; the
+policy's own quiet band was.
+
+### One measurement discipline note
+
+`wha demo run` results depended on the order the scenarios were run in, because the weekly
+budget counts across subjects and the demo database is shared. Back to back the suite
+reported 5 of 11; individually, 10 of 11. Fixed by resetting the demo database per run. I
+believed the wrong number twice before checking, once because my own grep for `[FAIL]` was
+anchored while the lines are indented. Recorded in `plan/BLOCKERS.md`.
+
+Frozen scenarios remain **10 of 11**, with `no-response-timeout` failing for the reason
+already recorded: a timed-out question closes `LIKELY_BENIGN` where `UNRESOLVED` is honest.
 
 **The machine is left pointed at the simulation.** `.env` has `WHA_SUBJECT=sim` and the
 bridge on `127.0.0.1:8788`; the original is `.env.phase4-backup`. Restore it before using
@@ -246,17 +321,25 @@ the real watch.
 
 ## Open items for a human
 
-Nine entries in `plan/BLOCKERS.md`. The ones that matter:
+`plan/BLOCKERS.md`. The ones that matter:
 
-1. **`no-response-timeout` fixture amplitude** — needs roughly 4.8 bpm to produce the RED
-   night it assumes, or re-authoring. Read-only to the agent.
-2. **Blood oxygen has no likelihood** in `causes.yaml`, so it is captured and shown but
+1. **Two cited figures did not survive checking.** In `causes.yaml` the luteal citation
+   states wrist skin temperature +0.44 C and respiratory rate +0.60/min; read off Goodale
+   et al. 2019 those are +0.45 and +0.47. Neither channel is used, so this is a citation
+   defect rather than a clinical one. And `EXERCISE_EFFECT_BPM` could not be verified at
+   all: Leota et al. 2025 is paywalled everywhere tried. Both files are read-only to me and
+   were not touched. `docs/CORPUS-VERIFICATION.md` has the full record.
+2. **Whether to fetch MedlinePlus.** It is free and attribution-only, and it is the only
+   route to the agent being able to cite general health information about a condition.
+3. **`no-response-timeout`** closes `LIKELY_BENIGN` where `UNRESOLVED` is the honest
+   disposition for a question that was never answered.
+4. **Blood oxygen has no likelihood** in `causes.yaml`, so it is captured and shown but
    cannot move the belief. Adding one is a clinical judgement. Note the readings are sparse
    (five across seven days) and noisy (an 80 percent sixty-six seconds before a 92).
-3. **Cohort datasets absent.** `data/datasets/stanford` and `pmdata` are empty and
+5. **Cohort datasets absent.** `data/datasets/stanford` and `pmdata` are empty and
    `cohort_labels.yaml` was never authored, so detection accuracy is honestly reported as
    "not evaluated" rather than given a number.
-4. **`git stash@{0}`** holds the reverted SpO2/respiratory/skin-temperature work. Now
+6. **`git stash@{0}`** holds the reverted SpO2/respiratory/skin-temperature work. Now
    superseded by the proper implementation and safe to drop.
 
 ---
@@ -283,5 +366,6 @@ Nine entries in `plan/BLOCKERS.md`. The ones that matter:
 | What still needs a human | `plan/BLOCKERS.md` |
 | Why only seven data channels | `docs/DESIGN-DATA-CHANNELS.md` |
 | Does the policy actually work | `EVALUATION.md` |
+| What the agent may cite, and whether it checks out | `docs/CORPUS-VERIFICATION.md` |
 | The original rules and constraints | `HANDOFF.md` |
 | The frozen contract | `plan/02-contracts.md` |

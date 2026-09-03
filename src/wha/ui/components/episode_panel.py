@@ -118,6 +118,31 @@ def render_evidence_tab(detail: EpisodeDetail) -> None:
     """Render Tab 4: Retrieved knowledge passages and deliberately visible stripped claims."""
     st.subheader("📚 Knowledge Citations & Evidence")
 
+    # What the agent is able to look up at all, said plainly next to what it did look up.
+    # A person reading a citation is entitled to know the shape of the shelf it came off.
+    with st.expander("What this system can and cannot look up"):
+        st.markdown(
+            "**It can cite three things, all written by a person and kept in this "
+            "repository:** why a night counted as elevated and how the baseline is "
+            "formed; the evidence behind each competing explanation, with the study and "
+            "the effect size; and the rule behind any advice to seek care.\n\n"
+            "**It cannot cite general health information about a condition.** No consumer "
+            "health reference has been loaded, and it is not permitted to search the web "
+            "or to write clinical text of its own. If you ask it what a fever means, it "
+            "has nothing to quote and will not invent something.\n\n"
+            "**The numbers behind the questions it asks are assumed, not measured.** No "
+            "published study measures how accurately people report drinking, stress or "
+            "early symptoms to an app the next morning. Those figures are set "
+            "deliberately cautious so the system interrupts less rather than more.\n\n"
+            "**Whether a cause is 'large enough' to explain a night is a display rule, "
+            "not a clinical finding.** The effect sizes it compares are cited; the "
+            "cut-off for calling the fit good or poor was chosen to be readable and has "
+            "no evidence behind it.\n\n"
+            "Every figure in the material it quotes was checked against the published "
+            "paper. What held up, and the three places it did not, are in "
+            "`docs/CORPUS-VERIFICATION.md`."
+        )
+
     if not detail.citations:
         st.info("No knowledge base citations linked to this episode.")
     else:

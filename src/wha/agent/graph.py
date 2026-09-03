@@ -27,20 +27,33 @@ from wha.agent.nodes import (
 )
 from wha.agent.state import EpisodeState
 from wha.config import get_db_path
-from wha.constants import EPISODE_MAX_STEPS
+from wha.constants import EPISODE_MAX_STEPS, MAX_TOOL_CALLS_PER_EPISODE
 from wha.models import ActionKind
 
 
 def route_after_ask(state: EpisodeState) -> str:
-    """Send a safety escalation straight to the outcome, bypassing belief and policy.
+    """Route an answer back through investigation so the agent can look things up.
 
-    red_flags.yaml requires the deterministic floor to be unreachable by reasoning, so an
-    answer that trips it must not be handed to the belief model or the policy.
+    A safety escalation goes straight to the outcome. red_flags.yaml requires the
+    deterministic floor to be unreachable by reasoning, so an answer that trips it must
+    not be handed to the belief model or the policy.
+
+    Otherwise the answer re-enters ``investigate``. This edge is what makes the loop
+    hypothesis-driven rather than single-shot. Before it existed, evidence was gathered
+    exactly once, before the person had said anything, so ``retrieve_clinical_evidence``
+    had nothing to look up and fired zero times in 145 tool calls, and after an answer the
+    agent could only re-run arithmetic over the same facts.
+
+    ``MAX_TOOL_CALLS_PER_EPISODE`` is the ceiling that keeps this bounded. Once it is
+    reached the answer goes straight to ``believe``: re-entering investigation would run
+    no tools and spend an LLM round trip to learn that.
     """
     action = state.get("action")
     if action is not None and action.kind == ActionKind.ESCALATE:
         return "conclude"
-    return "believe"
+    if state.get("tool_call_count", 0) >= MAX_TOOL_CALLS_PER_EPISODE:
+        return "believe"
+    return "investigate"
 
 
 def route_after_decide(state: EpisodeState) -> str:
@@ -165,7 +178,7 @@ def build_agent_graph(
     builder.add_conditional_edges(
         "ask",
         route_after_ask,
-        {"conclude": "conclude", "believe": "believe"},
+        {"conclude": "conclude", "believe": "believe", "investigate": "investigate"},
     )
     builder.add_edge("measure", "believe")
     builder.add_edge("conclude", "critique")

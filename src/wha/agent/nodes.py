@@ -8,9 +8,10 @@ from typing import Any, Literal
 from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
+from wha.agent.differential import ground_differential
 from wha.agent.state import EpisodeState
 from wha.agent.tools.impl import create_default_tool_registry
-from wha.agent.tools.registry import ToolContext, ToolRegistry
+from wha.agent.tools.registry import ToolContext, ToolRegistry, describe_tools
 from wha.belief import update_belief
 from wha.clock import local_today
 from wha.constants import MAX_TOOL_CALLS_PER_EPISODE
@@ -22,7 +23,7 @@ from wha.models import (
     ActionKind,
     Answer,
     BaselineRung,
-    DifferentialItem,
+    Citation,
     Disposition,
     EpisodeOutcome,
     ExtractedFact,
@@ -32,6 +33,9 @@ from wha.models import (
 from wha.notify.protocol import MessageKind
 from wha.policy import determine_disposition
 from wha.policy.select import select_action
+from wha.retrieve.grounding import enforce_grounding
+from wha.retrieve.models import Citation as RetrievedPassage
+from wha.retrieve.models import GeneratedClaim
 from wha.safety.output_checks import (
     DIAGNOSIS_PHRASES,
     FALSE_REASSURANCE_PHRASES,
@@ -83,11 +87,24 @@ class QuestionDraftResponse(BaseModel):
     rationale: str | None = None
 
 
+class OutcomeClaim(BaseModel):
+    """One clinical assertion, with the passage span the model says supports it.
+
+    ``claims`` was a bare ``list[str]``, so there was nothing to check a claim against and
+    the claim-to-source enforcement in ``plan/02-contracts.md`` section 11.3 could not run
+    even in principle. The span is what makes the check a deterministic containment test
+    rather than a second opinion.
+    """
+
+    text: str
+    evidence_span: str = ""
+
+
 class WriteOutcomeResponse(BaseModel):
     """Synthesized outcome prose and escalation criteria from model."""
 
     observation: str
-    claims: list[str] = Field(default_factory=list)
+    claims: list[OutcomeClaim] = Field(default_factory=list)
     action_text: str = ""
     escalation_criteria: list[str] = Field(default_factory=list)
 
@@ -175,6 +192,67 @@ def node_preload(
     }
 
 
+# Character budgets for the investigate prompt. PromptDefinition.render raises rather
+# than truncating once the whole prompt passes PROMPT_MAX_CHARS, and an LLMUnavailable
+# there parks the episode. The loop now re-renders on every turn and re-enters after every
+# answer, so the two growing fields are bounded here instead.
+_INVESTIGATE_HISTORY_CHARS = 3000
+_INVESTIGATE_CALLS_CHARS = 4000
+_INVESTIGATE_CALL_VALUE_CHARS = 400
+
+
+def _compact_json(value: Any, limit: int) -> str:
+    """Serialise to JSON, cut to ``limit`` characters, and say so when cut."""
+    text = json.dumps(value, default=str)
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]} ...[truncated, {len(text)} chars total]"
+
+
+def _summarise_tool_calls(calls: list[dict[str, Any]]) -> str:
+    """One line per call: what was asked, whether it worked, and a clipped result.
+
+    The model needs to know what it has already tried so it does not repeat itself. It
+    does not need every nightly feature row it has already been handed; those are in
+    ``preloaded`` and in the extracted facts.
+    """
+    if not calls:
+        return "[]"
+
+    lines: list[str] = []
+    for call in calls:
+        name = call.get("tool_name", "unknown")
+        args = json.dumps(call.get("args", {}), default=str)
+        ok = call.get("ok", True)
+        if not ok:
+            detail = call.get("error") or call.get("note") or "failed"
+        else:
+            detail = _compact_json(call.get("value"), _INVESTIGATE_CALL_VALUE_CHARS)
+        lines.append(f"- {name}({args}) -> {'ok' if ok else 'REFUSED'}: {detail}")
+
+    # Newest calls matter most, so trim from the front when the budget bites.
+    text = "\n".join(lines)
+    while len(text) > _INVESTIGATE_CALLS_CHARS and len(lines) > 1:
+        lines.pop(0)
+        text = f"[{len(calls) - len(lines)} earlier calls omitted]\n" + "\n".join(lines)
+    return text
+
+
+def _summarise_answers(answers: list[Answer]) -> str:
+    """What the person has actually said, which is what re-investigation is for."""
+    if not answers:
+        return "None yet. The person has not been asked anything in this episode."
+
+    lines: list[str] = []
+    for answer in answers:
+        if answer.declined:
+            lines.append(f"- {answer.probe_id}: declined to answer")
+            continue
+        parts = [p for p in (answer.option_id, answer.free_text) if p]
+        lines.append(f"- {answer.probe_id}: {' / '.join(parts) if parts else 'no content'}")
+    return "\n".join(lines)
+
+
 def node_investigate(
     state: EpisodeState,
     llm_client: LLMClient | None = None,
@@ -197,17 +275,30 @@ def node_investigate(
     )
 
     prompt_def = get_prompt_definition("investigate")
-    prompt = prompt_def.render(
-        {
-            "episode_id": episode_id,
-            "history_summary": json.dumps(state.get("preloaded", {}), default=str),
-            "previous_calls": json.dumps(current_calls, default=str),
-        }
-    )
+    tool_catalogue = describe_tools(reg.list_tools())
+    history_summary = _compact_json(state.get("preloaded", {}), _INVESTIGATE_HISTORY_CHARS)
+    answers_so_far = _summarise_answers(state.get("answers", []))
 
     while True:
         if context.tool_call_count >= MAX_TOOL_CALLS_PER_EPISODE:
             break
+
+        # Rendered inside the loop, not once before it. The model was asked the same
+        # question after every call, with `previous_calls` frozen at whatever it held on
+        # entry, so it could not see the result it had just obtained. At temperature 0
+        # that means it asks for the same tool again, which is why one run recorded 101
+        # calls to get_nightly_features. Summarised rather than dumped whole because
+        # PromptDefinition.render refuses to truncate and raises past its character
+        # budget, which would park the episode.
+        prompt = prompt_def.render(
+            {
+                "tool_catalogue": tool_catalogue,
+                "episode_id": episode_id,
+                "history_summary": history_summary,
+                "previous_calls": _summarise_tool_calls(current_calls),
+                "answers_so_far": answers_so_far,
+            }
+        )
 
         try:
             step_res, _ = client.complete(
@@ -243,36 +334,47 @@ def node_investigate(
         if step_res.done is not None or step_res.tool_call is None:
             break
 
-    # Structured extraction of typed facts (untrusted text has nowhere to go)
+    # Structured extraction of typed facts (untrusted text has nowhere to go).
+    #
+    # Only over calls made on this pass. `evidence` concatenates across nodes, so
+    # re-extracting from the whole history on every re-entry would add a second copy of
+    # every fact already gathered, and the differential would then count one observation
+    # as several. When nothing new was gathered there is nothing to extract.
+    new_calls = current_calls[len(state.get("tool_calls", [])) :]
     facts: list[ExtractedFact] = []
-    try:
-        fact_def = get_prompt_definition("extract_facts")
-        fact_prompt = fact_def.render(
-            {
-                "user_response": json.dumps(current_calls, default=str),
-                "relevant_probes": "[]",
-            }
-        )
-        fact_res, _ = client.complete(
-            fact_prompt,
-            schema=FactExtractionResponse,
-            temperature=fact_def.temperature,
-        )
-        if isinstance(fact_res, FactExtractionResponse) or hasattr(fact_res, "facts"):
-            facts.extend(fact_res.facts)
-    except (
-        LLMUnavailable,
-        ValidationFailed,
-        KeyError,
-        TypeError,
-        ValueError,
-        AttributeError,
-        StopIteration,
-    ):
-        facts = []
+    if new_calls:
+        try:
+            fact_def = get_prompt_definition("extract_facts")
+            fact_prompt = fact_def.render(
+                {
+                    "user_response": _compact_json(new_calls, _INVESTIGATE_CALLS_CHARS),
+                    "relevant_probes": "[]",
+                }
+            )
+            fact_res, _ = client.complete(
+                fact_prompt,
+                schema=FactExtractionResponse,
+                temperature=fact_def.temperature,
+            )
+            if isinstance(fact_res, FactExtractionResponse) or hasattr(fact_res, "facts"):
+                facts.extend(fact_res.facts)
+        except (
+            LLMUnavailable,
+            ValidationFailed,
+            KeyError,
+            TypeError,
+            ValueError,
+            AttributeError,
+            StopIteration,
+        ):
+            facts = []
 
     return {
-        "tool_calls": current_calls,
+        # Only the new calls. `tool_calls` reduces by concatenation, so returning the
+        # accumulated list appends a second copy of everything already in state. Harmless
+        # while investigate ran exactly once per episode; with the ask -> investigate edge
+        # it would double the record the audit trail is built from on every re-entry.
+        "tool_calls": new_calls,
         "tool_call_count": context.tool_call_count,
         "evidence": facts,
         "step": state.get("step", 0) + 1,
@@ -677,6 +779,119 @@ def node_measure(
     }
 
 
+def _retrieved_passages(tool_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every passage `retrieve_clinical_evidence` returned in this episode, deduped."""
+    passages: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for call in tool_calls:
+        if call.get("tool_name") != "retrieve_clinical_evidence" or not call.get("ok"):
+            continue
+        for passage in call.get("value") or []:
+            if not isinstance(passage, dict):
+                continue
+            chunk_id = str(passage.get("chunk_id", ""))
+            if not chunk_id or chunk_id in seen:
+                continue
+            seen.add(chunk_id)
+            passages.append(passage)
+    return passages
+
+
+def _passages_for_prompt(passages: list[dict[str, Any]]) -> str:
+    """The retrieved passages, laid out so the model can quote a span out of one."""
+    if not passages:
+        return (
+            "No passages were retrieved in this episode. Return an empty claims list: "
+            "there is nothing to ground a claim against."
+        )
+    blocks = [f"[{p.get('chunk_id')}] {p.get('title', '')}\n{p.get('text', '')}" for p in passages]
+    return _compact_json(blocks, _INVESTIGATE_CALLS_CHARS)
+
+
+def _citations_for(passages: list[dict[str, Any]]) -> list[Citation]:
+    """The retrieved passages, in the shape an EpisodeOutcome records."""
+    return [
+        Citation(
+            source_id=str(p.get("chunk_id", "")),
+            title=str(p.get("title", "")),
+            uri=str(p.get("source_url") or p.get("doc_id") or "") or None,
+            passage=str(p.get("text", "")),
+            retrieval_score=float(p.get("score") or 0.0),
+        )
+        for p in passages
+    ]
+
+
+def _enforce_claims(
+    claims: list[OutcomeClaim],
+    passages: list[dict[str, Any]],
+    observation: str,
+) -> tuple[str, list[Citation], int]:
+    """Check each claim against the retrieved text, and strip the ones that fail.
+
+    Returns the observation with unsupported claims removed, the citations that actually
+    support what remains, and the count of claims that failed. Attribution is decided by
+    :func:`enforce_grounding` from where the span was found, not by what the model said.
+    """
+    if not claims:
+        return observation, [], 0
+
+    # Two Citation models exist. wha.retrieve.models.Citation is what the grounding check
+    # searches; wha.models.Citation is what an EpisodeOutcome records. Conflating them
+    # raises at the model boundary, which is the only reason this distinction is visible.
+    searchable = [
+        RetrievedPassage(
+            source_id=str(p.get("chunk_id", "")),
+            title=str(p.get("title", "")),
+            uri=str(p.get("source_url") or p.get("doc_id") or ""),
+            text=str(p.get("text", "")),
+        )
+        for p in passages
+    ]
+
+    generated = [GeneratedClaim(text=c.text, evidence_span=c.evidence_span or None) for c in claims]
+    grounded, unsupported = enforce_grounding(generated, searchable)
+
+    grounded_texts = {c.text for c in grounded}
+    cleaned = observation
+    for claim in claims:
+        if claim.text and claim.text not in grounded_texts and claim.text in cleaned:
+            # Stripped before display, per the contract. A claim whose span is not in any
+            # retrieved passage does not get to appear in the prose a person reads.
+            cleaned = cleaned.replace(claim.text, "").strip()
+
+    cited_ids = {c.citation for c in grounded if c.citation}
+    supporting = _citations_for([p for p in passages if str(p.get("chunk_id", "")) in cited_ids])
+    return cleaned or observation, supporting, unsupported
+
+
+def _interruptions_this_week(db: Any, subject_id: str) -> int:
+    """How many questions have been asked in the last seven days, across the whole app.
+
+    Counted across subjects rather than per subject. This is a single-user application,
+    one person and one phone, and a per-subject count let demo and simulation subjects
+    each carry a private allowance pointing at the same chat.
+    """
+    if db is None or not hasattr(db, "count_interruptions_since"):
+        return 0
+    try:
+        return int(db.count_interruptions_since(subject_id, local_today() - timedelta(days=7)))
+    except (TypeError, ValueError, AttributeError):
+        return 0
+
+
+def _cycle_applicability(answers: list[Answer]) -> bool | None:
+    """Three-state, from the one-time probe_cycle answer. None means never established."""
+    for answer in answers:
+        if answer.probe_id != "probe_cycle" or answer.declined:
+            continue
+        if answer.option_id == "na":
+            return False
+        if answer.option_id in {"recent", "older"}:
+            return True
+    return None
+
+
 def node_conclude(
     state: EpisodeState,
     llm_client: LLMClient | None = None,
@@ -709,15 +924,23 @@ def node_conclude(
             conclude_rung = db.get_baseline_rung(state.get("subject_id", ""), local_today())
         disposition = determine_disposition(belief, rung=conclude_rung)
 
-    differential = [
-        DifferentialItem(
-            cause=c,
-            probability=round(p, 4),
-            supporting=[],
-            contradicting=[],
-        )
-        for c, p in belief.top(5)
-    ]
+    # Every entry used to carry a probability with `supporting: []` and
+    # `contradicting: []`, so a ranked list of causes appeared with no reason attached to
+    # any of them.
+    answers = state.get("answers", [])
+    differential = ground_differential(
+        belief=belief,
+        nights=nights,
+        features=state.get("features", []),
+        answers=answers,
+        measurements=state.get("measurements", []),
+        cycle_applicable=_cycle_applicability(answers),
+    )
+
+    # The passages the agent actually retrieved during this episode. `citations` was
+    # hardcoded empty, which silently disabled the claim-to-source enforcement the
+    # contract specifies and made the grounding check unreachable.
+    passages = _retrieved_passages(state.get("tool_calls", []))
 
     observation = f"Observed {len(nights)} nights. Primary finding: {disposition.value}."
     action_val: Literal["rest", "monitor", "seek_same_day_care", "seek_urgent_care"] = (
@@ -727,6 +950,12 @@ def node_conclude(
         "Seek care if elevated heart rate persists >3 nights without confounders.",
         "Seek immediate emergency care if experiencing chest pain or severe shortness of breath.",
     ]
+
+    # Everything this episode looked up, whether or not a sentence ended up quoting it.
+    # This is what the Evidence tab shows, and the honest answer to "what did it read".
+    # Which sentences survived grounding is reported separately as unsupported_claims.
+    citations = _citations_for(passages)
+    unsupported_claims = 0
 
     client = llm_client or get_llm_client()
     try:
@@ -739,6 +968,12 @@ def node_conclude(
                 "facts": json.dumps(
                     [e.model_dump() for e in state.get("evidence", [])], default=str
                 ),
+                # What the person actually said. Without it the model wrote "No specific
+                # symptoms were reported" into the outcome of an episode in which the
+                # person had answered "Feverish or chills", which is not a wording problem
+                # but a false statement about their own report.
+                "answers": _summarise_answers(answers),
+                "passages": _passages_for_prompt(passages),
             }
         )
         outcome_res, _ = client.complete(
@@ -750,6 +985,15 @@ def node_conclude(
             observation = outcome_res.observation
         if outcome_res.escalation_criteria:
             escalation_criteria = outcome_res.escalation_criteria
+
+        # Claim-to-source enforcement, which the contract specifies as a deterministic
+        # verbatim containment test rather than a judgement. The model's claims were
+        # parsed and then dropped on the floor, so this never ran on anything.
+        observation, _, unsupported_claims = _enforce_claims(
+            claims=outcome_res.claims,
+            passages=passages,
+            observation=observation,
+        )
     except (
         LLMUnavailable,
         ValidationFailed,
@@ -771,14 +1015,21 @@ def node_conclude(
         baseline_nights=28,
         baseline_rung=BaselineRung.MATURE,
         differential=differential,
-        evidence_used=[e.field for e in state.get("evidence", [])],
+        # Both the facts extracted from tool output and the passages that were actually
+        # cited. Naming only the fact fields described where a number came from and never
+        # what the reasoning about it rested on.
+        evidence_used=sorted(
+            {e.field for e in state.get("evidence", [])} | {c.source_id for c in citations}
+        ),
         ruled_out=[],
-        citations=[],
-        unsupported_claims=0,
+        citations=citations,
+        unsupported_claims=unsupported_claims,
         action=action_val,
         escalation_criteria=escalation_criteria,
         confidence="moderate" if disposition != Disposition.UNRESOLVED else "low",
-        interruptions_used_this_week=0,
+        # Hardcoded to 0, so the one line that tells a person how much of their weekly
+        # allowance this episode spent always said none of it.
+        interruptions_used_this_week=_interruptions_this_week(db, state.get("subject_id", "")),
         depth_used_this_episode=state.get("depth_used", 0),
     )
 

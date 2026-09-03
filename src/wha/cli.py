@@ -12,6 +12,7 @@ from wha.service import (
     DEMO_DB_PATH,
     ConfigError,
     SourceUnavailable,
+    build_corpus_file,
     describe_device_capability,
     explain_belief,
     fetch_data,
@@ -24,6 +25,7 @@ from wha.service import (
     run_evaluation_suite,
     run_ingest,
     run_nightly,
+    search_corpus,
     step_episode,
     write_evaluation_report,
 )
@@ -49,6 +51,9 @@ app.add_typer(data_app, name="data")
 
 llm_app = typer.Typer(help="Manage LLM provider and cassette fixtures.")
 app.add_typer(llm_app, name="llm")
+
+corpus_app = typer.Typer(help="Inspect the clinical corpus the agent retrieves from.")
+app.add_typer(corpus_app, name="corpus")
 
 
 # Reported by both halves of `doctor --live`. The offline row and the live row make the
@@ -541,6 +546,54 @@ def data_capability_cmd(
     except Exception as e:  # noqa: BLE001
         typer.echo(f"Capability check failed: {e}", err=True)
         sys.exit(1)
+    sys.exit(0)
+
+
+@corpus_app.command("build")
+def corpus_build_cmd(
+    out: Annotated[
+        Path | None, typer.Option("--out", help="Where to write the rendered corpus")
+    ] = None,
+) -> None:
+    """Render the corpus to YAML so a human can read exactly what the agent may cite.
+
+    The running system does not read this file. It builds the same documents in memory
+    from causes.yaml, red_flags.yaml, probes.yaml and constants.py. The file exists so
+    that the passages behind a clinical claim can be reviewed and diffed rather than
+    taken on trust, which for a health system is the whole point of having a corpus.
+    """
+    try:
+        target, by_layer = build_corpus_file(out_path=out)
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Corpus build failed: {e}", err=True)
+        sys.exit(1)
+
+    typer.echo(f"Wrote {sum(by_layer.values())} documents to {target}")
+    for layer in sorted(by_layer):
+        typer.echo(f"  layer {layer}: {by_layer[layer]} documents")
+    sys.exit(0)
+
+
+@corpus_app.command("search")
+def corpus_search_cmd(
+    query: Annotated[str, typer.Argument(help="What to look up")],
+    top_k: Annotated[int, typer.Option("--top-k", help="How many passages")] = 5,
+) -> None:
+    """Search the corpus the way the agent does, to see what it would find."""
+    try:
+        results = search_corpus(query, top_k=top_k)
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"Corpus search failed: {e}", err=True)
+        sys.exit(1)
+
+    if not results:
+        typer.echo("No passages matched.")
+        sys.exit(0)
+    for r in results:
+        typer.echo(f"[{r['rank']}] {r['chunk_id']}  (layer {r['layer']}, score {r['score']:.4f})")
+        typer.echo(f"     {r['title']}")
+        typer.echo(f"     {r['text'][:200]}")
+        typer.echo("")
     sys.exit(0)
 
 

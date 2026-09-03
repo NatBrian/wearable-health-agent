@@ -260,3 +260,91 @@ The README quoted four figures that had drifted from `constants.py`:
 All corrected, and `tests/unit/test_documented_numbers.py` now asserts the documented
 figures against the constants so they cannot drift again. This is the same failure the
 audit dashboard page had, where hand-written numbers had diverged from the code.
+
+---
+
+## The agentic flow: the five items in docs/HANDOFF-AGENTIC-FLOW.md
+
+All five done, in the order given, plus eight defects the retest surfaced.
+
+### 1. The cycle now returns to investigate
+
+`route_after_ask` returned `believe`. It now returns `investigate` unless the answer trips
+the deterministic safety floor, in which case it still goes straight to `conclude`, or
+unless `MAX_TOOL_CALLS_PER_EPISODE` is already spent, in which case re-entering would run
+no tools and cost an LLM round trip to learn that.
+
+Three further defects had to be fixed for the edge to work rather than merely exist:
+
+- **The investigate prompt was rendered once, before the loop.** The model was asked an
+  identical question after every tool call, with `previous_calls` frozen at whatever it
+  held on entry, so at temperature 0 it asked for the same tool again. That is the
+  "`get_nightly_features` was called 101 times" note in the handover. Now re-rendered each
+  turn, with results summarised rather than dumped, because `PromptDefinition.render`
+  refuses to truncate and raises past its character budget, which would park the episode.
+- **`tool_calls` reduces by concatenation**, and the node returned the whole accumulated
+  list. Harmless while investigate ran once; with re-entry it would have doubled the
+  record on every answer. Now returns only what this pass gathered.
+- **Fact extraction re-ran over the whole history**, which would have added a second copy
+  of every fact already in state on each re-entry.
+
+The answers the person has given are now in the investigate prompt. Without them,
+re-entering investigation has nothing new to look up.
+
+### 2 and 3. A corpus, and an index that reaches it
+
+`EpisodeRepository.retrieval_index` was set to `None` in `__init__` and assigned by
+nothing, anywhere. The tool read it through `getattr`, so `retrieve_clinical_evidence` was
+allow-listed, offered to the model, ran without error and could never return a passage. It
+is now a lazy property that builds the index on first use.
+
+The corpus is 33 documents, generated in `wha/retrieve/knowledge_docs.py` from material a
+human already authored here: the measurement and detection method from `constants.py`
+(numbers interpolated, not retyped), the escalation rules from `red_flags.yaml`, the twelve
+confounders from `causes.yaml`, and what each answer implies from `probes.yaml`. `wha
+corpus build` writes it to `data/knowledge/corpus.yaml` for review; `wha corpus search`
+queries it the way the agent does.
+
+**Every figure was checked against the paper it cites.** Most matched verbatim, including
+all the load-bearing ones. Two did not and are recorded in `plan/BLOCKERS.md`. The full
+record is `docs/CORPUS-VERIFICATION.md`.
+
+Layer 1, consumer health information, is absent, because writing it would be inventing
+clinical content. Disclosed in `docs/DISCLOSURES.md` and on the episode Evidence tab.
+
+### 4. Citations and claim-to-source enforcement
+
+`citations=[]` and `unsupported_claims=0` were hardcoded. `claims` was a bare `list[str]`,
+so the verbatim containment test the contract specifies had nothing to check a claim
+against and could not run even in principle. Claims now carry an `evidence_span`, the check
+runs, an ungrounded claim is stripped from the prose and counted, and `citations` records
+what the episode actually retrieved.
+
+### 5. The differential carries reasons
+
+Every entry arrived with `supporting: []` and `contradicting: []`. `wha/agent/differential.py`
+fills both from the same tables the belief model computes with, so a reason shown to a
+person cannot disagree with the arithmetic that moved the belief.
+
+### Found by driving the dashboard, not by reading code
+
+- **The model called `retrieve_clinical_evidence({"symptom": "fever"})`** against a handler
+  that reads `query`. It returned an empty list, reported ok, and the episode concluded
+  with no citations. The model had been told the tool names and nothing else. There is now
+  a signature catalogue in the prompt, a test that every registered tool appears in it, and
+  a call with no query is a refusal that names the argument.
+- **The outcome was written without the person's answer.** It said "No specific symptoms
+  were reported" for an episode in which the person had answered "Feverish or chills".
+- **`episodes.tool_call_count` and `episodes.depth_used` were columns nothing wrote to.**
+- **`interruptions_used_this_week` was hardcoded 0.**
+- **Clicking an investigation on History did nothing.** The drill-down reads a query
+  parameter set at the top of the page, which had already run, so the panel holding the
+  differential and the citations was unreachable by clicking.
+- **An urgent self-report was drawn underneath "Nothing needs you right now."**
+- **`PromptDefinition.render` swallowed a missing context variable** and sent the
+  unrendered template, which also disarmed its own oversize guard.
+- **`wha demo run` results depended on the order the scenarios were run in.** The weekly
+  budget counts across subjects, correctly, but the demo database is shared, so the first
+  two scenarios spent the allowance and the remaining nine silently asked nothing. Run back
+  to back the suite reported 5 of 11; run individually, 10 of 11. The demo database is now
+  reset per run.

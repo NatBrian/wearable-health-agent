@@ -62,6 +62,12 @@ def render_episode_spans(episodes: list[EpisodeSummary]) -> str | None:
             if st.button(btn_label, key=f"span_{ep.episode_id}", use_container_width=True):
                 selected_ep_id = ep.episode_id
                 st.query_params["episode"] = ep.episode_id
+                # Rerun, or nothing happens. The drill-down reads this query parameter at
+                # the top of the page, which has already run by the time the button is
+                # handled, so clicking an investigation set the URL and rendered the same
+                # page. The panel behind it, with the differential and the citations, was
+                # unreachable by clicking; only a manual reload of the URL showed it.
+                st.rerun()
 
     return selected_ep_id
 

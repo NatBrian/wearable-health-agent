@@ -51,12 +51,36 @@ class EpisodeRepository:
         db_path: Path | None = None,
     ) -> None:
         self._conn = conn if conn is not None else connect(db_path)
-        self.retrieval_index: Any = None
+        self._retrieval_index: Any = None
 
     @property
     def conn(self) -> sqlite3.Connection:
         """The underlying connection, exposed for callers that need a transaction."""
         return self._conn
+
+    @property
+    def retrieval_index(self) -> Any:
+        """The index ``retrieve_clinical_evidence`` searches, built on first use.
+
+        This attribute was set to None in ``__init__`` and assigned by nothing, anywhere.
+        ``tool_retrieve_clinical_evidence`` reads it through ``getattr``, so the tool
+        existed, was allow-listed, was offered to the model, ran without error and could
+        never return a single passage. The agent's `citations` were empty for the same
+        reason.
+
+        Built lazily because building it embeds the whole corpus, which costs seconds,
+        and most commands never retrieve anything.
+        """
+        if self._retrieval_index is None:
+            from wha.retrieve.knowledge_docs import get_default_index
+
+            self._retrieval_index = get_default_index()
+        return self._retrieval_index
+
+    @retrieval_index.setter
+    def retrieval_index(self, index: Any) -> None:
+        """Tests and evaluations substitute a narrower index here."""
+        self._retrieval_index = index
 
     # -- reads used by the seven T1 tools ---------------------------------------
 

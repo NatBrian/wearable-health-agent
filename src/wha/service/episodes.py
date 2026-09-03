@@ -953,9 +953,20 @@ def step_episode(
         )
 
         new_step = int(ep_row["step_count"]) + 1
+        # tool_call_count and depth_used were columns nothing ever wrote to. After an
+        # episode that made three tool calls and asked one question, the row still read
+        # zero and zero, so the two figures that evidence the agent doing any work at all
+        # were absent from everything that reads the table rather than the graph state.
         conn.execute(
-            "UPDATE episodes SET step_count = ? WHERE episode_id = ?",
-            (new_step, episode_id),
+            """UPDATE episodes
+                  SET step_count = ?, tool_call_count = ?, depth_used = ?
+                WHERE episode_id = ?""",
+            (
+                new_step,
+                int(res.get("tool_call_count") or 0),
+                int(res.get("depth_used") or 0),
+                episode_id,
+            ),
         )
 
         # Persist the outcome. The graph reached a disposition in state and nothing wrote

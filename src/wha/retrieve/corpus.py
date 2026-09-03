@@ -10,37 +10,115 @@ from wha.belief.causes import load_causes
 from wha.constants import CHUNK_TARGET_TOKENS
 from wha.retrieve.models import Chunk, CorpusDocument, CorpusManifest, SourceManifestEntry
 
+CAUSES_PATH = Path("data/knowledge/causes.yaml")
 
-def generate_layer_4_confounder_docs() -> list[CorpusDocument]:
-    """Generate Layer 4 citable confounder evidence documents from causes.yaml."""
-    causes = load_causes()
+
+def _load_cause_prose(path: Path | None = None) -> dict[str, dict[str, str]]:
+    """The human-written prose in causes.yaml that CausePrior does not carry.
+
+    ``CausePrior`` keeps only what the belief model computes with. The label, the note,
+    the derivation and the reasoning behind the temporal profile are the parts a person
+    would actually want to read, and they are the reason a retrieved passage is worth
+    citing rather than just restating a number.
+    """
+    target = path if path is not None else CAUSES_PATH
+    if not target.exists():
+        return {}
+    data = yaml.safe_load(target.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return {}
+    prose: dict[str, dict[str, str]] = {}
+    for row in data.get("causes", []) or []:
+        if isinstance(row, dict) and "cause" in row:
+            prose[str(row["cause"])] = {
+                key: str(row[key]).strip()
+                for key in (
+                    "label",
+                    "note",
+                    "derivation",
+                    "assumption",
+                    "profile_source",
+                    "provenance",
+                )
+                if row.get(key)
+            }
+    return prose
+
+
+def generate_layer_4_confounder_docs(path: Path | None = None) -> list[CorpusDocument]:
+    """Generate Layer 4 citable confounder evidence documents from causes.yaml.
+
+    One document per candidate cause, so that when the agent says an elevation is better
+    explained by alcohol than by an infection it can cite the effect size, the base rate
+    and the temporal shape that support the claim, rather than asserting it.
+    """
+    causes = load_causes() if path is None else load_causes(path)
+    prose = _load_cause_prose(path)
     docs: list[CorpusDocument] = []
 
     for cause in causes:
+        extra = prose.get(cause.cause.value, {})
+        label = extra.get("label", cause.cause.value)
         lines = [
-            f"# Confounder Evidence: {cause.cause.value}",
-            f"**Cause ID:** {cause.cause.value}",
-            f"**Base Rate:** {cause.base_rate}",
-            f"**Typical RHR Effect:** {cause.effect_mean_bpm:+.1f} bpm (SD {cause.effect_sd_bpm:.1f})",
-            f"**Evidence Grade:** {cause.evidence_grade}",
-            f"**Citation:** {cause.citation}",
+            f"# {label}",
             "",
-            "## Clinical Mechanism and Effect Profile",
-            f"Effect mean: {cause.effect_mean_bpm} bpm, SD: {cause.effect_sd_bpm} bpm.",
+            (
+                "One of the candidate explanations for a raised sleeping heart rate. "
+                f"Cause id: {cause.cause.value}."
+            ),
             "",
-            "## Temporal Progression",
-            f"Day-by-day multiplier profile across episode nights: {cause.profile}",
+            "## How large the effect is",
+            "",
+            (
+                f"When present, this contributes about {cause.effect_mean_bpm:+.2f} bpm "
+                "to the night's resting heart rate, with a between-person spread of "
+                f"{cause.effect_sd_bpm:.2f} bpm. It is present on roughly "
+                f"{cause.base_rate * 100:.1f} percent of nights."
+            ),
+            "",
+            f"Evidence grade {cause.evidence_grade}."
+            + (f" Provenance: {extra['provenance']}." if "provenance" in extra else ""),
+            "",
+            f"Source: {cause.citation}",
         ]
-        doc_text = "\n".join(lines)
+        if "derivation" in extra:
+            lines += ["", "## How the number was derived", "", extra["derivation"]]
+        if "assumption" in extra:
+            lines += [
+                "",
+                "## This figure is assumed, not published",
+                "",
+                extra["assumption"],
+            ]
+        lines += [
+            "",
+            "## How it behaves over successive nights",
+            "",
+            (
+                "Contribution weight by night since the elevation began: "
+                f"{', '.join(f'{p:g}' for p in cause.profile)}. The last value repeats "
+                "thereafter. The shape is what separates causes that look identical on "
+                "any single night."
+            ),
+        ]
+        if "profile_source" in extra:
+            lines += ["", extra["profile_source"]]
+        if "note" in extra:
+            lines += ["", "## Why this one matters", "", extra["note"]]
+
         docs.append(
             CorpusDocument(
                 doc_id=f"confounder_{cause.cause.value}",
-                title=f"Confounder Evidence: {cause.cause.value}",
+                title=f"Confounder evidence: {label}",
                 layer=4,
                 source_url="data/knowledge/causes.yaml",
                 licence="Ours",
-                text=doc_text,
-                metadata={"cause_id": cause.cause.value, "layer": 4},
+                text="\n".join(lines),
+                metadata={
+                    "cause_id": cause.cause.value,
+                    "layer": 4,
+                    "citation": cause.citation,
+                },
             )
         )
 

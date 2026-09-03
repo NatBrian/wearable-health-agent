@@ -572,3 +572,88 @@ budget counts, silently resetting it.
 **What I need:** a decision on whether a synthetic subject should be able to notify at all.
 `subjects.source_kind` already records `synthetic`, so the notifier could refuse on that
 basis, and a simulation would then be unable to message a real person however it is run.
+
+
+## corpus — two cited figures did not survive checking against the paper
+
+**What I tried:** before generating `data/knowledge/corpus.yaml`, fetched every paper the
+corpus quotes and read the sentence carrying each number. Full record in
+`docs/CORPUS-VERIFICATION.md`.
+
+**What happened:** most figures matched exactly, including every load-bearing one. Two did
+not.
+
+1. **`causes.yaml`, luteal, the second and third figures in the citation string.** It reads
+   "heart rate +3.91 bpm (P<.001), wrist skin temperature +0.44 C, respiratory rate
+   +0.60/min". Read off the phase means in Goodale et al. 2019 (late luteal against
+   follicular): heart rate 60.47 - 56.56 = **+3.91 bpm, exactly right**; wrist skin
+   temperature 34.32 - 33.87 = **+0.45 C**, not 0.44; respiratory rate 17.04 - 16.57 =
+   **+0.47 breaths/min**, not 0.60.
+
+2. **`constants.py`, `EXERCISE_EFFECT_BPM`.** `{"0-2h": 4.14, "2-4h": 2.91, "4-6h": 1.58}`
+   could not be verified: Leota et al. 2025 is paywalled on every route tried, and the
+   per-band table is not in any open summary. The study's identity, its cohort of 14,689
+   and 4,084,354 person-nights, and the direction of the effect all check out exactly. The
+   three bpm values do not, and the paper's own summary states that "exercise bouts ending
+   >=4 hours before sleep onset are not associated with changes in sleep", which sits
+   awkwardly beside a 1.58 bpm entry for the 4 to 6 hour band.
+
+**What I think is wrong:** for the luteal row, only the citation prose. Neither wrist skin
+temperature nor respiratory rate is ingested by this system and neither figure enters any
+computation, so this is a citation-accuracy defect and not a clinical one. For the exercise
+table, possibly nothing: the quoted sentence is about sleep measures and the table entry is
+about nocturnal heart rate, and the paper reports both.
+
+**What I need:** `causes.yaml` and `constants.py` are read-only to me and I have not
+touched either. A human should correct the two luteal figures to +0.45 and +0.47, and
+confirm the three exercise values against the paper's own table.
+
+
+## corpus — the consumer health layer of the corpus does not exist
+
+**What I tried:** built the retrievable corpus from the sources `sources.yaml` names.
+
+**What happened:** three of the four layers can be built from material already in this
+repository. Layer 1, MedlinePlus, cannot: it is a 29 MB external download that has never
+been fetched, and layer 2 in the sense `sources.yaml` means it, StatPearls, likewise.
+
+What exists instead is 33 documents: the measurement and detection method drawn from
+`constants.py`, the escalation rules from `red_flags.yaml`, the twelve confounders from
+`causes.yaml`, and what each question's answer implies from `probes.yaml`.
+
+**What I think is wrong:** nothing, but the consequence is real and should be understood
+rather than discovered. The agent can cite why a night was flagged, what else could explain
+it, what an answer implies, and the rule behind any escalation. It cannot cite general
+information about a condition, because this repository holds none. Writing that text from
+the model's own knowledge is the one line this project must not cross, so it was not
+crossed.
+
+**What I need:** a decision on whether to fetch MedlinePlus. It is free, attribution-only,
+and its licence is unambiguous. Until then the absence is disclosed in
+`docs/DISCLOSURES.md` and on the episode Evidence tab.
+
+
+## demo-order — RESOLVED. A frozen scenario meant different things depending on run order
+
+**What I tried:** ran all eleven scenarios back to back to check for regressions after the
+agentic-flow work, then ran the failures individually.
+
+**What happened:** back to back, 5 of 11 passed. Individually, 10 of 11. The failures were
+all the same shape: `asks_at_least: expected 1, got 0`, and a disposition of `None` or the
+wrong value that follows from never asking.
+
+**What I think is wrong:** nothing in the budget, which is correct. `count_interruptions_since`
+counts across every subject because this is a single-user application, one person and one
+phone. But `wha demo run` shares one database across scenarios and creates a subject per
+scenario, so the weekly allowance of two became a global two questions across all eleven.
+The first two scenarios spent it and the remaining nine silently asked nothing.
+
+This nearly fooled me twice. The first time my own pass/fail count was wrong, because the
+`[FAIL]` lines are indented and my anchored grep matched none of them, and I briefly
+believed the suite had improved to 11 of 11.
+
+**Fixed:** the default demo database is deleted at the start of each run, so a frozen
+scenario means the same thing whatever ran before it. A database named with `--db` is left
+alone. Two tests cover both halves.
+
+**What I need:** nothing.

@@ -34,6 +34,9 @@ Source: `src/wha/ui/components/disclaimer.py`.
 | Measured over recorded sleep, with a clock fallback | Dial et al. 2025, validation of nocturnal RHR in consumer wearables | **History**, chart caption; per-night source on the night detail |
 | The starting range is a population figure | Bloomfield et al. 2024, n=525 | **History**, chart caption and Full references |
 | Nights with no reading are not judged | — | **Today**, stated separately from the quiet-night count |
+| What it can look up is limited to this repository's own knowledge | No consumer health corpus has been fetched. See `docs/CORPUS-VERIFICATION.md` | **Episode**, Evidence tab, above the citations |
+| The likelihood behind every question is assumed, not measured | probes.yaml records every row as ASSUMED; no published study measures next-morning self-report accuracy to an app | **Episode**, in each reason drawn from an answer, and in the retrieved passage itself |
+| Whether a cause is 'large enough' to explain a night is a presentation rule, not a clinical one | Unevidenced. The 0.5 and 0.25 fractions in `wha/agent/differential.py` were chosen to be legible, not derived | **Episode**, Evidence tab, above the citations |
 
 ---
 
@@ -72,6 +75,8 @@ transparency.
   a fixed clock window, why naps are excluded, and why apnoea is out of reach.
 - `docs/DESIGN-DATA-CHANNELS.md` — which of the device's channels are used and which are
   captured but cannot move the belief.
+- `docs/CORPUS-VERIFICATION.md` — every figure in the retrievable corpus checked against
+  the paper it cites, what did not hold up, and why the consumer health layer is absent.
 - `plan/BLOCKERS.md` — the decisions deliberately left to a human, including whether the
   step at seven nights should be smoothed and whether one population mean is the right
   cold-start prior across ages and sexes.

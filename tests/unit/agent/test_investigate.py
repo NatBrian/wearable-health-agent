@@ -167,7 +167,20 @@ def test_untrusted_text_produces_typed_output_only() -> None:
         confidence="stated",
     )
 
+    # A tool call first, because extraction now runs over what this pass actually
+    # gathered rather than over the whole history. The node no longer spends an LLM round
+    # trip extracting facts from an empty list, and on re-entry it no longer re-extracts
+    # facts already in state, which would duplicate every one of them.
     mock_client.complete.side_effect = [
+        (
+            InvestigateStep(
+                tool_call=ToolCallArgs(
+                    tool_name="get_nightly_features",
+                    args={"start": "2026-08-01", "end": "2026-08-10"},
+                )
+            ),
+            LLMUsage(),
+        ),
         (InvestigateStep(done=DoneSignal(reason="Done.")), LLMUsage()),
         (FactExtractionResponse(facts=[extracted_fact]), LLMUsage()),
     ]
@@ -197,3 +210,108 @@ def test_llm_unavailable_parks_not_closes() -> None:
     result = node_investigate(state, llm_client=mock_client)
     assert result["status"] == "parked"
     assert result["step"] == 2
+
+
+def test_reentry_returns_only_the_calls_made_on_this_pass() -> None:
+    """tool_calls concatenates in state, so returning the accumulated list duplicates it.
+
+    Invisible while investigate ran once per episode. With the ask -> investigate edge the
+    node runs several times, and the record the audit trail and the citations are built
+    from would double on every answer.
+    """
+    already = {
+        "tool_name": "get_personal_baseline",
+        "args": {},
+        "ok": True,
+        "value": {"centre_bpm": 61.3},
+    }
+    state: EpisodeState = {
+        "episode_id": "ep_001",
+        "subject_id": "sub_001",
+        "preloaded": {},
+        "tool_calls": [already],
+        "tool_call_count": 1,
+        "evidence": [],
+        "step": 4,
+    }
+
+    mock_client = MagicMock()
+    mock_client.complete.side_effect = [
+        (
+            InvestigateStep(
+                tool_call=ToolCallArgs(
+                    tool_name="get_nightly_features",
+                    args={"start": "2026-08-01", "end": "2026-08-10"},
+                )
+            ),
+            LLMUsage(),
+        ),
+        (InvestigateStep(done=DoneSignal(reason="Done.")), LLMUsage()),
+        (FactExtractionResponse(), LLMUsage()),
+    ]
+
+    result = node_investigate(state, llm_client=mock_client)
+    assert len(result["tool_calls"]) == 1
+    assert result["tool_calls"][0]["tool_name"] == "get_nightly_features"
+
+
+def test_the_person_s_answer_reaches_the_investigation_prompt() -> None:
+    """Re-entering investigation is pointless if the answer is not in the prompt."""
+    from wha.models import Answer
+
+    state: EpisodeState = {
+        "episode_id": "ep_001",
+        "subject_id": "sub_001",
+        "preloaded": {},
+        "tool_calls": [],
+        "answers": [Answer(probe_id="probe_symptoms", option_id="fever", free_text=None)],
+        "evidence": [],
+        "step": 4,
+    }
+
+    mock_client = MagicMock()
+    mock_client.complete.side_effect = [
+        (InvestigateStep(done=DoneSignal(reason="Done.")), LLMUsage()),
+    ]
+
+    node_investigate(state, llm_client=mock_client)
+    prompt = mock_client.complete.call_args_list[0].args[0]
+    assert "probe_symptoms" in prompt.user
+    assert "fever" in prompt.user
+
+
+def test_the_investigation_prompt_is_refreshed_after_every_call() -> None:
+    """A prompt rendered once cannot show the model the result it just obtained.
+
+    Rendering before the loop froze previous_calls at entry, so at temperature 0 the model
+    was asked an identical question after every call and asked for the same tool again.
+    One run recorded 101 calls to get_nightly_features.
+    """
+    state: EpisodeState = {
+        "episode_id": "ep_001",
+        "subject_id": "sub_001",
+        "preloaded": {},
+        "tool_calls": [],
+        "evidence": [],
+        "step": 1,
+    }
+
+    mock_client = MagicMock()
+    mock_client.complete.side_effect = [
+        (
+            InvestigateStep(
+                tool_call=ToolCallArgs(tool_name="get_data_quality", args={}),
+            ),
+            LLMUsage(),
+        ),
+        (InvestigateStep(done=DoneSignal(reason="Done.")), LLMUsage()),
+        (FactExtractionResponse(), LLMUsage()),
+    ]
+
+    node_investigate(state, llm_client=mock_client)
+    first_prompt = mock_client.complete.call_args_list[0].args[0]
+    second_prompt = mock_client.complete.call_args_list[1].args[0]
+    # The tool catalogue names every tool in both prompts, so the thing that must differ
+    # is the record of what has already been called.
+    assert "get_data_quality({}) ->" not in first_prompt.user
+    assert "get_data_quality({}) ->" in second_prompt.user

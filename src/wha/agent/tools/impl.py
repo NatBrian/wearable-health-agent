@@ -215,15 +215,24 @@ def tool_retrieve_clinical_evidence(
     layer = args.get("layer")
 
     if not query:
+        # Not ok. A call with no query is a caller error, and reporting it as a successful
+        # empty result is how a production run came to record two retrievals, no passages
+        # and no citations without anything looking wrong. The note names the argument so
+        # the model can correct itself on the next turn, and the audit records a refusal.
+        supplied = ", ".join(sorted(args)) or "nothing"
         return ToolResult(
             tool_name="retrieve_clinical_evidence",
             args=args,
-            ok=True,
+            ok=False,
             value=[],
             source_ids=[],
             as_of_utc=context.now_utc,
             freshness="missing",
-            note="Empty query provided; no passages retrieved.",
+            note=(
+                "retrieve_clinical_evidence takes its search text in `query`. "
+                f"This call supplied {supplied}. Call it again as "
+                '{"query": "<the symptom or cause>"}.'
+            ),
         )
 
     passages: list[Any] = []
@@ -238,6 +247,11 @@ def tool_retrieve_clinical_evidence(
                     "title": r.title,
                     "text": r.text,
                     "layer": r.layer,
+                    # Carried so a citation can name where the passage came from and how
+                    # well it matched. Without these the outcome could record that it had
+                    # cited something but not what, nor how confidently it was retrieved.
+                    "source_url": r.source_url,
+                    "score": r.score,
                 }
                 for r in results
             ]

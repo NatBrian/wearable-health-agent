@@ -52,18 +52,50 @@ def test_temperature_zero_for_checked_jobs() -> None:
         assert p.temperature == TEMP_NATURAL, f"{job} must have natural temperature 0.3"
 
 
+def _placeholder_context(definition: object) -> dict[str, str]:
+    """Every context variable a template names, filled with a marker."""
+    from string import Formatter
+
+    return {
+        field: f"<{field}>"
+        for _, field, _, _ in Formatter().parse(definition.context_template)
+        if field
+    }
+
+
 def test_prompt_version_written_to_audit() -> None:
     """Rendered Prompt carries prompt_id and prompt_version for audit traceability."""
     for p in ALL_PROMPTS:
-        rendered = p.render()
+        rendered = p.render(_placeholder_context(p))
         assert rendered.prompt_id == p.prompt_id
         assert rendered.prompt_version == p.prompt_version
+
+
+def test_missing_context_variable_refuses_rather_than_shipping_a_placeholder() -> None:
+    """A forgotten key must not reach the model as the literal text of its own name.
+
+    render() used to catch the KeyError and send the unrendered template, so a prompt
+    missing a variable produced a quietly worse answer and nothing else. It also disarmed
+    the oversize guard, because an unrendered template is always short.
+    """
+    p = get_prompt_definition("investigate")
+
+    with pytest.raises(LLMUnavailable) as exc_info:
+        p.render({"episode_id": "ep1"})
+
+    assert "missing a context variable" in str(exc_info.value)
 
 
 def test_oversize_prompt_raises_not_truncates() -> None:
     """Context exceeding budget raises LLMUnavailable rather than silently truncating."""
     p = get_prompt_definition("investigate")
-    huge_context = {"history_summary": "A" * 20000, "episode_id": "ep1", "previous_calls": "[]"}
+    huge_context = {
+        "history_summary": "A" * 20000,
+        "episode_id": "ep1",
+        "previous_calls": "[]",
+        "answers_so_far": "None yet.",
+        "tool_catalogue": "- get_nightly_features(start, end)",
+    }
 
     with pytest.raises(LLMUnavailable) as exc_info:
         p.render(huge_context)

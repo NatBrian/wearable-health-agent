@@ -27,6 +27,51 @@ CLOSED_TOOL_REGISTRY: set[str] = {
 }
 
 
+# What each tool is for and what it takes. The model was told the tool names and nothing
+# else, so it guessed argument names: a production run recorded
+# `retrieve_clinical_evidence({"symptom": "fever"})` against a handler that reads `query`,
+# which returned an empty list, reported ok, and left the episode with no citations. A tool
+# the model cannot call correctly is no more use than one that does not exist.
+#
+# subject_id is deliberately absent from every signature. The registry strips any
+# model-supplied subject and uses the one the episode was opened for.
+TOOL_SIGNATURES: dict[str, str] = {
+    "get_nightly_features": (
+        'get_nightly_features(start: "YYYY-MM-DD", end: "YYYY-MM-DD") '
+        "-> the nightly readings, coverage and sleep hours in that range"
+    ),
+    "get_personal_baseline": (
+        'get_personal_baseline(night_date: "YYYY-MM-DD") '
+        "-> the person's own centre and band on that night, and how mature it is"
+    ),
+    "get_known_events": (
+        'get_known_events(start: "YYYY-MM-DD", end: "YYYY-MM-DD") '
+        "-> workouts, steps, blood oxygen and other recorded context in that range"
+    ),
+    "get_data_quality": (
+        'get_data_quality(start: "YYYY-MM-DD", end: "YYYY-MM-DD") '
+        "-> coverage minutes and implausible readings dropped, for judging sensor artifact"
+    ),
+    "find_similar_past_episodes": (
+        "find_similar_past_episodes() -> this person's earlier investigations and how they ended"
+    ),
+    "retrieve_clinical_evidence": (
+        'retrieve_clinical_evidence(query: "free text", layer: int optional) '
+        "-> passages from the local clinical corpus. THE ARGUMENT IS `query`. "
+        'Put the symptom or cause in it, for example {"query": "fever"}'
+    ),
+    "get_local_disease_activity": (
+        "get_local_disease_activity(url: optional, allow-listed only) "
+        "-> local outbreak and air quality signals"
+    ),
+}
+
+
+def describe_tools(names: list[str]) -> str:
+    """The catalogue handed to the model: one line per tool, name and arguments."""
+    return "\n".join(f"- {TOOL_SIGNATURES[n]}" for n in sorted(names) if n in TOOL_SIGNATURES)
+
+
 class ToolResult(BaseModel):
     """Common result shape for all T1 tools."""
 

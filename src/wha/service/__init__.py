@@ -15,6 +15,10 @@ from wha.service.belief import (
     BeliefNightRecord,
     explain_belief,
 )
+from wha.service.corpus import (
+    build_corpus_file,
+    search_corpus,
+)
 from wha.service.data_fetch import fetch_data
 from wha.service.demo import (
     DEMO_DB_PATH,
@@ -81,6 +85,7 @@ __all__ = [
     "SourceUnavailable",
     "SymptomReportResult",
     "ask_about_episode",
+    "build_corpus_file",
     "create_scheduler",
     "delete_all_subject_data",
     "describe_device_capability",
@@ -109,6 +114,7 @@ __all__ = [
     "run_evaluation_suite",
     "run_ingest",
     "run_nightly",
+    "search_corpus",
     "step_episode",
     "submit_answer",
     "submit_human_decision",

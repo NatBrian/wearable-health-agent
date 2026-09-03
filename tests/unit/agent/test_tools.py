@@ -332,3 +332,63 @@ def test_large_result_is_truncated_visibly() -> None:
     assert event.tool_result is not None
     assert event.tool_result["truncated"] is True
     assert "[TRUNCATED]" in event.tool_result["preview"]
+
+
+def test_every_registered_tool_tells_the_model_its_arguments() -> None:
+    """A tool the model cannot call correctly is no more use than one that does not exist.
+
+    A production run recorded retrieve_clinical_evidence({"symptom": "fever"}) against a
+    handler that reads `query`. It returned an empty list, reported ok, and the episode
+    concluded with no citations.
+    """
+    from wha.agent.tools.impl import create_default_tool_registry
+    from wha.agent.tools.registry import TOOL_SIGNATURES, describe_tools
+
+    registry = create_default_tool_registry()
+    names = registry.list_tools()
+
+    for name in names:
+        assert name in TOOL_SIGNATURES, f"{name} is callable but undocumented to the model"
+
+    catalogue = describe_tools(names)
+    for name in names:
+        assert name in catalogue
+
+
+def test_retrieval_without_a_query_is_a_refusal_that_names_the_argument() -> None:
+    """Reporting a caller error as a successful empty result is how this stayed invisible."""
+    from wha.agent.tools.impl import tool_retrieve_clinical_evidence
+    from wha.agent.tools.registry import ToolContext
+
+    context = ToolContext(subject_id="sub_001", episode_id="ep_001", step_index=0)
+    result = tool_retrieve_clinical_evidence({"symptom": "fever"}, context)
+
+    assert result.ok is False
+    assert "query" in (result.note or "")
+    assert "symptom" in (result.note or "")
+
+
+def test_the_investigation_prompt_carries_the_tool_catalogue() -> None:
+    """The catalogue is useless if it never reaches the prompt."""
+    from unittest.mock import MagicMock
+
+    from wha.agent.nodes import DoneSignal, InvestigateStep, node_investigate
+    from wha.llm.client import LLMUsage
+
+    client = MagicMock()
+    client.complete.side_effect = [(InvestigateStep(done=DoneSignal(reason="Done.")), LLMUsage())]
+
+    node_investigate(
+        {
+            "episode_id": "ep_001",
+            "subject_id": "sub_001",
+            "preloaded": {},
+            "tool_calls": [],
+            "evidence": [],
+            "step": 1,
+        },
+        llm_client=client,
+    )
+
+    prompt = client.complete.call_args_list[0].args[0]
+    assert "retrieve_clinical_evidence(query:" in prompt.user

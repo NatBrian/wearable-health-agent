@@ -111,3 +111,37 @@ def test_recursion_limit_closes_unresolved() -> None:
 
     assert result["status"] == "unresolved"
     assert result["episode_id"] == "ep_recursion_test"
+
+
+def test_answer_returns_to_investigation() -> None:
+    """An answer re-enters investigate, which is what lets the agent look anything up.
+
+    Before this edge existed the agent gathered evidence once, before the person had said
+    anything, so retrieve_clinical_evidence had nothing to look up and fired zero times in
+    145 tool calls, and every episode asked exactly one question and stopped.
+    """
+    from wha.agent.graph import route_after_ask
+
+    assert route_after_ask({"action": None, "tool_call_count": 0}) == "investigate"
+
+
+def test_answer_skips_investigation_once_the_tool_budget_is_spent() -> None:
+    """At the ceiling, re-entering investigate would run no tools and cost a round trip."""
+    from wha.agent.graph import route_after_ask
+    from wha.constants import MAX_TOOL_CALLS_PER_EPISODE
+
+    state = {"action": None, "tool_call_count": MAX_TOOL_CALLS_PER_EPISODE}
+    assert route_after_ask(state) == "believe"
+
+
+def test_escalation_still_bypasses_belief_and_policy() -> None:
+    """The deterministic safety floor must not be routed through reasoning."""
+    from wha.agent.graph import route_after_ask
+    from wha.models import Action, ActionKind, Disposition
+
+    action = Action(
+        kind=ActionKind.ESCALATE,
+        disposition=Disposition.ESCALATED,
+        rationale="rf_chest_pain",
+    )
+    assert route_after_ask({"action": action, "tool_call_count": 0}) == "conclude"

@@ -20,7 +20,7 @@ from wha.service.episodes import (
 )
 from wha.service.nights import list_nights
 from wha.service.status import get_system_status
-from wha.service.symptom_report import report_symptoms
+from wha.service.symptom_report import SymptomReportResult, report_symptoms
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
     describe_bpm_difference,
@@ -255,7 +255,7 @@ def render_open_episodes(subject_id: str) -> None:
             st.caption(f"Investigation id `{ep.episode_id}`, internal state `{ep.state.value}`.")
 
 
-def render_tell_us(subject_id: str) -> None:
+def render_tell_us(subject_id: str) -> SymptomReportResult | None:
     """Let the person say how they feel without waiting to be asked.
 
     The deterministic safety floor runs on free text, and it could only ever be reached
@@ -276,14 +276,27 @@ def render_tell_us(subject_id: str) -> None:
         if st.button("Send", key="tell_us_send", type="primary") and text.strip():
             result = report_symptoms(subject_id=subject_id, text=text.strip())
             if result.escalated:
-                st.error("**This needs medical attention.**")
-                for line in result.guidance:
-                    st.error(line)
-            else:
-                st.success(
-                    "Thank you, that has been recorded. Nothing you described needs urgent "
-                    "attention. It will be taken into account next time a night is looked into."
-                )
+                # Returned rather than rendered here. An escalation drawn under this box
+                # sat below a green "Nothing needs you right now" at the top of the same
+                # screen, so the person was told to call 995 and that nothing needed them.
+                # The caller draws it in a slot reserved above the reassurance instead.
+                return result
+            st.success(
+                "Thank you, that has been recorded. Nothing you described needs urgent "
+                "attention. It will be taken into account next time a night is looked into."
+            )
+    return None
+
+
+def render_urgent_report(result: SymptomReportResult) -> None:
+    """The banner for something the person reported that trips the safety floor."""
+    st.error("**This needs medical attention.**")
+    for line in result.guidance:
+        st.error(line)
+    st.caption(
+        "Based on what you just told us. This was decided by a fixed rule, before any AI "
+        "was involved."
+    )
 
 
 def render_today_page(subject_id: str) -> None:
@@ -294,8 +307,18 @@ def render_today_page(subject_id: str) -> None:
     pending = get_pending_interaction(subject_id)
     status = get_system_status(subject_id)
 
-    render_inbox(subject_id, pending, status)
-    render_tell_us(subject_id)
+    # A slot held open above everything else. Whether the person has just reported
+    # something urgent is only known after the form below has been handled, and an
+    # escalation must not be drawn underneath a message saying nothing needs them.
+    inbox_slot = st.container()
+
+    report = render_tell_us(subject_id)
+
+    with inbox_slot:
+        if report is not None and report.escalated:
+            render_urgent_report(report)
+        else:
+            render_inbox(subject_id, pending, status)
     st.write("---")
     render_last_night_summary(subject_id, status)
     st.write("---")
