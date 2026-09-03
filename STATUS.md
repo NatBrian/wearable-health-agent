@@ -162,6 +162,40 @@ when their sleep arrives.
 
 ---
 
+## The detector compared everyone against the average adult
+
+Asked why the first real subject's nights all sat below the displayed band, and found the
+most serious defect of the simulation. `compute_baseline` blended the personal median with
+a 62.75 bpm population prior at `w = n / (n + 7)`, and because the trailing window caps `n`
+at 28 the weight capped at 0.800 permanently: a fifth of the prior never washed out.
+
+Measured on a steady subject after 200 nights of their own data:
+
+| True sleeping RHR | Centre | Residual every night |
+|---|---|---|
+| 45 | 48.5 | -3.5, needed a 6.5 bpm rise to reach YELLOW |
+| 62.75 | 62.8 | 0.0 |
+| 80 | 76.5 | +3.5, YELLOW every night while healthy |
+
+Infection raises nocturnal RHR by 1.6 to 5 bpm, so the first real subject, who sits at 44
+to 47, **would never have been flagged for an infection at all**.
+
+The thresholds are NightSignal's, and NightSignal measures deviations above a
+per-individual **streaming median with no population blending**. Applying its numbers to a
+shrunk centre was a category error. The centre is now the person's own median once seven
+usable nights exist, seven being the figure that paper reports for baseline establishment,
+and nothing is flagged below that. Scale keeps its shrinkage: it sets band width and
+`robust_z`, never the level. `docs/DESIGN-BASELINE-CENTRE.md`, contract amended.
+
+This also corrected a diagnosis in `plan/BLOCKERS.md`. `no-response-timeout` was recorded
+as needing a higher injected amplitude; in fact its 4.4 bpm was always right and the shrunk
+centre was eating the margin. Its residuals are now exactly 4.0, it reaches RED, opens an
+episode and asks a question. One expectation still fails, for a different and real reason:
+a timed-out question closes the episode `LIKELY_BENIGN` where `UNRESOLVED` is the honest
+disposition. Recorded, not yet fixed.
+
+---
+
 ## Open items for a human
 
 Nine entries in `plan/BLOCKERS.md`. The ones that matter:

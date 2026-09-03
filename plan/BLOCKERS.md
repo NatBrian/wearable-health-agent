@@ -466,3 +466,65 @@ left in a user's database. They were removed from this machine with
 `delete_all_subject_data`, but there is no command a user could run to find or clean them,
 and no marker on a subject row saying it was synthetic. `subjects.source_kind` is set to
 `synthetic`, so a `wha subjects prune --synthetic` would be straightforward if wanted.
+
+---
+
+## baseline-centre — the detector compared everyone against the average adult
+
+**What I tried:** asked why the first real subject's nights all sat below the displayed
+band, then measured what rise would be needed to flag them.
+
+**What happened:** `compute_baseline` blended the personal median with the 62.75 bpm
+population prior at `w = n / (n + 7)`. `BASELINE_WINDOW_NIGHTS` caps `n` at 28, so `w`
+capped at 0.800 permanently and a fifth of the prior never washed out. Measured on a steady
+subject after 200 nights of their own data: 45 bpm carried a -3.5 residual every night and
+needed a 6.5 bpm rise to reach YELLOW; 80 bpm carried +3.5 and sat at YELLOW every night
+while perfectly healthy. Infection raises nocturnal RHR by 1.6 to 5 bpm, so the first real
+subject, who sits at 44 to 47, would never have been flagged for an infection at all.
+
+**What I think is wrong:** the thresholds are NightSignal's, and NightSignal measures
+deviations above a per-individual streaming median with no population blending. Shrinking
+the centre and then applying those numbers to it is a category error. Fixed: the centre is
+the person's own median once seven usable nights exist, seven being the figure the same
+paper reports for baseline establishment, and nothing is flagged below that. Scale keeps
+its shrinkage because it only sets band width and never the level. Detail and citations in
+`docs/DESIGN-BASELINE-CENTRE.md`.
+
+**What I need:** two judgements a human should make.
+
+1. **The centre steps discontinuously at the seventh night**, from a mostly-population
+   value to the person's own median. For a 45 bpm subject that is a drop of about 9.6 bpm,
+   visible on the History chart. I have left it unsmoothed and labelled, because it marks a
+   real change in what the number means, but it is a presentation decision.
+2. **`POP_PRIOR_RHR_MEAN_BPM` now only affects the first six nights.** Whether a single
+   population mean is the right cold-start prior for all ages and sexes is a clinical
+   question this build does not address; Bloomfield et al. report variation by both.
+
+
+---
+
+## no-response-timeout — the fixture was never wrong, the baseline was
+
+**What I tried:** re-ran the frozen scenarios after making the baseline centre the person's
+own median.
+
+**What happened:** this scenario's residuals are now exactly 0.0 on healthy nights and 4.0
+on the injected illness nights. It reaches RED, opens an episode, and asks a question. The
+two failures recorded against it earlier, "disposition: got None" and "asks_at_least: got
+0", are both gone.
+
+**What I think is wrong:** the earlier entry in this file, which said the fixture's
+amplitude was too low and "needs roughly 4.8 bpm to produce the RED night it assumes",
+and marked it read-only. That diagnosis was wrong. The 4.4 bpm amplitude was correct all
+along; the shrunk baseline centre was consuming 0.4 bpm of the margin, which is exactly the
+bias described in `docs/DESIGN-BASELINE-CENTRE.md`. No fixture was edited.
+
+**What remains:** one expectation still fails. The person never answers, the question times
+out, and the episode closes `LIKELY_BENIGN` where the fixture expects `UNRESOLVED`. With
+two RED nights and no answer, concluding "benign" is over-confident, and `UNRESOLVED` is
+the honest disposition when the evidence is incomplete. That now looks like a real defect
+in the timeout path rather than a fixture problem, but it is a separate investigation and I
+have not opened it.
+
+**What I need:** confirmation that a timed-out question should close an episode as
+UNRESOLVED rather than LIKELY_BENIGN, and then that path fixed.

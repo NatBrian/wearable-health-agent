@@ -132,10 +132,23 @@ sample. Maximum 420.
 **Usable night.** `coverage_minutes >= MIN_NOCTURNAL_MINUTES` **and** `rhr_bpm is not None`. Only
 usable nights count toward the baseline ladder.
 
-**Baseline.** `centre = w * personal_median + (1 - w) * POP_PRIOR_RHR_MEAN_BPM`, where
-`w = n / (n + SHRINKAGE_PSEUDO_NIGHTS)` and `n` is the number of usable nights in the trailing
-`BASELINE_WINDOW_NIGHTS`. `scale` shrinks the same way from `POP_PRIOR_RHR_SD_BPM` toward a scaled
-MAD, floored at `BASELINE_SCALE_FLOOR_BPM`.
+**Baseline.** AMENDED 3 September 2026. `centre = personal_median` once `n >=
+BASELINE_MIN_NIGHTS_PERSONAL`; below that `centre = w * personal_median + (1 - w) *
+POP_PRIOR_RHR_MEAN_BPM`, where `w = n / (n + SHRINKAGE_PSEUDO_NIGHTS)` and `n` is the number of
+usable nights in the trailing `BASELINE_WINDOW_NIGHTS`. `scale` is unchanged: it shrinks the same
+way from `POP_PRIOR_RHR_SD_BPM` toward a scaled MAD, floored at `BASELINE_SCALE_FLOOR_BPM`.
+
+**No night is flagged while `n < BASELINE_MIN_NIGHTS_PERSONAL`.** The level is still computed and
+stored so the night is charted and feeds the baseline; it cannot raise an alert.
+
+> **Why the amendment.** `DETECT_YELLOW_BPM` and `DETECT_RED_BPM` come from NightSignal, which
+> measures deviations above a per-individual **streaming median** with no population blending, and
+> reports the baseline established for over 80 percent of participants within seven nights. Because
+> `BASELINE_WINDOW_NIGHTS` caps `n` at 28, the old shrink weight capped at 0.8, so a fifth of the
+> prior never washed out and every subject carried a permanent residual offset proportional to their
+> distance from 62.75. Measured on a steady subject after 200 nights: 45 bpm carried -3.5 and needed
+> a 6.5 bpm rise to reach YELLOW when infection produces 1.6 to 5; 80 bpm carried +3.5 and sat at
+> YELLOW every night while healthy. Reasoning and citations in `docs/DESIGN-BASELINE-CENTRE.md`.
 
 **Deviation.** `deviation_bpm = rhr_bpm - baseline.centre_bpm`.
 **Robust z.** `robust_z = deviation_bpm / max(baseline.scale_bpm, BASELINE_SCALE_FLOOR_BPM)`.

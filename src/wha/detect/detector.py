@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from datetime import date, timedelta
 
 from wha.constants import (
+    BASELINE_MIN_NIGHTS_PERSONAL,
     BASELINE_SCALE_FLOOR_BPM,
     BASELINE_WINDOW_NIGHTS,
     DETECT_PERSISTENCE_NIGHTS,
@@ -72,9 +73,21 @@ def compute_detection_for_features(
     else:
         level = DetectionLevel.RED
 
-    # Determine flagged status from persistence run
+    # Determine flagged status from persistence run.
+    #
+    # Nothing is flagged until the baseline is the person's own. Below
+    # BASELINE_MIN_NIGHTS_PERSONAL the centre is still mostly the population prior, so an
+    # elevation measured against it says more about the gap between this person and the
+    # average adult than about tonight. There was no such guard: a subject with two nights
+    # of history could be flagged and have an investigation opened against a baseline that
+    # was 78 percent guess. NightSignal accumulates without alerting over the same period.
+    #
+    # The level is still computed and stored, so the night is charted and feeds the
+    # baseline. It simply cannot raise an alert.
     flagged = False
-    if level in (DetectionLevel.YELLOW, DetectionLevel.RED):
+    if baseline.usable_nights < BASELINE_MIN_NIGHTS_PERSONAL:
+        pass
+    elif level in (DetectionLevel.YELLOW, DetectionLevel.RED):
         # Current run of consecutive elevated nights ending tonight
         current_run = [level] + list(preceding_consecutive_levels or [])
         if len(current_run) >= DETECT_PERSISTENCE_NIGHTS and any(

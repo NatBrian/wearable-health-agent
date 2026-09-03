@@ -2,6 +2,8 @@
 
 from datetime import date, timedelta
 
+import pytest
+
 from wha.constants import (
     BASELINE_SCALE_FLOOR_BPM,
     POP_PRIOR_RHR_MEAN_BPM,
@@ -54,14 +56,14 @@ def test_median_resists_one_outlier() -> None:
     history.append(_make_night(20, 95.0))  # one big spike
 
     base = compute_baseline(history)
-    # Personal median should still be 58.0
-    assert (
-        abs(
-            base.centre_bpm
-            - (base.shrink_weight * 58.0 + (1 - base.shrink_weight) * POP_PRIOR_RHR_MEAN_BPM)
-        )
-        < 0.01
-    )
+
+    # The centre is the person's own median once there are enough nights, so one spike
+    # leaves it exactly where it was.
+    #
+    # This asserted the shrinkage formula rather than the property the test is named for.
+    # With 21 nights the centre no longer blends in the population prior at all, so the
+    # median's resistance to the outlier is assertable directly, and more strongly.
+    assert base.centre_bpm == pytest.approx(58.0)
 
 
 def test_tonight_excluded_from_own_baseline() -> None:

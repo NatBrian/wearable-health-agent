@@ -202,11 +202,18 @@ def test_flag_fires_on_the_night_the_run_completes(tmp_db_path: Path) -> None:
         VALUES ('subj_flag', '2026-08-11', 70.0, 420, 1, '2026-08-11T00:00:00Z');
         """
     )
-    # Night 2: YELLOW (64.5 bpm -> residual ~3.43 bpm >= 3.0 and < 4.0)
+    # Night 2: YELLOW, 63.5 bpm against a personal median of 60.0 for a +3.5 residual.
+    #
+    # This was 64.5, chosen when the centre was shrunk toward the 62.75 population prior:
+    # with ten nights the weight was 10/17, putting the centre at 61.13 and making 64.5 a
+    # 3.37 residual. The centre is now the person's own median, so 64.5 is +4.5 and RED.
+    # The test is about when the flag fires on a persistence run, not about which side of
+    # the YELLOW band a particular bpm lands on, so the input is restated against the
+    # reference the detector now uses.
     conn.execute(
         """
         INSERT INTO nightly_features (subject_id, night_date, rhr_bpm, coverage_minutes, usable, computed_at_utc)
-        VALUES ('subj_flag', '2026-08-12', 64.5, 420, 1, '2026-08-12T00:00:00Z');
+        VALUES ('subj_flag', '2026-08-12', 63.5, 420, 1, '2026-08-12T00:00:00Z');
         """
     )
     conn.commit()

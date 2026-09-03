@@ -4,6 +4,7 @@ import statistics
 from collections.abc import Sequence
 
 from wha.constants import (
+    BASELINE_MIN_NIGHTS_PERSONAL,
     BASELINE_SCALE_FLOOR_BPM,
     BASELINE_WINDOW_NIGHTS,
     MAD_TO_SD_FACTOR,
@@ -33,10 +34,16 @@ def rung_for(usable_nights: int) -> BaselineRung:
 
 
 def compute_baseline(history: Sequence[NightlyFeatures]) -> Baseline:
-    """Shrinkage estimate of expected resting heart rate and scale from trailing usable history.
+    """Expected resting heart rate and scale from the trailing usable history.
 
     `history` must contain only usable nights within the trailing BASELINE_WINDOW_NIGHTS,
     excluding tonight.
+
+    The centre is the person's own median once BASELINE_MIN_NIGHTS_PERSONAL nights exist,
+    and a shrinkage estimate toward the population prior before that. The scale stays a
+    shrinkage estimate throughout: it sets the width of the band and `robust_z`, never the
+    level, so borrowing spread from the population while little is known is a truthful
+    statement of uncertainty rather than a bias in the decision.
     """
     usable_history = [night for night in history if night.usable and night.rhr_bpm is not None][
         -BASELINE_WINDOW_NIGHTS:
@@ -57,7 +64,21 @@ def compute_baseline(history: Sequence[NightlyFeatures]) -> Baseline:
 
     rhrs = [float(night.rhr_bpm) for night in usable_history if night.rhr_bpm is not None]
     personal_median = statistics.median(rhrs)
-    centre_bpm = w * personal_median + (1.0 - w) * POP_PRIOR_RHR_MEAN_BPM
+
+    # Once there is enough of the person's own data, the centre IS their own median.
+    #
+    # The detection thresholds come from NightSignal, which measures deviations above a
+    # per-individual streaming median with no population blending. Keeping a shrunk centre
+    # and applying those thresholds to it leaves a permanent offset that eats the very
+    # margin they measure: the trailing window caps n, so the shrink weight caps at 0.8 and
+    # a fifth of the prior never washes out. See BASELINE_MIN_NIGHTS_PERSONAL.
+    #
+    # Below that count the shrinkage estimate is kept, because a median over one or two
+    # nights is noise. Nothing is flagged there either, which is what the source does.
+    if n >= BASELINE_MIN_NIGHTS_PERSONAL:
+        centre_bpm = personal_median
+    else:
+        centre_bpm = w * personal_median + (1.0 - w) * POP_PRIOR_RHR_MEAN_BPM
 
     abs_devs = [abs(x - personal_median) for x in rhrs]
     mad = statistics.median(abs_devs)

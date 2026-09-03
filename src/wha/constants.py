@@ -64,6 +64,32 @@ RUNG_PERSONAL_MAX_NIGHTS = 27  # 14-27 -> PERSONAL, 28+ -> MATURE
 
 BASELINE_WINDOW_NIGHTS = 28  # trailing window for the personal estimate
 SHRINKAGE_PSEUDO_NIGHTS = 7.0  # k in w = n / (n + k)
+
+# Nights of the person's own data before the baseline is theirs rather than borrowed.
+#
+# NightSignal, the source of DETECT_YELLOW_BPM and DETECT_RED_BPM below, uses "the
+# streaming median of average overnight RHR" per individual, with no population blending
+# at all, and reports that "for over 80% of the participants, the proper baseline was
+# observed after only seven nights" to within two bpm. Its thresholds are therefore
+# deviations above a person's OWN median.
+#
+# Shrinking the centre toward the population mean and then applying those thresholds to it
+# is a category error. Because the trailing window caps n at BASELINE_WINDOW_NIGHTS, the
+# shrink weight caps at 28/35 = 0.8, so a fifth of the population prior never washes out.
+# Measured on a steady subject after 200 nights of their own data: someone whose true
+# sleeping RHR is 45 carries a permanent -3.5 bpm residual and would need a 6.5 bpm rise to
+# reach YELLOW, when infection raises nocturnal RHR by roughly 1.6 to 5; someone at 80
+# carries +3.5 and sits at YELLOW every night while perfectly healthy. The detector is
+# tuned to a 3 to 4 bpm change while carrying up to a 4 bpm bias from the prior alone.
+#
+# Above this count the centre is the person's own median, matching the cited method. Below
+# it the shrinkage estimate is kept, because a median over one or two nights is noise, and
+# nothing is flagged at all.
+BASELINE_MIN_NIGHTS_PERSONAL = 7
+BASELINE_PERSONAL_CITATION = (
+    "Alavi et al. 2022, Nature Medicine 28:175-184 (NightSignal): per-individual streaming "
+    "median, baseline established for over 80 percent of participants within seven nights"
+)
 BASELINE_SCALE_FLOOR_BPM = 1.5  # MAD collapses to 0 on quantised data
 MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 
