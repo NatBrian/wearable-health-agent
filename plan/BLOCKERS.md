@@ -439,3 +439,30 @@ contract amended.
    History page. Whether the system should attempt anything here is a clinical scope call.
 2. **Consumer sleep staging is not polysomnography.** A night whose staging is wrong yields
    a window that is wrong. There is no cross-check for this in the build.
+
+---
+
+## demo-isolation — `wha demo run` wrote synthetic people into the real database
+
+**What I tried:** ran all eleven frozen scenarios with `wha demo run <name>` while verifying
+a change, on a machine whose configured database held a real subject's health record.
+
+**What happened:** eleven synthetic subjects and roughly 420,000 fabricated heart rate
+samples were written into `data/wha.sqlite` alongside the real subject. Nothing at query
+level distinguished them: a `SELECT COUNT(*) FROM heart_rate_samples` returned 431,894 of
+which 11,853 were real. I misread the subject's own data because of it before noticing the
+subject column.
+
+**What I think is wrong:** `run_demo` defaulted its database to `settings.db_path`. A demo
+invents a person, and inventing people inside a real health record is not something a user
+should have to opt out of.
+
+Fixed: demos write to `data/demo.sqlite` unless a database is named explicitly with
+`--db`, and the run prints which database and which synthetic subject it used. A test
+points `WHA_DB_PATH` at a real database and asserts the demo leaves it untouched.
+
+**What I need:** a decision on the eleven synthetic subjects that any earlier run may have
+left in a user's database. They were removed from this machine with
+`delete_all_subject_data`, but there is no command a user could run to find or clean them,
+and no marker on a subject row saying it was synthetic. `subjects.source_kind` is set to
+`synthetic`, so a `wha subjects prune --synthetic` would be straightforward if wanted.

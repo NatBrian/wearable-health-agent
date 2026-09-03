@@ -20,7 +20,6 @@ from typing import Any
 
 import yaml
 
-from wha.config import get_settings
 from wha.db import apply_schema, connect
 from wha.detect.detector import detect_range
 from wha.errors import ConfigError
@@ -169,6 +168,11 @@ def _evaluate_expectations(
     return results
 
 
+# Where `wha demo run` writes when no database is named. Kept out of the configured
+# database so a demonstration can never be mistaken for, or mixed with, a real record.
+DEMO_DB_PATH = Path("data/demo.sqlite")
+
+
 def run_demo(
     scenario_name: str,
     dry_run: bool = False,
@@ -181,8 +185,12 @@ def run_demo(
     ``live`` allows a real model; without it the cassette provider keeps the run
     deterministic so the frozen expectations hold.
     """
-    settings = get_settings()
-    target_db = db_path if db_path is not None else settings.db_path
+    # A demo invents a person. Writing them into the configured database put eleven
+    # synthetic subjects alongside a real one's health record, with nothing at query level
+    # marking the difference, so any query that did not filter by subject silently mixed
+    # real readings with fabricated ones. Demos now get their own file unless a caller
+    # names a database explicitly.
+    target_db = db_path if db_path is not None else DEMO_DB_PATH
 
     scenario = _load_scenario(scenario_name)
     subj_id = f"demo-{scenario_name}"

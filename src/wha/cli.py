@@ -9,6 +9,7 @@ import typer
 
 from wha.service import (
     DEFAULT_INGEST_DAYS,
+    DEMO_DB_PATH,
     ConfigError,
     SourceUnavailable,
     describe_device_capability,
@@ -333,7 +334,9 @@ def demo_run(
         }
         typer.echo(json.dumps(out, indent=2))
     else:
+        where = db if db is not None else DEMO_DB_PATH
         typer.echo(f"--- Demo scenario '{res.scenario}' ({len(res.nights)} nights) ---")
+        typer.echo(f"    Synthetic subject '{res.subject_id}', written to {where}.")
         for n in res.nights:
             res_str = f"{n.residual_bpm} bpm" if n.residual_bpm is not None else "N/A"
             typer.echo(

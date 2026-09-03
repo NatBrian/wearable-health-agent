@@ -181,3 +181,47 @@ def test_an_unknown_subject_is_not_silenced(tmp_path: Path) -> None:
     conn.close()
 
     assert len(opened) == 1
+
+
+# -- a demo invents a person, and must not file them among the real ones --------------
+
+
+def test_a_demo_does_not_write_into_the_configured_database(tmp_path: Path) -> None:
+    """Eleven demo runs put eleven synthetic subjects beside a real person's record.
+
+    Nothing at query level marked the difference, so any query that did not filter by
+    subject silently mixed fabricated readings with measured ones.
+    """
+    from unittest.mock import patch
+
+    from wha.service.demo import DEMO_DB_PATH, run_demo
+
+    real_db = tmp_path / "real.db"
+    conn = connect(real_db)
+    apply_schema(conn)
+    conn.execute(
+        """INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)
+           VALUES ('me', 'me', 'live', 'Asia/Singapore', ?)""",
+        (to_iso(datetime.now(UTC)),),
+    )
+    conn.commit()
+    conn.close()
+
+    # WHA_DB_PATH is what `connect()` falls back to, so if the demo ever reaches for the
+    # configured database again this points it straight at the real one.
+    demo_db = tmp_path / "demo.db"
+    with (
+        patch.dict("os.environ", {"WHA_DB_PATH": str(real_db)}),
+        patch("wha.service.demo.DEMO_DB_PATH", demo_db),
+    ):
+        run_demo(scenario_name="cold-start", dry_run=True)
+
+    conn = connect(real_db)
+    subjects = [r[0] for r in conn.execute("SELECT subject_id FROM subjects")]
+    samples = conn.execute("SELECT COUNT(*) FROM heart_rate_samples").fetchone()[0]
+    conn.close()
+
+    assert subjects == ["me"], f"the demo leaked subjects into the real database: {subjects}"
+    assert samples == 0, "the demo wrote synthetic readings into the real database"
+    assert demo_db.exists(), "the demo must still have run, just somewhere else"
+    assert DEMO_DB_PATH != real_db

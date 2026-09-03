@@ -16,6 +16,7 @@ from wha.service.belief import (
 )
 from wha.service.data_fetch import fetch_data
 from wha.service.demo import (
+    DEMO_DB_PATH,
     DemoRunResult,
     run_demo,
 )
@@ -70,6 +71,7 @@ from wha.service.subjects import (
 
 __all__ = [
     "DEFAULT_INGEST_DAYS",
+    "DEMO_DB_PATH",
     "BeliefNightRecord",
     "ConfigError",
     "DemoRunResult",
