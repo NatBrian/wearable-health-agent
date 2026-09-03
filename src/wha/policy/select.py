@@ -87,7 +87,15 @@ def select_action(
         question_model = Question(
             probe=probe_model,
             text=best_probe.fallback_text,
-            text_source="fallback",
+            # Asks the ask node to have the model word this, falling back to the text above
+            # if it is unavailable or returns something invalid.
+            #
+            # This said "fallback", and the ask node only calls the model when it reads
+            # "llm". Since this is the only place a Question is constructed, that branch
+            # was unreachable and every question the system ever asked was the canned
+            # fallback sentence. The prompt, the node and the provider all worked; nothing
+            # could ever reach them.
+            text_source="llm",
             options=best_probe.answer_space,
             allows_free_text=True,
         )

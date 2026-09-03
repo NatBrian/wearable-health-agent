@@ -193,6 +193,16 @@ def _advance_episode(
         if get_pending_interrupt(graph, episode_id) is None:
             snapshot = graph.get_state({"configurable": {"thread_id": episode_id}})
             if not getattr(snapshot, "next", ()):
+                # Settled on an OBSERVE. If a night has arrived since the agent last
+                # reasoned, reason again rather than waiting forever.
+                #
+                # Without this, OBSERVE meant "stop thinking permanently": in the
+                # simulation a subject had three consecutive elevated nights after the
+                # agent chose to observe on the first, and was never asked anything. The
+                # belief never moved off its first value.
+                if _reenter_with_new_evidence(conn, episode_id, db_path):
+                    progressed = True
+                    continue
                 # The graph ran to a stopping point without closing and without asking
                 # anyone anything, which is what an OBSERVE decision looks like: wait for
                 # another night rather than act. step_count increments on every call, so
@@ -201,6 +211,34 @@ def _advance_episode(
                 break
 
     return progressed
+
+
+def _reenter_with_new_evidence(conn: Any, episode_id: str, db_path: Path | None) -> bool:
+    """Re-run a settled episode when a night has arrived since it last reasoned.
+
+    Returns whether the graph was re-entered. `last_evidence_night` records the most recent
+    night the agent has actually reasoned over, so a night that merely repeats what it
+    already saw does not trigger another pass, and another LLM call.
+    """
+    row = conn.execute(
+        """SELECT e.subject_id, e.opened_on, e.last_evidence_night,
+                  (SELECT MAX(d.night_date) FROM detections d
+                    WHERE d.subject_id = e.subject_id AND d.night_date >= e.opened_on) AS latest
+             FROM episodes e WHERE e.episode_id = ?""",
+        (episode_id,),
+    ).fetchone()
+    if row is None or not row["latest"]:
+        return False
+    if row["last_evidence_night"] == row["latest"]:
+        return False
+
+    conn.execute(
+        "UPDATE episodes SET last_evidence_night = ? WHERE episode_id = ?",
+        (row["latest"], episode_id),
+    )
+    conn.commit()
+    step_episode(episode_id, conn=conn, restart=True)
+    return True
 
 
 def _resume_value(conn: Any, episode_id: str, pending: Any) -> dict[str, Any] | None:

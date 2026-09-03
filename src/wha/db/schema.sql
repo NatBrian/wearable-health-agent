@@ -139,7 +139,10 @@ CREATE TABLE IF NOT EXISTS episodes (
   baseline_rung    TEXT NOT NULL,
   step_count       INTEGER NOT NULL DEFAULT 0,
   tool_call_count  INTEGER NOT NULL DEFAULT 0,
-  depth_used       INTEGER NOT NULL DEFAULT 0
+  depth_used       INTEGER NOT NULL DEFAULT 0,
+  -- The most recent night the agent has reasoned over, so an episode that decided to
+  -- observe can be re-entered when a further night arrives rather than sitting forever.
+  last_evidence_night TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_episodes_subject_state ON episodes(subject_id, state);
 

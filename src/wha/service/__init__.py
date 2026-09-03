@@ -69,6 +69,7 @@ from wha.service.status import (
 from wha.service.subjects import (
     list_subjects,
 )
+from wha.service.symptom_report import SymptomReportResult, report_symptoms
 
 __all__ = [
     "DEFAULT_INGEST_DAYS",
@@ -78,6 +79,7 @@ __all__ = [
     "DemoRunResult",
     "DoctorItem",
     "SourceUnavailable",
+    "SymptomReportResult",
     "ask_about_episode",
     "create_scheduler",
     "delete_all_subject_data",
@@ -100,6 +102,7 @@ __all__ = [
     "parse_date_range",
     "query_audit",
     "record_component_status",
+    "report_symptoms",
     "run_demo",
     "run_doctor",
     "run_episode_tick",

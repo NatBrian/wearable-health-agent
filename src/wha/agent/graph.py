@@ -203,6 +203,7 @@ def run_episode_step(
     initial_state: dict[str, Any] | None = None,
     recursion_limit: int = EPISODE_MAX_STEPS,
     resume: Any = None,
+    restart: bool = False,
 ) -> dict[str, Any]:
     """Execute graph steps under configured recursion limit, closing as unresolved on recursion limit.
 
@@ -220,6 +221,13 @@ def run_episode_step(
     payload: Any = initial_state or {}
     if resume is not None:
         payload = Command(resume=resume)
+    elif restart:
+        # Deliberately re-enter at START with the evidence as it now stands. An episode
+        # that chose OBSERVE parks with no pending interrupt and nothing left to run, so
+        # invoking it again with None executes no nodes and the belief never moves however
+        # many further nights arrive. Answers already given are read back from the database
+        # by the nodes, so nothing the person told us is lost by starting the graph again.
+        payload = initial_state or {}
     elif _has_checkpoint(graph, config):
         payload = None
 

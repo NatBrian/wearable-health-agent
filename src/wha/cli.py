@@ -16,7 +16,9 @@ from wha.service import (
     explain_belief,
     fetch_data,
     get_monitoring_since,
+    get_service_settings,
     list_episodes,
+    report_symptoms,
     run_demo,
     run_doctor,
     run_evaluation_suite,
@@ -178,6 +180,37 @@ def _render_live_report(as_json: bool, offline_items: list[DoctorItem]) -> None:
 
     if not res["mandatory_ok"] or offline_failed:
         sys.exit(1)
+    sys.exit(0)
+
+
+@app.command("tell")
+def tell(
+    text: Annotated[str, typer.Argument(help="How you are feeling, in your own words")],
+    subject: Annotated[str | None, typer.Option("--subject", "-s", help="Subject ID")] = None,
+) -> None:
+    """Tell the system how you are feeling, without waiting to be asked.
+
+    The deterministic safety floor runs on free text: phrases like chest pain or not being
+    able to keep fluids down escalate immediately, before any model is consulted. That
+    floor could only ever be reached through a question the agent chose to ask, and the
+    agent frequently chooses not to ask. Someone with chest pain had no way to say so.
+    """
+    res = report_symptoms(subject_id=subject or get_service_settings().subject, text=text)
+
+    if res.escalated:
+        typer.echo("")
+        typer.echo("  THIS NEEDS MEDICAL ATTENTION")
+        for line in res.guidance:
+            typer.echo(f"  {line}")
+        typer.echo("")
+        typer.echo(f"  Recorded against investigation {res.episode_id or '-'}.")
+        sys.exit(0)
+
+    typer.echo("Thank you, that has been recorded.")
+    typer.echo(
+        "Nothing you described needs urgent attention. It will be taken into account the "
+        "next time a night is looked into."
+    )
     sys.exit(0)
 
 

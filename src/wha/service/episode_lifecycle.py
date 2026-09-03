@@ -133,9 +133,22 @@ def check_close_conditions(
 
     opened = date.fromisoformat(row["opened_on"])
     today = local_today()
+    # The night an episode closes ON comes from the data, not from the clock the code
+    # happens to run under. Using today's date produced closed_on earlier than opened_on,
+    # which made History read "2026-10-04 to 2026-09-03" and silently broke the rule that
+    # excludes illness nights from a baseline, because `night_date BETWEEN opened_on AND
+    # closed_on` matched an inverted range.
+    last_row = conn.execute(
+        """SELECT MAX(night_date) AS n FROM detections
+            WHERE subject_id = ? AND night_date >= ?""",
+        (row["subject_id"], row["opened_on"]),
+    ).fetchone()
+    closing = (
+        max(opened, date.fromisoformat(last_row["n"])) if last_row and last_row["n"] else opened
+    )
 
     if (today - opened).days >= EPISODE_MAX_NIGHTS:
-        close_episode(conn, episode_id, Disposition.UNRESOLVED, today)
+        close_episode(conn, episode_id, Disposition.UNRESOLVED, closing)
         return Disposition.UNRESOLVED.value
 
     # A quiet run since the last flag closes the episode as benign, provided nothing is
@@ -155,8 +168,22 @@ def check_close_conditions(
     ).fetchall()
 
     if len(recent) >= DETECT_PERSISTENCE_NIGHTS and all(r["level"] == "GREEN" for r in recent):
-        close_episode(conn, episode_id, Disposition.LIKELY_BENIGN, today)
-        return Disposition.LIKELY_BENIGN.value
+        # "Probably nothing to worry about" is a claim, and a claim needs looking.
+        #
+        # An episode that was never stepped, and so never gathered evidence or formed a
+        # belief, used to close with the same reassuring disposition as one the agent had
+        # actually investigated. In the simulation an episode opened, was stepped zero
+        # times, and told the person their raised nights were probably nothing. Where
+        # nothing was examined, the honest answer is that it went away without being
+        # investigated, which is what UNRESOLVED means.
+        step_row = conn.execute(
+            "SELECT step_count FROM episodes WHERE episode_id = ?", (episode_id,)
+        ).fetchone()
+        investigated = step_row is not None and int(step_row["step_count"]) > 0
+
+        disposition = Disposition.LIKELY_BENIGN if investigated else Disposition.UNRESOLVED
+        close_episode(conn, episode_id, disposition, closing)
+        return disposition.value
 
     return None
 

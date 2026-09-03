@@ -397,6 +397,21 @@ class EpisodeRepository:
             "options": json.loads(row["options_json"]) if row["options_json"] else [],
         }
 
+    def set_episode_state(self, episode_id: str, state: str) -> None:
+        """Move an episode between its non-closed states.
+
+        Episodes only ever transitioned to CLOSED. AWAITING_USER, AWAITING_MEASUREMENT and
+        AWAITING_HUMAN_REVIEW are defined in the model, looked for by
+        `get_pending_interaction`, and given wording in the interface, and nothing ever set
+        any of them. So a question the agent had asked was never surfaced in the dashboard
+        and could only be answered over Telegram.
+        """
+        self._conn.execute(
+            "UPDATE episodes SET state = ? WHERE episode_id = ? AND state != 'CLOSED'",
+            (state, episode_id),
+        )
+        self._conn.commit()
+
     def record_interaction_answer(
         self,
         interaction_id: str,
@@ -416,6 +431,13 @@ class EpisodeRepository:
                       status           = 'ANSWERED'
                 WHERE id = ? AND status = 'PENDING'""",
             (option_id, free_text, to_iso(datetime.now(UTC)), interaction_id),
+        )
+        # The episode was parked AWAITING_USER; the answer releases it.
+        self._conn.execute(
+            """UPDATE episodes SET state = 'OPEN'
+                WHERE state = 'AWAITING_USER'
+                  AND episode_id = (SELECT episode_id FROM interactions WHERE id = ?)""",
+            (interaction_id,),
         )
         self._conn.commit()
 

@@ -13,6 +13,7 @@ escalates on its own, regardless of what the sensors saw.
 import sqlite3
 import uuid
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
 from wha.clock import local_today
@@ -92,7 +93,30 @@ def report_symptoms(
             )
             conn.commit()
 
-        close_episode(conn, episode_id, Disposition.ESCALATED)
+        # Close on the last night considered, not on the clock. Leaving this to default
+        # produced closed_on earlier than opened_on for an episode opened by the detector,
+        # the same inversion that broke History's date ranges and the illness-night
+        # exclusion elsewhere.
+        opened_row = conn.execute(
+            "SELECT opened_on FROM episodes WHERE episode_id = ?", (episode_id,)
+        ).fetchone()
+        opened = date.fromisoformat(opened_row["opened_on"]) if opened_row else local_today()
+        last_row = conn.execute(
+            """SELECT MAX(night_date) AS n FROM detections
+                WHERE subject_id = ? AND night_date >= ?""",
+            (subject_id, opened.isoformat()),
+        ).fetchone()
+        closing = (
+            max(opened, date.fromisoformat(last_row["n"])) if last_row and last_row["n"] else opened
+        )
+        close_episode(conn, episode_id, Disposition.ESCALATED, closing)
+
+        # Tell the person, on the channel they are reachable on.
+        #
+        # An escalation closed the episode and recorded nothing else: no notification row
+        # existed, so somebody told to seek urgent care received no message at all. The
+        # guidance sat in a returned object that the caller might or might not display.
+        _notify_escalation(conn, subject_id, episode_id, safety)
 
         return SymptomReportResult(
             subject_id=subject_id,
@@ -107,3 +131,44 @@ def report_symptoms(
     finally:
         if close_conn:
             conn.close()
+
+
+def _notify_escalation(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    episode_id: str,
+    safety: SafetyCheckResult,
+) -> None:
+    """Send the escalation guidance and record that it was sent.
+
+    Never raises into the caller: a transport failure must not stop the escalation being
+    recorded, and the person still sees the guidance on screen.
+    """
+    from wha.agent.repository import EpisodeRepository
+    from wha.notify.factory import get_notifier
+    from wha.notify.protocol import MessageKind
+
+    body = "This needs medical attention.\n\n" + "\n".join(safety.guidance)
+
+    try:
+        notifier = get_notifier()
+        delivered = notifier.send(
+            recipient_id=subject_id,
+            kind=MessageKind.ESCALATION,
+            text=body,
+            interaction_id=episode_id,
+        )
+    except Exception:  # noqa: BLE001
+        delivered = False
+
+    if delivered:
+        try:
+            EpisodeRepository(conn=conn).record_notification(
+                interaction_id=episode_id,
+                recipient=subject_id,
+                kind="ESCALATION",
+                channel=getattr(get_notifier(), "channel", "none"),
+                episode_id=episode_id,
+            )
+        except Exception:  # noqa: BLE001, S110
+            pass

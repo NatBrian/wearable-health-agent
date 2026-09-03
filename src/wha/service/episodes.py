@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from wha.clock import local_today
-from wha.db import connect
+from wha.db import connect, to_iso
 from wha.db.migrations import apply_schema
 from wha.models import (
     Answer,
@@ -170,7 +170,11 @@ def submit_answer(
     """Record an answer to a question interaction idempotently.
 
     First writer wins. Submitting on a CLOSED episode or already ANSWERED row is a no-op.
-    Advances the episode synchronously.
+
+    Records the answer and releases the episode from AWAITING_USER. It does NOT drive the
+    graph forward here: the docstring used to promise that and it never happened, and doing
+    it inline would make a click in the dashboard wait on several model calls. The episode
+    tick picks it up, which is the same path a Telegram reply takes.
     """
     close_conn = False
     if conn is None:
@@ -205,6 +209,12 @@ def submit_answer(
 
         now_str = datetime.now(UTC).isoformat()
         actual_int_id = int_row["id"]
+        # The ask node parks the episode AWAITING_USER; answering releases it so the next
+        # tick advances the graph.
+        conn.execute(
+            "UPDATE episodes SET state = 'OPEN' WHERE episode_id = ? AND state = 'AWAITING_USER'",
+            (ep_id,),
+        )
         if answer.declined:
             conn.execute(
                 """UPDATE interactions
@@ -760,9 +770,64 @@ def _close_if_concluded(
         """UPDATE episodes
            SET state = 'CLOSED', disposition = ?, closed_on = ?
            WHERE episode_id = ?""",
-        (value, local_today().isoformat(), episode_id),
+        (value, _closing_date(conn, episode_id).isoformat(), episode_id),
     )
+
+    # Persist what the agent concluded, not only that it concluded something.
+    #
+    # Nothing anywhere wrote to the `outcomes` table. The conclude node drafts an
+    # observation, a differential, its citations and the action it recommends, and all of
+    # it was discarded: only the disposition survived on the episode row. So a person whose
+    # episode closed ESCALATED was told to seek care by a message that was never stored,
+    # and History could show them a verdict with no reasoning behind it.
+    if draft is not None:
+        _persist_outcome(conn, episode_id, draft)
+
     return "CLOSED"
+
+
+def _closing_date(conn: sqlite3.Connection, episode_id: str) -> date:
+    """The night an episode closed on, taken from the data rather than the wall clock.
+
+    `local_today()` is the day the code happens to run, which is not the day the evidence
+    describes. Because episodes are keyed by night date, that produced `closed_on` earlier
+    than `opened_on`: History rendered investigations as "2026-10-04 to 2026-09-03", and
+    the rule that excludes illness nights from a baseline, `night_date BETWEEN opened_on
+    AND closed_on`, matched an inverted range and therefore excluded nothing. A subject's
+    baseline drifted 59.0 to 63.0 bpm across repeated illness, desensitising detection.
+    """
+    row = conn.execute(
+        """SELECT e.opened_on,
+                  (SELECT MAX(d.night_date) FROM detections d
+                    WHERE d.subject_id = e.subject_id AND d.night_date >= e.opened_on) AS last_night
+             FROM episodes e WHERE e.episode_id = ?""",
+        (episode_id,),
+    ).fetchone()
+    if row is None:
+        return local_today()
+
+    opened = date.fromisoformat(row["opened_on"])
+    last_night = date.fromisoformat(row["last_night"]) if row["last_night"] else opened
+    # Never before the night it opened on, whatever the clock says.
+    return max(opened, last_night)
+
+
+def _persist_outcome(conn: sqlite3.Connection, episode_id: str, draft: Any) -> None:
+    """Store the concluded outcome so the person can read it later."""
+    try:
+        payload = draft.model_dump(mode="json")
+    except AttributeError:
+        return
+    conn.execute(
+        """INSERT OR REPLACE INTO outcomes (episode_id, schema_version, payload_json, created_at_utc)
+           VALUES (?, ?, ?, ?)""",
+        (
+            episode_id,
+            str(payload.get("schema_version", "1.0")),
+            json.dumps(payload),
+            to_iso(datetime.now(UTC)),
+        ),
+    )
 
 
 def step_episode(
@@ -770,6 +835,7 @@ def step_episode(
     db_path: Path | None = None,
     conn: sqlite3.Connection | None = None,
     resume: Any = None,
+    restart: bool = False,
 ) -> dict[str, Any]:
     """Advance an episode by one step synchronously.
 
@@ -821,6 +887,7 @@ def step_episode(
             episode_id=episode_id,
             initial_state=initial_state,
             resume=resume,
+            restart=restart,
         )
 
         new_step = int(ep_row["step_count"]) + 1

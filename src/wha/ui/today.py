@@ -20,6 +20,7 @@ from wha.service.episodes import (
 )
 from wha.service.nights import list_nights
 from wha.service.status import get_system_status
+from wha.service.symptom_report import report_symptoms
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
     describe_bpm_difference,
@@ -254,6 +255,37 @@ def render_open_episodes(subject_id: str) -> None:
             st.caption(f"Investigation id `{ep.episode_id}`, internal state `{ep.state.value}`.")
 
 
+def render_tell_us(subject_id: str) -> None:
+    """Let the person say how they feel without waiting to be asked.
+
+    The deterministic safety floor runs on free text, and it could only ever be reached
+    through a question the agent chose to ask. The agent frequently chooses not to ask, so
+    somebody with chest pain had no way to tell this system anything at all.
+    """
+    with st.expander("Tell us how you are feeling"):
+        st.caption(
+            "You do not have to wait to be asked. Anything you write here is checked "
+            "straight away, and anything that needs urgent attention is flagged before any "
+            "AI is involved."
+        )
+        text = st.text_area(
+            "In your own words",
+            key="tell_us_text",
+            placeholder="For example: sore throat since yesterday, or a bad headache that will not shift",
+        )
+        if st.button("Send", key="tell_us_send", type="primary") and text.strip():
+            result = report_symptoms(subject_id=subject_id, text=text.strip())
+            if result.escalated:
+                st.error("**This needs medical attention.**")
+                for line in result.guidance:
+                    st.error(line)
+            else:
+                st.success(
+                    "Thank you, that has been recorded. Nothing you described needs urgent "
+                    "attention. It will be taken into account next time a night is looked into."
+                )
+
+
 def render_today_page(subject_id: str) -> None:
     """Render the Today surface."""
     render_status_strip(subject_id)
@@ -263,6 +295,7 @@ def render_today_page(subject_id: str) -> None:
     status = get_system_status(subject_id)
 
     render_inbox(subject_id, pending, status)
+    render_tell_us(subject_id)
     st.write("---")
     render_last_night_summary(subject_id, status)
     st.write("---")

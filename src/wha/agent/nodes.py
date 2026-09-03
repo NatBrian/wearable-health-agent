@@ -531,7 +531,21 @@ def node_ask(
             options=updated_question.options,
         )
         if delivered and db is not None and hasattr(db, "record_notification"):
-            db.record_notification(interaction_id=interaction_id, recipient=state.get("subject_id"))
+            # The channel was left at its default, so the record said a question had been
+            # delivered over "none" while the interaction row said telegram.
+            db.record_notification(
+                interaction_id=interaction_id,
+                recipient=state.get("subject_id"),
+                channel=getattr(notifier, "channel", "none"),
+                episode_id=episode_id,
+            )
+
+    # Park the episode where the interface can see it. `get_pending_interaction` only
+    # surfaces a question for an episode in AWAITING_USER, and nothing ever set that state,
+    # so a question the agent had asked never appeared in the dashboard at all and could
+    # only be answered over Telegram.
+    if db is not None and hasattr(db, "set_episode_state"):
+        db.set_episode_state(episode_id, "AWAITING_USER")
 
     # 4. Interrupt for human response
     raw_response = interrupt(
