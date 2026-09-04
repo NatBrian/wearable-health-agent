@@ -375,7 +375,18 @@ def render_handover(subject_id: str) -> None:
             "The structure is the one clinicians use for handovers."
         )
         if st.button("Build the summary", key="handover_build"):
-            st.session_state["handover_text"] = api().build_handover(subject_id).as_text()
+            # The API returns the rendered SBAR text in "text". This called `.as_text()`
+            # on the result, which worked while the dashboard held a service object and
+            # crashed the WHOLE Today page with AttributeError once the HTTP boundary put
+            # a dict there. Found by clicking the button, not by the suite. See
+            # `ApiClient.localise` for the same mistake caught once before.
+            payload = api().build_handover(subject_id)
+            st.session_state["handover_text"] = payload.get("text", "")
+            if not payload:
+                st.error(
+                    "The summary could not be built. The API did not answer. "
+                    "Nothing about your readings has changed."
+                )
 
         text = st.session_state.get("handover_text")
         if text:
