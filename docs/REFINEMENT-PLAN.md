@@ -801,7 +801,7 @@ as human judgement.
 
 1. `src/wha/agent/differential.py`, `_answer_reasons` already reads `provenance`. Return it as
    a field rather than folding it into a sentence.
-2. In the episode panel, mark any line whose provenance is GENERATED or ASSUMED, with one line
+2. In the episode panel, mark any line whose provenance is ASSUMED, with one line
    of explanation under the chart.
 3. Under the amber panel in `src/wha/ui/today.py`, add: this labelling is done by the AI itself
    and may miss things, so treat anything without a source as a starting point.
