@@ -94,7 +94,7 @@ flowchart TB
     SAFE --> CONV["conversation engine<br/>multi-turn, retrieval grounded"]
     CONV --> TG
     CONV --> DASH
-    INV -.->|"retrieve_clinical_evidence"| RAG["local corpus<br/>1,852 chunks, 4 layers<br/>BM25 + embeddings + RRF"]
+    INV -.->|"retrieve_clinical_evidence"| RAG["local corpus<br/>1,849 chunks, 4 layers<br/>BM25 + embeddings + RRF"]
     CONV -.-> RAG
     EP --> AUD
     INV --> AUD
@@ -1062,7 +1062,7 @@ is the one line this project does not cross.
 | 3 | when to seek care | generated from `red_flags.yaml` | 9 documents |
 | 4 | the evidence behind each competing explanation | generated from `causes.yaml` | 12 documents |
 
-Total **1,852 chunks**. Adding MedlinePlus grew the index fourteenfold, and a test asserts
+Total **1,849 chunks**. Adding MedlinePlus grew the index fourteenfold, and a test asserts
 that the system's own safety rules still surface in the top six for "chest pain", because
 a thousand fetched topics burying them is the plausible failure.
 
@@ -1099,23 +1099,62 @@ Hybrid retrieval is used because the two methods fail differently. Keyword searc
 paraphrase; embeddings miss exact terms and numbers. On a corpus containing both
 plain-English consumer text and tables of clinical figures, you need both.
 
-**Three weaknesses.**
+**Three weaknesses were recorded here. Two are fixed, and the third turned out to be a
+symptom of one of them rather than a problem of its own.**
 
-1. **There is no reranking.** A reranker is a second, slower model that reads the query and
-   each candidate passage together and re-scores them, and it is the standard way to fix
-   the relevance problems described next. RRF is fusion, not reranking. There is none in
-   this codebase.
-2. **Relevance is poor and it shows.** For an episode about fever, four of the five
-   passages presented on the Evidence tab were about **meningism** (stiff neck), and the
-   top-ranked "evidence" was the list of answer options for the symptom question. In the
+1. **Layers 2 and 3 leaked the internals. Fixed.** Because they were generated from YAML,
+   the passages shown to a person included the raw phrase-match lists: "Any of: 'stiff
+   neck', 'neck stiffness', 'can't touch chin to chest'..." and the whole tier B table with
+   its trigger phrases. That is an internal keyword list presented to a lay reader as
+   clinical evidence, and it published exactly which words cause an escalation. The layer 3
+   generator now writes prose: what the sign is, why it matters, what to do. The vocabulary
+   survives as a sentence ("People describe this as stiff neck, neck stiffness, ...")
+   because deleting it outright broke retrieval, which an existing test caught: "I fainted"
+   stopped surfacing the syncope rule. Item 31.
+
+2. **Relevance was poor and it showed. Fixed by the above, and measured.** For an episode
+   about fever, four of the five passages on the Evidence tab were about meningism, and the
+   top-ranked "evidence" was the list of answer options for the symptom question. In a
    chest pain conversation the one cited source under an urgent escalation was "How to
-   Prevent Heart Disease". The grounding check guarantees a sentence came from a passage.
-   It does not guarantee the passage is relevant.
-3. **Layers 2 and 3 leak the internals.** Because they are generated from YAML, the
-   passages shown to you include the raw phrase-match lists: "Any of: 'stiff neck', 'neck
-   stiffness', 'can't touch chin to chest'..." and the whole tier B table with its trigger
-   phrases. That is the system's internal keyword list presented to a lay reader as
-   clinical evidence, and it also publishes exactly which words cause an escalation.
+   Prevent Heart Disease". Those passages were the leak in weakness 1: an answer-option
+   list is a strong lexical match for a symptom query and says nothing. After the rewrite,
+   precision at 8 over twelve judged queries is **79.2%**, and the same chest pain
+   conversation now cites MedlinePlus "Chest Pain", which contains the costochondritis
+   sentence the reply was built on. `uv run python tools/retrieval_check.py`.
+
+3. **There is still no reranking, and that is now a decision rather than a gap.** A
+   reranker is a second, slower model that reads the query and each candidate passage
+   together and re-scores them, and it is the standard fix for exactly the problem in
+   weakness 2. It was measured in **16 configurations**: two models
+   (`ms-marco-MiniLM-L-6-v2` and `BAAI/bge-reranker-base`), candidate pools of 12 and 20,
+   passage text with and without the title, and cross-encoder order both replacing the
+   hybrid order and fused with it.
+
+   | Configuration | Precision at 8 | Cost |
+   |---|---|---|
+   | **no reranker, what ships** | **79.2%** | none |
+   | MiniLM, best of 8 configurations | 79.2% | 1.9 s/query |
+   | bge-reranker-base, best of 8 | 78.1% | 11.5 s/query |
+   | bge, exactly as the plan prescribed it | 72.9% | 21.4 s/query |
+   | MiniLM, exactly as the plan prescribed it | 69.8% | 3.4 s/query |
+
+   **Not one configuration beat doing nothing.** The best tied, and only when fused with
+   the ranking it was supposed to improve. Deeper pools were consistently worse, which is
+   the mechanism: 20 candidates hand the cross-encoder more off-topic material it can
+   promote, and BM25 exact-term matching on a small topical corpus is a stronger signal
+   than a model trained on MS MARCO web passages. A perfect reranker over the same pool
+   would reach 94.8%, so the headroom is real and neither model captures any of it.
+
+   This is the third component in this system measured against the obvious cleverer
+   alternative and kept because the simpler thing won, after the Chronos forecast and the
+   personal threshold.
+
+   **One correction to the numbers above.** All 16 runs and the 79.2% baseline were measured
+   on the corpus as it stood that morning. Layer 4 was then rewritten as prose too, for the
+   same reason as layer 3, and on the same twelve queries the baseline is now **77.1%**. The
+   2.1 points went on probe-evidence passages surfacing more often, because prose written for
+   a reader matches a reader's phrasing. Every reranker was compared against the corpus it
+   was measured on, so the comparison holds; the current number is the lower one.
 
 Two layers are also narrower than `sources.yaml` claims. **StatPearls, the real clinical
 reference layer, has never been fetched**; what the corpus calls layer 2 is three passages

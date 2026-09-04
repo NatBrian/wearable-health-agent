@@ -268,6 +268,4 @@ def test_node_conclude_actually_writes_the_trace_the_screen_reads() -> None:
     assert "ask" not in ran, "no answers in this state, so nothing was asked"
 
     # The tool calls travel with it, which is what the expander under 'investigate' renders.
-    assert any(
-        call["tool_name"] == "retrieve_clinical_evidence" for call in payload["tool_calls"]
-    )
+    assert any(call["tool_name"] == "retrieve_clinical_evidence" for call in payload["tool_calls"])

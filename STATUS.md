@@ -48,8 +48,13 @@ because a measurement reversed an earlier recommendation, so do not re-open them
 
 ### What is still open
 
-- **Item 30, the reranker, is decided on measurement rather than adopted.** See
-  `tools/retrieval_check.py` and the note in `BLOCKERS.md`.
+- **Item 30, the reranker, was measured and not adopted.** 16 configurations across two
+  cross-encoders, and not one beat plain hybrid retrieval at 79.2 percent precision. The
+  item's own prescription is 9.4 points worse. The table is in the module docstring of
+  `tools/retrieval_check.py` and the outcome is written into the plan item itself.
+- **A cited sentence can still misdescribe the passage it cites.** Found by using the
+  dashboard. Not a bug and not fixable by a cheap check, so it is recorded in
+  `BLOCKERS.md`, corrected in every file that overstated it, and said on the screen.
 - Two contract disagreements are recorded in `BLOCKERS.md` rather than papered over.
   `docs/CONTRACTS.md` is read-only and names five constants the code no longer has;
   `tests/unit/test_contracts.py::REMOVED_FROM_THE_CODE` enumerates them.
@@ -85,14 +90,23 @@ Start with `tools/cohort/README.md`. The published figures are in `docs/detectio
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 546 passed, 1 skipped
-uv run ruff check src tests       # clean
+uv run pytest                       # 600 passed, 1 skipped, about 5 minutes
+uv run ruff check src tests         # clean
 uv run ruff format --check src tests
-uv run wha doctor                 # no fail rows
-uv run wha demo run illness-onset # exits 0, opens an episode, reaches a disposition
+uv run wha doctor                   # no fail rows
+uv run wha demo run illness-onset   # exits 0, opens an episode, reaches a disposition
+uv run python tools/retrieval_check.py   # 77.1 percent, and every off-topic passage listed
+uv run wha corpus search fever      # Fever first, and no internal configuration at all
 ```
 
 Everything above runs offline. The phone bridge and the live model are not needed.
+
+**None of it proves the thing that matters.** Every serious defect in this project, in every
+session, was found by opening the dashboard and using it. In this session alone, with the
+suite green throughout: "Summary for your doctor" crashed the whole Today page, the Trace
+tab advertised a pipeline stage that had been deleted, and a reply misdescribed this
+system's own detection rule while showing the two passages that state it correctly. Finish
+by driving the real interface, not by reading this table.
 
 ---
 
@@ -119,14 +133,21 @@ All of the above is fixed. The detail is in `history/plan/PROGRESS.md`.
 
 ## Current numbers
 
-| Check | Result |
-|---|---|
-| Tests | **546 passed, 1 skipped**, no ignore list |
-| Lint and format | clean |
-| `wha doctor` | no fail rows |
-| Frozen scenarios | **11 of 11**, run live against the real provider |
-| Evaluation | measured, in `EVALUATION.md`, regenerated 4 September |
-| Corpus | **1,852 chunks**, four layers, one of them fetched |
+| Check | Result | When |
+|---|---|---|
+| Tests | **600 passed, 1 skipped**, no ignore list | 5 September |
+| Lint and format | clean, `ruff check src tests` | 5 September |
+| `wha doctor` | no fail rows | 5 September |
+| Dashboard driven end to end with Playwright | all five pages, three defects found | 5 September |
+| Telegram | a real message sent through `converse_over_telegram` | 5 September |
+| Detection accuracy | 46.7% at 3 days against a 16.5% chance floor, `docs/detection-results.json` | 5 September |
+| Retrieval precision | 77.1% at 8 over twelve judged queries, `tools/retrieval_check.py` | 5 September |
+| Corpus | **1,849 chunks**, four layers, one of them fetched | 5 September |
+| Frozen scenarios | **11 of 11** live against the real provider | 4 September, NOT re-run since |
+
+`tools/` now holds the scripts behind three of those rows, so the numbers survive a clean
+checkout: `cohort/` for detection, `retrieval_check.py` for retrieval, and `rerank_sweep.py`
+with `rerank-sweep-results.txt` for the reranker that was measured and not adopted.
 
 The eleven scenarios take longer than ten minutes to run back to back live, so run them in
 two batches. If a batch is killed part-way, check for an orphaned `python.exe`: a killed
@@ -603,7 +624,7 @@ enough to be a pointer rather than information. Date, URL and SHA-256 are in
 `data/knowledge/corpus-sources.json`. The release itself is not committed, because it is a
 thousand topics this project does not own under an attribution-only licence.
 
-**What it cost, measured rather than assumed.** The index went from 133 chunks to 1,852, a
+**What it cost, measured rather than assumed.** The index went from 133 chunks to 1,849, a
 fourteenfold increase. The authored escalation rules still surface in the top six for
 "chest pain", "I fainted" and "my chest hurts and I feel sick", and a test asserts it,
 because a thousand fetched topics burying this system's own safety rules is the plausible
@@ -638,20 +659,64 @@ through different code. There is no evidence it names the source.
 
 ---
 
+### What driving the dashboard found, a third time, after all 34 items were done
+
+Every one of these was found by opening a page and clicking something, with the suite green
+before and after. None was found by a test, and the first two took the page down.
+
+1. **"Summary for your doctor" crashed the whole Today page.** `AttributeError: 'dict'
+   object has no attribute 'as_text'`. When the HTTP boundary went in, the dashboard started
+   holding the JSON body where it used to hold a service object, and this one call site was
+   never updated. The endpoint had been returning the rendered text in `"text"` the whole
+   time. **Second instance of the shape**: `ApiClient.localise` carries a docstring about
+   the first. A static guard now walks every screen for `api().method(...).attribute` where
+   the client method returns plain JSON, and it was checked against the real defect before
+   being kept.
+
+2. **The Trace tab advertised a pipeline stage that had been deleted.** `CANONICAL_STAGES`
+   still listed `measure` after `node_measure` was removed, so a person saw a stage of their
+   own investigation described as "Request spot resting heart rate or overnight wear",
+   permanently pending. The graph had eight nodes and the screen showed nine. A test now
+   reads `add_node` calls out of `graph.py` and requires the two lists to match, in order.
+
+3. **A reply misdescribed this system's own detection rule while citing the passages that
+   state it correctly.** Asked why a night was flagged, it called the baseline an "average"
+   (it is the median) and said a night is flagged at 3 bpm (3 is elevated; flagging needs
+   two consecutive nights at 4). This one is **not a bug and is not fixed**: the grounding
+   check verifies the span the model quoted, never the sentence around it. Recorded in
+   `BLOCKERS.md`, corrected in every file that overstated it, and said on the screen.
+
+Two smaller ones from the same pass: the record read "arrived from the your watch source" on
+every ingest line, and `wha corpus search fever` still returned the raw answer-option dump at
+rank 3, which is the failure item 30 was written about.
+
+**`episode_traces` had zero rows.** Item 11 added the table and the writer, and the writer is
+guarded by `hasattr(db, "record_episode_trace")`, the exact guard that once made every tool
+in this system a silent no-op. It turned out to be sound, but nothing had ever proved it: the
+Trace tab's tests insert rows directly, so they would pass with the writer deleted. A test
+now drives the real node through a real repository, and it was checked by disabling the
+writer to confirm it fails.
+
+---
+
 ## Open items for a human
 
 `BLOCKERS.md`. The ones that matter:
 
 **Almost everything that used to be listed here is now an item in
-`docs/REFINEMENT-PLAN.md`.** Go there. What remains below is only what the plan does not
-cover.
+`docs/REFINEMENT-PLAN.md`, and all 34 are done.** What remains below is only what the plan
+does not cover.
 
 1. **`.env` is pointed at the simulation.** Everything verified in the review ran on
    simulated or public cohort data. Restore `.env.phase4-backup` before real use, and not
    before being asked.
-2. **The nightly scheduler.** A `wha serve` with its scheduler active was found running
-   during the review, polling Telegram every 45 seconds against `data/wha.sqlite`. Item 6 of
-   the previous list said it was not running. It was.
+2. **The nightly scheduler, and the processes it leaves behind.** A `wha serve` with its
+   scheduler active was found running during the review, polling Telegram every 45 seconds
+   against `data/wha.sqlite`. On 5 September, **twelve orphaned Streamlit processes** from
+   an earlier session's test runs were found still alive on ports 8599 to 8611, each burning
+   a core. They were stopped, along with `wha serve`, so nothing from that session is left
+   running. Stop `wha serve` before a `uv sync`: it holds the virtual environment open, and
+   a `uv sync` against a running server fails with a file lock.
 3. **`git stash@{0}`** holds the reverted SpO2, respiratory and skin-temperature work.
    Superseded and safe to drop.
 4. **Blood oxygen still has no likelihood** in `causes.yaml`, so it cannot move the belief.

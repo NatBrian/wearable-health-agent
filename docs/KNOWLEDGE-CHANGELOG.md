@@ -290,3 +290,92 @@ two-drink span, not the effect of drinking against not drinking. Reading them as
 and taking the midpoint gives the stored 2.60. That is defensible for "drank last night"
 only because the span brackets it, and the file now says so rather than leaving a reader
 to infer a measurement the paper did not make.
+
+## 2026-09-05 — `triage_rules.yaml`, the blood oxygen thresholds were credited to WHO
+
+**Changed:** the attribution and the caveats on `spo2_home_thresholds`. The numbers
+themselves, 92 and 94 percent, did not move.
+
+**Was:** "WHO guidance as reported in the wearable SpO2 literature: above 94 percent can be
+cared for at home, below 93 percent warrants medical attention."
+
+**Is:** NHS England's COVID Oximetry @home pathway, with the British Thoracic Society's
+target range for the upper band, and a population caveat attached.
+
+**Why, with the sources.** WHO's January 2021 guidance recommends *using* home pulse
+oximetry; it does not publish these levels. The levels are NHS England's: 92 percent or less
+means attend an emergency department within the hour or call 999, and 93 or 94 percent means
+contact 111 or a GP. The 94 to 98 percent range is the British Thoracic Society's target
+range for oxygen therapy in adults. Crediting a specific numeric threshold to the wrong body
+is the same class of error as inventing it, because a reader who checks WHO will not find it.
+
+**The caveat that matters more than the correction.** That pathway is written for people
+**already diagnosed with COVID-19 and being monitored at home**. It is not a screening rule
+for somebody who is well, and this system applies it to somebody who is well. That is now
+stated in the file, and it is the reason this rule may only ever raise urgency and says "get
+a proper reading taken" rather than naming a condition.
+
+**One line was also removed for being wrong in the person's favour.** The file said these
+sensors "read high on darker skin, so a genuine fall can be missed entirely". Singh et al.,
+*J Med Internet Res* 2024;26:e62769, found overestimation "for both light and dark skin
+pigmentation", so the warning applies to everybody rather than only to darker skin. The same
+review concludes the overestimation "may not be clinically relevant", and that qualification
+is now stated rather than left out because it weakens the point.
+
+---
+
+## 2026-09-05 — `triage_rules.yaml`, Downie is quoted with its population attached
+
+**Changed:** a comment, not a number, and it is here because the comment is what justifies
+the design.
+
+Downie et al. was quoted as the reason not to trust a single matched phrase. The quotation
+is accurate, but it is **a review of red flags for cancer and fracture in low back pain**.
+It was not measured on chest pain or on any presentation this system routes. The file now
+says so, and the argument for what to *do* instead is carried by Sutaria et al., *BMC Health
+Serv Res* 2025;25:1263, which measured online symptom checkers seeking only 36.9 percent of
+relevant red flags against 71.8 percent for primary care physicians. That paper is about
+symptom checkers, which is what this is.
+
+A citation that supports a design in spirit but was measured on a different population is
+still worth quoting. Quoting it without its population is not.
+
+---
+
+## 2026-09-05 — `red_flags.yaml`, `outcome_guidance` added
+
+**Changed:** two lines of care-pathway text moved into this file. **No new clinical content.**
+
+They were `DEFAULT_ESCALATION_CRITERIA` in `src/wha/safety/output_checks.py` and are moved
+unchanged, so every care-pathway sentence lives in one file and the corpus can cite all of
+them. They are the tier A and tier B lists in this same file, summarised: chest pain,
+breathlessness at rest, fainting and confusion are `rf_chest_pain`, `rf_breathless_at_rest`,
+`rf_syncope` and `rf_confusion`; fever and body aches are `rf_fever` and `rf_body_aches`, and
+"see a doctor today" is `rf_fever`'s own guidance.
+
+**Why.** The "when to seek care" text was previously free text from the language model and
+was the only text in the system that passed through no check at all. A live run produced
+"Seek care if fever persists beyond 72 hours or exceeds 103 degrees F (39.4 C)". Both
+thresholds came out of the model. They are close to mainstream advice, which is luck rather
+than sourcing, and is exactly why this class of error is hard to catch by reading. Nothing is
+generated now, so there is nothing left to guard.
+
+---
+
+## 2026-09-05 — `probes.yaml`, `probe_cycle` retired
+
+**Changed:** one question removed. **No figure changed.**
+
+The luteal cause is a plain on-off in the belief model, and `cycle_last_period_start` was
+never read by anything. The fact the model actually needs, whether the person menstruates at
+all, is a standing fact about a person rather than something to spend part of a weekly
+interruption budget on, so it moved to the Settings profile. An already-answered probe is
+still honoured through `wha.agent.nodes._cycle_applicability`, so nobody who answered it is
+asked again.
+
+**Why this is a knowledge change and not just a code change.** The question was priced at
+0.4 of an interruption on the grounds that it was a one-off setup question. Removing it
+returns that allowance, and it removes a question whose answer could not reach the belief
+model at all: no production caller passed the cycle fact into `update_belief`, so luteal sat
+clamped at 0.0 on every live run. Asking for something that changes nothing is the worst
+possible use of an interruption budget.
