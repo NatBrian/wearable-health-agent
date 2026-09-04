@@ -39,6 +39,7 @@ from wha.retrieve.models import GeneratedClaim
 from wha.safety.output_checks import (
     DIAGNOSIS_PHRASES,
     FALSE_REASSURANCE_PHRASES,
+    select_escalation_criteria,
     validate_and_sanitize_outcome,
 )
 from wha.safety.tier_c import check_red_flags_with_tier_c
@@ -101,12 +102,19 @@ class OutcomeClaim(BaseModel):
 
 
 class WriteOutcomeResponse(BaseModel):
-    """Synthesized outcome prose and escalation criteria from model."""
+    """Synthesized outcome prose from the model.
+
+    `escalation_criteria` was here and has been removed. It was the when-to-seek-care
+    text, the sentence a person is most likely to act on, and the only field in the
+    system that went through no check at all. A live run produced "Seek care if fever
+    persists beyond 72 hours or exceeds 103 degrees F (39.4 C)", invented. It is now
+    selected from `red_flags.yaml` by `select_escalation_criteria`, so there is nothing
+    left to guard.
+    """
 
     observation: str
     claims: list[OutcomeClaim] = Field(default_factory=list)
     action_text: str = ""
-    escalation_criteria: list[str] = Field(default_factory=list)
 
 
 class CritiqueResponse(BaseModel):
@@ -715,6 +723,7 @@ def node_ask(
                 ),
                 "safety_event": "red_flag_escalation",
                 "escalation_level": safety.level,
+                "triggered_flags": list(safety.triggered_flags),
                 "step": state.get("step", 0) + 1,
             }
 
@@ -871,6 +880,48 @@ def _enforce_claims(
     return cleaned or observation, supporting, unsupported
 
 
+def _episode_numbers(state: EpisodeState) -> set[float]:
+    """Every number this episode is genuinely entitled to quote in its prose.
+
+    The fabricated-number filter used to blanket-permit 0 through 10, which waved through
+    a real outcome saying "over 5 nights" about a two night episode. The blanket is gone,
+    so the true numbers have to be supplied instead: how many nights, how far each sat
+    above the person's own baseline, that baseline itself, and the nightly readings.
+    """
+    nights = state.get("nights", [])
+    numbers: set[float] = {float(len(nights))}
+
+    for detection in nights:
+        for value in (
+            detection.residual_bpm,
+            detection.deviation_bpm,
+            detection.robust_z,
+            detection.explained_bpm,
+        ):
+            if value is not None:
+                numbers.add(float(value))
+                numbers.add(float(round(value, 1)))
+                numbers.add(float(abs(round(value))))
+
+    for feature in state.get("features", []):
+        if feature.rhr_bpm is not None:
+            numbers.add(float(feature.rhr_bpm))
+            numbers.add(float(round(feature.rhr_bpm)))
+        if feature.coverage_minutes is not None:
+            numbers.add(float(feature.coverage_minutes))
+
+    # The baseline centre, which no state field carries directly but every night implies.
+    for detection in nights:
+        if detection.deviation_bpm is not None:
+            for feature in state.get("features", []):
+                if feature.night_date == detection.night_date and feature.rhr_bpm is not None:
+                    centre = feature.rhr_bpm - detection.deviation_bpm
+                    numbers.add(float(round(centre, 1)))
+                    numbers.add(float(round(centre)))
+
+    return numbers
+
+
 def _interruptions_this_week(db: Any, subject_id: str) -> int:
     """How many questions have been asked in the last seven days, across the whole app.
 
@@ -957,10 +1008,13 @@ def node_conclude(
     action_val: Literal["rest", "monitor", "seek_same_day_care", "seek_urgent_care"] = (
         "rest" if disposition == Disposition.LIKELY_ILLNESS else "monitor"
     )
-    escalation_criteria = [
-        "Seek care if elevated heart rate persists >3 nights without confounders.",
-        "Seek immediate emergency care if experiencing chest pain or severe shortness of breath.",
-    ]
+    # Selected, never written. The two lines that used to sit here duplicated the general
+    # wording in red_flags.yaml, and the first of them asserted a ">3 nights" threshold
+    # that appears in no source.
+    escalation_criteria = select_escalation_criteria(
+        disposition=disposition,
+        triggered_flags=list(state.get("triggered_flags", [])),
+    )
 
     # Everything this episode looked up, whether or not a sentence ended up quoting it.
     # This is what the Evidence tab shows, and the honest answer to "what did it read".
@@ -994,9 +1048,6 @@ def node_conclude(
         )
         if outcome_res.observation:
             observation = outcome_res.observation
-        if outcome_res.escalation_criteria:
-            escalation_criteria = outcome_res.escalation_criteria
-
         # Claim-to-source enforcement, which the contract specifies as a deterministic
         # verbatim containment test rather than a judgement. The model's claims were
         # parsed and then dropped on the floor, so this never ran on anything.
@@ -1075,7 +1126,10 @@ def node_critique(
     cleaned_draft = draft.model_copy(update={"observation": obs})
 
     # Step A: Deterministic grounding & sanitization
-    sanitized_draft = validate_and_sanitize_outcome(cleaned_draft)
+    sanitized_draft = validate_and_sanitize_outcome(
+        cleaned_draft,
+        episode_numbers=_episode_numbers(state),
+    )
 
     # Step B: LLM Critique Pass (Subtractive only)
     client = llm_client or get_llm_client()

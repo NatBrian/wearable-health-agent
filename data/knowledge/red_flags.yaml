@@ -1,6 +1,6 @@
 # red_flags.yaml
 #
-# The deterministic safety floor. READ ONLY. Authored by a human.
+# The deterministic safety floor. READ ONLY.
 #
 # Runs BEFORE the agent, on every flagged night and every free-text answer. Plain code.
 # It cannot be reasoned past because it is not reasoning.
@@ -124,6 +124,35 @@ tier_b_guidance: >
   Two or more of these together, or one that has not settled, is worth a same-day
   appointment. A polyclinic or a GP is appropriate. Go to an A&E if you develop any of
   the urgent signs listed above.
+
+outcome_guidance:
+  # WHEN TO SEEK CARE, on the episode outcome. SELECTED, never written.
+  #
+  # This used to be free text from the language model, and it was the only text in the
+  # system that went through no check at all. A live run produced "Seek care if fever
+  # persists beyond 72 hours or exceeds 103 degrees F (39.4 C)". Both thresholds came out
+  # of the model. They happen to be close to mainstream advice, which is luck rather than
+  # sourcing, and is why this kind of error is hard to catch by reading.
+  #
+  # A number filter was considered and rejected. It cannot tell 103 from 39.4 inside
+  # "103 degrees F (39.4 C)", it deletes whole sentences on any number it does not
+  # recognise, and stripping every criterion made the node raise and the episode die.
+  # Nothing is generated now, so there is nothing to guard.
+  #
+  # These two lines are not new clinical content. They are the tier A and tier B lists
+  # above, summarised: chest pain, breathlessness at rest, fainting and confusion are
+  # rf_chest_pain, rf_breathless_at_rest, rf_syncope and rf_confusion; fever and body
+  # aches are rf_fever and rf_body_aches, and "see a doctor today" is rf_fever's own
+  # guidance. They were previously DEFAULT_ESCALATION_CRITERIA in
+  # src/wha/safety/output_checks.py and are moved here unchanged, so that every
+  # care-pathway sentence lives in one file and the corpus can cite all of them.
+  #
+  # ALWAYS PRESENT, on every outcome including LIKELY_BENIGN. A benign conclusion is the
+  # one a person is most likely to act on by doing nothing, so it is the one that most
+  # needs the boundary stated.
+  default:
+    - "Seek urgent medical attention (call 995 or go to an A&E) if you develop chest pain, shortness of breath at rest, fainting, or sudden confusion."
+    - "See a doctor today if you have a high fever that does not settle or co-occurring severe body aches."
 
 negation_guards:
   # Deliberately simple. A phrase preceding a match within this many words suppresses it.

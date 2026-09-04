@@ -58,3 +58,7 @@ class EpisodeState(TypedDict, total=False):
     status: Literal["active", "parked", "closed", "unresolved"]
     safety_event: str | None
     escalation_level: str | None
+    # Which deterministic rules fired, by id. node_conclude selects the when-to-seek-care
+    # wording from these, so the outcome quotes the rule that fired rather than a
+    # sentence the model wrote.
+    triggered_flags: Annotated[list[str], add_items]

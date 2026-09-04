@@ -44,6 +44,19 @@ class VitalsRule(BaseModel):
     cold_rung_note: str | None = None
 
 
+class OutcomeGuidance(BaseModel):
+    """The care-pathway sentences an episode outcome may select from.
+
+    Selection only. Nothing here is written at run time, which is the whole point: this
+    field replaced a free-text field the model filled in, unchecked, with invented fever
+    thresholds.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    default: list[str] = Field(default_factory=list)
+
+
 class NegationGuards(BaseModel):
     """Negation phrases and window size."""
 
@@ -65,6 +78,7 @@ class RedFlagsConfig(BaseModel):
     vitals: list[VitalsRule]
     negation_guards: NegationGuards
     tier_b_guidance: str = ""
+    outcome_guidance: OutcomeGuidance = Field(default_factory=OutcomeGuidance)
     always: dict[str, Any] = Field(default_factory=dict)
 
 

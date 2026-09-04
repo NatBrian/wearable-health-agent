@@ -5,7 +5,12 @@ from wha.llm.prompts.base import PromptDefinition
 
 PROMPT = PromptDefinition(
     prompt_id="write_outcome",
-    prompt_version="2",
+    # v3 removed escalation_criteria from the output schema. That field was the
+    # when-to-seek-care text, and it was the only thing this system showed a person that
+    # went through no check at all. A live run produced "Seek care if fever persists
+    # beyond 72 hours or exceeds 103 degrees F (39.4 C)", with both thresholds invented.
+    # It is now selected from red_flags.yaml by wha.safety.select_escalation_criteria.
+    prompt_version="3",
     temperature=TEMP_NATURAL,
     instruction=(
         "Synthesize a calm, grounded, objective summary of the episode findings and "
@@ -22,7 +27,7 @@ PROMPT = PromptDefinition(
     ),
     output_schema=(
         '{"observation": str, "claims": [{"text": str, "evidence_span": str}], '
-        '"action_text": str, "escalation_criteria": [str]}'
+        '"action_text": str}'
     ),
     constraints=[
         "Every claim must be strictly grounded in cited physiological evidence or user reports.",
@@ -35,7 +40,10 @@ PROMPT = PromptDefinition(
             "If no retrieved passage supports a sentence, do not write that sentence and "
             "do not list it as a claim."
         ),
-        "Include clear clinical escalation criteria (red flags).",
+        (
+            "Do not write when-to-seek-care advice. It is selected from a fixed list "
+            "and appended after you. Describe what was observed, nothing more."
+        ),
         "Never make definitive diagnostic declarations.",
         (
             "Never state that no symptoms were reported when What The Person Told Us "
@@ -58,9 +66,6 @@ PROMPT = PromptDefinition(
                     }
                 ],
                 "action_text": "No intervention required. Continue usual routine.",
-                "escalation_criteria": [
-                    "Seek care if elevated heart rate persists >3 nights without confounders."
-                ],
             },
         }
     ],
