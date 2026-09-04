@@ -87,7 +87,10 @@ def record_ingest(
             output={
                 "stored_samples": stored,
                 "newest_sample_utc": newest_sample_utc,
-                "summary": f"{stored} heart rate samples arrived from the {source_kind} source.",
+                # Callers pass a phrase a person can read ("your watch", "simulated
+                # data"), not an identifier. Wrapping it in "the ... source" produced
+                # "arrived from the your watch source" on every ingest line of the record.
+                "summary": f"{stored} heart rate samples arrived from {source_kind}.",
             },
         ),
     )
