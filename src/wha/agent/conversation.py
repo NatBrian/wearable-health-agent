@@ -458,6 +458,51 @@ def respond(
     turn_index = len(load_transcript(conn, subject_id, limit=1000))
     at_limit = turn_index >= CONVERSATION_MAX_TURNS * 2
 
+    if at_limit:
+        # THE LIMIT NOW STOPS SOMETHING.
+        #
+        # `CONVERSATION_MAX_TURNS` is cited to Tu et al. 2025, where AMIE had the
+        # information it needed within the first ten turns. The code worked out whether
+        # the person was at that limit, attached the answer to the reply as
+        # `at_turn_limit`, and nothing read it. A stop condition that does not stop
+        # anything is worse than none, because it appears in the report as a control.
+        #
+        # The safety floor above has already run on this message, so somebody typing
+        # "chest pain" on turn twenty-one still escalates. What stops is the conversing.
+        text = (
+            f"We have been going back and forth for {CONVERSATION_MAX_TURNS} exchanges, "
+            "which is as far as this is useful. A study of conversational diagnosis found "
+            "the information needed was in hand within about that many turns, and past it "
+            "I would be rephrasing rather than learning anything new.\n\n"
+            "What is worth doing now is taking this to a person. The summary on the "
+            "History page is written for a doctor: it has your nights, what you told me, "
+            "which rules ran and what they concluded, with the dates on everything.\n\n"
+            "If something changes or gets worse, say so and the safety rules will still "
+            "read it. They have not stopped."
+        )
+        reply = ConversationReply(
+            text=text,
+            urgency=more_urgent(prior, floor_urgency),
+            urgency_reason=(
+                "The conversation reached its length limit. The urgency here is whatever "
+                "the rules had already established, unchanged."
+            ),
+            triggered_flags=triggered,
+            guidance=list(safety.guidance),
+            turn_index=turn_index + 1,
+            at_turn_limit=True,
+        )
+        record_turn(
+            conn,
+            subject_id,
+            "agent",
+            reply.text,
+            episode_id=episode_id,
+            urgency=reply.urgency,
+            triggered_flags=triggered,
+        )
+        return reply
+
     prompt_def = get_prompt_definition("converse")
     passages = _passages_for(user_message)
     try:

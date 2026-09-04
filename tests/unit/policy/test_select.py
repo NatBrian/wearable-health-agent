@@ -151,3 +151,49 @@ def test_a_sensor_doubt_never_talks_an_escalation_down() -> None:
     belief = BeliefState(marginals=marginals, p_illness=0.80)
 
     assert determine_disposition(belief, rung=BaselineRung.MATURE) == Disposition.LIKELY_ILLNESS
+
+
+def test_a_one_time_probe_answered_before_is_not_even_considered() -> None:
+    """`one_time` was in probes.yaml and dropped silently on load.
+
+    ProbeDefinition forbids extra fields and load_probes built it field by field without
+    reading the flag, so probe_medication was priced at 0.4 of an interruption on a promise
+    that was not kept: the same setup question could be asked again in every new
+    investigation, spending part of a weekly allowance each time.
+
+    Asserted on `rejected`, which lists every probe the policy scored, because that proves
+    the probe left the candidate set whatever action ends up winning.
+    """
+    from wha.policy.probes import load_probes
+
+    one_time = [p.probe_id for p in load_probes() if p.one_time]
+    assert one_time, "the flag is being dropped on load again"
+
+    belief = _sensor_artifact_belief(p=0.1)
+
+    considered = {pid for pid, _ in select_action(belief=belief).rejected}
+    assert set(one_time) <= considered, "a one-time probe was never a candidate to begin with"
+
+    after = {
+        pid for pid, _ in select_action(belief=belief, answered_probe_ids_ever=one_time).rejected
+    }
+    assert not (set(one_time) & after), (
+        "a one-time probe answered in an earlier episode was scored again"
+    )
+
+
+def test_a_repeatable_probe_is_not_skipped_by_an_earlier_answer() -> None:
+    """The skip applies to one_time probes only. Everything else may be asked again.
+
+    Compared with and without, because the winning probe is excluded from `rejected` and
+    a straight containment check would fail on that one alone.
+    """
+    from wha.policy.probes import load_probes
+
+    repeatable = [p.probe_id for p in load_probes() if not p.one_time]
+    belief = _sensor_artifact_belief(p=0.1)
+
+    def considered(**kwargs) -> set[str]:
+        return {pid for pid, _ in select_action(belief=belief, **kwargs).rejected}
+
+    assert considered() == considered(answered_probe_ids_ever=repeatable)

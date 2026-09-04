@@ -59,8 +59,9 @@ def render_how_it_works(subject_id: str) -> None:
     with st.expander("1. Reading the watch", expanded=False):
         st.markdown(
             f"""
-- Only the window from midnight to 7am is used, because daytime heart rate reflects
-  whatever you were doing.
+- The reading is taken over the sleep your watch recorded, because daytime heart rate
+  reflects whatever you were doing. When the watch reports no sleep for a night, the
+  window falls back to midnight to 7am and the night says so.
 - At least **{config()["MIN_NOCTURNAL_MINUTES"]} minutes** of contact are needed, or the night is
   marked unusable rather than guessed at.
 - Readings below **{config()["HR_PLAUSIBLE_MIN_BPM"]} bpm** or above **{config()["HR_PLAUSIBLE_MAX_BPM"]} bpm**
@@ -96,8 +97,9 @@ of exactly zero and make every later night look infinitely unusual.
 - What remains is compared with your usual: **{config()["DETECT_YELLOW_BPM"]} bpm** above is slightly
   raised, **{config()["DETECT_RED_BPM"]} bpm** above is clearly raised.
 - A single raised night is not enough. It takes **{config()["DETECT_PERSISTENCE_NIGHTS"]} nights** in a
-  row, including at least one clearly raised, before anything opens. That is what keeps a
-  late drink from starting an investigation.
+  row, **both clearly raised**, before anything opens. That is what keeps a late drink
+  from starting an investigation, and it is exactly the rule the study these thresholds
+  come from used.
 """
         )
 
@@ -139,8 +141,17 @@ arithmetic, not a model, so the same evidence always gives the same answer.
             f"""
 This is the one decision the AI does not make. Before asking anything, the system works
 out how much the answer could actually change what it does. If that is worth less than
-the cost of interrupting you, it stays quiet. You are asked at most
-**{config()["INTERRUPTION_BUDGET_PER_WEEK"]} times a week**.
+the cost of interrupting you, it stays quiet.
+
+**That arithmetic is what keeps this quiet, not a cap.** There is also a hard limit of
+**{config()["INTERRUPTION_BUDGET_PER_WEEK"]} unsolicited questions a week**, and it has
+never been reached. Measured across 76 people and 738 weeks of real wearable data, this
+system opens an investigation about once every 3.6 weeks and asks at most one question in
+each. In a run with the whole weekly allowance unspent it asked one question and stopped,
+because after your answer every remaining question was worth less than the cost of asking
+it.
+
+The cap stays as a backstop. It is just not the reason you are rarely asked anything.
 
 This is why most raised nights never produce a question.
 """

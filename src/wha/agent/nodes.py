@@ -458,6 +458,7 @@ def node_decide(
     pending = False
     rung = BaselineRung.MATURE
     asked_probe_ids = [a.probe_id for a in answers]
+    answered_ever: list[str] = []
 
     if db is not None:
         today = local_today()
@@ -471,6 +472,8 @@ def node_decide(
             asked_probe_ids = sorted(
                 set(asked_probe_ids) | set(db.get_answered_probe_ids(episode_id))
             )
+        if hasattr(db, "get_answered_probe_ids_ever"):
+            answered_ever = sorted(db.get_answered_probe_ids_ever(subject_id))
 
     has_symptoms_evidence = any(a.probe_id == "probe_symptoms" and not a.declined for a in answers)
 
@@ -483,6 +486,7 @@ def node_decide(
         nights_in_episode=len(nights) if nights else 1,
         has_pending_interaction=pending,
         already_asked_probe_ids=asked_probe_ids,
+        answered_probe_ids_ever=answered_ever,
         has_symptoms_evidence=has_symptoms_evidence,
         # One spot check per episode. Asking twice for the same hand-taken reading is not
         # more information, it is nagging.

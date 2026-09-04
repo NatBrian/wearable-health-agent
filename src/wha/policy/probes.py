@@ -27,6 +27,14 @@ class ProbeDefinition(BaseModel):
     provenance: Literal["CITED", "DERIVED", "ASSUMED"]
     assumption: str | None = None
     citation: str | None = None
+    # Asked once and never again, across every investigation rather than within one.
+    #
+    # `probes.yaml` has carried `one_time: true` since it was written, and this model
+    # forbids extra fields while `load_probes` builds it field by field, so the flag was
+    # dropped silently on load. probe_medication is priced at 0.4 of an interruption
+    # BECAUSE of that promise, so the price was wrong and the system could spend part of
+    # somebody's weekly allowance asking the same setup question in every new episode.
+    one_time: bool = False
 
 
 def load_probes(path: Path | str | None = None) -> list[ProbeDefinition]:
@@ -173,6 +181,7 @@ def load_probes(path: Path | str | None = None) -> list[ProbeDefinition]:
                 provenance=provenance,  # type: ignore[arg-type]
                 assumption=str(assumption).strip() if assumption else None,
                 citation=str(citation).strip() if citation else None,
+                one_time=bool(item.get("one_time", False)),
             )
         )
 

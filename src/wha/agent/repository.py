@@ -269,6 +269,24 @@ class EpisodeRepository:
         ).fetchall()
         return [r["probe_id"] for r in rows]
 
+    def get_answered_probe_ids_ever(self, subject_id: str) -> list[str]:
+        """Probes this person has ANSWERED at any time, in any investigation.
+
+        `one_time` probes are priced at 0.4 of an interruption on the promise that they are
+        "asked once and then become a modelled covariate". The flag was dropped silently on
+        load, so the promise was not kept and a setup question could be re-asked in every
+        new episode, spending part of a weekly allowance each time.
+
+        ANSWERED, not asked. A question that was put and never answered has established
+        nothing, so asking it again is not repetition.
+        """
+        rows = self._conn.execute(
+            """SELECT DISTINCT probe_id FROM interactions
+                WHERE subject_id = ? AND status = 'ANSWERED'""",
+            (subject_id,),
+        ).fetchall()
+        return [r["probe_id"] for r in rows]
+
     # -- writes ------------------------------------------------------------------
 
     def append_belief(

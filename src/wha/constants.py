@@ -337,7 +337,30 @@ POLICY_COST_PER_INTERRUPT = 0.15
 INTERRUPTION_BUDGET_PER_WEEK = 2  # unsolicited contacts only
 INTERRUPTION_BUDGET_CITATION = (
     "Alarm fatigue: 72-99 percent of clinical monitor alarms are non-actionable, only "
-    "5-13 percent actionable. Systematic review, Front Digit Health 2022;4:843747"
+    "5-13 percent actionable. Systematic review, Front Digit Health 2022;4:843747. "
+    "NOTE: that review is about INTENSIVE CARE BEDSIDE MONITORS, not consumer "
+    "notifications, so it establishes the direction of the argument and not this number."
+)
+# WHAT ACTUALLY KEEPS THIS SYSTEM QUIET, measured rather than assumed.
+#
+# It is not this counter. Across 76 healthy people and 738 person-weeks of the Mishra 2020
+# cohort the system opens an investigation once every 3.6 weeks and asks at most one
+# question per investigation, so two a week is never approached. In a live run with the
+# whole allowance unspent the agent asked one question and stopped, because after the
+# answer the EVSI of every remaining probe had fallen below its interruption cost.
+#
+# The quiet band is the control, and it is the better story: the arithmetic decides an
+# interruption is not worth its cost, rather than a counter running out. Reproduce the
+# alert rate with `uv run python tools/cohort/report.py`.
+#
+# The counter is kept anyway. It costs nothing, it is a genuine backstop, and the alert
+# rate moved when the persistence rule was tightened, so removing a safety net to save
+# nothing is not a trade worth making.
+INTERRUPTION_BUDGET_NOTE = (
+    "This counter has never bound in measurement. Over 738 person-weeks the system opened "
+    "an investigation once every 3.6 weeks and asked at most one question in each, so the "
+    "weekly allowance of 2 was never reached. What keeps it quiet is the EVSI arithmetic "
+    "deciding a question is worth less than the cost of asking it."
 )
 
 # How many turns a conversation the person is already in may run to.

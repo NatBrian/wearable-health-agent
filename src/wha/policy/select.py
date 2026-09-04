@@ -32,6 +32,7 @@ def select_action(
     steps_in_episode: int = 1,
     has_pending_interaction: bool = False,
     already_asked_probe_ids: Sequence[str] = (),
+    answered_probe_ids_ever: Sequence[str] = (),
     has_symptoms_evidence: bool = False,
     cost_per_interrupt: float = POLICY_COST_PER_INTERRUPT,
     already_measured: bool = False,
@@ -40,10 +41,16 @@ def select_action(
     """Select the next policy action following the deterministic 6-step contract."""
     all_probes = probes if probes is not None else load_probes()
     asked_set = set(already_asked_probe_ids)
+    # A one-time probe answered in ANY past episode is not asked again. Its low cost is
+    # justified by exactly that promise, and the promise was not being kept: the flag was
+    # dropped on load, so the question could be re-asked in every new investigation.
+    ever_set = set(answered_probe_ids_ever)
 
     # 1. Evaluate and score all unasked probes
     candidate_scores: list[tuple[ProbeDefinition, float]] = []
     for p in all_probes:
+        if p.one_time and p.probe_id in ever_set:
+            continue
         if p.probe_id not in asked_set:
             sc = score_probe(belief, p, cost_per_interrupt=cost_per_interrupt)
             candidate_scores.append((p, sc))
