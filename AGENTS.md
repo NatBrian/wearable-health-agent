@@ -89,8 +89,10 @@ actually says.
 An overnight resting heart rate deviation opens an **episode**. A Bayesian belief over twelve
 causes is updated from the sensor data, and an **EVSI policy** decides whether asking the person a
 question is worth the interruption. A **deterministic safety floor** runs first and can only ever
-raise urgency, never lower it, and an LLM can never overrule it. Everything the agent asserts must
-be **grounded in a cited passage** or it is stripped or labelled on screen. The dashboard is a
+raise urgency, never lower it, and an LLM can never overrule it. Every clinical sentence the agent produces must
+**quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on
+screen. That check proves the quoted span exists, **not** that the sentence around it says
+what the source says; see `docs/ARCHITECTURE.md` Part 14. The dashboard is a
 **client of the HTTP API** and holds no data logic, so it can be replaced by React.
 
 ---

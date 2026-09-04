@@ -83,9 +83,9 @@ In medical software engineering (IEC 62304 / ISO 14971), **an auxiliary model ou
 ├──────────────────────────┬──────────────────────┬──────────────────────┤
 │ Component Failure        │ System Behavior      │ User & UI Visibility │
 ├──────────────────────────┼──────────────────────┼──────────────────────┤
-│ Chronos Forecaster       │ Forecast marked as   │ Audit log records    │
-│ (PyTorch OOM / Crash)    │ FAILED; statistical  │ 'forecast_unavail';  │
-│                          │ detector continues.  │ RHR baseline active. │
+│ Retrieval index         │ Grounding strips the │ Reply shows the      │
+│ (embedding model absent) │ ungrounded sentence; │ amber uncited block; │
+│                          │ BM25 alone continues.│ Evidence tab is thin.│
 ├──────────────────────────┼──────────────────────┼──────────────────────┤
 │ Live LLM API             │ Safety filter trips; │ Conversation badge   │
 │ (Malformed/Bad Syntax)   │ substitutes clinical │ shows 'Source:       │
@@ -122,7 +122,7 @@ flowchart LR
         Bridge --> Ingest["Ingestion & Raw Store"]
         Ingest --> Stats["Baseline & Variance Engine"]
         Stats --> Bayes["4,096-State Bayesian Engine"]
-        Stats --> Chronos["Chronos Neural Forecaster"]
+        Stats --> Safety["Deterministic Safety Floor"]
         Bayes --> LLM["Live LLM Reasoning Engine"]
     end
 
@@ -136,7 +136,7 @@ flowchart LR
 * **⌚ Phone Bridge (Health Connect Webhook)**: Ingests raw heart rate samples, step counts, and sleep stages directly from Android Health Connect over local HTTP (`:8787`) with Bearer token authentication.
 * **🤖 Live LLM Inference API**: Compatible with OpenAI, DeepSeek (`deepseek-chat`, `gpt-4o`, `gpt-4.1-mini`), Ollama, OpenRouter, or offline recorded cassettes with automatic Pydantic v2 JSON repair.
 * **💬 Telegram Companion Bot**: Pushes instant anomaly alerts and interactive symptom questionnaires with 1-tap clickable inline keyboard buttons directly to your mobile phone.
-* **📈 Chronos Foundation Model (`amazon/chronos-bolt-small`)**: Pretrained zero-shot time-series forecaster cached in `data/model_cache/` that supplies an advisory prediction interval, solving the cold-start problem (Days 1–5).
+* **📐 Hybrid Retrieval (BM25 + `BAAI/bge-small-en-v1.5` + Reciprocal Rank Fusion)**: Every clinical sentence the agent produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on screen. That check is decidable by code and deliberately narrow: it proves the quoted span exists, not that the sentence around it says what the source says. A neural forecaster was tried here and **removed on measurement**: over 7,295 cohort nights it separated illness worse than the plain baseline residual, AUC 0.586 against 0.629. See `tools/cohort/chronos.py`.
 
 ---
 
@@ -195,26 +195,17 @@ uv run wha doctor --live
 
 **Live Verification Output:**
 ```text
-================================================================================
-CLINICAL PRODUCTION SYSTEM DIAGNOSTIC & HEALTH SUITE
-================================================================================
-
-[MANDATORY PRODUCTION SUBSYSTEMS]
-  [PASS]    Database & Cryptographic Audit Log   -> Schema v1 verified
-  [PASS]    Clinical Knowledge Tables            -> Loaded 12 cited causes, 9 clinical probes
-  [PASS]    Phone Hardware Bridge                -> Connected to bridge at http://192.168.198.181:8787 (255ms)
-  [PASS]    Live LLM Inference API               -> LLM provider 'openai_compatible' responded (3858ms)
-  [PASS]    Telegram Mobile Bot                  -> Telegram bot connected successfully (2499ms)
-  [PASS]    Statistical & Bayesian Engine        -> Deterministic shrinkage, 4096-state posterior ready
-  [PASS]    Chronos Neural Forecaster            -> Amazon Chronos-Bolt model weights cached
-
-[OPTIONAL / ADVISORY SUBSYSTEMS]
-  [INFO]    Research Benchmark Cohorts           -> Stanford & PMData benchmark targets present
-
-================================================================================
-RESULT: ALL MANDATORY SUBSYSTEMS OPERATIONAL. PRODUCTION READY.
-================================================================================
+database        ok     data\wha.sqlite, schema v8, 72 nights, 2 subjects
+knowledge       ok     causes.yaml 12 rows, probes.yaml 8 rows
+bridge          ok     configured at http://127.0.0.1:8788 (auth token configured: True)
+llm             ok     provider=openai_compatible, model=deepseek-chat (key configured: True)
+telegram        ok     chat id and token configured
+cohort          ok     Mishra 2020 wearables and labels present in data/cohort
+baseline        info   subject 'sim': 41 usable nights, rung MATURE
 ```
+
+Any row can read `fail`, and `wha doctor` exits non-zero if one does. `--live` additionally
+opens the bridge, the model provider and the Telegram bot, and reports the round trip in ms.
 
 ### 4. Launch Web Dashboard & Background Scheduler
 
@@ -251,7 +242,7 @@ uv run wha doctor --live         # Live network, hardware, and LLM probe check
 # Data & Ingestion
 uv run wha ingest --days 3       # Fetch & normalize live biometrics from phone bridge
 uv run wha nightly               # Run daily baseline calculation & anomaly detector
-uv run wha data fetch chronos    # Download Amazon Chronos-Bolt neural forecaster
+uv run wha data fetch corpus     # Build the retrieval corpus, including MedlinePlus
 uv run wha data capability       # What your watch sends, and how far each channel gets
 uv run wha data fetch stanford   # Initialize Stanford benchmark evaluation cohort
 uv run wha data fetch pmdata     # Initialize PMData benchmark evaluation cohort
@@ -307,11 +298,13 @@ the system rather than something a person checking their own health acts on.
 * **Autonomic Response vs. Etiology**: Wearable optical sensors observe host autonomic nervous system changes (tachycardia, reduced vagal tone), not circulating pathogens. WHA cannot differentiate Influenza A from COVID-19 without self-reported symptoms or rapid antigen test results.
 * **Confounder Magnitudes**: Acute viral infections elevate nocturnal RHR by $+1.1\text{ to }+2.1\text{ bpm}$, whereas alcohol or late-night exercise can elevate RHR by $+2.4\text{ to }+6.0\text{ bpm}$. The system relies on its value-of-information policy to ask discriminating questions when biometrics alone are ambiguous.
 * **Maturity Ladder**:
-  * `0-2 Nights` (`COLD`): Population prior only ($\mu=62.0, \sigma=7.5$).
+  * `0-2 Nights` (`COLD`): Population prior only ($\mu=62.75$ bpm, and a **within-person**
+    night-to-night scale of $3.71$ bpm, measured on 107 people in the cohort. The
+    between-person SD of $8.64$ is deliberately NOT used here: see `docs/DESIGN-BASELINE-CENTRE.md`).
   * `3-6 Nights` (`PRIOR_DOMINATED`): Shrinkage heavily weighted to population prior.
   * `7-13 Nights` (`SHRINKING`): Empirical Bayes shrinkage transitioning to personal data.
   * `14-27 Nights` (`PERSONAL`): Personal median & MAD dominate.
-  * `28+ Nights` (`MATURE`): Fully personalized trailing baseline with Chronos advisory bands.
+  * `28+ Nights` (`MATURE`): Trailing 28 night window, the person's own median as the centre.
 
 ---
 
@@ -331,7 +324,7 @@ Fetched from outside, and not redistributed here:
 
 Two layers `sources.yaml` names are still narrower than the design says: StatPearls has never been fetched, and the Singapore care-pathway material exists only as the wording already in `red_flags.yaml`. See `STATUS.md`.
 
-The agent may cite these and nothing else. There is no open web search, and it cannot write clinical text of its own: an assertion it cannot ground in a cited passage is either stripped or labelled on screen as coming from the model's own knowledge. Every figure in the authored corpus was checked against the paper it cites; what held up and what did not is in **`docs/CORPUS-VERIFICATION.md`**, and every clinical figure that was changed, with the source sentence quoted for it, is in **`docs/KNOWLEDGE-CHANGELOG.md`**.
+The agent may cite these and nothing else. There is no open web search, and it cannot write clinical text of its own: an assertion whose quoted span is not verbatim in a cited passage is either stripped or labelled on screen as coming from the model's own knowledge. That check proves the span exists; it does not prove the sentence around it describes the source correctly, and `docs/ARCHITECTURE.md` Part 14 shows a real case where it did not. Every figure in the authored corpus was checked against the paper it cites; what held up and what did not is in **`docs/CORPUS-VERIFICATION.md`**, and every clinical figure that was changed, with the source sentence quoted for it, is in **`docs/KNOWLEDGE-CHANGELOG.md`**.
 
 ---
 

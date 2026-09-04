@@ -20,9 +20,11 @@ code cites by name. It is still binding and it is never edited.
 A single-user wearable health early-warning agent. An overnight resting heart rate deviation
 opens an **episode**. A Bayesian belief over twelve causes is updated from sensor data, and an
 **EVSI policy** decides whether asking the person a question is worth the interruption. A
-**deterministic safety floor** runs first and can only raise urgency, never lower it. Everything
-the agent asserts must be **grounded in a cited passage** or it is stripped or labelled on
-screen. The dashboard is a client of the HTTP API and holds no data logic.
+**deterministic safety floor** runs first and can only raise urgency, never lower it. Every clinical sentence the agent
+produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or
+labelled on screen. That check proves the quoted span exists, **not** that the sentence
+around it says what the source says; see `docs/ARCHITECTURE.md` Part 14. The dashboard is
+a client of the HTTP API and holds no data logic.
 
 ---
 

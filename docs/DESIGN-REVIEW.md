@@ -118,10 +118,22 @@ symptom onset date:
 | One investigation every | **3.6 weeks** | 4.5 weeks |
 | People never alerted at all | 14 of 76 | 19 of 76 |
 
-**What this establishes.** The deterministic half is not a toy. It finds real infections
-before symptoms in real people, it beats the published algorithm it was derived from at
-every window tested, and it pays for that with about 26 percent more false alerts. That is
-a coherent and defensible trade, and it is now evidenced rather than assumed.
+> **SUPERSEDED 5 September 2026, and this is the most important correction in this file.**
+> Every figure in the four tables above was measured while the detector ran a **looser
+> alert rule than the one it was citing**: two raised nights with at least one at +4, where
+> NightSignal requires two consecutive nights both at +4. Item 8 of the refinement plan
+> tightened it to the published rule. Re-scored on the same cohort, **this system and
+> NightSignal now agree case for case** at 46.7 / 66.7 / 73.3 / 80.0 percent, and the
+> advantage recorded below was an artefact of the rule mismatch rather than a result. What
+> survives is a longer lead time (3.0 days against 1.5) and a *lower* alert burden (one
+> investigation every 4.9 weeks against 4.5). The current numbers are in `EVALUATION.md`
+> and `docs/detection-results.json`; the account is in `docs/DESIGN-VS-NIGHTSIGNAL.md`.
+> This block is kept unrewritten because a review that quietly updates its own findings is
+> not a review.
+
+**What this established at the time.** The deterministic half is not a toy. It finds real
+infections before symptoms in real people. The claim that it beat the published algorithm
+at every window did not survive the correction above.
 
 **What it also establishes.** The system will open an investigation into a healthy person
 roughly **every three and a half weeks**. Over a year that is about fourteen unnecessary
@@ -752,8 +764,9 @@ The citation is real and I verified the sentence: "Of all patient monitoring ala
 jump the file does not acknowledge.
 
 More to the point, the cohort measurement above shows the budget is not doing anything. The
-detector opens an investigation into a healthy person about **once every 3.6 weeks**, and
-the policy asks at most one question per episode. A limit of two per week is never
+detector opens an investigation into a healthy person about **once every 4.9 weeks** (3.6
+as measured here, before item 8 tightened the alert rule to the published one), and the
+policy asks at most one question per episode. A limit of two per week is never
 approached. It is machinery guarding a door nothing walks through.
 
 #### `POLICY_COST_PER_INTERRUPT = 0.15`

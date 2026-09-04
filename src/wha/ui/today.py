@@ -279,6 +279,21 @@ def render_conversation(subject_id: str) -> str | None:
                         st.caption(f'"{" ".join(str(c["passage"]).split())[:400]}"')
                     if any(is_external(c["source_id"]) for c in citations):
                         st.caption(attribution_note())
+                    # The passage is quoted here so it can be read, because the check
+                    # behind it is narrower than "this sentence is correct". It proves the
+                    # AI quoted a span that really is in the passage. It does not prove
+                    # the sentence it wrote around that span describes the passage
+                    # correctly, and on 5 September 2026 one did not: the two passages
+                    # below were exactly right and the reply still called the baseline an
+                    # "average" and said a night is flagged at 3 bpm. Saying so on the
+                    # screen, not only in docs/ARCHITECTURE.md Part 14.
+                    st.caption(
+                        "The passage is shown so you can read it yourself. This system "
+                        "checks that the AI quoted something really in the passage. It "
+                        "does not check that the sentence it wrote around that quote "
+                        "describes the passage correctly, so where the two differ, the "
+                        "passage is the one to believe."
+                    )
             if uncited:
                 st.warning(
                     "**Not from a cited source.** The following came from the AI's own "

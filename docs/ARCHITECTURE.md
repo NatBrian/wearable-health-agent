@@ -481,44 +481,69 @@ made.
 
 ---
 
-## Part 7. The Chronos forecast
+## Part 7. The forecast that used to be here, and why it is gone
 
-### What does this part do?
+### What was it?
 
 Chronos is a **time series foundation model**: a neural network from Amazon, pre-trained on
 a very large collection of unrelated time series, which can be handed any sequence of
 numbers and asked "what comes next" without ever being trained on your data. This system
-gives it your recent nightly heart rates and asks for tonight's, with a range.
+gave it your recent nightly heart rates and asked for tonight's, with a range.
 
-### Why does it exist? What breaks if you delete it?
+It answered a different question from the detector. The detector asks "is tonight high
+**for you**"; the forecast asks "is tonight a surprise **given the recent trend**". A slow
+drift upward over a week can be unremarkable to the detector and unsurprising to the
+forecast at the same time. That is a real distinction, and it is why the idea was worth
+trying.
 
-Nothing breaks. It is explicitly advisory. It never sets a level, never opens an
-investigation, and is not evidence in the belief model. It answers a different question
-from the detector: the detector asks "is tonight high **for you**", the forecast asks "is
-tonight a surprise **given the recent trend**". A slow drift upward over a week can be
-unremarkable to the detector and unsurprising to the forecast at the same time.
+### Why it was removed
 
-### How does it work?
+**It was never called.** `forecast_night()` had no caller: `detect_night` took an optional
+forecast argument that nothing ever passed, so every night recorded `NOT_RUN`. `wha doctor`
+meanwhile reported 182 MB of weights present, and this documentation described the feature
+in the present tense. That is the defect this codebase produces most often: something
+defined, referenced, and never reached.
 
-Take up to 28 nights, fill missing nights with NaN rather than guessing, ask for the 10th,
-50th and 90th percentile of tonight. Compare the actual reading against that. It needs at
-least five usable nights; below that it declines and says so.
+Once it was connected it could finally be measured, and the measurement is what settled it.
+Over **7,295 nights** of the Mishra 2020 cohort, scored on whether it separates illness
+nights from ordinary ones:
 
-Measured: 0.1 seconds per night once the model is warm; the weights are 182 MB on disk.
-On the real subject, with four usable nights, it correctly refuses on every night.
+| Signal | AUC |
+|---|---|
+| The plain baseline residual the detector already computes | **0.629** |
+| The Chronos forecast residual | 0.586 |
 
-### Why this way, and should it be here at all?
+0.5 is no separation at all. Across 30 labelled infections the forecast caught one the
+detector missed at the most generous threshold, and none at tighter ones. Reproduce with
+`uv run python tools/cohort/chronos.py`.
 
-It is kept out of the belief model on evidence. No study was found showing a forecast
-residual tells you **which** cause is present, and the paper that supplies this system's
-thresholds compared three detectors on exactly this problem: plain baseline deviation
-scored 78 percent sensitivity against 54 for CuSum and 44 for a forecast-style detector,
-at the same false alarm rate. The simplest method beat both cleverer ones.
+That agrees with the literature rather than contradicting it. Alavi et al. 2022, the paper
+that supplies this system's 3 and 4 bpm thresholds, compared three detectors on this exact
+problem: plain baseline deviation scored **78 percent** sensitivity against **54** for CuSum
+and **44** for a forecast-style detector, at the same false alarm rate. The simplest method
+beat both cleverer ones there too.
 
-**Stated plainly:** this is the least load-bearing component in the system. It costs 182 MB
-of model weights and a dependency on PyTorch, and it produces one advisory sentence on one
-screen. It is honest about being advisory, which is more than most such features manage,
-but a reader should understand that deleting it would change no decision the system makes.
+### What went with it
+
+`src/wha/detect/forecast.py`, five `FORECAST_*` constants, the `chronos-forecasting`,
+`accelerate` and `einops` dependencies, and 182 MB of weights. The `forecast_status`
+**column is deliberately kept**, set to `NOT_RUN`, so databases written before the removal
+still open and old rows still read.
+
+PyTorch stayed. The plan expected it to leave with Chronos, but `sentence-transformers`
+needs it for the bge-small embeddings that retrieval runs on, so the dependency is load
+bearing for a different reason.
+
+### The lesson worth keeping
+
+A neural foundation model was the most impressive-sounding component in the system and the
+least load bearing. It lost to subtraction and a median. **Nothing here was decided by which
+method sounds more advanced**, and the only reason that could be checked is that the
+comparison was run on labelled data rather than argued from first principles.
+
+`docs/CONTRACTS.md` is read-only and still lists the five removed constants; the
+disagreement is recorded in `BLOCKERS.md` and enumerated in
+`tests/unit/test_contracts.py::REMOVED_FROM_THE_CODE` rather than papered over.
 
 ---
 
@@ -539,9 +564,9 @@ The twelve causes:
 
 | Cause | How often it is present on any night | How much it raises heart rate |
 |---|---|---|
-| infection | 2.5% | 1.60 bpm |
+| infection | 3.8% | 1.60 bpm |
 | alcohol | 29.9% | 2.60 bpm |
-| unrecorded exertion | 8.0% | 4.14 bpm |
+| unrecorded exertion | 8.0% | 2.91 bpm |
 | short or broken sleep | 34.8% | 1.00 bpm |
 | acute stress | 35.0% | 1.50 bpm |
 | luteal phase of the menstrual cycle | 45.0% | 3.91 bpm |
@@ -634,15 +659,16 @@ as UNRESOLVED, which is an honest outcome rather than a forced guess.
    evidence". The audit page repeats it in words: "most likely stress at 93%, chance of
    illness 78%".
 
-2. **The luteal cause cannot be switched on.** The model treats "do you menstruate" as a
-   three-state fact: yes, no, or not yet established. Not established leaves the cause
-   inert, which was a deliberate and correct fix. But **no code anywhere passes the answer
-   back in**. Every production caller invokes the belief update without the cycle fact, so
-   luteal stays clamped at effectively zero forever. The `probe_cycle` question exists, is
-   priced at 0.4 of an interruption on the grounds that it is a one-off setup question,
-   and its answer cannot move anything. Confirmed on a live run: luteal 0.0 throughout.
-   The same call path also means the "recently recovered from an illness" boost never
-   fires either.
+2. **The luteal cause could not be switched on. Fixed 5 September 2026.** The model
+   treats "do you menstruate" as a three-state fact: yes, no, or not yet established. Not
+   established leaves the cause inert, which is deliberate and correct. But **no code
+   anywhere passed the answer back in**, so luteal stayed clamped at effectively zero
+   forever, confirmed on a live run. The fact now comes from the Settings profile and is
+   passed into all three `update_belief` calls, and `probe_cycle` is retired: it was
+   spending 0.4 of an interruption to learn a standing fact about a person, which is not
+   what an interruption budget is for. An `EpisodeContext` now carries `has_recent_illness`
+   as well, so the "recently recovered from an illness" boost fires too. Both were the same
+   missing wire.
 
 3. **The dose is thrown away.** The alcohol question offers "1 to 2", "3 to 4", "5 or
    more". The underlying study is explicitly dose-dependent. The model has one alcohol
@@ -800,7 +826,7 @@ get_known_events(start="2026-08-28", end="2026-09-04")
 get_data_quality(start="2026-08-28", end="2026-09-04")
 find_similar_past_episodes()
 ...then after the answer arrived...
-get_local_disease_activity()                       -> failed, endpoint unreachable
+get_data_quality(start="2026-09-03", end="2026-09-04")
 get_known_events(start="2026-09-03", end="2026-09-04")
 retrieve_clinical_evidence(query="elevated nocturnal heart rate")
 ```
@@ -887,25 +913,30 @@ ranges are clamped to 90 days and to not-in-the-future.
 | `get_data_quality` | coverage and dropped readings, for judging sensor artefact |
 | `find_similar_past_episodes` | your earlier investigations and how they ended |
 | `retrieve_clinical_evidence` | passages from the local corpus |
-| `get_local_disease_activity` | local outbreak and air quality signals |
 
-**Two of the seven do not do what they say.**
+**Both of the defects this section used to record are now fixed, and one tool is gone.**
 
-`get_data_quality` **ignores the database entirely** and returns the same three invented
+`get_data_quality` **ignored the database entirely** and returned the same three invented
 numbers on every call, for every person, on every night: `coverage_ratio 0.95,
 missing_hours 0.35, dropped_samples 0`. Confirmed in the audit log of a live run. The real
-numbers exist and are used by the belief model, so the agent and the arithmetic are told
-different things about the same night, and the tool whose job is to inform judgements
-about sensor artefact is fabricating.
+numbers existed and were used by the belief model, so the agent and the arithmetic were
+told different things about the same night, and the tool whose job is to inform judgements
+about sensor artefact was fabricating. It now reads the nights it is asked about and
+returns what is actually there.
 
-`get_local_disease_activity` fetches a Singapore government data endpoint with no query
-parameters and returns `{"status": "active", "bytes": <length>}`. It never parses dengue
-clusters, never checks whether you are inside one, and never queries the air quality
-endpoint that is also allow-listed. `sources.yaml` says "A subject inside an active cluster
-materially raises the dengue prior, and no shipped product does this." Nothing raises any
-prior; there is no dengue cause in the model at all. In the live run the call returned
-`ok: false` because the endpoint was unreachable, which is the only reason it was
-harmless.
+That defect had a second life worth recording: a test named
+`test_every_result_carries_provenance` passed throughout, **because** the tool invented
+data. A tool that returns nothing would have failed it. Green suites do not find this shape.
+
+`get_local_disease_activity` was **deleted** rather than repaired. It fetched a Singapore
+government data endpoint with no query parameters and returned `{"status": "active",
+"bytes": <length>}`. It never parsed dengue clusters, never checked whether you were inside
+one, and never queried the air quality endpoint that was also allow-listed. `sources.yaml`
+claimed "A subject inside an active cluster materially raises the dengue prior, and no
+shipped product does this." Nothing raised any prior, and **there is no dengue cause in the
+belief model at all**, so there was no prior for it to raise. Building the real version
+would have meant adding a cause with no local base rate to put on it. Recorded as not done
+rather than half done.
 
 ---
 
@@ -1124,28 +1155,59 @@ Because "did the model make that up" is the same judgement the model is already 
 asking it to grade itself is not a check. A verbatim containment test is decidable by code
 in microseconds and cannot be argued with.
 
-**Two weaknesses, and the first is the most serious thing in this document.**
+### What it proves, and what it does not
 
-1. **The escalation criteria are exempt.** The outcome has a field for "when to seek care",
-   and it is the single most action-guiding text the system produces. The model writes it.
-   It is **not** passed through the grounding check, and it is **not** passed through the
-   fabricated-number filter, which is applied only to the observation prose. In a live run
-   the model produced:
+**It checks the quoted span. It does not check the sentence built around it.** That
+distinction is the whole limit of this mechanism, and an earlier version of this document
+did not state it.
 
-   > "Seek care if fever persists beyond 72 hours or **exceeds 103°F (39.4°C)**"
-   > "Urgent evaluation required for signs of dehydration or hemorrhagic symptoms
-   > (petechiae, bleeding gums)"
+Seen live on 5 September 2026. Asked "why was last night flagged, and what is my baseline",
+retrieval returned exactly the right two method passages, and the reply on screen said:
 
-   Those are specific clinical thresholds invented by a language model and shown to you as
-   guidance. The number filter that exists elsewhere would have stripped 72, 103 and 39.4,
-   because none of them appears in any structured field. It is simply pointed at a
-   different field.
+> "Your baseline is your own **average** resting heart rate during sleep, calculated after
+> seven nights of data. Last night was **flagged** if your resting heart rate was at least
+> **3 bpm** above that baseline."
 
-2. **The "stripped claims" panel is hard-coded empty.** The Evidence tab has a section for
-   assertions that were removed for lack of a source. The service that builds the episode
-   detail sets that list to `[]` and never fills it. The panel therefore always displays a
-   green tick and "No claims were stripped", followed by "all generated statements were
-   successfully grounded", whatever actually happened.
+The baseline is the **median**, not the average, and that is not a quibble: the median is
+why this system does not need NightSignal's zero-step filter, which is set out in
+`docs/DESIGN-VS-NIGHTSIGNAL.md`. And 3 bpm is *elevated*; **flagging needs two consecutive
+nights at 4**, which is the exact rule item 8 of the refinement plan existed to restore. The
+passage said all of this correctly. The paraphrase did not, and it was reported as grounded
+and cited, because the span the model quoted really was in the passage.
+
+The limit case is worse and is pinned in
+`tests/unit/retrieve/test_grounding.py::test_grounding_checks_the_quoted_span_and_not_the_sentence_around_it`:
+a sentence reading "A single night at 3 bpm above baseline opens an investigation", quoting
+the span "An investigation opens only when 2 consecutive nights are RED", **passes**. A
+sentence can state the opposite of the passage it cites and be marked grounded.
+
+**This is not a fixable bug, and no attempt is made to paper over it.** Deciding whether a
+sentence follows from a paragraph is exactly the judgement being avoided, and doing it with
+a second model call would put a model in charge of grading a model. So the honest position
+is:
+
+- What the check **guarantees**: the reply contains no clinical text whose stated source
+  span is absent from the corpus. That is what stops an invented figure like "103 F".
+- What it **does not guarantee**: that the sentence around the span says what the source
+  says.
+
+Every statement of this mechanism in the repository is now written to that scope, and the
+screen says it too rather than only the files.
+
+### Two earlier weaknesses, both since fixed
+
+1. **The escalation criteria were exempt.** The single most action-guiding text the system
+   produces was written by the model and passed through neither the grounding check nor the
+   fabricated-number filter. A live run produced "Seek care if fever persists beyond 72
+   hours or **exceeds 103 F (39.4 C)**" and "Urgent evaluation required for signs of
+   dehydration or hemorrhagic symptoms (petechiae, bleeding gums)", specific clinical
+   thresholds invented by a language model and shown to a person as guidance. The criteria
+   are now **selected** from cited text rather than generated. Item 2.
+
+2. **The "stripped claims" panel was hard-coded empty.** The Evidence tab has a section for
+   assertions removed for lack of a source, and the service that builds the episode detail
+   set that list to `[]` and never filled it, so the panel always showed a green tick and
+   "No claims were stripped" whatever had happened. Item 11.
 
 ---
 
@@ -1372,23 +1434,34 @@ same paper's supplementary data, on the same date shift as the public files. Thi
 downloaded both, replayed this system's own detector over **8,508 real nights from 120 real
 people**, and replayed the published NightSignal algorithm alongside it.
 
-**Does it find infections?** Yes, and better than the algorithm it was derived from. The
-last column is what a detector that alerts at the same rate, but at random, would score.
-Read the table from the top: a wide window flatters everybody.
+**Does it find infections?** Yes, and **exactly as well as the algorithm it was derived
+from, not better**. The last column is what a detector that alerts at the same rate, but at
+random, would score. Read the table from the top: a wide window flatters everybody.
 
 | Alert fired within | This system | Published NightSignal | Random, same rate |
 |---|---|---|---|
-| 3 days before onset, 1 after | **53.3%** | 46.7% | 20.2% |
-| 7 days before, 3 after | **73.3%** | 66.7% | 40.4% |
-| 21 days before, 7 after | 83.3% | 80.0% | 73.5% |
+| 3 days before onset, 1 after | 46.7% | 46.7% | 16.5% |
+| 7 days before, 3 after | 66.7% | 66.7% | 34.2% |
+| 14 days before, 7 after | 73.3% | 73.3% | 55.9% |
+| 21 days before, 7 after | 80.0% | 80.0% | 66.1% |
 
-Strictly **before** symptoms, at the 7 day window: **43.3%** against 33.3% for the
-reference.
+**An earlier version of this document claimed about six points better at every window, and
+that claim was false.** It was measured while this system ran a *looser* alert rule than the
+one it was citing: two raised nights with at least one at +4, where NightSignal requires two
+consecutive nights both at +4. The looser rule bought 6.7 points of sensitivity, two cases
+in thirty, for 37 percent more investigations on people who were not ill. Tightened to the
+published rule on 5 September 2026, and the two now agree case for case. Being able to
+notice this at all required replaying both on labelled data; no amount of reading the code
+would have shown it. `docs/DESIGN-VS-NIGHTSIGNAL.md` has the full account.
 
-**What does it cost?** On 76 people with no illness label at all, across 738 person-weeks,
-this system opens an investigation **once every 3.6 weeks** per person. The reference
-algorithm opens one every 4.5 weeks. So it is more sensitive and about a quarter more
-false-alarm prone, which is a coherent trade.
+**Two honest claims survive**, and both come from the other design differences rather than
+from the alert rule:
+
+- **It warns earlier.** Median lead time at the 7 day window is **3.0 days** against
+  NightSignal's 1.5.
+- **It is quieter.** On 76 people with no illness label at all, across 738 person-weeks, it
+  opens an investigation **once every 4.9 weeks** per person, against 4.5 for the reference:
+  150 investigations against 163.
 
 That last number also settles something. The weekly interruption budget of two, and all the
 machinery around it, is guarding against an alert rate the detector does not produce.
@@ -1407,21 +1480,32 @@ The full results, the caveats, and what this does **not** show are in
   clinical figures were corrected against their sources when checking found them wrong.
 - The EVSI policy genuinely works and genuinely stops on its own.
 - The grounding check is a real check, decidable by code, and it does real work.
-- Refusals are recorded as first-class events. "The forecast did not run because it needs
-  five nights and there are four" is a better thing to show a person than silence.
+- Refusals are recorded as first-class events. "This cannot be flagged yet because the
+  baseline needs seven usable nights and there are four" is a better thing to show a person
+  than silence.
 - The pause-and-resume of a live investigation across process restarts is hard and it works.
+- **Three components were deleted on measurement rather than kept for appearance**: a neural
+  forecaster, a disease-activity tool, and a whole limb of the agent graph. Each is recorded
+  with the number that killed it.
 
-**Not good, and load-bearing:**
+**Not good, and load-bearing. All five were fixed on 5 September 2026, and they are kept
+here because the shape of them is the lesson:**
 
-- The most action-guiding text the system produces, the escalation criteria, is written by
-  a language model and passes through no check at all.
-- Three safety mechanisms exist, are documented, are tested in isolation, and have never
-  executed in production: the blood oxygen threshold, the two extreme-heart-rate rules,
-  and the human review checkpoint, which a background job approves on your behalf.
-- One of the twelve causes is unreachable by construction, and the question that exists to
-  unlock it cannot.
-- Two of the seven tools return invented or empty data.
-- The screen that exists to show what the system did reports that it did nothing.
+- The most action-guiding text the system produces, the escalation criteria, **was written
+  by a language model and passed through no check at all.** A live run produced "exceeds
+  103 degrees F (39.4 C)", invented. It is now selected from cited text, not generated.
+- Three safety mechanisms existed, were documented, were tested in isolation, and **had
+  never executed in production**: the blood oxygen threshold had no caller, the two
+  extreme-heart-rate rules never received `robust_z`, and the human review checkpoint was
+  auto-approved by the scheduler. All three now run.
+- One of the twelve causes was unreachable by construction, and the question that existed
+  to unlock it could not.
+- Two of the six tools returned invented or empty data.
+- The screen that exists to show what the system did reported that it did nothing.
 
-Every one of those was found by running the system or by using it, and none of them was
-found by the 546 tests, which all pass.
+**Every one of those was found by running the system or by using it as a person would.
+None was found by the test suite, which passed throughout.** That is the single most useful
+thing in this document: four subsystems had never once executed while several hundred tests
+were green, and one test passed *because* a tool was fabricating data rather than despite
+it. A green suite is evidence that the code does what the tests say. It is not evidence
+that the code runs.

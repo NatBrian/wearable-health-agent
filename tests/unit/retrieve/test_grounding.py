@@ -101,3 +101,62 @@ def test_stripped_claims_are_counted() -> None:
     assert len(grounded) == 1
     assert unsupported == 2
     assert grounded[0].text == "Valid claim"
+
+
+def test_grounding_checks_the_quoted_span_and_not_the_sentence_around_it() -> None:
+    """The limit of this check, pinned so nobody reads it as more than it is.
+
+    `enforce_grounding` verifies that the span the model SAYS it took from a passage
+    appears verbatim in one. It does not compare the model's own sentence against that
+    passage, and it cannot: "does this sentence follow from that paragraph" is the
+    judgement the model is already making, which is why this check deliberately avoids it.
+
+    The consequence is real and was seen live on 5 September 2026. Asked "why was last
+    night flagged, and what is my baseline", retrieval returned exactly the right two
+    method passages, and the reply shown on the dashboard said the baseline is an
+    "average" (it is the median) and that a night is "flagged" at 3 bpm (3 bpm is
+    elevated; flagging needs two consecutive nights at 4). Both sentences carried a
+    verbatim span, so both were reported as grounded and cited.
+
+    This test asserts the CURRENT behaviour, including the part that is a limitation. If a
+    future check compares claim text as well as span, these assertions should fail and be
+    rewritten with the new behaviour measured. Do not delete it to make something pass.
+    """
+    passage = (
+        "# What counts as an elevated night A night is called elevated when the resting "
+        "heart rate measured during sleep sits at least 3 bpm above the person's own "
+        "baseline, and is called RED at 4 bpm above it. An investigation opens only when "
+        "2 consecutive nights are RED. That is the published rule exactly, and one RED "
+        "night on its own never opens anything."
+    )
+
+    # The sentence a person was actually shown. "flagged" at 3 bpm is wrong: 3 bpm is
+    # elevated, and flagging needs two consecutive RED nights at 4.
+    misdescribes = GeneratedClaim(
+        text="Last night was flagged if your resting heart rate was at least 3 bpm above "
+        "that baseline.",
+        evidence_span="at least 3 bpm above the person's own baseline",
+    )
+
+    # The limit case: a sentence that states the OPPOSITE of the span it quotes.
+    contradicts = GeneratedClaim(
+        text="A single night at 3 bpm above baseline opens an investigation.",
+        evidence_span="An investigation opens only when 2 consecutive nights are RED",
+    )
+
+    grounded, unsupported = enforce_grounding([misdescribes, contradicts], [passage])
+
+    assert unsupported == 0, "neither is caught, and that is the point of this test"
+    assert len(grounded) == 2
+    assert all(c.citation for c in grounded), "both are attributed to the passage"
+
+    # What the check DOES catch, so the value of it is not understated either: a span that
+    # is not in any passage at all, which is what an invented figure looks like.
+    invented = GeneratedClaim(
+        text="Seek care if your temperature exceeds 103 F.",
+        evidence_span="seek care if your temperature exceeds 103 F",
+    )
+    grounded, unsupported = enforce_grounding([invented], [passage])
+    assert unsupported == 1
+    assert grounded == []
+    assert invented.citation is None

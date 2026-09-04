@@ -896,3 +896,47 @@ gone, so the disagreement is enumerated rather than hidden.
 me, along with the `forecast_*` fields on the `Detection` model if you want the contract to
 match. The `forecast_status` COLUMN is deliberately kept, set to `NOT_RUN`, so databases
 written before this still open and old rows still read.
+
+## grounding - a cited sentence can still misdescribe the passage it cites
+
+**What I tried:** driving the dashboard as a person, 5 September 2026. Typed "Why was last
+night flagged, and what is my baseline?" into the Today page.
+
+**What happened:** retrieval was correct. It returned exactly the two passages that answer
+the question, `method_personal_baseline#c0` and `method_detection_thresholds#c0`, which say
+"the person's own **median** sleeping resting heart rate" and "called elevated ... at least
+3 bpm ... called RED at 4 bpm ... An investigation opens only when 2 consecutive nights are
+RED". The reply shown to me said:
+
+> "Your baseline is your own **average** resting heart rate during sleep, calculated after
+> seven nights of data. Last night was **flagged** if your resting heart rate was at least
+> **3 bpm** above that baseline."
+
+The baseline is a median, not an average. 3 bpm is elevated, not flagged; flagging needs two
+consecutive nights at 4. Both sentences were reported as grounded and cited, with no amber
+marker, because the span the model quoted really is in the passage.
+
+**What I think is wrong:** nothing in the code, and this is why it is recorded rather than
+fixed. `enforce_grounding` verifies `claim.evidence_span` against the passages. It never
+compares `claim.text` to them, and it cannot: "does this sentence follow from that
+paragraph" is exactly the judgement the check exists to avoid asking a model to make.
+
+Reproduced as a unit test rather than described:
+`tests/unit/retrieve/test_grounding.py::test_grounding_checks_the_quoted_span_and_not_the_sentence_around_it`
+shows the limit case passing, a sentence reading "A single night at 3 bpm above baseline
+opens an investigation" while quoting the span "An investigation opens only when 2
+consecutive nights are RED".
+
+**What I did instead of fixing it.** The repository described this mechanism as "everything
+the agent asserts must be grounded in a cited passage", and `docs/ARCHITECTURE.md` said the
+check "cannot be argued with" and "This works". That overstates it. Every statement of it is
+now written to what it actually guarantees, in `CLAUDE.md`, `AGENTS.md`, `README.md` and
+`docs/ARCHITECTURE.md` Part 14, **and on the dashboard**, where the citation panel now says
+the passage is the thing to believe where the two differ. A limitation on screen and not
+only in a file is what the standing rule asks for.
+
+**What I need:** a decision on whether to spend a second model call on entailment. I have
+not done it, because it puts a model in charge of grading a model, and every other check in
+this system is decidable by code. The alternative worth considering is answering "how does
+this system work" questions from the method passages verbatim rather than letting them be
+paraphrased at all, since those are the questions where the paraphrase has no upside.
