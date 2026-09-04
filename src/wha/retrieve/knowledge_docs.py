@@ -449,41 +449,67 @@ def generate_probe_evidence_docs(path: Path | None = None) -> list[CorpusDocumen
     if not isinstance(data, dict):
         return []
 
+    # causes.yaml already carries a written label for every cause. Using it keeps one
+    # phrase for a cause across the tables, the screen and the corpus.
+    cause_labels: dict[str, str] = {}
+    causes_path = target.parent / "causes.yaml"
+    if causes_path.exists():
+        causes_data = yaml.safe_load(causes_path.read_text(encoding="utf-8"))
+        if isinstance(causes_data, dict):
+            for row in causes_data.get("causes", []) or []:
+                if isinstance(row, dict) and row.get("cause"):
+                    cause_labels[str(row["cause"])] = str(row.get("label", row["cause"]))
+
     docs: list[CorpusDocument] = []
     for probe in data.get("probes", []) or []:
         if not isinstance(probe, dict):
             continue
         probe_id = str(probe.get("probe_id", "probe_unknown"))
         cause = str(probe.get("target_cause", "unknown"))
+        cause_label = cause_labels.get(cause, cause.replace("_", " "))
         answers = probe.get("answer_space", []) or []
         likelihood = probe.get("likelihood", {}) or {}
         present = likelihood.get("present", {}) or {}
         absent = likelihood.get("absent", {}) or {}
         labels = {str(a.get("option_id")): str(a.get("label", "")) for a in answers}
 
+        # Item 31 rewrote layer 3 to stop it printing internal lists. This layer had the
+        # same defect and it is the one the review actually complained about: searching
+        # "fever" used to return this passage FIRST, and what it showed was
+        # `- **none**: "Nothing unusual"`, an option-id dump presented as clinical
+        # evidence. The ids live in metadata, where the audit trail reads them.
+        question = str(probe.get("fallback_text", "")).strip()
+        choices = [label for label in labels.values() if label]
+        if len(choices) > 1:
+            offered = ", ".join(choices[:-1]) + ", or " + choices[-1]
+        else:
+            offered = choices[0] if choices else "nothing"
+
         lines = [
-            f"# What an answer to {probe_id} tells us about {cause}",
+            f"# Why this system asks about {cause_label}",
             "",
             (
-                f"This question exists to resolve one thing: whether {cause} is "
-                "contributing to the elevation. The question wording is written fresh "
-                "each time; only the answer slots are fixed, because the numbers below "
-                "are defined over those slots."
+                f"This question exists to resolve one thing: whether {cause_label.lower()} "
+                "is contributing to the raised reading. The wording is written fresh each "
+                "time, so it will not arrive in the same words twice, but the choices "
+                "offered are fixed because the numbers below are defined over them."
             ),
             "",
-            "## The answers offered",
+            "## What you are asked, and what you can answer",
             "",
         ]
-        for option_id, label in labels.items():
-            lines.append(f'- **{option_id}**: "{label}"')
+        if question:
+            lines.append(f"The question is along the lines of: {question}")
+            lines.append("")
+        lines.append(f"The answers offered are: {offered}.")
 
         lines += [
             "",
             "## How much each answer moves the belief",
             "",
             (
-                f"Probability of each answer if {cause} IS contributing, against the "
-                "probability of the same answer if it is not:"
+                f"Probability of each answer if {cause_label.lower()} IS contributing, "
+                "against the probability of the same answer if it is not:"
             ),
             "",
         ]
@@ -515,7 +541,7 @@ def generate_probe_evidence_docs(path: Path | None = None) -> list[CorpusDocumen
         docs.append(
             CorpusDocument(
                 doc_id=f"evidence_{probe_id}",
-                title=f"What an answer to {probe_id} tells us about {cause}",
+                title=f"Why this system asks about {cause_label}",
                 layer=4,
                 source_url="data/knowledge/probes.yaml",
                 licence="Ours",

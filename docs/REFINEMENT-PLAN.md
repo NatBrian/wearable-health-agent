@@ -1280,6 +1280,31 @@ candidate passage together and re-scores them.
 
 **How you will know it worked.** `wha corpus search fever` returns passages about fever.
 
+**OUTCOME, 5 September 2026: MEASURED AND NOT ADOPTED.** The check above passes without a
+reranker. Item 31, which rewrote the layer 3 passages, removed the cause: precision at 8
+over twelve judged queries is **79.2%**, and `wha corpus search fever` returns eight
+passages about fever. A cross-encoder was then tried anyway, in **16 configurations** across
+two models, two pool depths, with and without the title in the scored text, and both
+replacing the hybrid ranking and fused with it. **Not one beat 79.2%.** The best tied, and
+only when fused with the ranking it was meant to improve. This item's exact prescription,
+a pool of 20 reordered outright by `bge-reranker-base`, scored **72.9 percent**, and the
+same prescription with the faster MiniLM scored **69.8 percent**, which is 9.4 points worse
+than doing nothing. Deeper pools were consistently worse: more candidates give the cross-encoder more
+off-topic material to promote, and BM25 exact-term matching on a small topical corpus beats
+a model trained on MS MARCO web passages. A perfect reranker over the same pool would reach
+94.8%, so the headroom exists and neither model captures any of it. The full table and the
+reasoning are in the module docstring of `tools/retrieval_check.py`; reproduce the sweep
+with `tools/rerank_sweep.py`. Adopting this would have cost 1.1 GB of weights and
+seconds per query to make retrieval worse.
+
+The 79.2 percent and all 16 runs were measured on the corpus as it stood that morning. Layer
+4, the probe-evidence passages, was rewritten as prose afterwards, because `wha corpus search
+fever` still returned the raw answer-option dump at rank 3, which is the failure this item's
+problem statement actually described. On the same twelve queries the baseline is now **77.1
+percent**, the 2.1 points spent on probe passages surfacing more often now that they are
+written in a reader's words. The reranker comparison is unaffected: each model was scored
+against the corpus it ran on.
+
 ## 31. Stop the corpus leaking the internal keyword lists
 
 `FIX` · Effort **S** · Risk **none**
