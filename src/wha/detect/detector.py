@@ -86,14 +86,29 @@ def compute_detection_for_features(
     #
     # The level is still computed and stored, so the night is charted and feeds the
     # baseline. It simply cannot raise an alert.
+    # The rule is the published one: DETECT_PERSISTENCE_NIGHTS consecutive nights, ALL of
+    # them RED. It used to be "consecutive elevated nights with at least one RED", so RED
+    # followed by YELLOW fired too, and nothing said so while the project quoted
+    # NightSignal's sensitivity as support for its own thresholds.
+    #
+    # Measured on 30 labelled COVID-19 cases and 76 healthy people over 738 person-weeks,
+    # at a seven day pre-symptomatic window (uv run python tools/cohort/sweep.py):
+    #
+    #   at least one RED : 60.0 percent sensitivity, 0.272 investigations per person-week
+    #   both RED         : 53.3 percent sensitivity, 0.198 investigations per person-week
+    #
+    # The looser rule bought 6.7 points, which is two cases in thirty, for 37 percent more
+    # investigations on healthy people. Every investigation opened on a healthy person is a
+    # chance to interrupt them for nothing, and the tighter rule is the one the cited paper
+    # actually measured, so this is both quieter and honestly sourced.
     flagged = False
     if baseline.usable_nights < BASELINE_MIN_NIGHTS_PERSONAL:
         pass
-    elif level in (DetectionLevel.YELLOW, DetectionLevel.RED):
-        # Current run of consecutive elevated nights ending tonight
+    elif level == DetectionLevel.RED:
         current_run = [level] + list(preceding_consecutive_levels or [])
-        if len(current_run) >= DETECT_PERSISTENCE_NIGHTS and any(
-            lvl in (DetectionLevel.RED, "RED") for lvl in current_run
+        recent = current_run[:DETECT_PERSISTENCE_NIGHTS]
+        if len(recent) >= DETECT_PERSISTENCE_NIGHTS and all(
+            lvl in (DetectionLevel.RED, "RED") for lvl in recent
         ):
             flagged = True
 

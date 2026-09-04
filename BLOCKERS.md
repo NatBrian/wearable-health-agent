@@ -814,3 +814,30 @@ hold, so the problem is the uncited numbers, not the cited ones.
 claims, do not replace them with a statement that an AI wrote them, let each number's own
 provenance field carry the truth), and permission to edit `data/knowledge/` has been granted
 and recorded in `STATUS.md`.
+
+
+## contract - `docs/CONTRACTS.md` describes a baseline scale the code no longer computes
+
+**What I tried:** item 7 of `docs/REFINEMENT-PLAN.md`, correcting what the band's width
+shrinks toward.
+
+**What happened:** `compute_baseline` now shrinks `scale_bpm` toward a new
+`WITHIN_PERSON_SCALE_PRIOR_BPM = 3.71` instead of `POP_PRIOR_RHR_SD_BPM = 8.64`. Line 149
+of `docs/CONTRACTS.md` still reads:
+
+> `scale` is unchanged: it shrinks the same way from `POP_PRIOR_RHR_SD_BPM` toward a
+> scaled MAD, floored at `BASELINE_SCALE_FLOOR_BPM`.
+
+**What I think is wrong:** nothing in the code. 8.64 is Bloomfield's spread across 525
+different adults, a between-person quantity. `scale_bpm` sets the width of the band around
+one person's own median and is the divisor of `robust_z`, which is a within-person
+quantity, and the unit the two extreme heart rate rules are written in. Using one for the
+other is the same category error the contract itself was amended on 3 September to fix on
+the centre. The replacement is measured, not assumed: 3.71 bpm is the median scaled MAD of
+107 people across 8,508 nights, reproducible with `tools/cohort/band_width.py`, and the
+full working with what it changes is in `docs/KNOWLEDGE-CHANGELOG.md`.
+
+**What I need:** a one-line amendment to `docs/CONTRACTS.md`, which is read-only to me. The
+sentence should become: `scale` shrinks the same way from `WITHIN_PERSON_SCALE_PRIOR_BPM`
+toward a scaled MAD, floored at `BASELINE_SCALE_FLOOR_BPM`. Until then the contract and the
+code disagree on one line, and the code is the one with the measurement behind it.

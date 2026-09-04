@@ -6,8 +6,10 @@ import pytest
 
 from wha.constants import (
     BASELINE_SCALE_FLOOR_BPM,
+    BASELINE_WINDOW_NIGHTS,
     POP_PRIOR_RHR_MEAN_BPM,
     POP_PRIOR_RHR_SD_BPM,
+    WITHIN_PERSON_SCALE_PRIOR_BPM,
 )
 from wha.detect import compute_baseline, compute_baseline_truncated, rung_for
 from wha.models import BaselineRung, NightlyFeatures
@@ -23,14 +25,42 @@ def _make_night(d: int, rhr: float | None = 60.0, usable: bool = True) -> Nightl
     )
 
 
-def test_zero_nights_returns_population_prior() -> None:
-    """Empty history returns population prior values with zero weight and COLD rung."""
+def test_zero_nights_returns_the_two_priors() -> None:
+    """Empty history returns the priors, with zero weight and a COLD rung.
+
+    CORRECTED 5 September 2026. This asserted `scale_bpm == POP_PRIOR_RHR_SD_BPM`, and in
+    doing so it froze a category error. 8.64 is Bloomfield's BETWEEN-PERSON spread: how
+    much 525 different adults differ from each other. `scale_bpm` is a WITHIN-PERSON
+    quantity: how far one person's nights sit from their own median. The two priors are
+    now different numbers because they are different things, and this test says so.
+    """
     base = compute_baseline([])
     assert base.centre_bpm == POP_PRIOR_RHR_MEAN_BPM
-    assert base.scale_bpm == POP_PRIOR_RHR_SD_BPM
+    assert base.scale_bpm == WITHIN_PERSON_SCALE_PRIOR_BPM
     assert base.usable_nights == 0
     assert base.shrink_weight == 0.0
     assert base.rung == BaselineRung.COLD
+
+
+def test_the_band_width_never_borrows_a_between_person_spread() -> None:
+    """The defect, guarded directly rather than through a value.
+
+    Breaking this means the band has gone back to being as wide as the difference between
+    two different people, which is roughly twice a real person's night-to-night wobble and
+    makes robust_z, the unit the extreme heart rate safety rules are written in, mean
+    something other than what those rules say it means.
+    """
+    assert WITHIN_PERSON_SCALE_PRIOR_BPM < POP_PRIOR_RHR_SD_BPM
+
+    # A person whose own nights vary by about 3 bpm should end up with a band about that
+    # wide, not one inflated toward 8.64.
+    readings = [57, 60, 63, 58, 62, 60, 64, 56, 60, 61, 59, 63, 60, 57]
+    history = [_make_night(i, float(v)) for i, v in enumerate(readings * 2)][
+        :BASELINE_WINDOW_NIGHTS
+    ]
+    base = compute_baseline(history)
+    assert base.usable_nights == BASELINE_WINDOW_NIGHTS
+    assert base.scale_bpm < POP_PRIOR_RHR_SD_BPM / 2
 
 
 def test_shrink_weight_is_half_at_pseudo_nights() -> None:

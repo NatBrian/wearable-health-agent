@@ -461,3 +461,42 @@ def record_review_decision(
         ),
     )
     conn.commit()
+
+
+def record_data_safety_escalation(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    episode_id: str,
+    detection: Detection,
+    result: Any,
+) -> None:
+    """Record a safety rule that fired on the DATA rather than on what the person said.
+
+    Every escalation this system had ever raised came from free text. These three rules
+    read the night itself, and until they were connected the Audit page could never show a
+    person a decision made about them that they had not triggered by typing something.
+    """
+    append_audit(
+        conn,
+        _event(
+            subject_id,
+            "system",
+            "nightly",
+            episode_id=episode_id,
+            output={
+                "night": detection.night_date.isoformat(),
+                "level": detection.level.value,
+                "robust_z": detection.robust_z,
+                "residual_bpm": detection.residual_bpm,
+                "triggered_flags": list(result.triggered_flags),
+                "urgency": result.level,
+                "guidance": list(result.guidance),
+                "summary": (
+                    "A fixed rule read the night itself and raised this, without you "
+                    "having reported anything. " + (result.reason or "")
+                ),
+            },
+            safety_event="red_flag_vitals",
+        ),
+    )
+    conn.commit()

@@ -33,29 +33,68 @@ causes:
 
   - cause: infection
     label: "Infection-like immune activation"
-    base_rate: 0.025
+    base_rate: 0.038
     effect_mean_bpm: 1.60
-    effect_sd_bpm: 1.00
+    effect_sd_bpm: 1.75
     profile: [0.5, 0.8, 1.0, 1.0, 0.9, 0.7, 0.5, 0.3, 0.0]
     evidence_grade: B
     provenance: DERIVED
     derivation: >
-      Published peak resting-heart-rate increase relative to baseline is 1.8 percent in
-      females and 3.4 percent in males. On a cohort mean nocturnal RHR of 62.75 bpm that
-      is +1.1 to +2.1 bpm. Midpoint 1.6 taken. Re-verified against a second independent
-      source in September 2026 because the original research note flagged it as read from
-      a search summary rather than the paper.
+      MEASURED, 5 September 2026, on 30 labelled COVID-19 cases and 138 matched healthy
+      windows from the Mishra et al. 2020 cohort, using this system's own compute_baseline
+      so the answer is in the units the detector works in. Reproduce with
+      `uv run python tools/cohort/infection.py`.
+
+      EFFECT SIZE. Mean nightly elevation above the person's own baseline across the seven
+      nights BEFORE symptoms: median +1.93 bpm in cases against -0.25 bpm in matched
+      healthy windows of the same width, a difference of +2.18 bpm. At n=22 cases the
+      standard error of that difference is about 0.85 bpm, so the interval runs roughly
+      +0.5 to +3.9. The stored 1.60 sits inside it and is kept, unchanged, rather than
+      moved to a point estimate the data cannot separate from it.
+
+      A control is essential and its absence is what made an earlier review of this file
+      wrong. Taking the highest night in a window is biased upward, so an illness peak
+      means nothing beside a healthy window scored the same way.
+
+      TWO REGIMES, ONE NUMBER. The same measurement gives about +5.0 bpm for windows
+      SPANNING symptom onset, against +2.18 before it. This row captures the
+      pre-symptomatic regime, which is the one the system exists to act in, and
+      understates the symptomatic one by roughly a factor of two. Recorded rather than
+      fixed, because the day-by-day medians are too noisy at n≈22 to fit a shape to:
+      adjacent days swing between 0.0 and +3.0 bpm.
+
+      SPREAD. effect_sd_bpm was 1.00 with no source. The between-person spread of the
+      mean pre-symptomatic elevation is SD 3.75 bpm in cases against 3.32 in controls;
+      the excess attributable to how differently an infection lands, under an independence
+      assumption, is 1.75 bpm. That assumption and the n=22 sample both make it imprecise,
+      and it is quoted here rather than dressed up.
+
+      BASE RATE. Was 0.025 with no source, meaning about nine days of infection a year.
+      CDC, About Common Cold, updated 19 February 2026: "Every year in the United States,
+      adults have an average of two to three colds", and "Colds usually last less than a
+      week". The low end of that is 2 x 7 = 14 days, which is 0.038 of days. Taken at the
+      low end deliberately, and it remains a FLOOR: it counts colds only, and every other
+      infection is additional.
     profile_source: >
       Onset 1 to 3 days before symptom awareness; red-alert clusters average 4.3 days in
       COVID-positive participants against 1.9 in negatives; a prolonged tail follows.
-      The rising then falling shape encodes that.
+      The rising then falling shape encodes that. The day-by-day measurement above is
+      consistent with the shape and too noisy to refine it.
     citation: >
-      Mishra et al., Nat Biomed Eng 2020;4:1208-20. Alavi et al., Nat Med 2022;28:175-84,
-      n=3,318. Radin et al., JAMA Netw Open 2021;4(7):e2115959, n=234.
+      Natarajan, Su and Heneghan, Front Physiol 2022;13:898251, n=7,200: "elevated during
+      symptom onset, with average peak increases relative to the baseline of 1.8% (3.4%)
+      for females (males)". Those percentages were previously credited to Mishra et al.
+      2020, which does not contain them. Alavi et al., Nat Med 2022;28:175-84, n=3,318,
+      and Radin et al., JAMA Netw Open 2021;4(7):e2115959, n=234, for the pre-symptomatic
+      timing. CDC, About Common Cold, for the base rate. The effect size and spread stored
+      here are measured on the Mishra et al. 2020 cohort rather than taken from any of
+      them; see the derivation.
     note: >
       THE MOST IMPORTANT NUMBER IN THE PROJECT, and it is SMALLER than alcohol, evening
       exercise and the luteal phase. Detection works at all only because it is
-      within-person, multi-channel and sustained across nights.
+      within-person, multi-channel and sustained across nights. That is not a defect in
+      the number: a flagged night is usually noise, and the belief model is right to say
+      infection is unlikely on any one of them.
 
   - cause: alcohol
     label: "Alcohol"
@@ -80,14 +119,20 @@ causes:
   - cause: exertion
     label: "Unrecorded or under-recorded exertion"
     base_rate: 0.080
-    effect_mean_bpm: 4.14
+    effect_mean_bpm: 2.91
     effect_sd_bpm: 1.50
     profile: [1.0, 0.25, 0.0]
     evidence_grade: B
     provenance: DERIVED
     derivation: >
       Effect size CITED: Leota et al., Nat Commun 2025;16:3297, n=14,689, 4,084,354
-      person-nights. High-strain session ending 0 to 2 hours before sleep, +4.14 bpm.
+      person-nights. The paper reports incremental contrasts between adjacent strain
+      levels; high strain against no exercise is their sum: 1.58 bpm at -6h, 1.87 at -4h,
+      2.91 at -2h, 5.59 at sleep onset. A session ending 0 to 2 hours before sleep takes
+      the value at the edge of that band furthest from sleep onset, +2.91 bpm, which is
+      the smallest figure the paper supports for the band. This entry said 4.14, which
+      appears nowhere in that table. Its twin in constants.py was corrected on 4 September
+      2026 and this one was missed. See docs/KNOWLEDGE-CHANGELOG.md.
       Base rate is DERIVED and uncertain: recorded sessions are already subtracted by the
       detector, so this cause means UNRECORDED exertion only, that is swimming, cycling,
       resistance work with a step-based device, or a device that was off. Estimated as a

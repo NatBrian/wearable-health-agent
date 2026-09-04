@@ -25,7 +25,8 @@ documents:
 
     A night is called elevated when the resting heart rate measured during sleep sits at least
     3 bpm above the person''s own baseline, and is called RED at 4 bpm above it. An investigation
-    opens only when 2 consecutive nights are elevated and at least one of them is RED.
+    opens only when 2 consecutive nights are RED. That is the published rule exactly, and
+    one RED night on its own never opens anything.
 
 
     ## Where these numbers come from
@@ -92,11 +93,19 @@ documents:
     ## The cold start
 
 
-    Before seven nights the estimate is shrunk toward a population mean of 62.75 bpm with
-    a standard deviation of 8.64 bpm. That figure is an average of 525 adults wearing an Oura
-    ring, reported in Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473. They were
-    first-year university students, so it is a starting guess rather than a description of
-    any particular person, and it stops mattering once the person''s own nights arrive.'
+    Before seven nights the centre is shrunk toward a population mean of 62.75 bpm. That figure
+    is an average of 525 adults wearing an Oura ring, reported in Bloomfield et al. 2024,
+    PLOS Digital Health 3(4):e0000473. They were first-year university students, so it is
+    a starting guess rather than a description of any particular person, and it stops mattering
+    once the person''s own nights arrive.
+
+
+    The WIDTH of the band shrinks toward a different number, 3.71 bpm, and the distinction
+    matters. The 8.64 bpm standard deviation in that same paper is how much 525 different
+    people differ from EACH OTHER. The width of this band is how much ONE person differs from
+    THEMSELVES between nights, which was measured at 3.71 bpm across 107 participants and
+    8,508 nights of the Mishra et al. 2020 cohort. Using the first for the second made every
+    band about a third too wide.'
   metadata:
     topic: baseline
     citation: 'Alavi et al. 2022, Nature Medicine 28:175-184 (NightSignal): per-individual
@@ -484,24 +493,56 @@ documents:
 
 
     When present, this contributes about +1.60 bpm to the night''s resting heart rate, with
-    a between-person spread of 1.00 bpm. It is present on roughly 2.5 percent of nights.
+    a between-person spread of 1.75 bpm. It is present on roughly 3.8 percent of nights.
 
 
     Evidence grade B. Provenance: DERIVED.
 
 
-    Source: Mishra et al., Nat Biomed Eng 2020;4:1208-20. Alavi et al., Nat Med 2022;28:175-84,
-    n=3,318. Radin et al., JAMA Netw Open 2021;4(7):e2115959, n=234.
+    Source: Natarajan, Su and Heneghan, Front Physiol 2022;13:898251, n=7,200: "elevated during
+    symptom onset, with average peak increases relative to the baseline of 1.8% (3.4%) for
+    females (males)". Those percentages were previously credited to Mishra et al. 2020, which
+    does not contain them. Alavi et al., Nat Med 2022;28:175-84, n=3,318, and Radin et al.,
+    JAMA Netw Open 2021;4(7):e2115959, n=234, for the pre-symptomatic timing. CDC, About Common
+    Cold, for the base rate. The effect size and spread stored here are measured on the Mishra
+    et al. 2020 cohort rather than taken from any of them; see the derivation.
 
 
     ## How the number was derived
 
 
-    Published peak resting-heart-rate increase relative to baseline is 1.8 percent in females
-    and 3.4 percent in males. On a cohort mean nocturnal RHR of 62.75 bpm that is +1.1 to
-    +2.1 bpm. Midpoint 1.6 taken. Re-verified against a second independent source in September
-    2026 because the original research note flagged it as read from a search summary rather
-    than the paper.
+    MEASURED, 5 September 2026, on 30 labelled COVID-19 cases and 138 matched healthy windows
+    from the Mishra et al. 2020 cohort, using this system''s own compute_baseline so the answer
+    is in the units the detector works in. Reproduce with `uv run python tools/cohort/infection.py`.
+
+    EFFECT SIZE. Mean nightly elevation above the person''s own baseline across the seven
+    nights BEFORE symptoms: median +1.93 bpm in cases against -0.25 bpm in matched healthy
+    windows of the same width, a difference of +2.18 bpm. At n=22 cases the standard error
+    of that difference is about 0.85 bpm, so the interval runs roughly +0.5 to +3.9. The stored
+    1.60 sits inside it and is kept, unchanged, rather than moved to a point estimate the
+    data cannot separate from it.
+
+    A control is essential and its absence is what made an earlier review of this file wrong.
+    Taking the highest night in a window is biased upward, so an illness peak means nothing
+    beside a healthy window scored the same way.
+
+    TWO REGIMES, ONE NUMBER. The same measurement gives about +5.0 bpm for windows SPANNING
+    symptom onset, against +2.18 before it. This row captures the pre-symptomatic regime,
+    which is the one the system exists to act in, and understates the symptomatic one by roughly
+    a factor of two. Recorded rather than fixed, because the day-by-day medians are too noisy
+    at n≈22 to fit a shape to: adjacent days swing between 0.0 and +3.0 bpm.
+
+    SPREAD. effect_sd_bpm was 1.00 with no source. The between-person spread of the mean pre-symptomatic
+    elevation is SD 3.75 bpm in cases against 3.32 in controls; the excess attributable to
+    how differently an infection lands, under an independence assumption, is 1.75 bpm. That
+    assumption and the n=22 sample both make it imprecise, and it is quoted here rather than
+    dressed up.
+
+    BASE RATE. Was 0.025 with no source, meaning about nine days of infection a year. CDC,
+    About Common Cold, updated 19 February 2026: "Every year in the United States, adults
+    have an average of two to three colds", and "Colds usually last less than a week". The
+    low end of that is 2 x 7 = 14 days, which is 0.038 of days. Taken at the low end deliberately,
+    and it remains a FLOOR: it counts colds only, and every other infection is additional.
 
 
     ## How it behaves over successive nights
@@ -514,7 +555,8 @@ documents:
 
     Onset 1 to 3 days before symptom awareness; red-alert clusters average 4.3 days in COVID-positive
     participants against 1.9 in negatives; a prolonged tail follows. The rising then falling
-    shape encodes that.
+    shape encodes that. The day-by-day measurement above is consistent with the shape and
+    too noisy to refine it.
 
 
     ## Why this one matters
@@ -522,12 +564,18 @@ documents:
 
     THE MOST IMPORTANT NUMBER IN THE PROJECT, and it is SMALLER than alcohol, evening exercise
     and the luteal phase. Detection works at all only because it is within-person, multi-channel
-    and sustained across nights.'
+    and sustained across nights. That is not a defect in the number: a flagged night is usually
+    noise, and the belief model is right to say infection is unlikely on any one of them.'
   metadata:
     cause_id: infection
     layer: 4
-    citation: Mishra et al., Nat Biomed Eng 2020;4:1208-20. Alavi et al., Nat Med 2022;28:175-84,
-      n=3,318. Radin et al., JAMA Netw Open 2021;4(7):e2115959, n=234.
+    citation: 'Natarajan, Su and Heneghan, Front Physiol 2022;13:898251, n=7,200: "elevated
+      during symptom onset, with average peak increases relative to the baseline of 1.8% (3.4%)
+      for females (males)". Those percentages were previously credited to Mishra et al. 2020,
+      which does not contain them. Alavi et al., Nat Med 2022;28:175-84, n=3,318, and Radin
+      et al., JAMA Netw Open 2021;4(7):e2115959, n=234, for the pre-symptomatic timing. CDC,
+      About Common Cold, for the base rate. The effect size and spread stored here are measured
+      on the Mishra et al. 2020 cohort rather than taken from any of them; see the derivation.'
 - doc_id: confounder_alcohol
   title: 'Confounder evidence: Alcohol'
   layer: 4
@@ -591,7 +639,7 @@ documents:
     ## How large the effect is
 
 
-    When present, this contributes about +4.14 bpm to the night''s resting heart rate, with
+    When present, this contributes about +2.91 bpm to the night''s resting heart rate, with
     a between-person spread of 1.50 bpm. It is present on roughly 8.0 percent of nights.
 
 
@@ -605,11 +653,16 @@ documents:
 
 
     Effect size CITED: Leota et al., Nat Commun 2025;16:3297, n=14,689, 4,084,354 person-nights.
-    High-strain session ending 0 to 2 hours before sleep, +4.14 bpm. Base rate is DERIVED
-    and uncertain: recorded sessions are already subtracted by the detector, so this cause
-    means UNRECORDED exertion only, that is swimming, cycling, resistance work with a step-based
-    device, or a device that was off. Estimated as a minority of the roughly 69 percent of
-    adults meeting activity guidelines, on a minority of their active nights.
+    The paper reports incremental contrasts between adjacent strain levels; high strain against
+    no exercise is their sum: 1.58 bpm at -6h, 1.87 at -4h, 2.91 at -2h, 5.59 at sleep onset.
+    A session ending 0 to 2 hours before sleep takes the value at the edge of that band furthest
+    from sleep onset, +2.91 bpm, which is the smallest figure the paper supports for the band.
+    This entry said 4.14, which appears nowhere in that table. Its twin in constants.py was
+    corrected on 4 September 2026 and this one was missed. See docs/KNOWLEDGE-CHANGELOG.md.
+    Base rate is DERIVED and uncertain: recorded sessions are already subtracted by the detector,
+    so this cause means UNRECORDED exertion only, that is swimming, cycling, resistance work
+    with a step-based device, or a device that was off. Estimated as a minority of the roughly
+    69 percent of adults meeting activity guidelines, on a minority of their active nights.
 
 
     ## How it behaves over successive nights

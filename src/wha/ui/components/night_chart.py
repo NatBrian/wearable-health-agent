@@ -210,8 +210,11 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
         st.info(
             "**This band is not yet yours, and nothing can be flagged.** With fewer than "
             f"{config()['BASELINE_MIN_NIGHTS_PERSONAL']} nights recorded it is still a typical-adult "
-            f"estimate, starting at {config()['POP_PRIOR_RHR_MEAN_BPM']:.1f} bpm plus or minus "
-            f"{config()['POP_PRIOR_RHR_SD_BPM']:.1f}, so your nights may sit well outside it. That "
+            f"estimate, centred on {config()['POP_PRIOR_RHR_MEAN_BPM']:.1f} bpm, which is the "
+            "average of 525 adults, and about "
+            f"{config()['WITHIN_PERSON_SCALE_PRIOR_BPM']:.1f} bpm wide, which is how much a "
+            "typical person's nights move around their own average. Your nights may sit well "
+            "outside it. That "
             "reflects how little is known about you, not anything about your health. At "
             f"{config()['BASELINE_MIN_NIGHTS_PERSONAL']} nights the band switches to your own median "
             "and closes around you, which is a visible step on this chart, and only then "
@@ -229,8 +232,12 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
     with st.expander("Full references"):
         st.markdown(
             f"""
-- Starting range, {config()["POP_PRIOR_RHR_MEAN_BPM"]:.2f} bpm plus or minus
-  {config()["POP_PRIOR_RHR_SD_BPM"]:.2f} — {config()["POP_PRIOR_CITATION"]}
+- Where the band starts, {config()["POP_PRIOR_RHR_MEAN_BPM"]:.2f} bpm —
+  {config()["POP_PRIOR_CITATION"]}
+- How wide it starts, {config()["WITHIN_PERSON_SCALE_PRIOR_BPM"]:.2f} bpm —
+  {config()["WITHIN_PERSON_SCALE_CITATION"]}. This is how much one person's nights move
+  around their own average, which is a different quantity from the
+  {config()["POP_PRIOR_RHR_SD_BPM"]:.2f} bpm by which different adults differ from each other.
 - Thresholds for a raised night — {config()["DETECT_CITATION"]}
 - Comparing against your own median, and the {config()["BASELINE_MIN_NIGHTS_PERSONAL"]}-night figure —
   {config()["BASELINE_PERSONAL_CITATION"]}

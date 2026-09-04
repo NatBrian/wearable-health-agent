@@ -45,6 +45,7 @@ from wha.constants import (
     POP_PRIOR_RHR_MEAN_BPM,
     POP_PRIOR_RHR_SD_BPM,
     SLEEP_WINDOW_CITATION,
+    WITHIN_PERSON_SCALE_PRIOR_BPM,
 )
 from wha.retrieve.models import CorpusDocument
 
@@ -79,7 +80,8 @@ def generate_layer_2_method_docs() -> list[CorpusDocument]:
                 f"sleep sits at least {DETECT_YELLOW_BPM:.0f} bpm above the person's own "
                 f"baseline, and is called RED at {DETECT_RED_BPM:.0f} bpm above it. An "
                 f"investigation opens only when {DETECT_PERSISTENCE_NIGHTS} consecutive "
-                "nights are elevated and at least one of them is RED.\n\n"
+                "nights are RED. That is the published rule exactly, and one RED night on "
+                "its own never opens anything.\n\n"
                 "## Where these numbers come from\n\n"
                 f"{DETECT_CITATION}. That study reports 3 bpm as the threshold because, "
                 "across its participants, the median fluctuation of the median of average "
@@ -127,13 +129,21 @@ def generate_layer_2_method_docs() -> list[CorpusDocument]:
                 "was noticed; someone at 80 bpm would sit above the threshold while "
                 "perfectly healthy.\n\n"
                 "## The cold start\n\n"
-                f"Before seven nights the estimate is shrunk toward a population mean of "
-                f"{POP_PRIOR_RHR_MEAN_BPM} bpm with a standard deviation of "
-                f"{POP_PRIOR_RHR_SD_BPM} bpm. That figure is an average of 525 adults "
+                f"Before seven nights the centre is shrunk toward a population mean of "
+                f"{POP_PRIOR_RHR_MEAN_BPM} bpm. That figure is an average of 525 adults "
                 "wearing an Oura ring, reported in Bloomfield et al. 2024, PLOS Digital "
                 "Health 3(4):e0000473. They were first-year university students, so it is "
                 "a starting guess rather than a description of any particular person, and "
-                "it stops mattering once the person's own nights arrive."
+                "it stops mattering once the person's own nights arrive.\n\n"
+                "The WIDTH of the band shrinks toward a different number, "
+                f"{WITHIN_PERSON_SCALE_PRIOR_BPM} bpm, and the distinction matters. "
+                f"The {POP_PRIOR_RHR_SD_BPM} bpm standard deviation in that same paper is "
+                "how much 525 different people differ from EACH OTHER. The width of this "
+                "band is how much ONE person differs from THEMSELVES between nights, "
+                "which was measured at "
+                f"{WITHIN_PERSON_SCALE_PRIOR_BPM} bpm across 107 participants and 8,508 "
+                "nights of the Mishra et al. 2020 cohort. Using the first for the second "
+                "made every band about a third too wide."
             ),
         )
     )

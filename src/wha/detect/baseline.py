@@ -9,12 +9,12 @@ from wha.constants import (
     BASELINE_WINDOW_NIGHTS,
     MAD_TO_SD_FACTOR,
     POP_PRIOR_RHR_MEAN_BPM,
-    POP_PRIOR_RHR_SD_BPM,
     RUNG_COLD_MAX_NIGHTS,
     RUNG_PERSONAL_MAX_NIGHTS,
     RUNG_PRIOR_MAX_NIGHTS,
     RUNG_SHRINKING_MAX_NIGHTS,
     SHRINKAGE_PSEUDO_NIGHTS,
+    WITHIN_PERSON_SCALE_PRIOR_BPM,
 )
 from wha.models import Baseline, BaselineRung, NightlyFeatures
 
@@ -40,10 +40,19 @@ def compute_baseline(history: Sequence[NightlyFeatures]) -> Baseline:
     excluding tonight.
 
     The centre is the person's own median once BASELINE_MIN_NIGHTS_PERSONAL nights exist,
-    and a shrinkage estimate toward the population prior before that. The scale stays a
-    shrinkage estimate throughout: it sets the width of the band and `robust_z`, never the
-    level, so borrowing spread from the population while little is known is a truthful
-    statement of uncertainty rather than a bias in the decision.
+    and a shrinkage estimate toward the population prior before that.
+
+    The scale stays a shrinkage estimate throughout, and that is deliberate: it sets the
+    width of the band and `robust_z`, never the level, so borrowing while little is known
+    is a truthful statement of uncertainty rather than a bias in the decision. A MAD over
+    seven nights of whole-number heart rates is also badly quantised, landing on multiples
+    of 1.4826, and shrinkage is what smooths that.
+
+    What it shrinks TOWARD was wrong until 5 September 2026. It was
+    POP_PRIOR_RHR_SD_BPM, 8.64, which is how much 525 different adults differ from EACH
+    OTHER. The band's width is how much one person differs from THEMSELVES between nights,
+    a different quantity, measured at 3.71 bpm across 107 people. See
+    WITHIN_PERSON_SCALE_PRIOR_BPM, which records what changed and what it cost.
     """
     usable_history = [night for night in history if night.usable and night.rhr_bpm is not None][
         -BASELINE_WINDOW_NIGHTS:
@@ -56,7 +65,7 @@ def compute_baseline(history: Sequence[NightlyFeatures]) -> Baseline:
     if n == 0:
         return Baseline(
             centre_bpm=POP_PRIOR_RHR_MEAN_BPM,
-            scale_bpm=POP_PRIOR_RHR_SD_BPM,
+            scale_bpm=WITHIN_PERSON_SCALE_PRIOR_BPM,
             usable_nights=0,
             rung=rung,
             shrink_weight=0.0,
@@ -83,7 +92,7 @@ def compute_baseline(history: Sequence[NightlyFeatures]) -> Baseline:
     abs_devs = [abs(x - personal_median) for x in rhrs]
     mad = statistics.median(abs_devs)
     personal_sd = MAD_TO_SD_FACTOR * mad
-    scale_shrunk = w * personal_sd + (1.0 - w) * POP_PRIOR_RHR_SD_BPM
+    scale_shrunk = w * personal_sd + (1.0 - w) * WITHIN_PERSON_SCALE_PRIOR_BPM
     scale_bpm = max(scale_shrunk, BASELINE_SCALE_FLOOR_BPM)
 
     return Baseline(

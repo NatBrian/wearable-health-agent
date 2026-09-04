@@ -110,6 +110,38 @@ BASELINE_PERSONAL_CITATION = (
 BASELINE_SCALE_FLOOR_BPM = 1.5  # MAD collapses to 0 on quantised data
 MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 
+# What the band's WIDTH shrinks toward before enough of a person's own nights exist.
+#
+# This used to be POP_PRIOR_RHR_SD_BPM, 8.64, and that was a category error of the same
+# shape as the one already corrected on the centre, in the other direction. 8.64 is
+# Bloomfield's BETWEEN-PERSON spread: how much 525 different adults differ from each
+# other. The band's width is a WITHIN-PERSON quantity: how much one person differs from
+# themselves from night to night. Borrowing one for the other inflated every band, and
+# because the trailing window caps n at 28 the shrink weight caps at 0.8, so a fifth of a
+# between-person spread never washed out however long the watch was worn.
+#
+# That matters because robust_z is the residual divided by this width, and robust_z is the
+# unit the two extreme heart rate rules in red_flags.yaml are written in. Their rationale,
+# "six robust standard deviations is well beyond any confounder in the table", is only
+# true if the standard deviation is the person's own.
+#
+# MEASURED, not assumed: 3.71 bpm is the median scaled MAD of 107 people's own overnight
+# readings in the Mishra 2020 cohort, over 8,508 nights. Reproduce with
+# `uv run python tools/cohort/band_width.py`, which also reports what this changes:
+# the mature band narrows from 4.10 to 3.11 bpm, and the extreme heart rate rules would
+# fire on 32 of 7,079 nights rather than 9, one per 31 person-weeks rather than one per
+# 112. Recorded in docs/KNOWLEDGE-CHANGELOG.md.
+#
+# Limitations, stated rather than buried: those are Fitbit users measured over the
+# midnight-to-07:00 clock window, not this build's recorded-sleep window, and a
+# healthier-than-average research cohort. It is a starting guess that stops mattering once
+# the person's own nights arrive, which is exactly what a prior is for.
+WITHIN_PERSON_SCALE_PRIOR_BPM = 3.71
+WITHIN_PERSON_SCALE_CITATION = (
+    "measured on 107 participants and 8,508 nights of the Mishra et al. 2020 cohort, "
+    "reproducible with tools/cohort/band_width.py"
+)
+
 # Population prior for nocturnal RHR.
 # Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473, n=525, Oura.
 POP_PRIOR_RHR_MEAN_BPM = 62.75
@@ -128,6 +160,13 @@ POP_PRIOR_CITATION = "Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473,
 # Alavi et al. 2022, Nat Med 28:175-184. NightSignal transitions at 3, red at 4.
 DETECT_YELLOW_BPM = 3.0
 DETECT_RED_BPM = 4.0
+# Consecutive nights, ALL of them RED, which is the published rule: NightSignal raises a
+# red alert when the overnight reading is at or above baseline + 4 on two consecutive
+# nights. This build used to flag on two consecutive raised nights with at least ONE red,
+# so red followed by yellow fired as well, while still quoting NightSignal's sensitivity
+# as support. Measured on the cohort, the looser rule bought 6.7 points of sensitivity for
+# 37 percent more investigations on healthy people. See wha/detect/detector.py and
+# tools/cohort/sweep.py.
 DETECT_PERSISTENCE_NIGHTS = 2
 DETECT_CITATION_PLAIN = "a 2022 study published in Nature Medicine, known as NightSignal"
 DETECT_CITATION = "Alavi et al. 2022, Nature Medicine 28:175-184 (NightSignal)"

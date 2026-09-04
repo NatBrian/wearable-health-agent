@@ -96,30 +96,54 @@ def test_single_red_night_does_not_flag() -> None:
     assert not det.flagged
 
 
-def test_two_consecutive_with_one_red_flags() -> None:
-    """Two consecutive elevated nights containing at least one RED flags the alert event."""
+def test_only_two_consecutive_reds_flag() -> None:
+    """Both nights must be RED. A RED beside a YELLOW is not an investigation.
+
+    CORRECTED 5 September 2026, and the two cases that changed are named below rather than
+    deleted. This test asserted the looser rule: two consecutive elevated nights with at
+    least ONE red. That is not what the cited paper does. NightSignal raises a red alert
+    when the overnight reading is at or above baseline + 4 on two consecutive nights, and
+    this project quotes NightSignal's sensitivity as support for its own thresholds while
+    running something looser.
+
+    Measured before changing it, on 30 labelled COVID-19 cases and 76 healthy people over
+    738 person-weeks (uv run python tools/cohort/sweep.py):
+
+        at least one RED : 60.0 percent sensitivity, 0.272 investigations per person-week
+        both RED         : 53.3 percent sensitivity, 0.198 investigations per person-week
+
+    Two cases in thirty, for 37 percent more investigations on people who were not ill.
+    """
     base = _make_baseline(centre=60.0)
 
-    # Case 1: Yesterday YELLOW, Tonight RED
+    # Yesterday YELLOW, tonight RED. Used to flag. Does not now.
     det1 = compute_detection_for_features(
         _make_features(1, rhr=65.0), base, preceding_consecutive_levels=[DetectionLevel.YELLOW]
     )
     assert det1.level == DetectionLevel.RED
-    assert det1.flagged is True
+    assert det1.flagged is False
 
-    # Case 2: Yesterday RED, Tonight YELLOW
+    # Yesterday RED, tonight YELLOW. Used to flag. Does not now.
     det2 = compute_detection_for_features(
         _make_features(1, rhr=63.5), base, preceding_consecutive_levels=[DetectionLevel.RED]
     )
     assert det2.level == DetectionLevel.YELLOW
-    assert det2.flagged is True
+    assert det2.flagged is False
 
-    # Case 3: Yesterday RED, Tonight RED
+    # Yesterday RED, tonight RED. The published rule, and the only one that flags.
     det3 = compute_detection_for_features(
         _make_features(1, rhr=65.0), base, preceding_consecutive_levels=[DetectionLevel.RED]
     )
     assert det3.level == DetectionLevel.RED
     assert det3.flagged is True
+
+    # Three RED nights still flags on the third, which is the run continuing.
+    det4 = compute_detection_for_features(
+        _make_features(1, rhr=65.0),
+        base,
+        preceding_consecutive_levels=[DetectionLevel.RED, DetectionLevel.RED],
+    )
+    assert det4.flagged is True
 
 
 def test_two_yellows_without_red_does_not_flag() -> None:
@@ -208,18 +232,19 @@ def test_flag_fires_on_the_night_the_run_completes(tmp_db_path: Path) -> None:
         VALUES ('subj_flag', '2026-08-11', 70.0, 420, 1, '2026-08-11T00:00:00Z');
         """
     )
-    # Night 2: YELLOW, 63.5 bpm against a personal median of 60.0 for a +3.5 residual.
+    # Night 2: RED, 65.0 bpm against a personal median of 60.0 for a +5.0 residual.
     #
-    # This was 64.5, chosen when the centre was shrunk toward the 62.75 population prior:
-    # with ten nights the weight was 10/17, putting the centre at 61.13 and making 64.5 a
-    # 3.37 residual. The centre is now the person's own median, so 64.5 is +4.5 and RED.
-    # The test is about when the flag fires on a persistence run, not about which side of
-    # the YELLOW band a particular bpm lands on, so the input is restated against the
-    # reference the detector now uses.
+    # Restated twice, both times because the rule under test changed and not the intent.
+    # It began at 64.5, chosen when the centre was shrunk toward the 62.75 population
+    # prior. When the centre became the person's own median that became +4.5 and RED, so
+    # it was restated to 63.5 for a +3.5 YELLOW. The persistence rule is now two
+    # consecutive REDs, matching the cited paper, so a YELLOW second night no longer
+    # completes a run. This test is about WHEN the flag fires on a completed run, so the
+    # input is restated again against the rule the detector now uses.
     conn.execute(
         """
         INSERT INTO nightly_features (subject_id, night_date, rhr_bpm, coverage_minutes, usable, computed_at_utc)
-        VALUES ('subj_flag', '2026-08-12', 63.5, 420, 1, '2026-08-12T00:00:00Z');
+        VALUES ('subj_flag', '2026-08-12', 65.0, 420, 1, '2026-08-12T00:00:00Z');
         """
     )
     conn.commit()
@@ -229,7 +254,7 @@ def test_flag_fires_on_the_night_the_run_completes(tmp_db_path: Path) -> None:
     assert not d1.flagged
 
     d2 = detect_night(conn, "subj_flag", date(2026, 8, 12))
-    assert d2.level == DetectionLevel.YELLOW
+    assert d2.level == DetectionLevel.RED
     assert d2.flagged is True
 
     conn.close()

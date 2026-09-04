@@ -250,12 +250,23 @@ def check_overnight_oxygen(
     well. That is the pre-symptomatic window this system exists for, and heart rate alone
     cannot see it.
     """
+    from wha.db.iso import to_iso
     from wha.safety.triage import assess_overnight_oxygen
+
+    # ts_utc is TEXT in the "%Y-%m-%dT%H:%M:%SZ" form every writer uses, and this compared
+    # it against whatever sqlite3 makes of a datetime, which is "YYYY-MM-DD HH:MM:SS+00:00".
+    # A space where a T should be, and an offset where a Z should be, so the range test was
+    # a lexical comparison between two different formats and matched nothing. The rule had
+    # no caller, so this never showed: connecting it would have returned zero readings on
+    # every night and reported "no opinion" forever, which reads exactly like a device that
+    # is not recording.
+    start = to_iso(window_start_utc) if hasattr(window_start_utc, "tzinfo") else window_start_utc
+    end = to_iso(window_end_utc) if hasattr(window_end_utc, "tzinfo") else window_end_utc
 
     rows = conn.execute(
         """SELECT percentage FROM oxygen_saturation_samples
             WHERE subject_id = ? AND ts_utc >= ? AND ts_utc <= ?""",
-        (subject_id, window_start_utc, window_end_utc),
+        (subject_id, start, end),
     ).fetchall()
     readings = [float(r["percentage"]) for r in rows if r["percentage"] is not None]
 

@@ -1,20 +1,25 @@
 """Deterministic nightly batch calculation service."""
 
+import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from wha.audit.monitor import record_data_safety_escalation
 from wha.config import get_settings
 from wha.constants import INGEST_STALE_REFUSE_HOURS
 from wha.db import apply_schema, connect
 from wha.detect import detect_range
 from wha.features.derivation import compute_range
-from wha.models import Detection, NightlyFeatures
+from wha.models import Detection, DetectionLevel, NightlyFeatures
+from wha.safety.models import SafetyCheckResult
+from wha.safety.rules import check_overnight_oxygen, check_red_flags_deterministic
 from wha.service.episode_lifecycle import (
     check_close_conditions,
     get_open_episode,
     monitoring_since,
     open_episodes_for_flagged_nights,
+    open_or_append_episode,
 )
 
 
@@ -116,6 +121,17 @@ def run_nightly(
     # Run detection
     detections = detect_range(conn, subj, start_date, end_date)
 
+    # The safety floor, over the DATA rather than only over what the person typed.
+    #
+    # Three rules were written, tested on their own and connected to nothing. Line coverage
+    # over a full production run showed src/wha/safety/rules.py lines 162 to 178 and 253 to
+    # 266 never executing. All three places that ran the safety check passed only free
+    # text, so `robust_z` was always None and the two extreme heart rate branches were
+    # skipped, and `check_overnight_oxygen` had no caller at all.
+    #
+    # A floor that only fires on what you say is not a floor on your data.
+    run_data_safety_floor(conn, subj, detections, tz_name)
+
     # Open the investigation. Detection previously ended here, so a flagged night set a
     # boolean and nothing ever acted on it: no episode existed for the agent to advance,
     # and the link between the monitor and the investigation was absent entirely.
@@ -139,3 +155,95 @@ def get_monitoring_since(subject_id: str | None = None, db_path: Path | None = N
         return monitoring_since(conn, subj)
     finally:
         conn.close()
+
+
+def run_data_safety_floor(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    detections: list[Detection],
+    tz_name: str,
+) -> list[SafetyCheckResult]:
+    """Run the deterministic rules that judge the DATA, not the person's words.
+
+    Three rules had never executed in production. Two need `robust_z` and the baseline
+    rung, which only the detector has; the third needs a night of blood oxygen readings
+    inside the sleep window, and nothing anywhere called it.
+
+    Measured before connecting it, because this is the one change that can newly wake
+    somebody at three in the morning. Across 7,079 scorable nights of the Mishra 2020
+    cohort, `abs(robust_z) > 6` fires on 33 of them, which is one alert per 31
+    person-weeks. Reproduce with `uv run python tools/cohort/band_width.py`. That rate is
+    a rare event rather than a stream, and the rules' own guidance is conditional
+    same-day advice, not an ambulance.
+
+    Returns what fired, for the caller and for tests. Never raises: a failure here must
+    not cost the night's reading.
+    """
+    from wha.features.sleep_window import resolve_sleep_window
+    from wha.service.symptom_report import notify_escalation
+
+    fired: list[SafetyCheckResult] = []
+
+    for detection in sorted(detections, key=lambda d: d.night_date):
+        if detection.level == DetectionLevel.NA or detection.robust_z is None:
+            continue
+
+        row = conn.execute(
+            """SELECT b.rung AS rung, f.rhr_bpm AS rhr_bpm
+                 FROM baselines b
+                 LEFT JOIN nightly_features f
+                   ON f.subject_id = b.subject_id AND f.night_date = b.night_date
+                WHERE b.subject_id = ? AND b.night_date = ?""",
+            (subject_id, detection.night_date.isoformat()),
+        ).fetchone()
+        rung = row["rung"] if row is not None else None
+        # The night's actual reading, not the deviation. The cold-rung fallback in
+        # red_flags.yaml compares an absolute bpm, so handing it a residual would compare
+        # a 5 bpm rise against a 100 bpm bound and never fire.
+        rhr_bpm = row["rhr_bpm"] if row is not None else None
+
+        results: list[SafetyCheckResult] = []
+
+        # The two extreme heart rate rules. No free text: this is the data speaking.
+        vitals = check_red_flags_deterministic(
+            user_text=None,
+            robust_z=detection.robust_z,
+            rhr_bpm=rhr_bpm,
+            rung=rung,
+        )
+        if vitals.escalate:
+            results.append(vitals)
+
+        # Blood oxygen, over the same window the night's heart rate was measured over.
+        # It gets no likelihood in causes.yaml because no published study relates a
+        # wearable reading to any of the twelve causes, so it lives here as a cited
+        # threshold that can raise urgency and never lower it.
+        try:
+            window = resolve_sleep_window(conn, subject_id, detection.night_date, tz_name)
+            oxygen = check_overnight_oxygen(conn, subject_id, window.start_utc, window.end_utc)
+        except Exception:  # noqa: BLE001
+            oxygen = None
+        if oxygen is not None and oxygen.escalate:
+            results.append(oxygen)
+
+        for result in results:
+            fired.append(result)
+            episode_id = open_or_append_episode(conn, subject_id, detection.night_date)
+            record_data_safety_escalation(conn, subject_id, episode_id, detection, result)
+
+            # One notification path, the one that already exists, so an escalation raised
+            # by the data reaches the person the same way one raised by their own words
+            # does. A second path is how the first one ended up notifying nobody.
+            #
+            # Once per episode, not once per night. A first sync backfills weeks of
+            # history and this job re-scores a rolling window every few hours, so an
+            # unguarded send would put the same escalation on somebody's phone repeatedly.
+            already = conn.execute(
+                """SELECT 1 FROM notifications
+                    WHERE episode_id = ? AND kind = 'ESCALATION' LIMIT 1""",
+                (episode_id,),
+            ).fetchone()
+            if already is None:
+                notify_escalation(conn, subject_id, episode_id, result)
+
+    return fired

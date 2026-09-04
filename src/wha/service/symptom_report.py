@@ -116,7 +116,7 @@ def report_symptoms(
         # An escalation closed the episode and recorded nothing else: no notification row
         # existed, so somebody told to seek urgent care received no message at all. The
         # guidance sat in a returned object that the caller might or might not display.
-        _notify_escalation(conn, subject_id, episode_id, safety)
+        notify_escalation(conn, subject_id, episode_id, safety)
 
         return SymptomReportResult(
             subject_id=subject_id,
@@ -133,13 +133,17 @@ def report_symptoms(
             conn.close()
 
 
-def _notify_escalation(
+def notify_escalation(
     conn: sqlite3.Connection,
     subject_id: str,
     episode_id: str,
     safety: SafetyCheckResult,
 ) -> None:
     """Send the escalation guidance and record that it was sent.
+
+    Public because the nightly job now raises escalations too, from rules that read the
+    data rather than what the person typed. Both go out through this one function on
+    purpose: a second notification path is how the first one ended up notifying nobody.
 
     Never raises into the caller: a transport failure must not stop the escalation being
     recorded, and the person still sees the guidance on screen.

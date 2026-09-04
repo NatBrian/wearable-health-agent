@@ -20,6 +20,30 @@ def _force_cassette_provider(monkeypatch_session):
     monkeypatch_session.setenv("WHA_LLM_PROVIDER", "cassette")
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _no_outbound_messages(monkeypatch_session):
+    """No test may send a real message to a real phone.
+
+    `get_notifier()` returns a live TelegramNotifier whenever a token and a chat id are
+    present, and it reads them from `.env`, which on the development machine has both. So
+    every test that reached an escalation was posting to a real person's Telegram, over
+    the network, in a suite AGENTS.md describes as running offline. Slow, noisy, and
+    capable of hanging the run on a network stall.
+
+    Clearing the credentials makes `get_notifier()` fall back to NullNotifier, which is
+    the transport a test should be exercising. A test that wants to assert what was sent
+    should inject its own notifier rather than rely on the machine's configuration.
+    """
+    from wha.notify.null import NullNotifier
+
+    # Patched at the factory rather than through the environment, because
+    # pydantic-settings reads `.env` from disk and clearing the variable does not reach
+    # it. Every caller imports get_notifier inside the function that uses it, from one of
+    # these two names.
+    monkeypatch_session.setattr("wha.notify.factory.get_notifier", lambda: NullNotifier())
+    monkeypatch_session.setattr("wha.notify.get_notifier", lambda: NullNotifier())
+
+
 @pytest.fixture
 def tmp_db_path(tmp_path: Path) -> Path:
     """Provide a path to a temporary SQLite database."""
