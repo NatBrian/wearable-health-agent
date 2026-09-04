@@ -30,8 +30,39 @@ def fetch_data(target: str) -> str:
         return f"Dataset directory initialized at {dataset_dir}."
 
     if target_clean == "corpus":
-        corpus_path = Path("data/knowledge/corpus.yaml")
-        return f"Corpus target verified at {corpus_path}."
+        # Fetches the consumer health layer. This used to return a sentence saying the
+        # target had been "verified", having checked nothing and downloaded nothing, so
+        # the command reported success while the layer stayed absent.
+        import json
+        from dataclasses import asdict
+
+        from wha.retrieve.medlineplus import ATTRIBUTION, fetch
+
+        snapshot = fetch()
+        manifest = Path("data/knowledge/corpus-sources.json")
+        manifest.write_text(
+            json.dumps(
+                {
+                    "medlineplus": {
+                        **asdict(snapshot),
+                        "licence": "Free, no registration, attribution only",
+                        "attribution": ATTRIBUTION,
+                        "note": (
+                            "The raw release is kept out of version control under "
+                            "data/corpus/. This file records which snapshot the corpus was "
+                            "built from, so a citation can be traced to a specific release "
+                            "rather than to whatever the site served that day."
+                        ),
+                    }
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return (
+            f"MedlinePlus {snapshot.snapshot_date}: {snapshot.topics_kept} English topics "
+            f"kept of {snapshot.topics_total}. Provenance written to {manifest}."
+        )
 
     raise ConfigError(
         f"Unknown data fetch target '{target}'. Valid targets: chronos, stanford, pmdata, corpus"

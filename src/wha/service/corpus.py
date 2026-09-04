@@ -19,7 +19,9 @@ _HEADER = """# corpus.yaml
 # The citations behind these passages were checked against the published
 # papers. What held up and what did not is in docs/CORPUS-VERIFICATION.md.
 #
-# Layer 1, consumer health information, is ABSENT. See that document.
+# Layer 1, consumer health information, is NOT in this file. It is MedlinePlus,
+# fetched with `wha data fetch corpus`, and the snapshot in use is recorded in
+# data/knowledge/corpus-sources.json with its checksum.
 
 """
 
@@ -36,7 +38,12 @@ def build_corpus_file(out_path: Path | None = None) -> tuple[Path, dict[int, int
     from wha.retrieve.knowledge_docs import build_default_corpus
 
     target = out_path if out_path is not None else DEFAULT_CORPUS_PATH
-    docs = build_default_corpus()
+
+    # Layer 1 is deliberately excluded. It is MedlinePlus, fetched rather than authored,
+    # a thousand topics we do not own and should not redistribute inside this repository.
+    # Which snapshot is in use is recorded in data/knowledge/corpus-sources.json instead,
+    # with its checksum, which is the part that actually needs to be checkable.
+    docs = [d for d in build_default_corpus() if d.layer != 1]
     payload = {"documents": [d.model_dump() for d in docs]}
 
     target.parent.mkdir(parents=True, exist_ok=True)

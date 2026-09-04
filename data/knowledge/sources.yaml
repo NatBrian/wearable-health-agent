@@ -44,11 +44,18 @@ corpus_sources:
 
   - id: medlineplus
     layer: 1
-    url: "https://medlineplus.gov/xml/mplus_topics_compressed.zip"
+    # CORRECTED 2026-09-04. This read
+    # "https://medlineplus.gov/xml/mplus_topics_compressed.zip", which returns 404 and
+    # appears never to have existed: MedlinePlus publishes DATED snapshots, Tuesday to
+    # Saturday. The fetcher now resolves the newest one from the index page rather than
+    # hardcoding any URL, so it cannot rot again, and records which snapshot was used in
+    # data/knowledge/corpus-sources.json. See docs/KNOWLEDGE-CHANGELOG.md.
+    index_url: "https://medlineplus.gov/xml.html"
+    url_pattern: "https://medlineplus.gov/xml/mplus_topics_compressed_YYYY-MM-DD.zip"
     licence: "Free, no registration. ATTRIBUTION ONLY."
     licence_ok_for_public_repo: true
     format: xml
-    approx_size_mb: 29
+    approx_size_mb: 29    # uncompressed; the .zip actually fetched is about 4.6 MB
     refresh: "daily, Tue to Sat"
     note: >
       The bulk layer, and the best fit by some distance. Consumer register, which matches

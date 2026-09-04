@@ -141,14 +141,20 @@ def render_evidence_tab(detail: EpisodeDetail) -> None:
     # A person reading a citation is entitled to know the shape of the shelf it came off.
     with st.expander("What this system can and cannot look up"):
         st.markdown(
-            "**It can cite three things, all written by a person and kept in this "
+            "**It can cite three things written by a person and kept in this "
             "repository:** why a night counted as elevated and how the baseline is "
             "formed; the evidence behind each competing explanation, with the study and "
             "the effect size; and the rule behind any advice to seek care.\n\n"
-            "**It cannot cite general health information about a condition.** No consumer "
-            "health reference has been loaded, and it is not permitted to search the web "
-            "or to write clinical text of its own. If you ask it what a fever means, it "
-            "has nothing to quote and will not invent something.\n\n"
+            "**It can also cite general health information about a condition**, from "
+            "MedlinePlus, the consumer health service of the US National Library of "
+            "Medicine. About a thousand topics are indexed from a dated release, and "
+            "the exact one in use is recorded with its checksum in "
+            "`data/knowledge/corpus-sources.json`. That material is background about "
+            "a condition in general. **It is never about you:** it knows nothing "
+            "about your readings and is not tailored to you in any way.\n\n"
+            "**It still cannot search the web, and it cannot write clinical text of "
+            "its own.** If a question is not covered by the material above, it says "
+            "so rather than inventing an answer.\n\n"
             "**The numbers behind the questions it asks are assumed, not measured.** No "
             "published study measures how accurately people report drinking, stress or "
             "early symptoms to an app the next morning. Those figures are set "
@@ -171,6 +177,19 @@ def render_evidence_tab(detail: EpisodeDetail) -> None:
                 f"**{idx + 1}. {c.title}** (`{c.source_id}`){uri_str} — Score: `{c.retrieval_score:.3f}`"
             )
             st.info(f'"{c.passage}"')
+
+        # The MedlinePlus licence is attribution-only, so the source is named wherever a
+        # passage from it is shown. It also travels inside the passage text itself, because
+        # a passage can be copied into the doctor handover and leave this screen behind.
+        if any(
+            c.source_id.startswith("medlineplus") or "MedlinePlus" in c.passage
+            for c in detail.citations
+        ):
+            st.caption(
+                "Passages marked MedlinePlus come from the National Library of Medicine, "
+                "used with attribution. They are general information about a condition, "
+                "not about you, and say nothing about your own readings."
+            )
 
     st.write("---")
     st.subheader("🛡️ Stripped Claims")

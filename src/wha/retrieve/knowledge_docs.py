@@ -1,7 +1,12 @@
 """The corpus the agent retrieves from, rendered out of the knowledge a human authored.
 
-Three layers, three sources, no new medical content anywhere:
+Four layers, four sources, no new medical content written anywhere:
 
+- **Layer 1**, general consumer health information about a condition, from the MedlinePlus
+  release fetched by :mod:`wha.retrieve.medlineplus`. Fetched, not authored, and not
+  redistributed in this repository: which snapshot is in use is recorded with its checksum
+  in ``data/knowledge/corpus-sources.json``. It is untrusted external text and is scanned
+  for injection before the model sees it.
 - **Layer 2**, how a night is measured and what counts as a deviation, from
   ``constants.py``. The numbers are imported rather than retyped, so a passage cannot
   drift away from the constant it describes.
@@ -10,11 +15,10 @@ Three layers, three sources, no new medical content anywhere:
 - **Layer 4**, the competing explanations for an elevation, from ``causes.yaml``, in
   :func:`wha.retrieve.corpus.generate_layer_4_confounder_docs`.
 
-Layer 1, the MedlinePlus consumer-health bulk download named in ``sources.yaml``, is
-absent. It has not been fetched, and writing consumer health text without it would be
-inventing clinical content. The agent can therefore cite why a night was flagged, what
-else could explain it, and the rule behind an escalation, and cannot cite general
-information about a condition. Stated in ``docs/DISCLOSURES.md`` and on the dashboard.
+The agent can therefore cite why a night was flagged, what else could explain it, the rule
+behind an escalation, and general background on a condition. It still cannot search the web
+and cannot write clinical text of its own. What it can and cannot look up is stated in
+``docs/DISCLOSURES.md`` and on the dashboard.
 
 Every figure below was checked against the paper it cites in September 2026. What held up,
 what did not, and the four caveats carried in the passage text are recorded in
@@ -465,10 +469,19 @@ def generate_probe_evidence_docs(path: Path | None = None) -> list[CorpusDocumen
 
 
 def build_default_corpus(red_flags: dict[str, Any] | None = None) -> list[CorpusDocument]:
-    """Every document the agent can retrieve and cite, in layer order."""
+    """Every document the agent can retrieve and cite, in layer order.
+
+    Layer 1 is MedlinePlus, and it is present only if a release has been fetched. Its
+    absence is not an error: everything else here is authored in this repository and works
+    without it. What must not happen is the agent quietly answering a question about a
+    condition from the model's own knowledge because the layer is missing, so the absence
+    is disclosed to the person rather than papered over.
+    """
     from wha.retrieve.corpus import generate_layer_4_confounder_docs
+    from wha.retrieve.medlineplus import load_local
 
     return [
+        *load_local(),
         *generate_layer_2_method_docs(),
         *generate_layer_3_escalation_docs(red_flags),
         *generate_layer_4_confounder_docs(),
@@ -490,6 +503,56 @@ class _BM25OnlyEmbedder:
         return np.empty((0, 384), dtype=np.float32)
 
 
+# Embedding the corpus is the slow part of starting up, and it is pure of side effects:
+# the same chunks always produce the same vectors. Adding MedlinePlus took the corpus from
+# 133 chunks to about 1,850, which is not something to recompute on every process start.
+#
+# The cache is keyed on a digest of the chunk text itself, so it invalidates automatically
+# when the corpus changes and can never serve vectors for text that is no longer there.
+EMBEDDING_CACHE = Path("data/corpus/embeddings.npz")
+
+
+def _corpus_digest(chunks: list[Any]) -> str:
+    """A fingerprint of exactly this corpus, in this order."""
+    import hashlib
+
+    hasher = hashlib.sha256()
+    for chunk in chunks:
+        hasher.update(chunk.chunk_id.encode("utf-8"))
+        hasher.update(chunk.text.encode("utf-8"))
+    return hasher.hexdigest()
+
+
+def _load_cached_embeddings(chunks: list[Any]) -> "np.ndarray | None":
+    """Vectors for this exact corpus, or None when it has changed or none were stored."""
+    if not EMBEDDING_CACHE.exists():
+        return None
+    try:
+        stored = np.load(EMBEDDING_CACHE, allow_pickle=False)
+        if str(stored["digest"]) != _corpus_digest(chunks):
+            return None
+        vectors = stored["embeddings"]
+        if len(vectors) != len(chunks):
+            return None
+        return vectors
+    except Exception:  # noqa: BLE001
+        # A corrupt or unreadable cache is a reason to recompute, never a reason to fail.
+        return None
+
+
+def _save_cached_embeddings(chunks: list[Any], embeddings: "np.ndarray") -> None:
+    """Store vectors beside their fingerprint. Best effort."""
+    try:
+        EMBEDDING_CACHE.parent.mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(
+            EMBEDDING_CACHE,
+            digest=np.array(_corpus_digest(chunks)),
+            embeddings=embeddings,
+        )
+    except Exception:  # noqa: BLE001
+        return
+
+
 _INDEX_CACHE: dict[str, Any] = {}
 
 
@@ -501,13 +564,20 @@ def build_index(docs: list[CorpusDocument] | None = None) -> Any:
     corpus = docs if docs is not None else build_default_corpus()
     chunks = [chunk for doc in corpus for chunk in chunk_document(doc)]
 
+    cached = _load_cached_embeddings(chunks)
+
     try:
-        return HybridIndex(chunks, embedder=DefaultSentenceTransformerEmbedder())
+        embedder = DefaultSentenceTransformerEmbedder()
+        index = HybridIndex(chunks, embedder=embedder, embeddings=cached)
     except Exception:  # noqa: BLE001
         # Deliberately broad. sentence-transformers surfaces network, filesystem and
         # torch errors of several unrelated types, and none of them is a reason to leave
         # the agent with no corpus at all.
         return HybridIndex(chunks, embedder=_BM25OnlyEmbedder())
+
+    if cached is None:
+        _save_cached_embeddings(chunks, index.embeddings)
+    return index
 
 
 def get_default_index() -> Any:

@@ -66,3 +66,27 @@ illness nine times a false alarm. All eleven frozen scenarios still pass, includ
 `workout-explained`, which is the one that depends on a workout explaining a night away.
 Two unit tests asserted the literal 4.14; both were corrected to the sourced value with the
 reason recorded, and neither assertion was weakened.
+
+
+---
+
+## 2026-09-04 - `sources.yaml`, MedlinePlus URL
+
+**Changed:** the single hardcoded `url` replaced with `index_url` plus a documented
+`url_pattern`.
+
+**Why:** the recorded URL, `https://medlineplus.gov/xml/mplus_topics_compressed.zip`,
+returns **404**. MedlinePlus publishes dated snapshots Tuesday to Saturday, named
+`mplus_topics_compressed_YYYY-MM-DD.zip`, and no undated file exists or appears ever to
+have existed. The recorded size, 29 MB, matches the uncompressed XML rather than the zip,
+which is about 4.6 MB, so the entry looks like it was written from the documentation page
+without the download ever being attempted.
+
+**Consequence at the time:** none visible, which is the problem. `wha data fetch corpus`
+returned "Corpus target verified" having checked nothing and downloaded nothing, so the
+command reported success while the consumer health layer stayed absent and the agent went
+on refusing every question about a condition.
+
+**Now:** the newest snapshot is resolved from the index page at fetch time, so the entry
+cannot rot again, and the snapshot actually used is recorded with its SHA-256 in
+`data/knowledge/corpus-sources.json`.

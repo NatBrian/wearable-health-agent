@@ -34,7 +34,7 @@ Source: `src/wha/ui/components/disclaimer.py`.
 | Measured over recorded sleep, with a clock fallback | Dial et al. 2025, validation of nocturnal RHR in consumer wearables | **History**, chart caption; per-night source on the night detail |
 | The starting range is a population figure | Bloomfield et al. 2024, n=525 | **History**, chart caption and Full references |
 | Nights with no reading are not judged | — | **Today**, stated separately from the quiet-night count |
-| What it can look up is limited to this repository's own knowledge | No consumer health corpus has been fetched. See `docs/CORPUS-VERIFICATION.md` | **Episode**, Evidence tab, above the citations |
+| General health information comes from MedlinePlus, is about a condition in general, and is never about you | National Library of Medicine, attribution-only. Snapshot and checksum in `data/knowledge/corpus-sources.json`. See `docs/CORPUS-VERIFICATION.md` | **Episode**, Evidence tab, above the citations, and inside every MedlinePlus passage quoted |
 | The likelihood behind every question is assumed, not measured | probes.yaml records every row as ASSUMED; no published study measures next-morning self-report accuracy to an app | **Episode**, in each reason drawn from an answer, and in the retrieved passage itself |
 | Whether a cause is 'large enough' to explain a night is a presentation rule, not a clinical one | Unevidenced. The 0.5 and 0.25 fractions in `wha/agent/differential.py` were chosen to be legible, not derived | **Episode**, Evidence tab, above the citations |
 | A chest pain report is assessed by questions, not by matching the words | Marburg Heart Score: Bosner et al., CMAJ 2010;182(12):1295-1300; external validation Haasenritter et al., Br J Gen Pract 2012;62(599):e415-21. Sensitivity 87.1%, specificity 80.8% | **Today**, in the conversation, with the rule named and its source shown |
@@ -87,7 +87,7 @@ transparency.
 - `docs/DESIGN-DATA-CHANNELS.md` — which of the device's channels are used and which are
   captured but cannot move the belief.
 - `docs/CORPUS-VERIFICATION.md` — every figure in the retrievable corpus checked against
-  the paper it cites, what did not hold up, and why the consumer health layer is absent.
+  the paper it cites, what did not hold up, and what the consumer health layer changed.
 - `docs/RESEARCH-AGENTIC-TRIAGE.md` — the evidence behind the conversation, the triage
   redesign and the clinician handover: why keyword matching was replaced, what a frontier
   model may and may not say here, and what remains unevidenced.

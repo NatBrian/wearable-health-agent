@@ -116,9 +116,20 @@ so rather than implying the device in use has been validated.
 `sources.yaml` describes four corpus layers. Only three can be built from material already
 in this repository:
 
-- **Layer 1, MedlinePlus consumer health text: absent.** It is a 29 MB external download
-  that has not been fetched. Writing consumer-language health passages without it would be
-  inventing medical content, which is the one thing this build must not do.
+- **Layer 1, MedlinePlus consumer health text: FETCHED 4 September 2026.** 1,013 English
+  topics out of the 2,033 in the release; the remainder are Spanish, or summaries short
+  enough to be a pointer rather than information. The snapshot date, URL and SHA-256 are
+  recorded in `data/knowledge/corpus-sources.json`, and the raw release is kept out of
+  version control. The URL `sources.yaml` named was a 404 and appears never to have
+  existed, which is written up in `docs/KNOWLEDGE-CHANGELOG.md`.
+
+  Measured before and after: the index went from 133 chunks to 1,852, a fourteenfold
+  increase. The authored escalation rules still appear in the top six results for "chest
+  pain", "I fainted" and "my chest hurts and I feel sick", and a test asserts it, because
+  a thousand fetched topics burying this system's own safety rules is a real risk that
+  would otherwise only be caught by someone reading citations closely. The deterministic
+  safety floor does not consult retrieval at all, so what changed is what the person
+  reads and what the model reasons over, not whether an escalation fires.
 - **Layer 2, clinical reference register: present but narrow.** It is the measurement and
   detection method, drawn from `constants.py` and the papers above. It is not StatPearls.
 - **Layer 3, escalation and care pathways: present.** Generated from `red_flags.yaml`,
@@ -126,6 +137,8 @@ in this repository:
 - **Layer 4, confounder evidence: present.** Generated from `causes.yaml`.
 
 The consequence, stated plainly: the agent can cite the reason a night was flagged, the
-evidence behind each competing explanation, and the rule behind any escalation. It cannot
-cite consumer health information about a condition, because this repository holds none.
-Disclosed in `docs/DISCLOSURES.md` and on the dashboard.
+evidence behind each competing explanation, the rule behind any escalation, and general
+consumer health background on a condition from MedlinePlus. It still cannot search the
+web and cannot write clinical text of its own. MedlinePlus material is about a condition
+in general and never about this person, which is said in every passage it produces, in
+`docs/DISCLOSURES.md`, and on the dashboard.
