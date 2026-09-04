@@ -477,6 +477,9 @@ def node_decide(
         # One spot check per episode. Asking twice for the same hand-taken reading is not
         # more information, it is nagging.
         already_measured=bool(state.get("measurements")),
+        # Questions asked that were never answered, including timeouts. Silence must not
+        # produce a reassuring conclusion.
+        unanswered_questions=sum(1 for a in answers if a.declined),
     )
 
     client = llm_client or get_llm_client()
@@ -915,6 +918,8 @@ def node_conclude(
             measurements=state.get("measurements", []),
         )
 
+    answers = state.get("answers", [])
+
     action_model = state.get("action")
     if action_model is not None and action_model.disposition is not None:
         disposition = action_model.disposition
@@ -925,12 +930,15 @@ def node_conclude(
         conclude_rung = BaselineRung.MATURE
         if db is not None and hasattr(db, "get_baseline_rung"):
             conclude_rung = db.get_baseline_rung(state.get("subject_id", ""), local_today())
-        disposition = determine_disposition(belief, rung=conclude_rung)
+        disposition = determine_disposition(
+            belief,
+            rung=conclude_rung,
+            unanswered_questions=sum(1 for a in answers if a.declined),
+        )
 
     # Every entry used to carry a probability with `supporting: []` and
     # `contradicting: []`, so a ranked list of causes appeared with no reason attached to
     # any of them.
-    answers = state.get("answers", [])
     differential = ground_differential(
         belief=belief,
         nights=nights,

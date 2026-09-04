@@ -66,15 +66,21 @@ def test_level_thresholds_exact() -> None:
 
 
 def test_level_uses_residual_not_deviation() -> None:
-    """A 5 bpm deviation with 4.14 bpm explained by workout results in 0.86 bpm residual (GREEN)."""
+    """A 5 bpm deviation with 2.91 bpm explained by workout results in 2.09 bpm residual (GREEN)."""
     base = _make_baseline(centre=60.0)
-    # RHR is 65.0 (+5.0 deviation), workout ended 1.0h before sleep (-4.14 bpm) -> residual 0.86 bpm
+    # RHR is 65.0 (+5.0 deviation), workout ended 1.0h before sleep (-2.91 bpm) -> residual 2.09.
+    #
+    # The subtraction was 4.14 until 4 September 2026. That figure appears nowhere in
+    # Leota et al. 2025; two of the three band values traced exactly to the paper's table
+    # and this one did not. Corrected to the paper's high-strain value at the far edge of
+    # the band, which subtracts less. The assertion this test exists for is unchanged: the
+    # level follows the residual, not the raw deviation, and this night is still GREEN.
     features = _make_features(0, rhr=65.0, exercise_offset_h=1.0)
     det = compute_detection_for_features(features, base)
 
     assert det.deviation_bpm == 5.0
-    assert det.explained_bpm == 4.14
-    assert det.residual_bpm == 0.86
+    assert det.explained_bpm == 2.91
+    assert det.residual_bpm == 2.09
     assert det.level == DetectionLevel.GREEN
     assert not det.flagged
 

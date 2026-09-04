@@ -1,6 +1,6 @@
 # STATUS — read this first
 
-**Last updated:** 4 September 2026 (dead subsystems, and an HTTP boundary)
+**Last updated:** 4 September 2026 (premature closure, and two corrected figures)
 **Branch:** `feat/agentic-early-warning-system` (14 commits ahead of the implementation work, nothing pushed)
 
 `HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
@@ -11,7 +11,7 @@ file describes where things actually stand.
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 528 passed, 1 skipped
+uv run pytest                     # 536 passed, 1 skipped
 uv run ruff check src tests       # clean
 uv run ruff format --check src tests
 uv run wha doctor                 # no fail rows
@@ -47,10 +47,10 @@ All of the above is fixed. The detail is in `plan/PROGRESS.md`.
 
 | Check | Result |
 |---|---|
-| Tests | **528 passed, 1 skipped**, no ignore list |
+| Tests | **536 passed, 1 skipped**, no ignore list |
 | Lint and format | clean |
 | `wha doctor` | no fail rows |
-| Frozen scenarios | **10 of 11** |
+| Frozen scenarios | **11 of 11** |
 | Evaluation | measured, in `EVALUATION.md` |
 
 The scenario that fails is `no-response-timeout`, and it is a fixture defect rather than a
@@ -434,6 +434,76 @@ where `to_local` had returned a datetime, so every caller that formatted it brok
 time; and the audit endpoint took a subject id where the service wanted an `AuditFilter`.
 Both were invisible to tests because no test rendered the status strip with a timestamp
 present or opened the Audit page.
+
+
+---
+
+## Silence was being reported as reassurance
+
+The scenario that had failed since before this work began, `no-response-timeout`, was not a
+fixture problem. It was **premature closure**, and the behaviour has a name and a measured
+rate in the literature.
+
+Handler, Bedi and Shah, arXiv:2605.15000 (2026), define it as "inappropriate commitment
+under uncertainty: providing an answer, recommendation, or clinical guidance when the safer
+response would be clarification, abstention, escalation, or refusal", and measured **55 to
+81 percent false-action rates** across five frontier models on medical questions whose
+correct answer had been removed.
+
+This build did it deterministically, with no model involved. A timed-out question became a
+declined answer, a declined answer contributes no likelihood factor, so the belief never
+moved and the episode fell through to `LIKELY_BENIGN`. The system asked the single most
+informative question it had, heard nothing, and reported that things were probably fine.
+
+An unanswered question now forces `UNRESOLVED`. The check sits after the illness threshold,
+so silence can prevent a reassurance and can never talk an escalation down, and a workout
+the watch itself recorded still explains a night because that is positive evidence rather
+than an absence. **Frozen scenarios are 11 of 11 for the first time.**
+
+## Two clinical figures corrected against their papers
+
+A narrow exception to the read-only rule was granted: a figure may be corrected when the
+published source can be quoted contradicting it. Every such edit is recorded in
+**`docs/KNOWLEDGE-CHANGELOG.md`** with the source, the old value, the new value and what it
+changed downstream.
+
+**`EXERCISE_EFFECT_BPM` was two-thirds traceable and one-third invented.** With the paper
+in hand at `research/papers/leota-2025-nat-commun-16-3297.pdf`, its table gives incremental
+contrasts between strain levels; high strain against none is their sum: 1.58 bpm at -6h,
+1.87 at -4h, 2.91 at -2h, 5.59 at sleep onset. Of the three stored values, **2.91 and 1.58
+are exactly the paper's figures** at -2h and -6h, and **4.14 appears nowhere**. The two
+real ones were also assigned to bands one step apart from each other. Corrected to
+`{"0-2h": 2.91, "2-4h": 1.87, "4-6h": 1.58}` under one rule, the far edge of each band,
+which is the smallest figure the paper supports. That direction is deliberate: this
+quantity is subtracted from the elevation, so overstating it hides illness.
+
+**The luteal citation** said wrist temperature +0.44 C and respiratory rate +0.60/min;
+Goodale's own phase means give +0.45 and +0.47. Neither channel is ingested, so this was a
+citation defect rather than a clinical one, but that string is rendered into the corpus as
+a citable passage.
+
+## Blood oxygen is used, as a threshold and not as a cause
+
+The question was whether to give it a likelihood in `causes.yaml`. It does not get one: **no
+published study relates a wearable oxygen reading to any of the twelve causes**, so that
+number would be invented. What exists is WHO guidance on when a level warrants care rather
+than home management, and documented **silent hypoxia** in COVID, where oxygen falls while
+the person still feels well. That is exactly the pre-symptomatic window this system exists
+for, and heart rate cannot see it.
+
+So it sits in the deterministic floor as a cited threshold that can raise urgency. Three
+constraints come straight from the evidence:
+
+- **It needs a night, not a spot check.** Ten readings inside the sleep window, or it
+  returns no opinion. The real device gave six readings across four days, including an 80
+  percent followed by a 92 percent sixty-six seconds later. Overnight tracking has to be
+  switched on in the phone app for this to do anything.
+- **It uses the median, not the minimum**, because the minimum fires on every movement
+  artefact this sensor produces.
+- **A normal reading is explicitly not an all-clear.** Consumer pulse oximetry reads high
+  on darker skin (pooled bias 1.27 percent for dark pigmentation against 0.70 for light,
+  *J Med Internet Res* 2024;26:e62769), so a genuine fall can be missed. That caveat is
+  shown every time, including on normal nights.
 
 **The machine is left pointed at the simulation.** `.env` has `WHA_SUBJECT=sim` and the
 bridge on `127.0.0.1:8788`; the original is `.env.phase4-backup`. Restore it before using

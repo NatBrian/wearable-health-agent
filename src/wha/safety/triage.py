@@ -337,3 +337,93 @@ def triage(
         )
 
     return evaluate_rule(rule, answers or {})
+
+
+class OxygenBand(BaseModel):
+    """A blood oxygen level and the urgency published guidance attaches to it."""
+
+    model_config = ConfigDict(frozen=True)
+
+    max_percent: float
+    urgency: str
+    meaning: str
+
+
+class OxygenRule(BaseModel):
+    """The blood oxygen threshold rule, and the conditions under which it may run."""
+
+    model_config = ConfigDict(frozen=True)
+
+    citation: str
+    citation_plain: str
+    min_overnight_readings: int
+    bands: list[OxygenBand]
+    never_reassure: str
+
+
+def load_oxygen_rule(config: TriageConfig | None = None) -> OxygenRule | None:
+    """The transcribed blood oxygen rule, or None when the file does not define one."""
+    target = TRIAGE_RULES_PATH
+    data = yaml.safe_load(target.read_text(encoding="utf-8"))
+    block = (data or {}).get("oxygen")
+    if not block:
+        return None
+    return OxygenRule(
+        citation=str(block.get("citation", "")).strip(),
+        citation_plain=str(block.get("citation_plain", "")).strip(),
+        min_overnight_readings=int(block.get("min_overnight_readings", 0)),
+        bands=[OxygenBand(**b) for b in block.get("bands", [])],
+        never_reassure=str(block.get("never_reassure", "")).strip(),
+    )
+
+
+def assess_overnight_oxygen(
+    readings: list[float],
+    rule: OxygenRule | None = None,
+) -> TriageOutcome | None:
+    """Judge a night's blood oxygen against published thresholds.
+
+    Returns None when there is not enough of a night to judge, which is the normal case on
+    a device where overnight tracking has not been switched on. None means "no opinion",
+    never "fine": the caller must not render an absence as reassurance.
+
+    Uses the MEDIAN of the night's readings rather than the minimum. A single dip is what
+    this sensor produces constantly through movement artefact; the real subject's own data
+    contains an 80 percent followed by a 92 percent sixty-six seconds later. Taking the
+    minimum would fire on that. The median asks whether the night as a whole sat low.
+    """
+    active = rule or load_oxygen_rule()
+    if active is None or len(readings) < active.min_overnight_readings:
+        return None
+
+    ordered = sorted(readings)
+    middle = len(ordered) // 2
+    median = ordered[middle] if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
+
+    band = next(
+        (b for b in sorted(active.bands, key=lambda x: x.max_percent) if median <= b.max_percent),
+        None,
+    )
+    if band is None:
+        # Above every threshold. Explicitly not an all-clear: these sensors read high on
+        # darker skin, so a genuine fall can be missed. No urgency, and the caller shows
+        # the caveat rather than a reassurance.
+        return TriageOutcome(
+            rule_id="oxygen_threshold",
+            urgency=None,
+            meaning=active.never_reassure,
+            score=int(median),
+            complete=True,
+            citation=active.citation,
+            citation_plain=active.citation_plain,
+        )
+
+    return TriageOutcome(
+        rule_id="oxygen_threshold",
+        urgency=band.urgency,
+        meaning=band.meaning.strip(),
+        score=int(median),
+        complete=True,
+        citation=active.citation,
+        citation_plain=active.citation_plain,
+    )

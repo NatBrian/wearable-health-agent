@@ -242,6 +242,69 @@ percent of the time, wrong in a way that could hurt someone.
 
 ---
 
+## 10. Silence is not a benign finding
+
+**Handler R, Bedi S, Shah N. Quantifying and mitigating premature closure in frontier LLMs.
+arXiv:2605.15000, 2026.**
+
+Their definition is this system's bug word for word: premature closure is "inappropriate
+commitment under uncertainty: providing an answer, recommendation, or clinical guidance
+when the safer response would be clarification, abstention, escalation, or refusal". They
+measured **55 to 81 percent false-action rates** across five frontier models on MedQA
+questions whose correct answer had been removed, **78 percent** on physician-authored
+adversarial queries, and about 30 percent on open-ended health questions. Their closing
+question is whether medical models "know when not to answer".
+
+This build did it deterministically, without a model being involved. A question that timed
+out became a declined answer; a declined answer contributes no likelihood factor; the
+belief therefore never moved and the episode fell through to LIKELY_BENIGN. The system
+asked the single most informative question it had, heard nothing back, and reported that
+things were probably fine.
+
+**Decision.** An unanswered question forces UNRESOLVED. The check sits after the illness
+threshold, so silence can prevent a reassurance and can never talk an escalation down. A
+recorded event, such as a workout the watch itself logged, still explains a night, because
+that is positive evidence from the device rather than an absence.
+
+---
+
+## 11. Blood oxygen: a threshold for action, not evidence about cause
+
+Two findings pull in opposite directions and both are load-bearing.
+
+**For using it.** "Silent hypoxia" is documented in COVID: oxygen saturation falls while
+the person still feels well. That is exactly the pre-symptomatic window this system exists
+to catch, and resting heart rate alone cannot see it. WHO guidance, as reported across the
+wearable SpO2 literature, gives an actionable threshold: above 94 percent can be managed at
+home, below 93 percent warrants medical attention.
+
+**Against trusting it.** A systematic review and meta-analysis (*J Med Internet Res*
+2024;26:e62769) reports accuracy root-mean-square error of 3.96 to 4.71 percent, with
+pooled mean bias of 0.70 percent for light, 0.27 for medium and **1.27 for dark
+pigmentation**. Melanin absorbs at the wavelengths these sensors use and is misread as
+oxygenated haemoglobin, so readings are biased **high** in darker skin, and occult
+hypoxaemia went undetected roughly three times more often in Black patients during COVID.
+The FDA issued skin-tone subgroup guidance in January 2025. Reviews of wearables for
+SARS-CoV-2 also note that comparative work on the incremental value of SpO2 over heart rate
+alone is limited.
+
+**Decision.** It gets a **cited threshold rule in the deterministic floor**, and **no
+likelihood in the belief model**. No published study relates a wearable oxygen reading to
+any of the twelve causes, so a likelihood would be invented clinical content.
+
+Three constraints follow directly from the evidence:
+
+1. It requires **a night of readings, not a spot check**. The real device produced six
+   readings across four days, including an 80 percent followed by a 92 percent sixty-six
+   seconds later. Below ten readings inside the sleep window the rule returns no opinion,
+   which the interface states rather than rendering as normal.
+2. It uses the **median** of the night, not the minimum, because the minimum fires on every
+   movement artefact this sensor produces.
+3. A normal reading is **explicitly not an all-clear**, because the bias direction means a
+   genuine fall can be missed, and that caveat is shown every time.
+
+---
+
 ## 9. What remains unevidenced
 
 Stated here and on screen rather than buried.

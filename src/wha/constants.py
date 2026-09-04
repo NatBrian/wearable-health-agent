@@ -142,8 +142,38 @@ DETECT_DIRECTION_NOTE = (
 )
 
 # --- explained variance ---------------------------------------------------
-# Leota et al. 2025, Nat Commun 16:3297, "high strain" column.
-EXERCISE_EFFECT_BPM = {"0-2h": 4.14, "2-4h": 2.91, "4-6h": 1.58}
+# Leota et al. 2025, Nat Commun 16:3297. Table of nocturnal RHR contrasts, read from the
+# paper on 4 September 2026. Full working in docs/CORPUS-VERIFICATION.md.
+#
+# The paper reports INCREMENTAL contrasts between adjacent strain levels at each ending
+# time relative to habitual sleep onset, in beats per minute:
+#
+#   contrast          -10h   -8h   -6h   -4h   -2h     0    +2h
+#   Light - None      0.49  0.47  0.40  0.33  0.45  2.02   6.50
+#   Mod. - Light      0.37  0.48  0.54  0.74  1.32  2.39   3.69
+#   High - Mod.       0.18  0.46  0.64  0.80  1.14  1.18   1.49
+#   Maximal - High    0.88  1.09  1.24  1.34  1.43  1.80   4.25
+#
+# High strain against no exercise is the sum of the first three rows:
+#
+#   -10h 1.04   -8h 1.41   -6h 1.58   -4h 1.87   -2h 2.91   0h 5.59   +2h 11.68
+#
+# What was here before: {"0-2h": 4.14, "2-4h": 2.91, "4-6h": 1.58}. Two of those three
+# figures are exactly the paper's high-strain values, at -2h and -6h, which is far too
+# precise to be coincidence. But they were assigned to bands one step apart from each
+# other: 2.91 is the -2h figure and was labelled the 2-4h band, while 1.58 is the -6h
+# figure labelled the 4-6h band. And 4.14 appears nowhere in the table; it sits between
+# the -2h (2.91) and 0h (5.59) values and was presumably interpolated.
+#
+# Corrected to one consistent rule: each band takes the paper's value at the edge of that
+# band FURTHEST from sleep onset. That is the smallest figure the paper supports for the
+# band, and it is deliberately the conservative direction. This quantity is SUBTRACTED
+# from the observed elevation, so over-stating it hides real illness, while under-stating
+# it only causes another look. The system's own utilities weigh a missed illness nine
+# times a false alarm (UTILITY_MISS_ILLNESS against UTILITY_FALSE_ALARM, derived from
+# Pauker and Kassirer 1980), so the smaller figure is the one that matches its own stated
+# preference.
+EXERCISE_EFFECT_BPM = {"0-2h": 2.91, "2-4h": 1.87, "4-6h": 1.58}
 EXERCISE_LOOKBACK_HOURS = 6
 SHORT_SLEEP_HOURS = 5.5  # covariate only, never subtracted
 

@@ -155,8 +155,14 @@ causes:
     citation: >
       Goodale et al., J Med Internet Res 2019;21(4):e13404. n=193 participants, 708
       analysed cycles, wrist-worn overnight. Late luteal versus follicular: heart rate
-      +3.91 bpm (P<.001), wrist skin temperature +0.44 C, respiratory rate +0.60/min.
+      +3.91 bpm (P<.001), wrist skin temperature +0.45 C, respiratory rate +0.47/min.
       Base rate: roughly 12 to 14 luteal days per 28-day cycle.
+      CORRECTED 2026-09-04. This read +0.44 C and +0.60/min. Read off the paper's own
+      phase means, late luteal against follicular: wrist skin temperature 34.32 - 33.87 =
+      +0.45 C, respiratory rate 17.04 - 16.57 = +0.47 breaths/min. The heart rate figure
+      of +3.91, which is the only one this system computes with, was and is exactly right
+      (60.47 - 56.56). Neither corrected channel is ingested by this build, so this was a
+      citation defect and not a clinical one. See docs/KNOWLEDGE-CHANGELOG.md.
     note: >
       LARGER than the infection signal, and it moves every channel in the infection
       direction on roughly 45 percent of days. A system that ignores cycle phase is

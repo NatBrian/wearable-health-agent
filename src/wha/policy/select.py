@@ -41,6 +41,7 @@ def select_action(
     has_symptoms_evidence: bool = False,
     cost_per_interrupt: float = POLICY_COST_PER_INTERRUPT,
     already_measured: bool = False,
+    unanswered_questions: int = 0,
 ) -> Action:
     """Select the next policy action following the deterministic 6-step contract."""
     all_probes = probes if probes is not None else load_probes()
@@ -181,6 +182,7 @@ def select_action(
         weekly_interruptions_used=weekly_interruptions_used,
         episode_questions_asked=episode_questions_asked,
         has_symptoms_evidence=has_symptoms_evidence,
+        unanswered_questions=unanswered_questions,
     )
 
     return Action(
@@ -211,8 +213,14 @@ def determine_disposition(
     weekly_interruptions_used: int = 0,
     episode_questions_asked: int = 0,
     has_symptoms_evidence: bool = False,
+    unanswered_questions: int = 0,
 ) -> Disposition:
-    """Map final belief and episode context to a terminal disposition."""
+    """Map final belief and episode context to a terminal disposition.
+
+    ``unanswered_questions`` counts questions the system asked and never got an answer to,
+    including ones that timed out. Concluding anything reassuring from silence is the
+    error this parameter exists to prevent.
+    """
     if rung == BaselineRung.COLD:
         return Disposition.INSUFFICIENT_DATA
 
@@ -241,5 +249,25 @@ def determine_disposition(
     # Illness vs Benign thresholding (at derived threshold 0.10)
     if p_inf >= DERIVED_TREATMENT_THRESHOLD:
         return Disposition.LIKELY_ILLNESS
+
+    # A question that was asked and never answered cannot support a reassuring conclusion.
+    #
+    # This is premature closure, and it has a name and a measured rate. Handler, Bedi and
+    # Shah, arXiv:2605.15000 (2026), define it as "inappropriate commitment under
+    # uncertainty: providing an answer, recommendation, or clinical guidance when the safer
+    # response would be clarification, abstention, escalation, or refusal", and measured
+    # false-action rates of 55 to 81 percent in frontier models on medical questions whose
+    # correct answer had been removed.
+    #
+    # That is exactly what happened here. A timed-out question became a declined answer,
+    # a declined answer contributes no likelihood factor, so the belief never moved and the
+    # episode fell through to LIKELY_BENIGN. The system asked the one question it judged
+    # most informative, heard nothing, and reported that things were probably fine.
+    #
+    # UNRESOLVED is the honest reading, and the disposition set already contains it. Placed
+    # after the illness check because urgency may always rise: silence must never be able
+    # to talk an escalation down, only to prevent a reassurance.
+    if unanswered_questions > 0:
+        return Disposition.UNRESOLVED
 
     return Disposition.LIKELY_BENIGN

@@ -152,3 +152,70 @@ def test_every_rule_carries_its_citation_and_its_contraindication() -> None:
         assert rule.citation_plain.strip(), rule.id
         assert rule.contraindication.strip(), rule.id
         assert rule.performance, rule.id
+
+
+# --- blood oxygen: a cited threshold, never an invented likelihood -------------------
+
+
+def test_a_handful_of_spot_readings_yields_no_opinion() -> None:
+    """One spot check is not a night, and no opinion must never render as reassurance.
+
+    This is the real device's actual data: six readings across four days, including an 80
+    percent followed by a 92 percent sixty-six seconds later. Judging a night on that
+    would be judging movement artefact.
+    """
+    from wha.safety.triage import assess_overnight_oxygen
+
+    assert assess_overnight_oxygen([94, 92, 94, 80, 92, 92]) is None
+
+
+def test_a_sustained_low_night_reaches_the_published_threshold() -> None:
+    """WHO guidance: below 93 percent warrants medical attention rather than home care."""
+    from wha.safety.triage import assess_overnight_oxygen
+
+    outcome = assess_overnight_oxygen([91, 92, 90, 92, 91, 93, 91, 92, 90, 92, 91, 92])
+
+    assert outcome is not None
+    assert outcome.urgency == "urgent"
+    assert outcome.citation, "a threshold without its source is an assertion"
+
+
+def test_the_median_is_used_so_one_artefact_cannot_fire_the_rule() -> None:
+    """The minimum would fire on every movement artefact this sensor produces."""
+    from wha.safety.triage import assess_overnight_oxygen
+
+    # A normal night containing one implausible dip, which is what the real data looks like.
+    outcome = assess_overnight_oxygen([97, 98, 97, 80, 98, 97, 98, 97, 98, 97, 98, 97])
+
+    assert outcome is not None
+    assert outcome.urgency is None, "a single artefact fired the rule"
+
+
+def test_a_normal_night_is_explicitly_not_an_all_clear() -> None:
+    """These sensors read high on darker skin, so a genuine fall can be missed.
+
+    Pooled mean bias 0.70 percent light, 0.27 medium, 1.27 dark pigmentation (systematic
+    review and meta-analysis, J Med Internet Res 2024;26:e62769), and occult hypoxaemia
+    went undetected roughly three times more often in Black patients during COVID. A
+    reading above the threshold therefore carries a caveat rather than a reassurance.
+    """
+    from wha.safety.triage import assess_overnight_oxygen
+
+    outcome = assess_overnight_oxygen([97, 98, 97, 98, 97, 98, 97, 98, 97, 98, 97, 98])
+
+    assert outcome is not None
+    assert outcome.urgency is None
+    assert "NOT an all-clear" in outcome.meaning
+
+
+def test_blood_oxygen_never_became_a_belief_likelihood() -> None:
+    """No published study relates a wearable SpO2 reading to any of the twelve causes.
+
+    It is a threshold rule for action, not evidence about cause. If a likelihood ever
+    appears in causes.yaml it needs a citation, and this test should be the thing that
+    notices it did not have one.
+    """
+    from wha.belief.causes import load_causes
+
+    for cause in load_causes():
+        assert "oxygen" not in cause.citation.lower() or "WHO" in cause.citation

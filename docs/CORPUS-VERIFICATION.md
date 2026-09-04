@@ -39,17 +39,51 @@ that carries the number.
 
 ## Not confirmed, and what that means
 
-**1. `EXERCISE_EFFECT_BPM` per-band figures could not be read from an open copy.**
-`{"0-2h": 4.14, "2-4h": 2.91, "4-6h": 1.58}` sits behind the publisher's paywall in every
-route tried. The study, its cohort size, and the direction and shape of the effect are all
-confirmed. The three bpm values are not independently confirmed here.
+**1. RESOLVED 4 September 2026. `EXERCISE_EFFECT_BPM` was two-thirds traceable and
+one-third invented.**
 
-There is also a tension worth a human's eye. The paper's own summary states that "exercise
-bouts ending >=4 hours before sleep onset are not associated with changes in sleep",
-while `EXERCISE_EFFECT_BPM` assigns 1.58 bpm to the 4 to 6 hour band. Those may be
-reconcilable, since the quoted sentence is about sleep measures and the table entry is
-about nocturnal heart rate, and the paper reports both. They may not be. Recorded in
-`plan/BLOCKERS.md`; nothing was changed on a guess.
+The publisher blocks automated fetching, so the paper was obtained by hand and is kept at
+`research/papers/leota-2025-nat-commun-16-3297.pdf` (Nature Communications is open access,
+CC BY). Its table reports **incremental** contrasts between adjacent strain levels at each
+ending time relative to habitual sleep onset, in beats per minute:
+
+| contrast | -10h | -8h | -6h | -4h | -2h | 0 | +2h |
+|---|---|---|---|---|---|---|---|
+| Light - None | 0.49 | 0.47 | 0.40 | 0.33 | 0.45 | 2.02 | 6.50 |
+| Mod. - Light | 0.37 | 0.48 | 0.54 | 0.74 | 1.32 | 2.39 | 3.69 |
+| High - Mod. | 0.18 | 0.46 | 0.64 | 0.80 | 1.14 | 1.18 | 1.49 |
+| Maximal - High | 0.88 | 1.09 | 1.24 | 1.34 | 1.43 | 1.80 | 4.25 |
+
+High strain against no exercise is the sum of the first three rows:
+
+| ending time | -10h | -8h | -6h | -4h | -2h | 0 | +2h |
+|---|---|---|---|---|---|---|---|
+| bpm above no exercise | 1.04 | 1.41 | **1.58** | **1.87** | **2.91** | 5.59 | 11.68 |
+
+Against the stored `{"0-2h": 4.14, "2-4h": 2.91, "4-6h": 1.58}`:
+
+- **2.91 is exactly the high-strain figure at -2h.** Traceable.
+- **1.58 is exactly the high-strain figure at -6h.** Traceable.
+- **4.14 appears nowhere.** It sits between the -2h value (2.91) and the 0h value (5.59),
+  and is not the maximal-strain figure at -2h either (4.34). It was presumably
+  interpolated, and nothing recorded that it had been.
+
+Two exact matches to two decimal places establish the derivation method beyond reasonable
+doubt. But the two traceable values were assigned to bands one step apart from each other:
+2.91, the -2h figure, was labelled the 2-4h band, while 1.58, the -6h figure, was labelled
+4-6h. There was no single convention.
+
+**Corrected to `{"0-2h": 2.91, "2-4h": 1.87, "4-6h": 1.58}`**, under one rule: each band
+takes the paper's value at the edge of the band furthest from sleep onset. That is the
+smallest figure the paper supports for each band, and the direction matters. This quantity
+is subtracted from the observed elevation, so overstating it hides real illness while
+understating it only causes another look, and this system's own utilities weigh a missed
+illness nine times a false alarm.
+
+The apparent tension with the paper's summary line, "bouts ending >=4 hours before sleep
+onset are not associated with changes in sleep", is resolved by the table: that sentence
+concerns sleep measures, and the nocturnal heart rate column does show 1.58 bpm at -6h.
+Both are the paper's own findings.
 
 **2. Two of the three Goodale figures in the `luteal` citation string are wrong.**
 The load-bearing one, +3.91 bpm, is exactly right. Alongside it the citation says

@@ -2,6 +2,7 @@
 
 import re
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -226,4 +227,49 @@ def check_red_flags_deterministic(
         triggered_flags=triggered_flags,
         guidance=guidance_list,
         reason="; ".join(reasons) if reasons else None,
+    )
+
+
+def check_overnight_oxygen(
+    conn: Any,
+    subject_id: str,
+    window_start_utc: Any,
+    window_end_utc: Any,
+) -> SafetyCheckResult | None:
+    """Judge the night's blood oxygen against published thresholds, if there is a night of it.
+
+    Returns None when the device supplied too few readings inside the sleep window, which
+    is the normal case until overnight tracking is switched on in the phone app. None means
+    no opinion. It must never be rendered as reassurance.
+
+    This is a threshold rule for ACTION, not evidence about cause. No published study
+    relates a wearable blood oxygen reading to any of the twelve causes in causes.yaml, so
+    it gets no likelihood there; writing one would be inventing clinical content. What does
+    exist is WHO guidance on when a level warrants care rather than home management, and
+    documented "silent hypoxia" in COVID, where oxygen falls while the person still feels
+    well. That is the pre-symptomatic window this system exists for, and heart rate alone
+    cannot see it.
+    """
+    from wha.safety.triage import assess_overnight_oxygen
+
+    rows = conn.execute(
+        """SELECT percentage FROM oxygen_saturation_samples
+            WHERE subject_id = ? AND ts_utc >= ? AND ts_utc <= ?""",
+        (subject_id, window_start_utc, window_end_utc),
+    ).fetchall()
+    readings = [float(r["percentage"]) for r in rows if r["percentage"] is not None]
+
+    outcome = assess_overnight_oxygen(readings)
+    if outcome is None:
+        return None
+
+    return SafetyCheckResult(
+        escalate=outcome.urgency in ("urgent", "same_day"),
+        level=outcome.urgency,
+        triggered_flags=["rf_overnight_oxygen"] if outcome.urgency else [],
+        guidance=[outcome.meaning] if outcome.meaning else [],
+        reason=(
+            f"Overnight blood oxygen median {outcome.score} percent across "
+            f"{len(readings)} readings. {outcome.citation}"
+        ),
     )

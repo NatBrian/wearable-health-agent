@@ -74,3 +74,68 @@ def test_a_spot_reading_never_stacks_on_an_outstanding_question() -> None:
     )
 
     assert action.kind != ActionKind.MEASURE
+
+
+def test_silence_never_produces_a_reassuring_conclusion() -> None:
+    """Premature closure, with a name and a measured rate.
+
+    Handler, Bedi and Shah, arXiv:2605.15000 (2026), define it as "inappropriate commitment
+    under uncertainty: providing an answer, recommendation, or clinical guidance when the
+    safer response would be clarification, abstention, escalation, or refusal", and measured
+    false-action rates of 55 to 81 percent in frontier models on medical questions whose
+    correct answer had been removed.
+
+    This system did it deterministically: a timed-out question became a declined answer, a
+    declined answer contributes no likelihood factor, so the belief never moved and the
+    episode concluded LIKELY_BENIGN. It asked the most informative question it had, heard
+    nothing, and reported that things were probably fine.
+    """
+    from wha.models import BaselineRung, Disposition
+    from wha.policy.select import determine_disposition
+
+    quiet = BeliefState(
+        marginals={c: (0.30 if c is CauseId.STRESS else 0.05) for c in CauseId},
+        p_illness=0.04,
+    )
+
+    answered = determine_disposition(quiet, rung=BaselineRung.MATURE, unanswered_questions=0)
+    unanswered = determine_disposition(quiet, rung=BaselineRung.MATURE, unanswered_questions=1)
+
+    assert answered == Disposition.LIKELY_BENIGN
+    assert unanswered == Disposition.UNRESOLVED
+
+
+def test_silence_cannot_talk_an_escalation_down() -> None:
+    """Urgency may always rise. The unanswered check sits after the illness threshold."""
+    from wha.models import BaselineRung, Disposition
+    from wha.policy.select import determine_disposition
+
+    concerning = BeliefState(
+        marginals={c: (0.60 if c is CauseId.INFECTION else 0.05) for c in CauseId},
+        p_illness=0.60,
+    )
+
+    assert (
+        determine_disposition(concerning, rung=BaselineRung.MATURE, unanswered_questions=2)
+        == Disposition.LIKELY_ILLNESS
+    )
+
+
+def test_a_recorded_event_still_explains_a_night_despite_an_unanswered_question() -> None:
+    """An unanswered question is an absence of evidence, not evidence of absence.
+
+    A workout the watch recorded is positive evidence from the device and does not depend
+    on the person replying, so it is still allowed to explain the night.
+    """
+    from wha.models import BaselineRung, Disposition
+    from wha.policy.select import determine_disposition
+
+    explained = BeliefState(
+        marginals={c: (0.70 if c is CauseId.EXERTION else 0.05) for c in CauseId},
+        p_illness=0.03,
+    )
+
+    assert (
+        determine_disposition(explained, rung=BaselineRung.MATURE, unanswered_questions=1)
+        == Disposition.EXPLAINED_BY_EVENT
+    )

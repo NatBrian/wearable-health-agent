@@ -165,6 +165,80 @@ rules:
           urgent assessment today.
 
 # ---------------------------------------------------------------------------
+# BLOOD OXYGEN, AS A THRESHOLD RULE AND NOT AS BELIEF EVIDENCE
+#
+# The watch reports blood oxygen. The question was whether to give it a likelihood in
+# causes.yaml, so it could move the belief across the twelve causes. It does not get one,
+# for a reason that is about evidence rather than caution:
+#
+#   NO PUBLISHED STUDY relates a wearable blood oxygen reading to any of those causes.
+#   Writing that number would be inventing clinical content, which is the one thing this
+#   build must not do. Reviews of wearables for SARS-CoV-2 note that comparative work on
+#   the incremental value of SpO2 over heart rate alone is limited.
+#
+# What DOES exist is a threshold, from an authority, for action rather than for cause:
+#
+#   WHO guidance, as reported in the wearable SpO2 literature: a person with SpO2 above
+#   94 percent can be cared for at home, while below 93 percent warrants medical
+#   attention.
+#
+# And the case for using it at all is real. "Silent hypoxia" is documented in COVID: blood
+# oxygen can fall while the person still feels well, which is precisely the pre-symptomatic
+# window this whole system exists to catch. Heart rate alone cannot see it.
+#
+# So it belongs here, in the deterministic floor, as a cited threshold that raises urgency,
+# rather than in the belief model as an invented likelihood.
+#
+# TWO LIMITS, BOTH BINDING AND BOTH DISCLOSED.
+#
+# 1. ACCURACY. Consumer pulse oximetry has a root-mean-square error of roughly 4 percent,
+#    and melanin is misread as oxygenated haemoglobin, so readings are biased HIGH in
+#    darker skin: pooled mean bias 0.70 percent light, 0.27 medium, 1.27 dark (systematic
+#    review and meta-analysis, J Med Internet Res 2024;26:e62769). Occult hypoxaemia went
+#    undetected roughly three times more often in Black patients during COVID. Biased high
+#    means a real fall can be missed, so this rule can produce false negatives and must
+#    never be read as an all-clear. The FDA issued skin-tone subgroup guidance in January
+#    2025.
+#
+# 2. SAMPLING. A single spot reading is not a night. This rule therefore requires a
+#    sustained overnight measurement, not one number, and does not run at all without one.
+#    The device can record blood oxygen continuously during sleep, but that has to be
+#    switched on in the phone app; with it off, only occasional spot checks arrive and this
+#    rule stays dormant and says so.
+# ---------------------------------------------------------------------------
+oxygen:
+  citation: >
+    WHO guidance as reported in the wearable SpO2 literature: above 94 percent can be
+    cared for at home, below 93 percent warrants medical attention. Accuracy and skin
+    pigmentation bias: systematic review and meta-analysis, J Med Internet Res
+    2024;26:e62769.
+  citation_plain: >
+    World Health Organization guidance on home care thresholds, and a 2024 review of how
+    accurate these sensors are on different skin tones
+  # Minimum readings inside the sleep window before the rule may run at all. One spot
+  # check is not a night, and this system already refuses to judge a night measured over
+  # too little.
+  min_overnight_readings: 10
+  bands:
+    - max_percent: 92
+      urgency: urgent
+      meaning: >
+        Your overnight blood oxygen readings sat at or below 92 percent. Published
+        guidance treats a level below 93 percent as needing medical attention rather than
+        home care. This is a consumer sensor and not a medical one, so this is a reason to
+        get a proper reading taken today, not a diagnosis.
+    - max_percent: 94
+      urgency: same_day
+      meaning: >
+        Your overnight blood oxygen sat below the level published guidance treats as
+        comfortable for home care. Worth speaking to a doctor today and having it measured
+        properly.
+  never_reassure: >
+    A reading above the threshold is NOT an all-clear. These sensors read high on darker
+    skin, so a genuine fall can be missed entirely. Nothing here should stop anyone who
+    feels unwell from seeking care.
+
+# ---------------------------------------------------------------------------
 # WHERE NO VALIDATED HISTORY-ONLY RULE WAS FOUND
 #
 # Searched September 2026. Every candidate rule for these presentations requires an ECG,
