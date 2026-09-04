@@ -2,7 +2,7 @@
 
 **Written 4 September 2026, while building `data/knowledge/corpus.yaml`.**
 
-The corpus the agent retrieves from is generated from three files a human authored:
+The corpus the agent retrieves from is generated from three files in this repository:
 `data/knowledge/causes.yaml`, `data/knowledge/red_flags.yaml` and `src/wha/constants.py`.
 No medical content is written by the agent. That constraint stops fabrication, but it does
 not by itself make the corpus correct: a wrong number in `causes.yaml` would become a
@@ -133,7 +133,7 @@ in this repository:
 - **Layer 2, clinical reference register: present but narrow.** It is the measurement and
   detection method, drawn from `constants.py` and the papers above. It is not StatPearls.
 - **Layer 3, escalation and care pathways: present.** Generated from `red_flags.yaml`,
-  which is the human-authored safety floor, including its Singapore care-pathway wording.
+  which is the safety floor, including its Singapore care-pathway wording.
 - **Layer 4, confounder evidence: present.** Generated from `causes.yaml`.
 
 The consequence, stated plainly: the agent can cite the reason a night was flagged, the

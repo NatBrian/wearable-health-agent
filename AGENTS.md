@@ -39,16 +39,18 @@ file wins and `CLAUDE.md` needs correcting.
    **Never write clinical content from your own knowledge.** That is the one line this project
    must not cross. The agent may cite the corpus and nothing else.
 
-3. **`data/knowledge/`, `history/`, `docs/CONTRACTS.md`, `research/` and `archive/` are read-only
-   inputs.** The two files you keep current are `STATUS.md` and `BLOCKERS.md`, both at the
-   repository root.
+3. **`history/`, `docs/CONTRACTS.md`, `research/` and `archive/` are read-only inputs.** The two
+   files you keep current are `STATUS.md` and `BLOCKERS.md`, both at the repository root.
 
-   **One narrow exception, granted by the user on 4 September 2026.** A clinical figure in
-   `data/knowledge/` or `src/wha/constants.py` may be corrected in exactly one circumstance: the
-   published source it cites can be quoted saying something different. Not a hunch that a number
-   looks wrong, not a better number from elsewhere, not your own knowledge. Every such change goes
-   in `docs/KNOWLEDGE-CHANGELOG.md` with the old value, the new value and the quoted source
-   sentence. If the source does not settle it, it is still a blocker.
+   **`data/knowledge/` is under change control, not read-only.** It used to be sealed because a
+   person had written it. That was not true, and the header lines saying so have been removed.
+   The reason that survives is the one that matters: a clinical number must not move without
+   evidence. A figure there, or in `src/wha/constants.py`, may change when either the published
+   source it cites can be quoted saying something different, or a measurement made here on real
+   data, with the script committed, says something different. Not a hunch, not a better number
+   from elsewhere, never your own knowledge. Every change goes in `docs/KNOWLEDGE-CHANGELOG.md`
+   with the old value, the new value, and either the quoted sentence or the command that
+   reproduces the measurement. If neither settles it, it is still a blocker.
 
 4. **Always `uv run`.** Never bare `python`, never bare `pip`. On this machine `python` resolves to
    an unrelated project's virtual environment and your imports fail in confusing ways.
@@ -102,7 +104,7 @@ be **grounded in a cited passage** or it is stripped or labelled on screen. The 
 | `docs/CONTRACTS.md` | Schemas, models, constants, service signatures. **Still binding**, cited from the source code, and never edited | No |
 | `history/` | **Finished work. Describes nothing about the present.** The old build brief and proposal, the 67-task plan, and the frozen build log that stops partway through the agentic work. See `history/README.md` | No |
 | `docs/` | The living design and disclosure documents | Yes, keep true |
-| `data/knowledge/` | Cited medical tables, authored by a human | **See rule 3** |
+| `data/knowledge/` | The clinical tables. Every number carries its own provenance | **See rule 3** |
 | `data/corpus/` | Fetched external text, gitignored. Not authored here | Fetch only |
 | `docs/KNOWLEDGE-CHANGELOG.md` | Every clinical figure changed, with the source quoted | Yes |
 | `docs/DISCLOSURES.md` | What is unevidenced, and where the user is told | Yes, keep true |

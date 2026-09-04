@@ -105,7 +105,7 @@ of exactly zero and make every later night look infinitely unusual.
         st.markdown(
             """
 If you describe certain symptoms in your own words, the system stops and tells you to
-seek care. That check is plain pattern matching against a human-written list, it runs
+seek care. That check is plain pattern matching against a fixed list, it runs
 before any model is consulted, and no amount of model output can switch it off. A
 language model can only **add** a flag to that list, never remove one.
 """

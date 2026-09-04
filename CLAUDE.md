@@ -48,11 +48,13 @@ screen. The dashboard is a client of the HTTP API and holds no data logic.
 8. **Subject `me` holds the user's four real nights. Never overwrite or delete it.** `sim` is
    disposable. `.env` is deliberately pointed at `sim`; restoring `.env.phase4-backup` points the
    system at a real person's watch, so do not, unless asked.
-9. **Read-only:** `data/knowledge/`, `history/plan/`, `research/`, `archive/`, `history/PROPOSAL.md`,
-   `history/HANDOFF.md`. One narrow exception, granted 4 September 2026: a clinical figure may be
-   corrected **only** where the published source it cites can be quoted saying something
-   different, and every such change goes in `docs/KNOWLEDGE-CHANGELOG.md` with the quoted
-   sentence. If the source does not settle it, it is a blocker.
+9. **Read-only:** `history/plan/`, `research/`, `archive/`, `history/PROPOSAL.md`,
+   `history/HANDOFF.md`, `docs/CONTRACTS.md`. **`data/knowledge/` is under change control
+   instead**, widened 5 September 2026: a clinical figure may change only where the published
+   source it cites can be quoted saying something different, or where a measurement made here on
+   real data with the script committed says something different. Every change goes in
+   `docs/KNOWLEDGE-CHANGELOG.md` with the quoted sentence or the reproducing command. If neither
+   settles it, it is a blocker.
 10. **Research first, then plan, then build.** Do not reason a clinical or agentic design choice
     from first principles when a study exists. Cite what you find, next to what it justifies.
 

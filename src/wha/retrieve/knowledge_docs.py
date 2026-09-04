@@ -1,4 +1,4 @@
-"""The corpus the agent retrieves from, rendered out of the knowledge a human authored.
+"""The corpus the agent retrieves from, rendered out of the knowledge tables here.
 
 Four layers, four sources, no new medical content written anywhere:
 
@@ -11,7 +11,7 @@ Four layers, four sources, no new medical content written anywhere:
   ``constants.py``. The numbers are imported rather than retyped, so a passage cannot
   drift away from the constant it describes.
 - **Layer 3**, when to seek care, from ``red_flags.yaml``. The deterministic safety floor
-  is the only care-pathway guidance in this repository, and it was written by a human.
+  is the only care-pathway guidance in this repository.
 - **Layer 4**, the competing explanations for an elevation, from ``causes.yaml``, in
   :func:`wha.retrieve.corpus.generate_layer_4_confounder_docs`.
 

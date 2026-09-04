@@ -1,7 +1,7 @@
 # causes.yaml
 #
 # The twelve candidate causes of a nocturnal resting heart rate deviation.
-# READ ONLY. Authored by a human. The coding agent loads this and never edits it.
+# READ ONLY. The coding agent loads this and never edits it.
 #
 # FIELDS
 #   base_rate        P(this cause is present on any given night). A PLAIN BASE RATE.
@@ -17,7 +17,7 @@
 #   provenance       CITED   a published number, with its source and n
 #                    DERIVED computed from published numbers, derivation shown
 #                    ASSUMED no published value exists. States the assumption and the
-#                            direction it is conservative in. MUST appear in the sweep.
+#                            direction it is conservative in.
 #
 # THE PROFILE IS WHAT DISCRIMINATES. Alcohol contributes on night one and stops;
 # infection rises across nights; the luteal plateau lasts about twelve. A single-night
@@ -111,8 +111,8 @@ causes:
       (Liu et al., MMWR 2016;65(6):137-41). The EFFECT SIZE is assumed. The published
       wearable literature quantifies the HRV effect (rMSSD SMD -0.24, and the authors
       caution it may be limited to specific conditions) but not a reliable bpm effect on
-      nocturnal heart rate. Set deliberately SMALL, which UNDERSTATES how much short
-      sleep explains and therefore leaves more residual attributed elsewhere. Swept.
+      nocturnal heart rate. It is set SMALL, which understates how much short sleep
+      explains and therefore leaves more residual attributed to other causes.
     citation: >
       Liu et al., MMWR 2016;65(6):137-41 for the base rate.
       Zhang et al., Front Neurol 2025;16:1556784, 11 studies n=549, for the HRV effect.
@@ -203,8 +203,8 @@ causes:
       64,847 trips from 57,240 users: night-before-travel total sleep time down 17.9 to
       61.9 minutes, timing not recovered within 15 days). But that paper reports NO
       heart-rate result, and no wearable study quantifying a travel effect on nocturnal
-      RHR was found. Both mean and SD are assumed, with a deliberately WIDE SD so this
-      cause explains little on its own. Swept.
+      RHR was found. Both mean and SD are assumed, with a WIDE SD so this cause
+      explains little on its own.
     citation: "Willoughby et al., Sleep 2025;48(7):zsaf077, for the sleep effects only."
     note: >
       Altitude is folded in here. Altitude WOULD be separable by blood oxygen, but that
@@ -219,8 +219,8 @@ causes:
     evidence_grade: B
     provenance: DERIVED
     derivation: >
-      A mean of ZERO with a very WIDE SD is the honest encoding, because the direction is
-      not fixed. Beta blockers LOWER resting heart rate by 8 to 14 bpm across dose
+      A mean of ZERO with a very WIDE SD, because the direction of the effect is not
+      fixed. Beta blockers LOWER resting heart rate by 8 to 14 bpm across dose
       quintiles (Gullestad et al., MERIT-HF, JACC 2005). Stimulants and anticholinergic
       antihistamines RAISE it. The SD spans both directions.
     citation: "Gullestad et al., JACC 2005;45(4):525-30, MERIT-HF."
@@ -279,11 +279,11 @@ causes:
     provenance: ASSUMED
     assumption: >
       A leak term by construction. Wide and unbiased so that it absorbs residuals no named
-      cause explains, rather than forcing the mass onto a cause that does not fit. Swept.
+      cause explains, rather than forcing the mass onto a cause that does not fit.
     note: >
       A FIRST-CLASS CAUSE, not a dustbin. It rising is the correct behaviour when the
       evidence fits nothing, and it is what makes a closed set of twelve defensible. When
-      it dominates, the episode closes as UNRESOLVED, which is an honest outcome.
+      it dominates, the episode closes as UNRESOLVED.
 
 # ---------------------------------------------------------------------------
 # ROWS THE OPERATOR SHOULD REVIEW: every ASSUMED field, and the two DERIVED

@@ -309,8 +309,7 @@ Three constraints follow directly from the evidence:
 
 Stated here and on screen rather than buried.
 
-- **The tier A and tier B phrase lists in `red_flags.yaml`** are human-authored routing
-  rules. Apart from chest pain, which now has Marburg, none of them carries a diagnostic
+- **The tier A and tier B phrase lists in `red_flags.yaml`** are fixed routing rules. Apart from chest pain, which now has Marburg, none of them carries a diagnostic
   accuracy figure. Downie's finding applies directly: their accuracy is untested.
 - **No validated history-only rule was found** for syncope, meningism, gastrointestinal
   bleeding or new confusion that does not require an ECG, bloods or examination. Those

@@ -1,6 +1,6 @@
 # data/knowledge
 
-**READ ONLY. Authored by a human. The coding agent loads these files and never edits them.**
+**READ ONLY. The coding agent loads these files and never edits them.**
 
 This directory is the project's intellectual core. It is what the novelty claim rests on, and it is
 the one place where a fabricated number would be invisible and consequential.
@@ -8,7 +8,13 @@ the one place where a fabricated number would be invisible and consequential.
 A language model asked to produce hundreds of cited conditional probabilities will produce hundreds
 of plausible fabrications. This repository already contains a documented case: an earlier generation
 of the research was found under audit to carry performance figures that were fabricated or badly
-distorted. That is why these files are authored and frozen rather than generated.
+distorted.
+
+So do not trust this directory at the level of the file. Trust it at the level of the
+number. Every figure carries its own `provenance`, which is either a citation you can open
+and check or an `ASSUMED` label meaning no published value exists for it. Those are the
+only two things a reader should rely on, and `docs/DISCLOSURES.md` lists where each
+`ASSUMED` figure is disclosed on screen.
 
 ---
 

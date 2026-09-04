@@ -317,7 +317,8 @@ the system rather than something a person checking their own health acts on.
 
 ## Corpus & Knowledge Sources
 
-Written by a human, in this repository:
+In this repository. Every number carries its own `provenance`, which is either a citation
+you can open or an `ASSUMED` label meaning no published value exists:
 
 * **`data/knowledge/causes.yaml`**: 12 cited clinical causes with peer-reviewed effect sizes, population base rates, and temporal dynamics.
 * **`data/knowledge/probes.yaml`**: 9 structured clinical questions with cited likelihood rows over discrete answer slots.

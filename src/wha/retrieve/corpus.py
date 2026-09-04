@@ -14,7 +14,7 @@ CAUSES_PATH = Path("data/knowledge/causes.yaml")
 
 
 def _load_cause_prose(path: Path | None = None) -> dict[str, dict[str, str]]:
-    """The human-written prose in causes.yaml that CausePrior does not carry.
+    """The prose in causes.yaml that CausePrior does not carry.
 
     ``CausePrior`` keeps only what the belief model computes with. The label, the note,
     the derivation and the reasoning behind the temporal profile are the parts a person

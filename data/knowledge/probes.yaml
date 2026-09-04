@@ -1,7 +1,7 @@
 # probes.yaml
 #
 # WHAT to find out. Selected by arithmetic, never by the model.
-# READ ONLY. Authored by a human. The coding agent loads this and never edits it.
+# READ ONLY. The coding agent loads this and never edits it.
 #
 # A probe is NOT a question. It is a cause to resolve, an answer space, and a cited
 # likelihood. The model writes the actual sentence, freely and in context. Only the
@@ -12,7 +12,7 @@
 # the binary belief model bought, and it removes precisely the rows that would otherwise
 # be fabricated.
 #
-# HONEST WARNING ON PROVENANCE. Almost every likelihood here is ASSUMED. No published
+# WARNING ON PROVENANCE. Almost every likelihood here is ASSUMED. No published
 # measurement exists of how accurately a person reports drinking, stress or sleep to an
 # app when prompted the next morning. The research corpus says so directly: the
 # answer-reliability tables are "essentially unmeasured", and the medical test-selection
@@ -20,11 +20,11 @@
 # all". A model asked to cite these will search, find nothing, and produce a confident
 # number anyway. Better data does not fix this, because the measurement does not exist.
 #
-# EVERY ASSUMED ROW IS SET CONSERVATIVELY, meaning the `present` row is flatter than
-# self-report validity studies suggest. That UNDERSTATES how informative a question is,
-# which makes the system interrupt LESS. Over-stating it would make it interrupt more,
-# which is the failure this project exists to fix. All are swept in the sensitivity
-# analysis.
+# THE DIRECTION THESE ROWS ERR IN. A flatter `present` row makes a question look less
+# informative, which lowers its EVSI and makes the system interrupt LESS. That is the
+# safer direction to be wrong in, because over-stating informativeness makes it
+# interrupt more, which is the failure this project exists to fix. Whether each row is
+# actually flat enough is unmeasured, because the measurement above does not exist.
 #
 # NOTE ON QUOTING. Option ids "no" and "yes" are QUOTED because YAML 1.1 parses bare
 # no/yes/on/off as booleans. Unquoted, the id becomes False and the slot silently
@@ -55,7 +55,7 @@ probes:
       Symptoms carry the discriminating information sensors lack, so this is usually the
       highest-value probe. The `present` row allows 15 percent for a genuinely
       pre-symptomatic infection, which is the regime the whole project targets, so this
-      probe is deliberately NOT decisive on its own. Swept.
+      probe is deliberately NOT decisive on its own.
 
   - probe_id: probe_alcohol
     target_cause: alcohol
@@ -73,7 +73,7 @@ probes:
     assumption: >
       Under-reporting is well documented in the general self-report literature but has not
       been quantified for a next-morning app prompt. The 10 percent "none" given present
-      encodes both under-reporting and recall error. Set conservatively. Swept.
+      encodes both under-reporting and recall error. Set conservatively.
 
   - probe_id: probe_exertion
     target_cause: exertion
@@ -91,7 +91,7 @@ probes:
     assumption: >
       Recall for hard exercise is better than for alcohol, so `present` is sharper and the
       cost is slightly lower. The question exists only because step-based devices miss
-      swimming, cycling and resistance work. Swept.
+      swimming, cycling and resistance work.
 
   - probe_id: probe_sleep_quality
     target_cause: sleep_restriction
@@ -108,7 +108,7 @@ probes:
     provenance: ASSUMED
     assumption: >
       The fourth option exists because the sensor cannot distinguish "chose to stay up"
-      from "woke feeling awful", and that distinction is the whole reason to ask. Swept.
+      from "woke feeling awful", and that distinction is the whole reason to ask.
 
   - probe_id: probe_stress
     target_cause: stress
@@ -126,7 +126,7 @@ probes:
       Self-reported stress is subjective and its relationship to the physiological effect
       is loose, so this probe is deliberately less decisive than its base rate would
       suggest. Only three slots, because finer gradations are not meaningfully reported.
-      Swept.
+
 
   - probe_id: probe_vaccination
     target_cause: vaccination
@@ -142,7 +142,7 @@ probes:
     assumption: >
       The one probe where the assumption is close to safe. The event is discrete, recent,
       memorable and perfectly known, so a binary answer carries close to a full bit. Cost
-      is low because the question is trivially easy to answer. Swept anyway.
+      is low because the question is trivially easy to answer.
 
   - probe_id: probe_travel
     target_cause: travel
@@ -160,7 +160,7 @@ probes:
       Recall is near-perfect for travel, so `present` is sharp. Rarely worth asking,
       because the base rate is low and the expected value of sample information will
       usually be near zero. It exists so the arithmetic can decide that, rather than the
-      option being absent. Swept.
+      option being absent.
 
   - probe_id: probe_cycle
     target_cause: luteal
@@ -179,7 +179,7 @@ probes:
     assumption: >
       A ONE-TIME setup question, hence the low cost: once answered it becomes a modelled
       covariate and is never asked again. "Prefer not to say" is a first-class option and
-      leaves the base rate unchanged rather than assuming either way. Swept.
+      leaves the base rate unchanged rather than assuming either way.
 
   - probe_id: probe_medication
     target_cause: medication
@@ -197,7 +197,7 @@ probes:
     assumption: >
       Asked once at setup and then only on a suspected change. Recall for starting a
       medication is good; recall for a missed dose is worse, which the split encodes.
-      Swept.
+
 
 # ---------------------------------------------------------------------------
 # NO PROBE EXISTS FOR: recovery_tail, sensor_artifact, unexplained.
