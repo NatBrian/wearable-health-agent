@@ -19,11 +19,17 @@ def test_cli_imports_only_service() -> None:
 
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("wha"):
-            allowed = node.module in {"wha.config", "wha.service"} or node.module.startswith(
-                "wha.service"
-            )
+            # wha.api.app joins the allow-list because `wha serve` now starts the HTTP
+            # boundary as well as the dashboard. This is still a layering rule: the CLI may
+            # reach the service layer and the API application, and nothing beneath them.
+            allowed = node.module in {
+                "wha.config",
+                "wha.service",
+                "wha.api.app",
+            } or node.module.startswith("wha.service")
             assert allowed, (
-                f"Prohibited import '{node.module}' in cli.py. Must only import from service/ and config.py"
+                f"Prohibited import '{node.module}' in cli.py. Must only import from "
+                "service/, config.py or api/app.py"
             )
 
 

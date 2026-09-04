@@ -9,10 +9,7 @@ here: the sleep window and naps on History, the alerting floor on Today.
 
 import streamlit as st
 
-from wha.constants import (
-    BASELINE_MIN_NIGHTS_PERSONAL,
-    DETECT_PERSISTENCE_NIGHTS,
-)
+from wha.ui.components.api import config
 
 
 def render_disclaimer() -> None:
@@ -29,12 +26,12 @@ def render_disclaimer() -> None:
 **What it does**
 
 It watches your resting heart rate while you sleep. A rise that persists for
-{DETECT_PERSISTENCE_NIGHTS} nights is investigated, and you may be asked one question if the
+{config()["DETECT_PERSISTENCE_NIGHTS"]} nights is investigated, and you may be asked one question if the
 answer would genuinely change the picture.
 
 **What it cannot do**
 
-- **It needs {BASELINE_MIN_NIGHTS_PERSONAL} nights of your sleep before it can raise
+- **It needs {config()["BASELINE_MIN_NIGHTS_PERSONAL"]} nights of your sleep before it can raise
   anything.** Until then it is comparing you to a typical adult rather than to you, so it
   watches and learns but does not alert.
 - **It only looks for a raised heart rate.** A low one is usually fitness or good rest.

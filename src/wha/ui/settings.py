@@ -10,7 +10,7 @@ import streamlit as st
 from pydantic import SecretStr
 
 from wha.models import SettingsPatch
-from wha.service.settings import delete_all_subject_data, get_service_settings, update_settings
+from wha.ui.components.api import api
 from wha.ui.components.status_strip import render_status_strip
 
 
@@ -21,7 +21,7 @@ def render_connection_section(subject_id: str) -> None:
         "The companion app on your phone sends heart rate and step data to this "
         "address. Nothing is read from your phone unless it is running."
     )
-    current_settings = get_service_settings()
+    current_settings = api().get_service_settings()
 
     col1, col2 = st.columns(2)
     with col1:
@@ -44,8 +44,6 @@ def render_connection_section(subject_id: str) -> None:
         )
 
     if st.button("Check the connection", key="btn_test_bridge"):
-        from wha.service.status import test_bridge_connection
-
         clean_host = bridge_host.strip()
         if (
             clean_host
@@ -55,7 +53,7 @@ def render_connection_section(subject_id: str) -> None:
             clean_host = f"http://{clean_host}"
         token_val = st.session_state.get("sett_bridge_token") or None
         st.info(f"Trying `{clean_host}`...")
-        chk = test_bridge_connection(bridge_host=clean_host, bridge_token=token_val)
+        chk = api().test_bridge_connection(bridge_host=clean_host, bridge_token=token_val)
         if chk.ok:
             st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
         else:
@@ -79,7 +77,7 @@ def render_llm_section(subject_id: str) -> None:
         "Used to word questions and write summaries. It never decides whether to "
         "interrupt you, and it cannot switch off the safety rules."
     )
-    current_settings = get_service_settings()
+    current_settings = api().get_service_settings()
 
     provider_options = ["cassette", "ollama_native", "openai_compatible"]
     provider_idx = (
@@ -118,13 +116,11 @@ def render_llm_section(subject_id: str) -> None:
         )
 
     if st.button("🧪 Test LLM Provider", key="btn_test_llm"):
-        from wha.service.status import test_llm_connection
-
         # Deliberately not written into os.environ. The dashboard process is shared by
         # every browser session, so promoting one visitor's key or endpoint to process
         # environment would leak it into all of them and outlive the request.
         st.info(f"Testing `{llm_provider}` with model `{llm_model}`...")
-        chk = test_llm_connection(provider=llm_provider, model=llm_model)
+        chk = api().test_llm_connection(provider=llm_provider, model=llm_model)
         if chk.ok:
             st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
         else:
@@ -134,7 +130,7 @@ def render_llm_section(subject_id: str) -> None:
 def render_notifications_section(subject_id: str) -> None:
     """Render Telegram notification settings and bot setup instructions."""
     st.subheader("How you get asked")
-    current_settings = get_service_settings()
+    current_settings = api().get_service_settings()
 
     channel_options = ["none", "telegram"]
     channel_idx = (
@@ -168,11 +164,9 @@ def render_notifications_section(subject_id: str) -> None:
             )
 
         if st.button("📨 Send Test Notification", key="btn_test_notify"):
-            from wha.service.status import test_telegram_connection
-
             st.info("Sending test notification message...")
             token_val = st.session_state.get("sett_tg_token") or None
-            chk = test_telegram_connection(token=token_val)
+            chk = api().test_telegram_connection(token=token_val)
             if chk.ok:
                 st.success(f"✅ {chk.detail} ({chk.latency_ms}ms)")
             else:
@@ -195,7 +189,7 @@ def render_policy_section(subject_id: str) -> None:
         "The system only asks a question when the answer would genuinely change what "
         "it concludes. These limits cap it regardless."
     )
-    current_settings = get_service_settings()
+    current_settings = api().get_service_settings()
 
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -251,7 +245,7 @@ def render_policy_section(subject_id: str) -> None:
             if st.session_state.get("sett_tg_token")
             else None,
         )
-        update_settings(patch, subject_id=subject_id)
+        api().update_settings(patch, subject_id=subject_id)
         st.success("Saved. The change is recorded in the audit record.")
 
 
@@ -271,7 +265,7 @@ def render_data_privacy_section(subject_id: str) -> None:
 
     if st.button("Delete all my data", type="primary", key="btn_delete_all"):
         if confirm_text.strip() == "DELETE":
-            delete_all_subject_data(subject_id)
+            api().delete_all_subject_data(subject_id)
             st.error("Everything has been deleted.")
         else:
             st.warning("Nothing was deleted. Type DELETE exactly to confirm.")

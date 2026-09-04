@@ -1,6 +1,6 @@
 # STATUS — read this first
 
-**Last updated:** 4 September 2026 (conversation, triage and handover)
+**Last updated:** 4 September 2026 (dead subsystems, and an HTTP boundary)
 **Branch:** `feat/agentic-early-warning-system` (14 commits ahead of the implementation work, nothing pushed)
 
 `HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
@@ -11,7 +11,7 @@ file describes where things actually stand.
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 506 passed, 1 skipped
+uv run pytest                     # 528 passed, 1 skipped
 uv run ruff check src tests       # clean
 uv run ruff format --check src tests
 uv run wha doctor                 # no fail rows
@@ -47,7 +47,7 @@ All of the above is fixed. The detail is in `plan/PROGRESS.md`.
 
 | Check | Result |
 |---|---|
-| Tests | **506 passed, 1 skipped**, no ignore list |
+| Tests | **528 passed, 1 skipped**, no ignore list |
 | Lint and format | clean |
 | `wha doctor` | no fail rows |
 | Frozen scenarios | **10 of 11** |
@@ -384,6 +384,56 @@ Building it found two defects it would otherwise have shipped to a clinician: ni
 reporting **42.9 hours of sleep**, because overlapping sleep records were summed rather
 than merged; and an inverted rule item printed as "pain not reproducible: yes" when the
 person had said pressing *does* reproduce it, which asserts the reverse of what they said.
+
+
+---
+
+## Four subsystems had never executed, and the dashboard is now replaceable
+
+A pipeline review, stage by stage, driven rather than read.
+
+**Chronos had never run.** `forecast_night()` was called by nothing: `detect_night` took an
+optional `Forecast` defaulting to `NOT_RUN` and every caller left it out. A subject with 41
+usable nights against a five-night minimum recorded `NOT_RUN` on every night, while
+`wha doctor` reported 182 MB of weights present and this file claimed Chronos was
+forecasting. It now runs, at 0.1 s per night once warm, and is shown as advisory context.
+
+It stays out of the belief model on evidence. No study was found showing a forecast
+residual identifies *which* cause is present, and Alavi et al. 2022, the source of our
+thresholds, measured plain baseline deviation at 78 percent sensitivity against 54 for
+CuSum and 44 for RHRAD. `FORECAST_AS_EVIDENCE` and `FORECAST_EVIDENCE_SD_BPM` are deleted
+and `plan/02-contracts.md` amended.
+
+**MEASURE had never fired.** `ActionKind.MEASURE` appeared only in the graph's router, so
+`node_measure`, the "A quick reading would help" screen, `submit_measurement_done` and
+`compute_measurement_logfactor` were unreachable and the `measurements` table had never
+held a row. The policy now selects it when sensor artifact leads the differential.
+
+**Injection scanning had never run in production.** `scan_untrusted` was called only by
+`wha/eval/adversarial.py`, so the `injection-poisoned` scenario passed because the
+evaluation invoked the scanner directly. Retrieved passages are now scanned before the
+model sees them, and detection contains rather than drops.
+
+**The conversation was not in the audit chain**, while the page said everything is written
+down. It is now, under the `chat` operation the contract had reserved and nothing used.
+
+### The dashboard is a client now
+
+Screens called service functions as Python imports. Clean layering, with no SQL in any
+view, but only Python could cross it. There is now a FastAPI boundary on `127.0.0.1:8500`
+with 28 endpoints and generated OpenAPI docs at `/docs`, and Streamlit is one of its
+clients. A React front end can replace it without a line of backend work.
+
+`/config` enumerates every public constant from the module rather than listing them by
+hand, so it cannot drift, and it carries the subject's local date because a browser cannot
+compute it. A test asserts no screen imports `wha.service`, `wha.constants`, `wha.clock` or
+anything below them.
+
+Driving the five screens found two defects the suite did not: `localise` returned a string
+where `to_local` had returned a datetime, so every caller that formatted it broke at render
+time; and the audit endpoint took a subject id where the service wanted an `AuditFilter`.
+Both were invisible to tests because no test rendered the status strip with a timestamp
+present or opened the Audit page.
 
 **The machine is left pointed at the simulation.** `.env` has `WHA_SUBJECT=sim` and the
 bridge on `127.0.0.1:8788`; the original is `.env.phase4-backup`. Restore it before using

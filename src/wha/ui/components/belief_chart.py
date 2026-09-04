@@ -5,12 +5,20 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from wha.constants import UTILITY_FALSE_ALARM, UTILITY_MISS_ILLNESS
 from wha.models import BeliefState
+from wha.ui.components.api import config
 
-DECISION_THRESHOLD_P_ILLNESS = abs(UTILITY_FALSE_ALARM) / (
-    abs(UTILITY_FALSE_ALARM) + abs(UTILITY_MISS_ILLNESS)
-)
+
+def decision_threshold_p_illness() -> float:
+    """The testing threshold, derived from the utilities the application holds.
+
+    A function rather than a module constant, because it now comes over HTTP. Computing it
+    at import time meant merely importing a screen required a running backend, which broke
+    every test that touched the module and would break any tooling that inspected it.
+    """
+    false_alarm = abs(config()["UTILITY_FALSE_ALARM"])
+    miss = abs(config()["UTILITY_MISS_ILLNESS"])
+    return false_alarm / (false_alarm + miss)
 
 
 def build_belief_evolution_data(
@@ -27,7 +35,7 @@ def build_belief_evolution_data(
             "step": f"Step {seq}: {trigger}",
             "trigger": trigger,
             "p_illness": state.p_illness,
-            "decision_threshold": DECISION_THRESHOLD_P_ILLNESS,
+            "decision_threshold": decision_threshold_p_illness(),
         }
         for cause, prob in state.marginals.items():
             row[f"P({cause.value})"] = prob

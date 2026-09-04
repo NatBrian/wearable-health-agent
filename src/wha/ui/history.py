@@ -10,11 +10,8 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from wha.clock import local_today
 from wha.models import EpisodeSummary, NightRow
-from wha.service.episodes import get_episode, list_episodes
-from wha.service.nights import get_night_detail, list_nights
-from wha.service.status import get_system_status
+from wha.ui.components.api import api, today
 from wha.ui.components.night_chart import render_night_chart
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
@@ -119,7 +116,7 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
         )
         if selected_date_str:
             sel_date = date.fromisoformat(selected_date_str)
-            detail = get_night_detail(subject_id, sel_date)
+            detail = api().get_night_detail(subject_id, sel_date)
             if detail:
                 col_a, col_b, col_c = st.columns(3)
                 feat = detail.features
@@ -173,7 +170,7 @@ def render_history_page(subject_id: str) -> None:
     # Check query param for drill-down episode
     ep_param = st.query_params.get("episode")
     if ep_param:
-        ep_detail = get_episode(ep_param)
+        ep_detail = api().get_episode(ep_param)
         if ep_detail:
             from wha.ui.components.episode_panel import render_episode_panel
 
@@ -184,13 +181,13 @@ def render_history_page(subject_id: str) -> None:
             return
         st.warning("That investigation could not be found.")
 
-    end_d = local_today()
+    end_d = today()
     start_d = end_d - timedelta(days=60)
-    nights = list_nights(subject_id, start=start_d, end=end_d)
-    episodes = list_episodes(subject_id)
+    nights = api().list_nights(subject_id, start=start_d, end=end_d)
+    episodes = api().list_episodes(subject_id)
 
     # The chart says whether the band is still a population estimate, which needs the rung.
-    status = get_system_status(subject_id)
+    status = api().get_system_status(subject_id)
     render_night_chart(nights, rung=status.rung)
     st.write("---")
     render_episode_spans(episodes)

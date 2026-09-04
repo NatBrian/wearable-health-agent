@@ -649,6 +649,15 @@ def eval_cmd(
                 typer.echo(f"- {c}")
 
 
+def _run_api(host: str, port: int) -> None:
+    """Serve the HTTP boundary in-process, so `wha serve` remains one command."""
+    import uvicorn
+
+    from wha.api.app import app as api_app
+
+    uvicorn.run(api_app, host=host, port=port, log_level="warning")
+
+
 @app.command("serve")
 def serve_cmd(
     port: Annotated[int, typer.Option("--port", "-p", help="Port to bind dashboard")] = 8501,
@@ -658,11 +667,13 @@ def serve_cmd(
     no_scheduler: Annotated[
         bool, typer.Option("--no-scheduler", help="Disable background scheduler")
     ] = False,
+    api_port: Annotated[int, typer.Option("--api-port", help="Port for the HTTP API")] = 8500,
     db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
 ) -> None:
-    """Start the Streamlit dashboard and background scheduler thread."""
+    """Start the HTTP API, the Streamlit dashboard and the background scheduler."""
     import socket
     import subprocess
+    import threading
 
     from wha.service import create_scheduler
 
@@ -687,6 +698,20 @@ def serve_cmd(
             "Pulling from your watch and scoring the nights it returns. "
             "This runs now and then repeats on a schedule."
         )
+
+    # The HTTP boundary, started before the dashboard because the dashboard is now one of
+    # its clients. Everything a screen shows comes through here, so a React front end can
+    # replace Streamlit without a line of backend work.
+    #
+    # Bound to localhost and unauthenticated on purpose: one person, one machine, their own
+    # health record. Exposing it on a network would need authentication first.
+    api_thread = threading.Thread(
+        target=_run_api,
+        kwargs={"host": "127.0.0.1", "port": api_port},
+        daemon=True,
+    )
+    api_thread.start()
+    typer.echo(f"API on http://127.0.0.1:{api_port} (docs at /docs).")
 
     app_path = Path(__file__).parent / "ui" / "Home.py"
     typer.echo(f"Starting Streamlit dashboard on http://{host}:{port}...")

@@ -4,24 +4,8 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from wha.constants import (
-    BASELINE_MIN_NIGHTS_PERSONAL,
-    BASELINE_PERSONAL_CITATION,
-    DAYTIME_EXCLUSION_CITATION,
-    DAYTIME_EXCLUSION_CITATION_PLAIN,
-    DETECT_CITATION,
-    DETECT_CITATION_PLAIN,
-    DETECT_DIRECTION_NOTE,
-    NAP_EXCLUSION_CITATION,
-    NAP_EXCLUSION_CITATION_PLAIN,
-    POP_PRIOR_CITATION,
-    POP_PRIOR_CITATION_PLAIN,
-    POP_PRIOR_RHR_MEAN_BPM,
-    POP_PRIOR_RHR_SD_BPM,
-    SLEEP_WINDOW_CITATION,
-    SLEEP_WINDOW_CITATION_PLAIN,
-)
 from wha.models import BaselineRung, DetectionLevel, NightRow
+from wha.ui.components.api import config
 
 # Two things are plotted, not three. The band's edges were separate legend entries with
 # the same colour and the same dash, so they were indistinguishable from each other and
@@ -199,12 +183,12 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
   bottom of the range expected for you on that night. The gap between them is wider when
   the system has less to go on, and narrows as your own nights accumulate.
 
-{DETECT_DIRECTION_NOTE}
+{config()["DETECT_DIRECTION_NOTE"]}
 
 **What this measures, and what it does not**
 
 - Your nights are compared against **your own median**, not against an average adult, once
-  {BASELINE_MIN_NIGHTS_PERSONAL} nights of your sleep exist. Before that the comparison is
+  {config()["BASELINE_MIN_NIGHTS_PERSONAL"]} nights of your sleep exist. Before that the comparison is
   to a typical adult and nothing is flagged.
 - **Only sleep is measured, never your waking heart rate.** Daytime readings mostly record
   what you were doing: standing up or climbing stairs moves your heart rate by tens of
@@ -225,33 +209,33 @@ def render_night_chart(nights: list[NightRow], rung: BaselineRung | None = None)
     if rung is not None and rung not in _PERSONAL_RUNGS:
         st.info(
             "**This band is not yet yours, and nothing can be flagged.** With fewer than "
-            f"{BASELINE_MIN_NIGHTS_PERSONAL} nights recorded it is still a typical-adult "
-            f"estimate, starting at {POP_PRIOR_RHR_MEAN_BPM:.1f} bpm plus or minus "
-            f"{POP_PRIOR_RHR_SD_BPM:.1f}, so your nights may sit well outside it. That "
+            f"{config()['BASELINE_MIN_NIGHTS_PERSONAL']} nights recorded it is still a typical-adult "
+            f"estimate, starting at {config()['POP_PRIOR_RHR_MEAN_BPM']:.1f} bpm plus or minus "
+            f"{config()['POP_PRIOR_RHR_SD_BPM']:.1f}, so your nights may sit well outside it. That "
             "reflects how little is known about you, not anything about your health. At "
-            f"{BASELINE_MIN_NIGHTS_PERSONAL} nights the band switches to your own median "
+            f"{config()['BASELINE_MIN_NIGHTS_PERSONAL']} nights the band switches to your own median "
             "and closes around you, which is a visible step on this chart, and only then "
             "can a raised night be acted on."
         )
 
     st.caption(
-        f"The starting range comes from {POP_PRIOR_CITATION_PLAIN}, and moves toward your "
+        f"The starting range comes from {config()['POP_PRIOR_CITATION_PLAIN']}, and moves toward your "
         f"own nights as they accumulate. The thresholds that decide when a raised night is "
-        f"worth investigating come from {DETECT_CITATION_PLAIN}. Measuring over your "
-        f"recorded sleep follows {SLEEP_WINDOW_CITATION_PLAIN}, and leaving naps out "
-        f"follows {NAP_EXCLUSION_CITATION_PLAIN}. Measuring asleep rather than across the day "
-        f"follows {DAYTIME_EXCLUSION_CITATION_PLAIN}."
+        f"worth investigating come from {config()['DETECT_CITATION_PLAIN']}. Measuring over your "
+        f"recorded sleep follows {config()['SLEEP_WINDOW_CITATION_PLAIN']}, and leaving naps out "
+        f"follows {config()['NAP_EXCLUSION_CITATION_PLAIN']}. Measuring asleep rather than across the day "
+        f"follows {config()['DAYTIME_EXCLUSION_CITATION_PLAIN']}."
     )
     with st.expander("Full references"):
         st.markdown(
             f"""
-- Starting range, {POP_PRIOR_RHR_MEAN_BPM:.2f} bpm plus or minus
-  {POP_PRIOR_RHR_SD_BPM:.2f} — {POP_PRIOR_CITATION}
-- Thresholds for a raised night — {DETECT_CITATION}
-- Comparing against your own median, and the {BASELINE_MIN_NIGHTS_PERSONAL}-night figure —
-  {BASELINE_PERSONAL_CITATION}
-- Measuring over the device's reported sleep period — {SLEEP_WINDOW_CITATION}
-- Excluding naps from the reading — {NAP_EXCLUSION_CITATION}
-- Measuring asleep rather than across the day — {DAYTIME_EXCLUSION_CITATION}
+- Starting range, {config()["POP_PRIOR_RHR_MEAN_BPM"]:.2f} bpm plus or minus
+  {config()["POP_PRIOR_RHR_SD_BPM"]:.2f} — {config()["POP_PRIOR_CITATION"]}
+- Thresholds for a raised night — {config()["DETECT_CITATION"]}
+- Comparing against your own median, and the {config()["BASELINE_MIN_NIGHTS_PERSONAL"]}-night figure —
+  {config()["BASELINE_PERSONAL_CITATION"]}
+- Measuring over the device's reported sleep period — {config()["SLEEP_WINDOW_CITATION"]}
+- Excluding naps from the reading — {config()["NAP_EXCLUSION_CITATION"]}
+- Measuring asleep rather than across the day — {config()["DAYTIME_EXCLUSION_CITATION"]}
 """
         )

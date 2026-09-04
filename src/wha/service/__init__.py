@@ -5,6 +5,7 @@ from wha.errors import (
     SourceUnavailable,
 )
 from wha.service.audit import (
+    count_audit_events,
     export_audit,
     get_permitted_tool_names,
     list_plain_records,
@@ -93,6 +94,7 @@ __all__ = [
     "SymptomReportResult",
     "build_corpus_file",
     "build_handover",
+    "count_audit_events",
     "create_scheduler",
     "delete_all_subject_data",
     "describe_device_capability",

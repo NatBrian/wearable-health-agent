@@ -16,8 +16,8 @@ def test_audit_hash_chain_verifies() -> None:
     # message over an empty log. An empty chain verifies trivially, and reporting "the
     # record is intact" for zero entries is a green tick for something never checked.
     with (
-        patch("wha.ui.audit.verify_hash_chain", return_value=(True, None)),
-        patch("wha.ui.audit.count_audit_events", return_value=12),
+        patch("wha.api.client.ApiClient.verify_hash_chain", return_value=(True, None)),
+        patch("wha.api.client.ApiClient.count_audit_events", return_value=12),
         patch("streamlit.success") as mock_success,
         patch("streamlit.error") as mock_error,
     ):
@@ -29,8 +29,8 @@ def test_audit_hash_chain_verifies() -> None:
 
     # 1b. Verified, but nothing has been written yet.
     with (
-        patch("wha.ui.audit.verify_hash_chain", return_value=(True, None)),
-        patch("wha.ui.audit.count_audit_events", return_value=0),
+        patch("wha.api.client.ApiClient.verify_hash_chain", return_value=(True, None)),
+        patch("wha.api.client.ApiClient.count_audit_events", return_value=0),
         patch("streamlit.success") as mock_success,
         patch("streamlit.error") as mock_error,
         patch("streamlit.info") as mock_info,
@@ -44,7 +44,9 @@ def test_audit_hash_chain_verifies() -> None:
 
     # 2. Tampered chain
     with (
-        patch("wha.ui.audit.verify_hash_chain", return_value=(False, "evt_tampered_004")),
+        patch(
+            "wha.api.client.ApiClient.verify_hash_chain", return_value=(False, "evt_tampered_004")
+        ),
         patch("streamlit.success") as mock_success,
         patch("streamlit.error") as mock_error,
     ):
@@ -83,7 +85,7 @@ def test_audit_filters_apply() -> None:
     f = AuditFilter(subject_id="sub_01", episode_id="ep_01", operation="query_calendar")
 
     with (
-        patch("wha.ui.audit.query_audit", return_value=events) as mock_query,
+        patch("wha.api.client.ApiClient.query_audit", return_value=events) as mock_query,
         patch("streamlit.dataframe") as mock_df,
     ):
         render_audit_table("sub_01", f)

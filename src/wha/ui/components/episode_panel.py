@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from wha.models import EpisodeDetail
-from wha.service.conversation import send_message
+from wha.ui.components.api import api
 from wha.ui.components.pipeline_trace import render_pipeline_trace
 
 
@@ -111,7 +111,7 @@ def render_conversation_tab(detail: EpisodeDetail) -> None:
         # conversation would have given the same question two different answers depending
         # on which page it was asked from.
         summary = detail.outcome.observation if detail.outcome else ""
-        reply = send_message(
+        reply = api().send_message(
             subject_id=detail.summary.subject_id,
             text=user_q,
             episode_id=detail.summary.episode_id,

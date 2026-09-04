@@ -15,6 +15,15 @@ from wha.models import (
     Question,
     SystemStatus,
 )
+
+# The screens read thresholds from the application over HTTP. Tests supply them rather
+# than starting a server, which also keeps a rendering test from depending on a backend.
+_CONFIG = {
+    "BASELINE_MIN_NIGHTS_PERSONAL": 7,
+    "RECENT_NIGHTS_WINDOW": 7,
+    "DETECT_PERSISTENCE_NIGHTS": 2,
+}
+
 from wha.ui.today import (
     render_inbox,
 )
@@ -40,7 +49,10 @@ def test_today_nothing_pending() -> None:
         quiet_nights_streak=14,
     )
 
-    with patch("streamlit.success") as mock_success:
+    with (
+        patch("streamlit.success") as mock_success,
+        patch("wha.ui.components.api.config", return_value=_CONFIG),
+    ):
         render_inbox(subject_id="sub_test", pending=None, status=status)
         assert mock_success.called
         msg = mock_success.call_args[0][0]
@@ -82,7 +94,7 @@ def test_today_pending_question() -> None:
         patch("streamlit.button", side_effect=[True, False, False]),
         patch("streamlit.columns", return_value=[MagicMock(), MagicMock(), MagicMock()]),
         patch("streamlit.rerun"),
-        patch("wha.ui.today.submit_answer") as mock_submit,
+        patch("wha.api.client.ApiClient.submit_answer") as mock_submit,
     ):
         render_inbox(subject_id="sub_test", pending=pending)
         assert mock_info.called
@@ -114,7 +126,7 @@ def test_today_pending_measurement() -> None:
         patch("streamlit.button", side_effect=[True, False]),
         patch("streamlit.columns", return_value=[MagicMock(), MagicMock()]),
         patch("streamlit.rerun"),
-        patch("wha.ui.today.submit_measurement_done") as mock_submit,
+        patch("wha.api.client.ApiClient.submit_measurement_done") as mock_submit,
     ):
         render_inbox(subject_id="sub_test", pending=pending)
         assert mock_warning.called
@@ -158,7 +170,7 @@ def test_today_pending_review() -> None:
         patch("streamlit.text_area", return_value="Elevated RHR observed."),
         patch("streamlit.text_input", return_value=""),
         patch("streamlit.rerun"),
-        patch("wha.ui.today.submit_human_decision") as mock_decision,
+        patch("wha.api.client.ApiClient.submit_human_decision") as mock_decision,
     ):
         render_inbox(subject_id="sub_test", pending=pending)
         # The draft must actually reach the screen, which is a stronger check than
@@ -188,7 +200,7 @@ def test_an_urgency_the_rules_set_outranks_the_reassurance() -> None:
         patch("streamlit.success") as mock_success,
         patch("streamlit.info"),
         patch("streamlit.caption"),
-        patch("wha.service.conversation.latest_urgency_reason", return_value=""),
+        patch("wha.api.client.ApiClient.latest_urgency_reason", return_value=""),
     ):
         render_urgency_banner("urgent", "sub_test")
 

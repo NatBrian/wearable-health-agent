@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from wha.service.subjects import list_subjects
+from wha.ui.components.api import api, config
 
 
 def render_subject_selector() -> str | None:
@@ -11,7 +11,7 @@ def render_subject_selector() -> str | None:
     If exactly one subject exists, returns its ID silently without rendering a widget.
     If no subjects exist, returns None.
     """
-    subjects = list_subjects()
+    subjects = api().list_subjects()
     if not subjects:
         return None
 
@@ -29,9 +29,7 @@ def render_subject_selector() -> str | None:
     # you back on the first one, and the configured WHA_SUBJECT was ignored entirely.
     remembered = st.session_state.get("active_subject")
     if remembered not in ids:
-        from wha.config import get_settings
-
-        configured = get_settings().subject
+        configured = config().get("configured_subject") or ids[0]
         remembered = configured if configured in ids else ids[0]
 
     selected_id = st.sidebar.selectbox(

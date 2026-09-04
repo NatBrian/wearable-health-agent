@@ -42,7 +42,7 @@ def test_the_night_table_renders_without_crashing() -> None:
     """The regression: KeyError 'Date' on every load."""
     with (
         patch("wha.ui.history.st") as mock_st,
-        patch("wha.ui.history.get_night_detail", return_value=None),
+        patch("wha.api.client.ApiClient.get_night_detail", return_value=None),
     ):
         mock_st.selectbox.return_value = None
         mock_st.expander.return_value.__enter__ = MagicMock()
@@ -62,7 +62,7 @@ def test_the_night_selector_is_offered_the_dates_it_displayed() -> None:
 
     with (
         patch("wha.ui.history.st") as mock_st,
-        patch("wha.ui.history.get_night_detail", return_value=None),
+        patch("wha.api.client.ApiClient.get_night_detail", return_value=None),
     ):
         mock_st.selectbox.side_effect = capture_selectbox
         mock_st.expander.return_value.__enter__ = MagicMock()

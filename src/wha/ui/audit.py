@@ -14,31 +14,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from wha.constants import (
-    BASELINE_SCALE_FLOOR_BPM,
-    DETECT_PERSISTENCE_NIGHTS,
-    DETECT_RED_BPM,
-    DETECT_YELLOW_BPM,
-    HR_PLAUSIBLE_MAX_BPM,
-    HR_PLAUSIBLE_MIN_BPM,
-    INTERRUPTION_BUDGET_PER_WEEK,
-    MIN_NOCTURNAL_MINUTES,
-    N_CAUSES,
-    RUNG_COLD_MAX_NIGHTS,
-    RUNG_PERSONAL_MAX_NIGHTS,
-    RUNG_PRIOR_MAX_NIGHTS,
-    RUNG_SHRINKING_MAX_NIGHTS,
-)
 from wha.models import AuditFilter
-from wha.service.audit import (
-    count_audit_events,
-    export_audit,
-    get_permitted_tool_names,
-    list_plain_records,
-    query_audit,
-    verify_hash_chain,
-)
-from wha.service.episodes import get_episode, list_episodes
+from wha.ui.components.api import api, config
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import disposition_phrase, episode_state_phrase
 
@@ -46,12 +23,12 @@ from wha.ui.components.wording import disposition_phrase, episode_state_phrase
 def render_hash_chain_panel(subject_id: str) -> bool:
     """Say whether the record has been altered since it was written."""
     st.subheader("Has the record been changed?")
-    intact, bad_id = verify_hash_chain(subject_id)
+    intact, bad_id = api().verify_hash_chain(subject_id)
 
     # An empty chain verifies. Reporting "the record is intact" over zero entries is a
     # green tick for something never checked, on the one page whose whole purpose is to
     # be trustworthy. A new install has no entries until the agent runs for the first time.
-    if intact and count_audit_events(subject_id) == 0:
+    if intact and api().count_audit_events(subject_id) == 0:
         st.info(
             "**Nothing has been recorded yet.** The record fills in the first time the AI "
             "investigates a night. There is nothing here to verify."
@@ -84,9 +61,9 @@ def render_how_it_works(subject_id: str) -> None:
             f"""
 - Only the window from midnight to 7am is used, because daytime heart rate reflects
   whatever you were doing.
-- At least **{MIN_NOCTURNAL_MINUTES} minutes** of contact are needed, or the night is
+- At least **{config()["MIN_NOCTURNAL_MINUTES"]} minutes** of contact are needed, or the night is
   marked unusable rather than guessed at.
-- Readings below **{HR_PLAUSIBLE_MIN_BPM} bpm** or above **{HR_PLAUSIBLE_MAX_BPM} bpm**
+- Readings below **{config()["HR_PLAUSIBLE_MIN_BPM"]} bpm** or above **{config()["HR_PLAUSIBLE_MAX_BPM"]} bpm**
   are treated as sensor error and dropped.
 """
         )
@@ -100,13 +77,13 @@ many nights it has:
 
 | Nights of your own | What it uses |
 |---|---|
-| 0 to {RUNG_COLD_MAX_NIGHTS} | Nothing is judged yet |
-| {RUNG_COLD_MAX_NIGHTS + 1} to {RUNG_PRIOR_MAX_NIGHTS} | Mostly typical adults |
-| {RUNG_PRIOR_MAX_NIGHTS + 1} to {RUNG_SHRINKING_MAX_NIGHTS} | A blend |
-| {RUNG_SHRINKING_MAX_NIGHTS + 1} to {RUNG_PERSONAL_MAX_NIGHTS} | Mostly you |
-| {RUNG_PERSONAL_MAX_NIGHTS + 1} and up | You alone |
+| 0 to {config()["RUNG_COLD_MAX_NIGHTS"]} | Nothing is judged yet |
+| {config()["RUNG_COLD_MAX_NIGHTS"] + 1} to {config()["RUNG_PRIOR_MAX_NIGHTS"]} | Mostly typical adults |
+| {config()["RUNG_PRIOR_MAX_NIGHTS"] + 1} to {config()["RUNG_SHRINKING_MAX_NIGHTS"]} | A blend |
+| {config()["RUNG_SHRINKING_MAX_NIGHTS"] + 1} to {config()["RUNG_PERSONAL_MAX_NIGHTS"]} | Mostly you |
+| {config()["RUNG_PERSONAL_MAX_NIGHTS"] + 1} and up | You alone |
 
-The measure of your night-to-night spread never goes below **{BASELINE_SCALE_FLOOR_BPM} bpm**.
+The measure of your night-to-night spread never goes below **{config()["BASELINE_SCALE_FLOOR_BPM"]} bpm**.
 Watches report whole numbers, so a run of identical nights would otherwise give a spread
 of exactly zero and make every later night look infinitely unusual.
 """
@@ -116,9 +93,9 @@ of exactly zero and make every later night look infinitely unusual.
         st.markdown(
             f"""
 - Anything a recorded workout would be expected to add is subtracted first.
-- What remains is compared with your usual: **{DETECT_YELLOW_BPM} bpm** above is slightly
-  raised, **{DETECT_RED_BPM} bpm** above is clearly raised.
-- A single raised night is not enough. It takes **{DETECT_PERSISTENCE_NIGHTS} nights** in a
+- What remains is compared with your usual: **{config()["DETECT_YELLOW_BPM"]} bpm** above is slightly
+  raised, **{config()["DETECT_RED_BPM"]} bpm** above is clearly raised.
+- A single raised night is not enough. It takes **{config()["DETECT_PERSISTENCE_NIGHTS"]} nights** in a
   row, including at least one clearly raised, before anything opens. That is what keeps a
   late drink from starting an investigation.
 """
@@ -135,7 +112,7 @@ language model can only **add** a flag to that list, never remove one.
         )
 
     with st.expander("5. What the AI is and is not allowed to do", expanded=True):
-        tool_names = get_permitted_tool_names()
+        tool_names = api().get_permitted_tool_names()
         tools = "\n".join(f"- `{name}`" for name in tool_names)
         st.markdown(
             f"""
@@ -151,8 +128,8 @@ It cannot write to your record, send you anything, or decide whether to interrup
     with st.expander("6. Working out the likely cause", expanded=False):
         st.markdown(
             f"""
-The system tracks **{N_CAUSES} possible causes** at once and considers every combination
-of them being present or absent, which is {2**N_CAUSES:,} possibilities. This is ordinary
+The system tracks **{config()["N_CAUSES"]} possible causes** at once and considers every combination
+of them being present or absent, which is {2 ** config()["N_CAUSES"]:,} possibilities. This is ordinary
 arithmetic, not a model, so the same evidence always gives the same answer.
 """
         )
@@ -163,7 +140,7 @@ arithmetic, not a model, so the same evidence always gives the same answer.
 This is the one decision the AI does not make. Before asking anything, the system works
 out how much the answer could actually change what it does. If that is worth less than
 the cost of interrupting you, it stays quiet. You are asked at most
-**{INTERRUPTION_BUDGET_PER_WEEK} times a week**.
+**{config()["INTERRUPTION_BUDGET_PER_WEEK"]} times a week**.
 
 This is why most raised nights never produce a question.
 """
@@ -185,7 +162,7 @@ def render_episode_trace(subject_id: str) -> None:
     """Show what actually happened inside one investigation."""
     st.subheader("Step by step through one investigation")
 
-    episodes = list_episodes(subject_id)
+    episodes = api().list_episodes(subject_id)
     if not episodes:
         st.caption("Nothing has been investigated yet, so there is no trace to show.")
         return
@@ -207,7 +184,7 @@ def render_episode_trace(subject_id: str) -> None:
         format_func=_describe,
         key="audit_trace_selector",
     )
-    detail = get_episode(selected) if selected else None
+    detail = api().get_episode(selected) if selected else None
     if detail is None:
         return
 
@@ -241,7 +218,7 @@ def render_episode_trace(subject_id: str) -> None:
 def render_audit_table(subject_id: str, f: AuditFilter, limit: int = 50, offset: int = 0) -> None:
     """Render the event log."""
     st.subheader("Every recorded action")
-    events = query_audit(f, limit=limit, offset=offset)
+    events = api().query_audit(f, limit=limit, offset=offset)
 
     if not events:
         st.info("Nothing matches those filters.")
@@ -278,7 +255,7 @@ def render_plain_record(subject_id: str) -> None:
     first thing on it has to be readable.
     """
     st.subheader("What happened, night by night")
-    records = list_plain_records(subject_id, limit=25)
+    records = api().list_plain_records(subject_id, limit=25)
 
     if not records:
         st.info(
@@ -355,10 +332,10 @@ def render_audit_page(subject_id: str) -> None:
     with col_csv:
         if st.button("Download as CSV", key="btn_export_csv"):
             export_path = Path("scratch") / f"audit_{subject_id}.csv"
-            export_audit(audit_f, export_path)
+            api().export_audit(audit_f, export_path)
             st.success(f"Saved to `{export_path}`")
     with col_json:
         if st.button("Download as JSON", key="btn_export_json"):
             export_path = Path("scratch") / f"audit_{subject_id}.json"
-            export_audit(audit_f, export_path)
+            api().export_audit(audit_f, export_path)
             st.success(f"Saved to `{export_path}`")

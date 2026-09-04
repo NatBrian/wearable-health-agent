@@ -9,9 +9,8 @@ from typing import Any
 
 import streamlit as st
 
-from wha.clock import to_local
 from wha.models import SystemStatus
-from wha.service.status import get_system_status
+from wha.ui.components.api import api
 from wha.ui.components.wording import rung_phrase
 
 
@@ -39,7 +38,7 @@ def render_status_strip(subject_id: str, status: SystemStatus | None = None) -> 
     """Render top compact system status strip using an st.fragment with 10s auto-refresh."""
     if status is None:
         try:
-            status = get_system_status(subject_id)
+            status = api().get_system_status(subject_id)
         except (RuntimeError, ValueError, OSError, KeyError, AttributeError) as exc:
             st.error(f"Status check failed: {exc}")
             return
@@ -58,7 +57,7 @@ def render_status_strip(subject_id: str, status: SystemStatus | None = None) -> 
             # uses. Printing the UTC hour told a subject in Singapore that data arrived at
             # 17:41 when it was 01:41 for them.
             last_in = (
-                to_local(status.last_ingest_utc).strftime("%H:%M")
+                api().localise(status.last_ingest_utc).strftime("%H:%M")
                 if status.last_ingest_utc
                 else "just now"
             )

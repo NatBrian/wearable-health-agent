@@ -5,22 +5,12 @@ from datetime import timedelta
 
 import streamlit as st
 
-from wha.clock import local_today
-from wha.constants import BASELINE_MIN_NIGHTS_PERSONAL, RECENT_NIGHTS_WINDOW
 from wha.models import (
     Answer,
     PendingInteraction,
     SystemStatus,
 )
-from wha.service.episodes import (
-    get_pending_interaction,
-    list_episodes,
-    submit_answer,
-    submit_human_decision,
-    submit_measurement_done,
-)
-from wha.service.nights import list_nights
-from wha.service.status import get_system_status
+from wha.ui.components.api import api, config, today
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
     describe_bpm_difference,
@@ -35,8 +25,8 @@ def render_inbox(
 ) -> None:
     """Render the one thing that needs the person, or say that nothing does."""
     if pending is None:
-        stat = status or get_system_status(subject_id)
-        still_learning = stat.usable_nights < BASELINE_MIN_NIGHTS_PERSONAL
+        stat = status or api().get_system_status(subject_id)
+        still_learning = stat.usable_nights < config()["BASELINE_MIN_NIGHTS_PERSONAL"]
         streak = stat.quiet_nights_streak
 
         # A "quiet night" only means something if the night could have been anything else.
@@ -53,7 +43,7 @@ def render_inbox(
         # "nothing needs you right now" would read as "we checked and you are fine" when
         # the truth is that the system is not yet in a position to check.
         if still_learning:
-            remaining = BASELINE_MIN_NIGHTS_PERSONAL - stat.usable_nights
+            remaining = config()["BASELINE_MIN_NIGHTS_PERSONAL"] - stat.usable_nights
             nights_word = "night" if remaining == 1 else "nights"
             st.warning(
                 f"**Not watching yet.** {remaining} more {nights_word} of sleep are needed "
@@ -71,7 +61,7 @@ def render_inbox(
         # thresholds elsewhere, so a bare 7 here is indistinguishable from one of those.
         missing = stat.unmeasured_recent_nights
         if missing:
-            recorded = RECENT_NIGHTS_WINDOW - missing
+            recorded = config()["RECENT_NIGHTS_WINDOW"] - missing
             nights_word = "night" if recorded == 1 else "nights"
             st.caption(
                 f"In the past week your watch recorded {recorded} {nights_word}. A night "
@@ -100,7 +90,7 @@ def render_inbox(
         for idx, opt in enumerate(q.probe.answer_space):
             with cols[idx]:
                 if st.button(opt.label, key=f"opt_{opt.option_id}", use_container_width=True):
-                    submit_answer(
+                    api().submit_answer(
                         pending.episode_id,
                         Answer(
                             probe_id=q.probe.probe_id,
@@ -113,7 +103,7 @@ def render_inbox(
 
         with cols[-1]:
             if st.button("Skip", key="btn_decline", use_container_width=True):
-                submit_answer(
+                api().submit_answer(
                     pending.episode_id,
                     Answer(
                         probe_id=q.probe.probe_id,
@@ -133,7 +123,7 @@ def render_inbox(
         col1, col2 = st.columns(2)
         with col1:
             if st.button("I've done it", key=f"m_done_{m.measurement_id}", type="primary"):
-                submit_measurement_done(m.measurement_id)
+                api().submit_measurement_done(m.measurement_id)
                 st.rerun()
         with col2:
             if st.button("Not right now", key=f"m_cant_{m.measurement_id}"):
@@ -153,7 +143,7 @@ def render_inbox(
         col1, col2, col3 = st.columns(3)
         with col1:
             if st.button("Looks right", key="rev_approve", type="primary"):
-                submit_human_decision(
+                api().submit_human_decision(
                     episode_id=pending.episode_id,
                     decision="approve",
                     edited_prose=edit_prose if edit_prose != draft.observation else None,
@@ -162,7 +152,7 @@ def render_inbox(
                 st.rerun()
         with col2:
             if st.button("Not right", key="rev_reject"):
-                submit_human_decision(
+                api().submit_human_decision(
                     episode_id=pending.episode_id,
                     decision="reject",
                     rationale=rationale or "Rejected on review",
@@ -170,7 +160,7 @@ def render_inbox(
                 st.rerun()
         with col3:
             if st.button("This needs a doctor", key="rev_escalate"):
-                submit_human_decision(
+                api().submit_human_decision(
                     episode_id=pending.episode_id,
                     decision="escalate",
                     rationale=rationale or "Escalated on review",
@@ -181,10 +171,10 @@ def render_inbox(
 def render_last_night_summary(subject_id: str, status: SystemStatus | None = None) -> None:
     """Say plainly how last night looked, with the numbers available underneath."""
     st.subheader("Last night")
-    stat = status or get_system_status(subject_id)
-    end_d = local_today()
+    stat = status or api().get_system_status(subject_id)
+    end_d = today()
     start_d = end_d - timedelta(days=14)
-    nights = list_nights(subject_id, start=start_d, end=end_d)
+    nights = api().list_nights(subject_id, start=start_d, end=end_d)
     usable_nights = [n for n in reversed(nights) if n.usable and n.rhr_bpm is not None]
 
     if not usable_nights:
@@ -264,7 +254,7 @@ def render_last_night_summary(subject_id: str, status: SystemStatus | None = Non
 def render_open_episodes(subject_id: str) -> None:
     """List anything currently being looked into."""
     st.subheader("Being looked into")
-    episodes = list_episodes(subject_id)
+    episodes = api().list_episodes(subject_id)
     open_eps = [e for e in episodes if e.state.value not in ("CLOSED", "RESOLVED")]
 
     if not open_eps:
@@ -289,8 +279,6 @@ def render_conversation(subject_id: str) -> str | None:
     Returns the urgency the rules have established, so the caller can draw it above
     everything else rather than under a reassurance.
     """
-    from wha.service.conversation import get_transcript, send_message
-
     st.subheader("Talk to it")
     st.caption(
         "Ask anything about your readings, or tell it how you feel. It may ask you "
@@ -300,7 +288,7 @@ def render_conversation(subject_id: str) -> str | None:
         "flagged amber below, though that labelling depends on the AI and is not perfect."
     )
 
-    turns = get_transcript(subject_id)
+    turns = api().get_transcript(subject_id)
     for turn in turns:
         with st.chat_message("user" if turn["role"] == "user" else "assistant"):
             st.write(turn["text"])
@@ -327,7 +315,7 @@ def render_conversation(subject_id: str) -> str | None:
             # The reply is read back from the transcript on the rerun below rather than
             # rendered here, so the whole exchange is drawn from the stored record and a
             # refresh cannot show a different conversation from the one that was saved.
-            send_message(subject_id=subject_id, text=message.strip())
+            api().send_message(subject_id=subject_id, text=message.strip())
         st.rerun()
 
     latest = [t for t in turns if t.get("urgency")]
@@ -336,14 +324,13 @@ def render_conversation(subject_id: str) -> str | None:
 
 def render_urgency_banner(urgency: str, subject_id: str) -> None:
     """What the rules concluded, drawn above everything else on the page."""
-    from wha.service.conversation import latest_urgency_reason
 
     if urgency == "urgent":
         st.error("**This needs medical attention today.**")
     else:
         st.warning("**You should see a doctor today.**")
 
-    reason = latest_urgency_reason(subject_id)
+    reason = api().latest_urgency_reason(subject_id)
     if reason:
         st.info(reason)
     st.caption(
@@ -354,7 +341,6 @@ def render_urgency_banner(urgency: str, subject_id: str) -> None:
 
 def render_handover(subject_id: str) -> None:
     """Something to hand a clinician, so "seek care" is not the last useful thing said."""
-    from wha.service import build_handover
 
     with st.expander("Summary for your doctor"):
         st.caption(
@@ -363,7 +349,7 @@ def render_handover(subject_id: str) -> None:
             "The structure is the one clinicians use for handovers."
         )
         if st.button("Build the summary", key="handover_build"):
-            st.session_state["handover_text"] = build_handover(subject_id).as_text()
+            st.session_state["handover_text"] = api().build_handover(subject_id).as_text()
 
         text = st.session_state.get("handover_text")
         if text:
@@ -381,8 +367,8 @@ def render_today_page(subject_id: str) -> None:
     render_status_strip(subject_id)
     st.write("---")
 
-    pending = get_pending_interaction(subject_id)
-    status = get_system_status(subject_id)
+    pending = api().get_pending_interaction(subject_id)
+    status = api().get_system_status(subject_id)
 
     # A slot held open above everything else. What the rules have concluded is only known
     # after the conversation below has been handled, and an escalation must never be drawn

@@ -24,7 +24,7 @@ def test_subject_selector_hidden_when_single() -> None:
     ]
 
     with (
-        patch("wha.ui.components.subject_selector.list_subjects", return_value=single_subject),
+        patch("wha.api.client.ApiClient.list_subjects", return_value=single_subject),
         patch("streamlit.sidebar.selectbox") as mock_selectbox,
     ):
         chosen = render_subject_selector()
