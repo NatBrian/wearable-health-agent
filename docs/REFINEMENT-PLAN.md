@@ -159,11 +159,35 @@ rate, the detection thresholds, the seven-night baseline rule, the population fi
 exercise contrasts, and every Marburg item and performance number. Those are fine. The
 problem is the numbers that were never cited, not the ones that were.
 
+**The claim is not only in `data/knowledge/`.** I searched the whole repository. Fourteen more
+places say a human wrote this material, and two of them are the ones that matter:
+
+| Where | What it says | Why it matters |
+|---|---|---|
+| **`src/wha/ui/audit.py:108`** | "plain pattern matching against **a human-written list**" | **This is rendered on screen**, on the Audit page, whose entire purpose is to be trustworthy |
+| **`README.md:320`** | "**Written by a human, in this repository:**" heading the knowledge section | The first thing anyone opening the repository reads about the clinical content |
+| `AGENTS.md:105` | "Cited medical tables, authored by a human" | The rule that forbids editing them rests on this |
+| `.agents/rules/20-prohibitions.md:49` | "Authored by a human, with sources" | Same |
+| `src/wha/retrieve/knowledge_docs.py:1, :14` | "rendered out of the knowledge a human authored"; "it was written by a human" | In the code that builds the corpus the agent cites |
+| `src/wha/retrieve/corpus.py:17` | "The human-written prose in causes.yaml" | Same |
+| `src/wha/service/corpus.py:14` | "rendered from knowledge a human authored" | Same |
+| `docs/CORPUS-VERIFICATION.md:5, :136` | "three files a human authored"; "the human-authored safety floor" | The document written to prove the citations were checked |
+| `docs/RESEARCH-AGENTIC-TRIAGE.md:312` | "human-authored routing decisions" | The research note behind the triage redesign |
+| `BLOCKERS.md:717` | "a human-authored safety list, so I have not added it" | A decision was deferred **because** of this belief |
+| `history/HANDOFF.md:85` and four `history/plan/` files | the same claim | Frozen finished work, lowest priority, but still in the repository |
+
 **How to do it.**
 
-1. **Today, in ten minutes:** correct the header line in all six files and in
-   `data/knowledge/README.md`. Say what actually happened. A file that lies about its own
-   provenance is worse than a file with no provenance line.
+1. **Today, in ten minutes:** correct the header line in all six knowledge files, in
+   `data/knowledge/README.md`, and in the two that reach a reader:
+   **`src/wha/ui/audit.py:108`** and **`README.md:320`**. A file that lies about its own
+   provenance is worse than a file with no provenance line, and a *screen* that does it is
+   worse again.
+1b. Then the rest of the table above. The `src/wha/retrieve/` and `src/wha/service/`
+   docstrings are three one-line edits. `AGENTS.md` and `.agents/rules/` need the rule
+   rewritten, not just the sentence, which is step 4. `BLOCKERS.md:717` deferred a decision
+   on the grounds that a human wrote the safety list; that reason is void, so the decision is
+   open again.
 2. **Add a `GENERATED` provenance level** alongside CITED, DERIVED and ASSUMED. ASSUMED
    currently reads as "a human made a careful judgement". Split it: ASSUMED means a person
    decided, GENERATED means a model produced it and nobody has checked.
