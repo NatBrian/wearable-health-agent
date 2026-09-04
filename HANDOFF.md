@@ -119,6 +119,11 @@ module.
 **Then read `plan/02-contracts.md` in full.** It defines every schema, model, constant, service
 signature and error class. Every task depends on it and no task may contradict it.
 
+> **THIS LOOP IS OVER.** All 67 tasks are done. `plan/PROGRESS.md` has no unticked rows and
+> `plan/tasks/` is history. Read **`STATUS.md`** for what the work is now, and
+> **`plan/BLOCKERS.md`** for what is open. The rest of this section is kept because it records
+> how the build was structured, not because there is a loop to enter.
+
 **Then begin the loop:**
 
 1. Open `plan/PROGRESS.md`. Find the **first row not marked `[x]`**. It will be `A-01`.
@@ -365,6 +370,15 @@ All six, or it is not done:
 7. **The work is committed.** One task, one commit. Never push.
 
 ## 14. When you finish, or cannot continue
+
+> **The commands below are still right, with two corrections.** Add `--live` to the demo runs if
+> you want them to exercise the model rather than cassettes, and run the eleven in two batches:
+> back to back they take longer than ten minutes, and a killed run leaves an orphaned `python.exe`
+> holding `data/demo.sqlite` open so the next one fails with `WinError 32`. Then **use the
+> dashboard**, which is how every serious defect in this project was actually found.
+>
+> The reporting checklist below still applies except item 1: there is no task count to report any
+> more. Report what you measured instead.
 
 Run all of these:
 

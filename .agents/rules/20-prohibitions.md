@@ -56,6 +56,16 @@ HANDOFF.md          project history
 
 Inside `plan/` you may write **only** `PROGRESS.md` and `BLOCKERS.md`.
 
+**One narrow exception to `data/knowledge/`, granted by the user on 4 September 2026.** A clinical
+figure in `data/knowledge/` or `src/wha/constants.py` may be corrected in exactly one circumstance:
+**the published source it cites can be quoted saying something different.** Not a hunch that a
+number looks wrong, not a better number found elsewhere, and never the model's own knowledge. Every
+change goes in `docs/KNOWLEDGE-CHANGELOG.md` with the old value, the new value and the quoted
+source sentence. If the source does not settle it, it is still a blocker. Three corrections have
+been made under this exception.
+
+Adding a **new** clinical figure is not covered by the exception and remains forbidden.
+
 ---
 
 ## 4. Contracts

@@ -1,5 +1,15 @@
 # Task workflow
 
+> **THE 67-TASK LOOP BELOW IS FINISHED.** `plan/PROGRESS.md` has no unticked rows and
+> `plan/tasks/` is history. The work now is fixing, extending and verifying a system that
+> exists: read **`STATUS.md`** for where it stands and **`plan/BLOCKERS.md`** for what is open.
+>
+> What still applies, and is why this file is kept: the definition of done, the blocker format,
+> commit discipline, and the rule that a recorded blocker beats a silent workaround. What has
+> been **added** since: run the suite and ruff **once at the end**, not after every edit, and
+> then **use the dashboard as an ordinary person**, because a green suite has repeatedly passed
+> while the product was broken.
+
 You will run unattended for a long time, possibly across several sessions, with nobody watching.
 This file is what makes that recoverable.
 
