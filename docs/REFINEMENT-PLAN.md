@@ -262,41 +262,87 @@ reach a sentence that tells you the number is trustworthy without saying why.
 strength, because finding it is exactly the kind of audit the discussion section should
 describe.
 
-## 2. Check the "when to seek care" text
+## 2. Stop generating the "when to seek care" text
 
 `FIX` · Effort **S** · Risk **low**
 
-**The problem.** The outcome has a field that tells you when to seek care. The AI writes it.
-It is the only text in the system that goes through no check at all.
-
-**Why it matters.** In a real run the AI wrote:
+**The problem.** The outcome has a field that tells you when to seek care. The AI writes it
+freely, and it is the only text in the system that goes through no check at all. In a real
+run it produced:
 
 > "Seek care if fever persists beyond 72 hours or exceeds 103°F (39.4°C)"
 
-Those numbers came out of the model's head. This is the sentence most likely to make you
-act, and it is the least checked thing on the page. A study that red-teamed four chatbots
-with 222 patient questions found 5 to 13 percent of answers were outright unsafe.
+Those thresholds came out of the model.
 
-The guard already exists. `sanitize_fabricated_numbers_in_prose` in
-`src/wha/safety/output_checks.py` would have deleted 72, 103 and 39.4. It is pointed at a
-different field.
+**Why it matters.** This is the sentence most likely to make you act on something, and it is
+the least checked thing on the page. A study that red-teamed four chatbots over 222 patient
+questions found 5 to 13 percent of answers were outright unsafe.
 
-**How to do it.**
+**How to do it. Decided: do not build a guard. Remove the thing that needs guarding.**
 
-1. `src/wha/safety/output_checks.py`, `validate_and_sanitize_outcome`. It runs the number
-   filter on `outcome.observation`. Run it on each string in `escalation_criteria` too.
-2. `src/wha/agent/nodes.py`, `node_conclude`. The model's claims already go through
-   `_enforce_claims`. Send the escalation criteria through the same containment check.
-3. If everything is stripped, fall back to the human-written default. That is the correct
-   failure, not a bug.
-4. Those defaults are clinical sentences living in Python, in `node_conclude` and in
-   `DEFAULT_ESCALATION_CRITERIA`. Move them into `red_flags.yaml`. Note the irony worth
-   recording: the model's invented "fever beyond 72 hours" happens to match mainstream advice
-   (NHS and Mayo both say seek advice after about three days). Matching by luck is not
-   sourcing.
+An earlier draft of this item said to point the existing number filter at this field. That
+was wrong, for three reasons, and the third is the one that matters.
 
-**How you will know it worked.** Run one live episode. Every number in the "when to seek
-care" text is a number the system holds, or the text is the human-written fallback.
+**One, the filter is too permissive.** `collect_allowed_numbers` blanket-permits 0 through
+10, plus 14, 21, 28, 30 and 995. So a model writing "over 5 nights" about a two night episode
+sails through, and that exact sentence appeared in a real outcome. It only catches numbers
+that happen to be large or unusual.
+
+**Two, it is too blunt.** It deletes the **whole sentence** on any unrecognised number. So
+"seek help if your temperature goes above 38 degrees" is deleted in full, because 38 is not
+on the list, and the person is left with less guidance than before. You cannot tell 103 from
+39.4 inside "103°F (39.4°C)" with a number heuristic, and you should not try: both are
+fabricated here, but in another sentence one of them would be the right answer.
+
+**Three, extending it adds a crash path.** `validate_and_sanitize_outcome` raises
+`ValidationFailed` when `escalation_criteria` is empty and the disposition is not
+LIKELY_BENIGN. In `node_critique` that call sits **outside** the `try` block. So a run where
+the filter strips every criterion does not fall back gracefully. It raises, the node fails,
+and the episode dies. A safety guard that breaks the episode is worse than no guard.
+
+**The better answer is that these should never have been generated.** The system already
+holds a complete set of reviewed care-pathway sentences, and it uses them everywhere else:
+
+- `red_flags.yaml` tier A `guidance`, one per urgent sign, for example "Chest pain or
+  pressure needs assessment now. Call 995 or go to an A&E."
+- `red_flags.yaml` `tier_b_guidance`, the same-day wording.
+- `triage_rules.yaml` band `meaning`, the published interpretation of a Marburg score.
+- `DEFAULT_ESCALATION_CRITERIA`, the two general lines.
+
+So:
+
+1. **Remove `escalation_criteria` from the model's output schema** in
+   `src/wha/agent/nodes.py`. `WriteOutcomeResponse` should return prose and claims only.
+2. **Select the criteria deterministically** from the disposition, the triggered flags and
+   the top of the differential. Infection leading with a reported fever selects the tier B
+   fever wording; an escalation selects the matching tier A wording; everything else gets the
+   two defaults. This is the same "model elicits, rules decide" split the Marburg triage
+   already uses and that works well.
+3. **Move `DEFAULT_ESCALATION_CRITERIA` and the two hard-coded lines in `node_conclude` into
+   `red_flags.yaml`**, so all care wording lives in one place and the corpus can cite it.
+
+This is less code than the guard, has no regex, cannot invent a threshold, cannot delete
+guidance, and cannot crash the episode. It also makes the wording consistent between runs,
+which for safety text is a feature and not a limitation.
+
+**What you give up.** Tailoring. The invented sentence was specific to the fever the person
+reported, and a selected one is more general. But specificity is exactly where the invention
+happened, and selection still tailors by *choosing* the relevant rule rather than writing a
+new one.
+
+**Separately, fix the number filter where it does still run**, on `observation`. Replace the
+blanket 0-to-10 allowance with the episode's real numbers, which the system already has:
+the night count, the residual, the thresholds, the baseline centre and its night count. That
+makes it both safer and less blunt, because the true numbers become allowed and the invented
+small integers stop being waved through.
+
+**Worth recording.** The model's invented "fever beyond 72 hours" happens to match mainstream
+advice: NHS and Mayo both say seek advice after about three days. Matching by luck is not
+sourcing, and it is the reason this kind of error is hard to spot by reading.
+
+**How you will know it worked.** Run three live episodes with different dispositions. Every
+line in the "when to seek care" text appears verbatim in `red_flags.yaml` or
+`triage_rules.yaml`. `grep` the outcome text against those files and expect an exact match.
 
 ## 3. Let a human do the human review
 
@@ -379,21 +425,48 @@ things common in a young adult with a pulled muscle, said urgent, and cited "a 2
 **The evidence.** Bösner et al. 2010 built the rule on "1,199 unselected and consecutive
 patients aged >= 35 years".
 
-**How to do it. Decided: read it from the answer the system already stores.**
+**How to do it. Decided: a small profile in Settings, not a mid-conversation guess.**
 
-1. In `src/wha/agent/conversation.py`, `respond`, read the age from the stored `mhs_age_sex`
-   answer. `triage_answers.source_text` already holds the person's own words.
-2. Parse conservatively. If no age can be read, pass `None`, which leaves today's behaviour.
-   Never guess an age.
-3. Pass it into the existing `age_years` parameter of `triage()`. The chain is already wired
-   end to end and simply never filled.
+Parsing the age out of what someone typed during a chest pain conversation is fragile and it
+is the wrong moment to ask. Collect it once, in advance.
 
-*The alternative was a one-off age question in Settings. It is more reliable but it is a new
-screen and a new stored field for one rule. Do it only if a second rule ever needs age.*
+**What to collect, and nothing more.** The rule for deciding is: **does something in this
+system actually consume it?** Five fields pass that test.
 
-**How you will know it worked.** Say you have chest pain and that you are 24. The reply should
-say the rule was not applied because it was only tested on people 35 and over, and route you
-conservatively rather than scoring you.
+| Field | What consumes it | Why in Settings and not a question |
+|---|---|---|
+| **Age** | The Marburg age gate, `minimum_age_years: 35` | Asking during a chest pain episode wastes a turn at the worst moment |
+| **Sex** | Marburg item 1, woman 65 or over or man 55 or over | Same |
+| **Known coronary, cerebrovascular or peripheral vascular disease** | Marburg item 2 | This is the item most likely to be misremembered under stress, and it never changes |
+| **Do you menstruate** | The luteal cause in `causes.yaml` | **This retires `probe_cycle` entirely.** It is already marked `one_time` and priced at 0.4 of an interruption. Moving it here removes an interruption from the budget and fixes item 9's plumbing at the same time |
+| **Do you take a medicine that lowers your heart rate** | Nothing, deliberately. It becomes a **disclosure** | `causes.yaml` records that beta blockers blunt the heart rate response to infection, which is a false negative risk. The system should say "I am less able to see an infection in you" rather than silently being worse at its job |
+
+Then: pass `age_years` into the existing parameter of `triage()`. The chain is already wired
+end to end and simply never filled. Pre-fill the two Marburg items from the profile so the
+conversation only has to ask the three that genuinely vary.
+
+**What not to collect, and this matters more than the list above.**
+
+- **Weight, height, BMI.** Nothing in this system reads them. There is no covariate model,
+  and the baseline becomes personal after seven nights so it does not need them. A field
+  nobody reads is worse than no field, because it tells the person their data is being used
+  when it is not.
+- **A free-text health history box.** This is the one to push back on hardest. Free text
+  would go straight into the conversation prompt, where the model would reason from it with
+  no grounding, no citation and no way to check it. That is precisely the "model reasons from
+  unverified clinical text" path this whole project exists to prevent, and it would be opened
+  by the person themselves, which makes it feel safe when it is not.
+
+**The distinction worth holding: information for the doctor is not information for the
+model.** If you want to record "I had pericarditis in 2019", it belongs in the SBAR handover
+that `src/wha/service/handover.py` already builds, where a clinician reads it. It should
+never enter a prompt. Add a free-text field if you like, label it "for your doctor", and
+keep it out of the reasoning path entirely.
+
+**How you will know it worked.** Say you have chest pain and set your age to 24. The reply
+says the rule was not applied because it was only tested on people 35 and over, and routes
+you conservatively rather than scoring you. Then check that answering the cycle question is
+no longer possible, because Settings already knows.
 
 ---
 
@@ -567,15 +640,25 @@ never fires either.
 
 **How to do it.**
 
-1. `src/wha/agent/nodes.py` already has `_cycle_applicability(answers)`, and `node_conclude`
-   already calls it for the displayed text.
-2. Pass it into every `update_belief(...)` call as `luteal_applicable`. There are three: in
-   `node_believe`, `node_decide` and `node_conclude`.
+1. **Take the fact from the Settings profile in item 5**, not from a probe answer. It is a
+   standing fact about a person, not something to spend an interruption on, and item 5 moves
+   it there. Fall back to `_cycle_applicability(answers)` if the profile is unset, so an
+   already-answered probe is not wasted.
+2. `src/wha/agent/nodes.py` already has `_cycle_applicability(answers)`, and `node_conclude`
+   already calls it for the displayed text. Pass the resolved value into every
+   `update_belief(...)` call as `luteal_applicable`. There are three: in `node_believe`,
+   `node_decide` and `node_conclude`.
 3. While there, build an `EpisodeContext` with `has_recent_illness` and pass it too. The
-   belief model reads it and nothing supplies it.
+   belief model reads it and nothing supplies it. The system already knows this: it is
+   whether a closed episode with disposition LIKELY_ILLNESS exists inside the published
+   recovery window.
+4. **Then retire `probe_cycle`.** With the fact in Settings it has nothing left to ask, and
+   removing it frees an interruption. This also shrinks item 28, since `probe_medication`
+   becomes the only remaining one-time probe.
 
-**How you will know it worked.** Answer the cycle question with "started more than 2 weeks
-ago". The cause moves off 0.0 on the Trace tab's belief chart.
+**How you will know it worked.** Set "do you menstruate" to yes in Settings, then open an
+episode. The luteal cause moves off 0.0 on the Trace tab's belief chart, and the cycle
+question is never asked.
 
 ## 10. Make `get_data_quality` read the data
 
@@ -1115,12 +1198,19 @@ is dropped silently.
 and the system can spend part of your allowance asking the same setup question in every new
 investigation.
 
-**How to do it. Decided: honour it.**
+**How to do it. Decided: honour it, and note that item 5 shrinks this job.**
+
+Once item 5 moves the cycle fact into Settings and item 9 retires `probe_cycle`,
+`probe_medication` is the only one-time probe left. Honouring the field is then eleven lines
+for one probe, which is still worth doing because the probe is priced on that promise.
 
 1. Add `one_time: bool = False` to `ProbeDefinition` and read it in `load_probes`.
 2. In `select_action`, skip a one-time probe already answered in **any** past episode, not just
    this one. `db.get_answered_probe_ids` already exists and is per episode; add a subject-wide
    variant.
+3. Consider whether `probe_medication` should follow the cycle question into Settings for the
+   same reason. It asks whether you have started, stopped or missed a regular medicine, which
+   is a **change**, not a standing fact, so it does not move cleanly. Leave it as a probe.
 
 *The alternative was deleting the field and raising the two costs. Honouring it is the same
 effort and keeps the design's intent.*
