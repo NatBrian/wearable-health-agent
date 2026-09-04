@@ -4,8 +4,20 @@
 # READ ONLY.
 #
 # ANYTHING NOT IN THIS FILE IS REFUSED. There is no open web search, no arbitrary URL
-# fetch, and no way for the model to add an entry. Reach is extended by a human adding a
-# named source here, not by opening the door.
+# fetch, and no way for the model to add an entry. Reach is extended by adding a named
+# source here, not by opening the door.
+#
+# WHAT IS ACTUALLY IN THE CORPUS, counted on 5 September 2026 rather than described:
+#
+#   layer 1  1,013 passages   MedlinePlus, fetched. Real.
+#   layer 2      3 passages   generated from constants.py. StatPearls was never fetched.
+#   layer 3      9 passages   generated from red_flags.yaml. Real, and narrower than the
+#                             entry below once described.
+#   layer 4     20 passages   generated from causes.yaml. Real.
+#
+# Two of the four are narrower than this file used to claim, and each entry now says so.
+# A document describing something that does not exist is what let four subsystems in this
+# project sit unnoticed for months.
 #
 # WHY. This system holds private health data and has an outbound channel to a phone.
 # Adding arbitrary untrusted web content would complete the lethal trifecta, and a claim
@@ -57,6 +69,7 @@ corpus_sources:
 
   - id: statpearls
     layer: 2
+    status: PLANNED, NOT FETCHED
     url: "ftp://ftp.ncbi.nlm.nih.gov/pub/litarch/"
     manifest: "file_list.csv"
     licence: "CC BY-NC-ND 4.0"
@@ -66,10 +79,18 @@ corpus_sources:
       is defensible; shipping a commercial product on it is not. STATED IN THE REPORT.
     format: nxml
     subset: "selected chapters only, listed in corpus.yaml"
-    note: "Clinical-reference register, for depth the consumer layer does not carry."
+    note: >
+      CORRECTED 5 September 2026. This has never been fetched and no code fetches it.
+      Layer 2 in the running corpus is THREE passages generated from src/wha/constants.py
+      describing how a night is measured and what counts as a deviation. That is a
+      measurement-method register, not a clinical-reference one.
+      Left listed as planned rather than deleted, because the gap is real and naming it is
+      more useful than pretending the layer is full. What it would add is depth on a named
+      condition, which is the one thing the agent still cannot cite.
 
   - id: sg_care_pathways
     layer: 3
+    status: PARTIAL
     method: hand_curated
     licence: "Quoted excerpts with attribution and source URL"
     licence_ok_for_public_repo: true
@@ -80,6 +101,10 @@ corpus_sources:
       and fetch dates is. Covers: when a polyclinic is appropriate, when a GP is, when an
       A&E is, and when to call 995. Plus national dengue clinical guidance, including the
       warning signs used by the tier-B escalation text.
+      CORRECTED 5 September 2026: what exists in the running corpus is the NINE passages
+      generated from red_flags.yaml, which carry the Singapore care-pathway wording for
+      each urgent sign. The wider set described above, national dengue guidance included,
+      was never curated. The nine are real and they are what the agent cites.
     why_this_matters: >
       Not localisation for its own sake. General pretraining corpora represent Singapore
       MOH clinical guidance SPARSELY and local documentation conventions BARELY AT ALL.

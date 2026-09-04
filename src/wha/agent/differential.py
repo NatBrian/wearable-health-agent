@@ -179,11 +179,33 @@ def ground_differential(
     top_n: int = 5,
     cycle_applicable: bool | None = None,
 ) -> list[DifferentialItem]:
-    """The ranked causes, each carrying the evidence that put it where it is."""
+    """The causes this episode's evidence MOVED, most-moved first, each with its reasons.
+
+    Ranked by movement, not by size, and that is the correction that matters.
+
+    A ranked bar chart of final probabilities reads like a doctor's list of likely
+    diagnoses. It is not one: the twelve numbers are independent, they do not add to 1, and
+    they do not compete. A cause that is common and small scores high on ANY raised night,
+    because something has to explain the rise. On a real closed episode the system
+    concluded LIKELY_ILLNESS and the chart underneath put stress at 0.92 first, with the
+    reason "Nothing gathered in this episode speaks to this cause either way".
+
+    Once you know that a flagged night is usually noise, which the cohort measurement
+    shows, the common-and-small causes rising is the expected behaviour rather than a
+    finding. What this episode learned is the DIFFERENCE between where a cause started and
+    where it ended, and ordering by that turns the most misleading panel in the product
+    into the most informative one.
+    """
     probes = load_probes_raw()
     priors = {p.cause: p for p in load_causes()}
 
-    items: list[DifferentialItem] = []
+    # Where every cause sat before this episode's evidence: the prior alone, computed by
+    # the same function with nothing given to it.
+    from wha.belief import update_belief
+
+    before = update_belief(episode_nights=[], luteal_applicable=cycle_applicable).marginals
+
+    items: list[tuple[float, DifferentialItem]] = []
     for cause, probability in belief.top(top_n):
         supporting: list[str] = []
         contradicting: list[str] = []
@@ -215,13 +237,32 @@ def ground_differential(
                 else "Nothing gathered in this episode speaks to this cause either way."
             )
 
+        started = float(before.get(cause, 0.0))
+        moved = probability - started
+        # The movement, stated first, because it is the thing this panel is ordered by and
+        # a reader should not have to infer it from two numbers in different places.
+        movement = (
+            f"This episode moved it from {started:.1%} to {probability:.1%}, "
+            f"{'up' if moved >= 0 else 'down'} {abs(moved):.1%}."
+            if abs(moved) >= 0.005
+            else (
+                f"This episode did not move it. It sits at {probability:.1%}, which is "
+                "where its base rate alone puts it."
+            )
+        )
         items.append(
-            DifferentialItem(
-                cause=cause,
-                probability=round(probability, 4),
-                supporting=supporting,
-                contradicting=contradicting,
+            (
+                abs(moved),
+                DifferentialItem(
+                    cause=cause,
+                    probability=round(probability, 4),
+                    supporting=[movement, *supporting],
+                    contradicting=contradicting,
+                ),
             )
         )
 
-    return items
+    # Most-moved first. The list order IS the ranking the interface draws, so this is where
+    # the correction lives; DifferentialItem is frozen by the contract and carries no rank.
+    items.sort(key=lambda pair: (-pair[0], -pair[1].probability, pair[1].cause.value))
+    return [item for _, item in items]

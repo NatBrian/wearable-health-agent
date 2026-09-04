@@ -375,6 +375,12 @@ def post_subject_profile(subject_id: str, body: dict[str, Any]) -> Any:
     )
 
 
+@app.get("/knowledge/provenance")
+def get_knowledge_provenance() -> Any:
+    """Where each clinical number came from, so a screen can mark the guesses."""
+    return service.get_knowledge_provenance()
+
+
 @app.post("/diagnostics/{component}")
 def check_component(component: str, overrides: dict[str, Any] | None = None) -> Any:
     """Probe one subsystem live: the bridge, the model provider, or Telegram.

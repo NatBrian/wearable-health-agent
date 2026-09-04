@@ -9,7 +9,7 @@ from wha.config import get_settings
 from wha.db import apply_schema, connect
 from wha.detect.baseline import rung_for
 from wha.policy import load_probes
-from wha.service.checks import dataset_present, read_schema_version
+from wha.service.checks import read_schema_version
 
 DoctorStatus = Literal["ok", "warn", "fail", "miss", "off", "info"]
 
@@ -122,23 +122,37 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
             )
         )
 
-    # 6. Datasets check
-    data_dir = settings.data_dir
-    stanford_exists = dataset_present(data_dir, "stanford")
-    pmdata_exists = dataset_present(data_dir, "pmdata")
-    if stanford_exists and pmdata_exists:
-        items.append(DoctorItem(name="datasets", status="ok", detail="stanford and pmdata present"))
-    else:
-        missing = []
-        if not stanford_exists:
-            missing.append("stanford")
-        if not pmdata_exists:
-            missing.append("pmdata")
+    # 6. The evaluation cohort.
+    #
+    # This looked in data/datasets/ for "stanford" and "pmdata" and reported them missing.
+    # The cohort detection accuracy is measured on now lives in data/cohort/, fetched by
+    # tools/cohort/fetch.py, and pmdata was never used by anything. Reporting a real
+    # dataset as absent because it sits under a different name is the kind of small
+    # untruth this project has had enough of.
+    # settings.data_dir is data/datasets, not data/. tools/cohort/ writes to data/cohort/,
+    # which is its parent's sibling, so this resolves from the repository root rather than
+    # from the dataset directory.
+    cohort_dir = Path("data") / "cohort"
+    cohort_zip = cohort_dir / "COVID-19-Wearables.zip"
+    cohort_labels = cohort_dir / "labels.json"
+    if cohort_zip.is_file() and cohort_labels.is_file():
         items.append(
             DoctorItem(
-                name="datasets",
+                name="cohort",
+                status="ok",
+                detail="Mishra 2020 wearables and labels present in data/cohort",
+            )
+        )
+    else:
+        items.append(
+            DoctorItem(
+                name="cohort",
                 status="miss",
-                detail=f"{', '.join(missing)} absent. Run: uv run wha data fetch <name>",
+                detail=(
+                    "not fetched. Detection accuracy is already published in EVALUATION.md "
+                    "from docs/detection-results.json; fetch only to re-measure. "
+                    "Run: uv run python tools/cohort/fetch.py"
+                ),
             )
         )
 

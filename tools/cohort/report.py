@@ -93,6 +93,22 @@ def random_sensitivity(key: str, before: int, after: int) -> float:
     return hits / (TRIALS * len(covid))
 
 
+# Everything printed below is also collected here and written to docs/, so
+# `wha eval-report` can render it without a second implementation of the scoring. The
+# 378 MB cohort is gitignored; this summary is small, derived and committed, so
+# EVALUATION.md still has its numbers on a clean checkout.
+SUMMARY_PATH = REPO / "docs" / "detection-results.json"
+summary: dict = {
+    "source": (
+        "Mishra et al. 2020, Nature Biomedical Engineering 4:1208-1220. Reproduce with "
+        "tools/cohort/fetch.py, labels.py, evaluate.py, report.py."
+    ),
+    "participants": len(rows),
+    "covid_cases_with_onset": len(covid),
+    "other_illness": len(other),
+    "unlabelled": len(unlab),
+}
+
 print(f"participants analysed: {len(rows)}")
 print(f"  COVID-19 with a symptom onset date: {len(covid)}")
 print(f"  other illness: {len(other)}")
@@ -104,6 +120,8 @@ print("DATA QUALITY GATE: nights surviving the 180 minute coverage floor")
 print("=" * 78)
 tot_n = sum(r["nights"] for r in rows)
 tot_u = sum(r["usable_nights"] for r in rows)
+summary["nights"] = tot_n
+summary["usable_nights"] = tot_u
 frac = sorted(r["usable_nights"] / r["nights"] for r in rows if r["nights"])
 print(f"  nights with any overnight heart rate : {tot_n}")
 print(f"  nights usable                        : {tot_u}  ({tot_u / tot_n:.1%})")
@@ -115,12 +133,24 @@ print("=" * 78)
 print("SENSITIVITY at several window widths, against a rate-matched random detector")
 print("=" * 78)
 print(f"{'window':<28} {'this system':>14} {'NightSignal':>14} {'random, matched':>17}")
+summary["windows"] = []
 for before, after in ((3, 1), (7, 3), (14, 7), (21, 7)):
     label = f"{before}d before, {after}d after"
     hw, nw, lw = sensitivity("wha_clock", before, after)
     hn, _, ln = sensitivity("nightsignal", before, after)
     rw = random_sensitivity("wha_clock", before, after)
     print(f"{label:<28} {hw}/{nw} = {hw / nw:>6.1%} {hn}/{nw} = {hn / nw:>6.1%} {rw:>16.1%}")
+    summary["windows"].append(
+        {
+            "days_before": before,
+            "days_after": after,
+            "cases": nw,
+            "this_system": round(hw / nw, 4),
+            "nightsignal": round(hn / nw, 4),
+            "random_rate_matched": round(rw, 4),
+            "median_lead_days": statistics.median(lw) if lw else None,
+        }
+    )
 print()
 for before, after in ((7, 3), (21, 7)):
     hw, nw, lw = sensitivity("wha_clock", before, after)
@@ -159,6 +189,14 @@ for key, name in (("wha_clock", "this system"), ("nightsignal", "published Night
     print(f"  median per person, per week  : {statistics.median(per):.3f}")
     print(f"  people never alerted at all  : {zero} of {len(unlab)}")
     print()
+    summary.setdefault("alert_burden", {})[key] = {
+        "people": len(unlab),
+        "person_weeks": round(weeks, 1),
+        "investigations": runs,
+        "per_person_week": round(runs / weeks, 4),
+        "one_every_weeks": round(weeks / max(1, runs), 1),
+        "never_alerted": zero,
+    }
 
 print("=" * 78)
 print("SLEEP WINDOW versus CLOCK WINDOW, on people with real sleep staging")
@@ -222,3 +260,8 @@ for c in sorted(covid, key=lambda x: x["pid"]):
         f"{('yes' if dw else 'no'):>5} {lw2!s:>5} {('yes' if dn else 'no'):>4} {ln2!s:>5} "
         f"{len(runs_of(aw)):>9} {len(runs_of(an)):>8}"
     )
+
+
+SUMMARY_PATH.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+print()
+print(f"wrote {SUMMARY_PATH.relative_to(REPO)}, which `wha eval-report` renders")

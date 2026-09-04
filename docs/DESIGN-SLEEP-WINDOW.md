@@ -91,6 +91,39 @@ rate and heart rate variability in consumer wearables.
 
 ---
 
+## Who this helps, measured on more than one person
+
+**CORRECTED 5 September 2026.** Everything above is measured on one subject, and it
+presented this change as a general improvement. It is not one, and saying so is more
+useful than the stronger claim.
+
+Measured on the 21 participants in the Mishra 2020 cohort who have sleep staging, scoring
+the same nights both ways (`uv run python tools/cohort/report.py`):
+
+| Night-to-night wobble on the sleep window | People |
+|---|---|
+| **Better** (smaller spread) | 6 |
+| **Worse** (larger spread) | 5 |
+| **Unchanged** | 10 |
+
+The reason is simple: only 3 of the 21 sleep much outside midnight to 07:00. For a
+conventional sleeper the two windows cover nearly the same minutes, so there is nothing
+for the change to improve.
+
+**So the honest statement is conditional.** Measuring over recorded sleep is strongly
+justified for somebody whose sleep does not align with the clock, which includes this
+system's first real subject, who sleeps roughly 03:00 to 11:00 and for whom the fixed
+window discarded about 40 percent of the sleep and counted three hours of waking time as
+sleep. It is roughly neutral for somebody who sleeps 23:00 to 07:00.
+
+It is still the right default, for a reason that does not depend on the average: the
+system cannot know in advance which kind of sleeper it has, the clock window fails badly
+for one kind and gains nothing for the other, and the failure is silent. A default that is
+neutral for most people and important for some is worth having. That is a different
+argument from "it is better", and it is the one the data supports.
+
+---
+
 ## Naps are excluded
 
 Only the **single longest sleep session ending on that local date** is used. A second sleep

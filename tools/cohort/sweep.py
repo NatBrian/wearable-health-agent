@@ -155,7 +155,10 @@ def table(title: str, key: str, grid) -> None:
             s, a = evaluate(key, y, r, both)
             rule = "2 RED" if both else "1 RED"
             every = f"{1 / a:.1f} wk" if a > 0 else "never"
-            today = "   <- today" if key == "residual" and (y, r, both) == (3, 4, False) else ""
+            # The rule the detector actually runs, as of 5 September 2026: two consecutive
+            # nights BOTH at or above baseline + 4, which is the published NightSignal
+            # rule. It used to be "at least one RED", the row above.
+            today = "   <- today" if key == "residual" and (y, r, both) == (3, 4, True) else ""
             print(f"{y:>7} {r:>6} {rule:>10} {s:>12.1%} {a:>20.3f} {every:>12}{today}")
     print()
 

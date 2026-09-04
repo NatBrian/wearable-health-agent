@@ -8,15 +8,22 @@
 #
 # red_flags.yaml matches phrases. Someone typing "chest pain" was routed straight to an
 # ambulance, which is not what a clinician does and not what the evidence supports.
+# Sutaria et al., BMC Health Serv Res 2025;25:1263, defines a red flag as an "additional
+# relevant symptom that would be SOUGHT to exclude serious illness". Sought, not awaited.
+# That paper measured online symptom checkers seeking only 36.9 percent of relevant red
+# flags against 71.8 percent for primary care physicians. THAT is the paper that supports
+# this design directly: it is about symptom checkers, which is what this is.
+#
 # Downie et al., BMJ 2013;347:f7095, reviewed red flags systematically and found that
 # "many red flags in current guidelines provide virtually no change in probability ... or
 # have untested diagnostic accuracy", that individually most were uninformative, and that
 # COMBINATIONS carried the information single features did not.
 #
-# Sutaria et al., BMC Health Serv Res 2025;25:1263, defines a red flag as an "additional
-# relevant symptom that would be SOUGHT to exclude serious illness". Sought, not awaited.
-# That paper measured online symptom checkers seeking only 36.9 percent of relevant red
-# flags against 71.8 percent for primary care physicians.
+# READ DOWNIE WITH ITS POPULATION ATTACHED. It is a review of red flags for CANCER AND
+# FRACTURE IN LOW BACK PAIN. The quotation is accurate and the finding is general in
+# spirit, but it was not measured on chest pain or on any presentation this system routes.
+# It is quoted here as the reason to distrust a single matched phrase, which is what it
+# actually shows, and Sutaria carries the argument for what to do instead.
 #
 # THE DIVISION OF LABOUR, WHICH IS THE POINT
 #
@@ -208,13 +215,24 @@ rules:
 # ---------------------------------------------------------------------------
 oxygen:
   citation: >
-    WHO guidance as reported in the wearable SpO2 literature: above 94 percent can be
-    cared for at home, below 93 percent warrants medical attention. Accuracy and skin
-    pigmentation bias: systematic review and meta-analysis, J Med Internet Res
-    2024;26:e62769.
+    CORRECTED 5 September 2026. These levels were credited to the World Health
+    Organization. They are not WHO's.
+    They are NHS England's COVID Oximetry @home pathway: a reading of 92 percent or less
+    means attend an emergency department within the hour or call 999; 93 or 94 percent
+    means contact 111 or a GP. The British Thoracic Society's target range for oxygen
+    therapy in adults is 94 to 98 percent, which is where the upper band comes from. WHO's
+    January 2021 guidance recommends USING home pulse oximetry; it is not the source of
+    these numbers.
+    POPULATION CAVEAT, and it is the important one: that pathway is written for people
+    ALREADY DIAGNOSED with COVID-19 and being monitored at home. It is not a screening rule
+    for somebody who is well. Using it here is using a rule outside the population it was
+    written for, which is why this can only RAISE urgency and never lower it, and why it
+    says "get a proper reading taken" rather than naming a condition.
+    Accuracy and skin pigmentation: Singh et al., systematic review and meta-analysis,
+    J Med Internet Res 2024;26:e62769.
   citation_plain: >
-    World Health Organization guidance on home care thresholds, and a 2024 review of how
-    accurate these sensors are on different skin tones
+    NHS England's home oximetry pathway for people with COVID-19, the British Thoracic
+    Society's target range, and a 2024 review of how accurate these sensors are
   # Minimum readings inside the sleep window before the rule may run at all. One spot
   # check is not a night, and this system already refuses to judge a night measured over
   # too little.
@@ -234,9 +252,16 @@ oxygen:
         comfortable for home care. Worth speaking to a doctor today and having it measured
         properly.
   never_reassure: >
-    A reading above the threshold is NOT an all-clear. These sensors read high on darker
-    skin, so a genuine fall can be missed entirely. Nothing here should stop anyone who
-    feels unwell from seeking care.
+    A reading above the threshold is NOT an all-clear, for three reasons.
+    First, these sensors OVERESTIMATE oxygen saturation, so a real fall reads as a smaller
+    one. Singh et al. 2024 found that overestimation "for both light and dark skin
+    pigmentation", which means it applies to everybody rather than only to darker skin as
+    this text previously said. That same review concludes the overestimation "may not be
+    clinically relevant", and that qualification is stated here rather than left out.
+    Second, the thresholds come from a pathway for people already diagnosed with COVID-19,
+    not from a screening rule for somebody who is well.
+    Third, this is a consumer wrist sensor and not a medical one.
+    Nothing here should stop anyone who feels unwell from seeking care.
 
 # ---------------------------------------------------------------------------
 # WHERE NO VALIDATED HISTORY-ONLY RULE WAS FOUND

@@ -4,13 +4,20 @@ A matched phrase used to be a verdict. Someone typing "chest pain" was routed st
 an ambulance without a single confirming question, which is not what a clinician does and
 not what the evidence supports.
 
+Sutaria et al., BMC Health Serv Res 2025;25:1263, defines a red flag as a symptom that
+would be **sought** to exclude serious illness, and measured online symptom checkers
+seeking only 36.9 percent of the relevant ones against 71.8 percent for primary care
+physicians. That paper is about symptom checkers, which is what this is, so it carries the
+argument.
+
 Downie et al., BMJ 2013;347:f7095, reviewed red flags systematically and found that "many
 red flags in current guidelines provide virtually no change in probability ... or have
 untested diagnostic accuracy". Individually most were uninformative; combinations carried
-the information single features did not. Sutaria et al., BMC Health Serv Res 2025;25:1263,
-defines a red flag as a symptom that would be **sought**, and measured online symptom
-checkers seeking only 36.9 percent of the relevant ones against 71.8 percent for primary
-care physicians.
+the information single features did not. **Read with its population attached:** that is a
+review of red flags for cancer and fracture in LOW BACK PAIN. The quotation is accurate,
+the finding is general in spirit, and it was not measured on chest pain or on anything
+this module routes. It is cited as the reason to distrust a single matched phrase, which
+is what it shows.
 
 So the division of labour here is deliberate and is the whole point:
 

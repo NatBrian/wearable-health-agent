@@ -153,7 +153,9 @@ POP_PRIOR_RHR_SD_BPM = 8.64
 # number, which a reader who is not an academic reads as a corrupted string on a dashboard
 # otherwise written in plain English. The plain form is what gets shown; the full form
 # stays one click away so the claim is still checkable.
-POP_PRIOR_CITATION_PLAIN = "a 2024 study of 525 adults, published in PLOS Digital Health"
+POP_PRIOR_CITATION_PLAIN = "a 2024 study of 525 first-year university students, published in PLOS Digital Health"  # Not "525 adults". They were first-year students aged roughly 18 to 24, which is a
+# narrower and younger group than that phrasing implies, and resting heart rate
+# varies with age and fitness. Corrected 5 September 2026.
 POP_PRIOR_CITATION = "Bloomfield et al. 2024, PLOS Digital Health 3(4):e0000473, n=525"
 
 # --- detection ------------------------------------------------------------

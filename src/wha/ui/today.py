@@ -288,6 +288,19 @@ def render_conversation(subject_id: str) -> str | None:
                 )
                 for note in uncited:
                     st.caption(f"• {note}")
+                # The label is a floor, not a guarantee, and the panel implied otherwise.
+                #
+                # Sorting its own sentences into cited and uncited is done by the AI. In a
+                # real transcript it wrote "that's reassuring" straight into the reply with
+                # no warning, then on the next turn correctly moved a similar sentence into
+                # this box. A reader who trusts the box to be complete is trusting the
+                # model to have caught itself.
+                st.caption(
+                    "This sorting is done by the AI itself and it can miss things. A "
+                    "sentence in the reply above with no source shown is not proof that "
+                    "one exists. Anything not quoted from a named source is a starting "
+                    "point to check."
+                )
 
     message = st.chat_input("Say anything, or ask a question")
     if message and message.strip():

@@ -40,20 +40,61 @@ def render_summary_tab(detail: EpisodeDetail) -> None:
             st.warning(f"• {crit}")
 
     if outcome.differential:
-        st.markdown("### 📊 Cause Differential")
+        # RETITLED, and no longer sorted here.
+        #
+        # "Cause Differential" drawn as a ranked bar chart read like a doctor's list of
+        # likely diagnoses. It is not one: the twelve numbers are independent, they do not
+        # add to 100 percent, and they do not compete. A cause that is common and small
+        # scores high on any raised night because something has to explain the rise, so on
+        # a real episode that concluded LIKELY_ILLNESS this chart put stress at 0.92 first
+        # with the reason "nothing gathered in this episode speaks to this cause".
+        #
+        # `ground_differential` now returns them ordered by how much THIS EPISODE moved
+        # each one. Re-sorting by Probability here would undo that.
+        st.markdown("### What this episode's evidence changed")
+        st.caption(
+            "Ordered by how far each explanation moved, not by which ended up largest. "
+            "These are independent probabilities and they do not add up to 100 percent: "
+            "more than one thing can be true at once, and on most raised nights the "
+            "ordinary explanations are large simply because something has to account for "
+            "the rise."
+        )
+
+        provenance = api().get_knowledge_provenance()
+        assumed: list[str] = []
         diff_data = []
         for d in outcome.differential:
+            meta = provenance.get(d.cause.value, {})
+            # A row is only as sourced as its weakest load-bearing number. The temporal
+            # profile is what tells the causes apart across nights, and 45 of the 57
+            # weights have no source at all.
+            unsourced = meta.get("provenance") == "ASSUMED" or meta.get("profile_sourced") == "no"
+            if unsourced:
+                assumed.append(d.cause.value)
             diff_data.append(
                 {
                     "Cause": d.cause.value,
+                    "Evidence": "not measured" if unsourced else "from a study",
                     "Probability": d.probability,
                     "Supporting Evidence": "; ".join(d.supporting) or "None",
                     "Contradicting Evidence": "; ".join(d.contradicting) or "None",
                 }
             )
-        df_diff = pd.DataFrame(diff_data).sort_values("Probability", ascending=False)
+        df_diff = pd.DataFrame(diff_data)
         st.bar_chart(df_diff.set_index("Cause")["Probability"])
         st.dataframe(df_diff, use_container_width=True)
+
+        if assumed:
+            st.warning(
+                '**Some of these rest on a guess, and the ones marked "not measured" are '
+                "them.** Their size or their shape across nights was set by judgement "
+                "because no published measurement of it exists, and they are marked here "
+                "rather than left to look like the ones measured on tens of thousands of "
+                "people. Affected here: "
+                + ", ".join(sorted(assumed))
+                + ". The full record of what is sourced and what is not is in "
+                "`data/knowledge/causes.yaml` and `docs/DISCLOSURES.md`."
+            )
 
     st.caption(
         f"Budget used: {outcome.interruptions_used_this_week} interruptions this week, "

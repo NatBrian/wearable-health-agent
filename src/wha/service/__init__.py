@@ -15,6 +15,7 @@ from wha.service.audit import (
 from wha.service.belief import (
     BeliefNightRecord,
     explain_belief,
+    get_knowledge_provenance,
 )
 from wha.service.conversation import (
     get_transcript,
@@ -105,6 +106,7 @@ __all__ = [
     "fetch_data",
     "get_episode",
     "get_evaluation_results",
+    "get_knowledge_provenance",
     "get_monitoring_since",
     "get_night_detail",
     "get_pending_interaction",

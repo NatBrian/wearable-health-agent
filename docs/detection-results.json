@@ -1,0 +1,65 @@
+{
+  "source": "Mishra et al. 2020, Nature Biomedical Engineering 4:1208-1220. Reproduce with tools/cohort/fetch.py, labels.py, evaluate.py, report.py.",
+  "participants": 120,
+  "covid_cases_with_onset": 30,
+  "other_illness": 12,
+  "unlabelled": 76,
+  "nights": 8508,
+  "usable_nights": 7865,
+  "windows": [
+    {
+      "days_before": 3,
+      "days_after": 1,
+      "cases": 30,
+      "this_system": 0.4667,
+      "nightsignal": 0.4667,
+      "random_rate_matched": 0.1646,
+      "median_lead_days": 1.0
+    },
+    {
+      "days_before": 7,
+      "days_after": 3,
+      "cases": 30,
+      "this_system": 0.6667,
+      "nightsignal": 0.6667,
+      "random_rate_matched": 0.3416,
+      "median_lead_days": 3.0
+    },
+    {
+      "days_before": 14,
+      "days_after": 7,
+      "cases": 30,
+      "this_system": 0.7333,
+      "nightsignal": 0.7333,
+      "random_rate_matched": 0.5585,
+      "median_lead_days": 3.0
+    },
+    {
+      "days_before": 21,
+      "days_after": 7,
+      "cases": 30,
+      "this_system": 0.8,
+      "nightsignal": 0.8,
+      "random_rate_matched": 0.6608,
+      "median_lead_days": 5.0
+    }
+  ],
+  "alert_burden": {
+    "wha_clock": {
+      "people": 76,
+      "person_weeks": 738.4,
+      "investigations": 150,
+      "per_person_week": 0.2031,
+      "one_every_weeks": 4.9,
+      "never_alerted": 20
+    },
+    "nightsignal": {
+      "people": 76,
+      "person_weeks": 738.4,
+      "investigations": 163,
+      "per_person_week": 0.2207,
+      "one_every_weeks": 4.5,
+      "never_alerted": 19
+    }
+  }
+}

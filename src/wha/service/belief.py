@@ -109,3 +109,50 @@ def explain_belief(
         )
 
     return records
+
+
+def get_knowledge_provenance() -> dict[str, dict[str, str]]:
+    """Where each cause's numbers came from, so the dashboard can say which are guesses.
+
+    The project's own rule is that an unevidenced choice is stated in the documents AND on
+    the dashboard. It was in neither for most of these, because the documents described
+    them as human judgement and they are not.
+
+    About 140 numbers here have no source: 45 of the 57 temporal profile weights, most of
+    the between-person spreads, and all 64 answer likelihoods. On screen they looked
+    exactly like the ones measured on tens of thousands of people.
+
+    Served rather than read directly by the interface, because a screen may not import
+    below the API.
+    """
+    import yaml
+
+    out: dict[str, dict[str, str]] = {}
+
+    causes_raw = yaml.safe_load(Path("data/knowledge/causes.yaml").read_text(encoding="utf-8"))
+    for row in causes_raw.get("causes", []):
+        cause_id = str(row.get("cause"))
+        # A row is only as sourced as its weakest load-bearing number. `profile_source` is
+        # what tells the causes apart across nights, and 45 of 57 weights have none.
+        has_profile_source = bool(str(row.get("profile_source", "")).strip())
+        out[cause_id] = {
+            "provenance": str(row.get("provenance", "unstated")),
+            "profile_sourced": "yes" if has_profile_source else "no",
+            "note": (
+                str(row.get("assumption") or row.get("derivation") or row.get("citation") or "")
+                .strip()
+                .replace("\n", " ")[:400]
+            ),
+        }
+
+    probes_raw = yaml.safe_load(Path("data/knowledge/probes.yaml").read_text(encoding="utf-8"))
+    for row in probes_raw.get("probes", []):
+        out[f"probe:{row.get('probe_id')}"] = {
+            "provenance": str(row.get("provenance", "unstated")),
+            "profile_sourced": "n/a",
+            "note": str(row.get("assumption") or row.get("citation") or "")
+            .strip()
+            .replace("\n", " ")[:400],
+        }
+
+    return out

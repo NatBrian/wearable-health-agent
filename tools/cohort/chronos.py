@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import statistics
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -45,7 +45,6 @@ print()
 
 
 def corr(a, b):
-    n = len(a)
     ma, mb = statistics.mean(a), statistics.mean(b)
     num = sum((x - ma) * (y - mb) for x, y in zip(a, b))
     den = (sum((x - ma) ** 2 for x in a) * sum((y - mb) ** 2 for y in b)) ** 0.5
@@ -83,10 +82,14 @@ def auc(pos: list[float], neg: list[float]) -> float:
 print(f"  illness nights (7 days before onset to 1 after) : {len(ill_res)}")
 print(f"  ordinary nights                                 : {len(well_res)}")
 print()
-print(f"  residual   : illness median {statistics.median(ill_res):+.2f}, "
-      f"ordinary median {statistics.median(well_res):+.2f}, AUC {auc(ill_res, well_res):.3f}")
-print(f"  forecast_z : illness median {statistics.median(ill_fc):+.2f}, "
-      f"ordinary median {statistics.median(well_fc):+.2f}, AUC {auc(ill_fc, well_fc):.3f}")
+print(
+    f"  residual   : illness median {statistics.median(ill_res):+.2f}, "
+    f"ordinary median {statistics.median(well_res):+.2f}, AUC {auc(ill_res, well_res):.3f}"
+)
+print(
+    f"  forecast_z : illness median {statistics.median(ill_fc):+.2f}, "
+    f"ordinary median {statistics.median(well_fc):+.2f}, AUC {auc(ill_fc, well_fc):.3f}"
+)
 print()
 print("  AUC 0.5 means no separation at all. 1.0 means perfect.")
 print()
@@ -115,8 +118,10 @@ for res_thr, fz_thr in ((3.0, 1.0), (3.0, 1.5), (4.0, 2.0)):
             fc_only += 1
         else:
             neither += 1
-    print(f"  residual >= {res_thr}, forecast_z >= {fz_thr}: "
-          f"both {both}, detector only {det_only}, FORECAST ONLY {fc_only}, neither {neither}")
+    print(
+        f"  residual >= {res_thr}, forecast_z >= {fz_thr}: "
+        f"both {both}, detector only {det_only}, FORECAST ONLY {fc_only}, neither {neither}"
+    )
 print()
 print("  'forecast only' is the number of infections the forecast would catch that the")
 print("  detector misses. That is the whole case for keeping it.")

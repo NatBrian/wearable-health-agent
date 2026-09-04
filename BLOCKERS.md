@@ -26,11 +26,31 @@ stub out a blocked module, or change a contract to unblock yourself.
 
 ## A-25 - RESOLVED 5 September 2026. Cohort labels were never unavailable
 
-**Resolved:** the Stanford wearables data is a public 378 MB download and the symptom onset
-dates are in the same paper's Supplementary Data 1, Supplementary Table 3, on the **same date
-shift** as the public files, so they join directly. Detection accuracy is measured: 53.3
-percent sensitivity at a three day pre-symptomatic window against a 20.2 percent rate-matched
-chance floor. See `docs/EVIDENCE-LOG.md` and plan item 19. The original text follows.
+**Resolved, and now reproducible from this repository.** The Mishra 2020 wearables data is a
+public 378 MB download and the symptom onset dates are in the same paper's Supplementary
+Data 1, Supplementary Table 3, on the **same date shift** as the public files, so they join
+directly. `cohort_labels.yaml` never needed authoring; `tools/cohort/labels.py` extracts the
+labels from the spreadsheet.
+
+**The measurement, on the system as it stands after items 7 and 8:** 46.7 percent
+sensitivity at a three day pre-symptomatic window against a **16.5 percent rate-matched
+chance floor**, and 66.7 percent against 34.2 at seven days. One investigation per healthy
+person every 4.9 weeks.
+
+An earlier figure of 53.3 percent was measured before the alert rule was tightened to the
+published one, and it is superseded rather than better. Published in `EVALUATION.md`,
+generated from `docs/detection-results.json`.
+
+Reproduce:
+
+```bash
+uv run python tools/cohort/fetch.py
+uv run python tools/cohort/labels.py
+uv run python tools/cohort/evaluate.py
+uv run python tools/cohort/report.py
+```
+
+The original text follows.
 
 ## A-25 (original) - Missing data/knowledge/cohort_labels.yaml for cohort evaluation
 
@@ -48,6 +68,11 @@ Evaluation skipped / error: Cohort labels file missing at 'data\knowledge\cohort
 ---
 
 ## A-26 - RESOLVED 5 September 2026, by the same route as A-25
+
+The baseline-age curve runs on the same cohort and the same labels. It also lost its second
+arm: it compared "shrinkage" against "chronos", both arms called the same detector, and the
+forecast never set `level` or `flagged`, so the two computed identical alerts and the second
+column was the first under another name. Chronos is now removed entirely.
 
 ## A-26 (original) - Missing data/knowledge/cohort_labels.yaml for baseline-age evaluation
 
@@ -174,7 +199,11 @@ an empty directory. Fixed to require content, so the row now reports the truth. 
 blocker stands: no cohort data is present, so A-25 to A-28 remain blocked on the download as well as
 on the missing `cohort_labels.yaml` already recorded above.
 
-**What I need:** the datasets fetched, or confirmation that cohort evaluation is out of scope.
+**What I need:** nothing. **RESOLVED 5 September 2026.** The cohort is fetched, the labels
+are extracted from the paper's supplementary data, and detection accuracy is measured and
+published. `wha doctor` still reports `datasets miss` because that row checks
+`data/datasets/`, which is a different path from `data/cohort/` where the cohort now lives;
+that is a cosmetic disagreement between two directory names and not a missing dataset.
 
 
 ---

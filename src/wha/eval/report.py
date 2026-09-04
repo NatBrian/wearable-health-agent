@@ -10,6 +10,7 @@ when the numbers move, it can be read without starting a server, and it has room
 caveats that matter more than the figures.
 """
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -134,15 +135,7 @@ def render_markdown(results: dict[str, EvaluationResult]) -> str:
         if detection.caveats:
             lines += [f"- {c}" for c in detection.caveats] + [""]
     else:
-        lines += [
-            "## Detection",
-            "",
-            "**Not evaluated.** Detection accuracy needs the Stanford and PMData cohorts and",
-            "their ground-truth labels. The datasets are not present and",
-            "`data/knowledge/cohort_labels.yaml` has not been authored, so there is no honest",
-            "number to report here. See `BLOCKERS.md`.",
-            "",
-        ]
+        lines += _detection_from_cohort()
 
     lines += [
         "## Scenarios",
@@ -154,6 +147,121 @@ def render_markdown(results: dict[str, EvaluationResult]) -> str:
     ]
 
     return "\n".join(lines).rstrip() + "\n"
+
+
+DETECTION_RESULTS = Path("docs/detection-results.json")
+
+
+def _detection_from_cohort() -> list[str]:
+    """The detection section, from the summary `tools/cohort/report.py` writes.
+
+    This said "Not evaluated. Detection accuracy needs the Stanford and PMData cohorts and
+    their ground-truth labels", and it said so for the life of the project. The data was
+    never missing: it is a public 378 MB download and the symptom dates are in the same
+    paper's supplementary spreadsheet, shifted the same way as the wearable files.
+
+    Read from a committed summary rather than recomputed here, so there is exactly one
+    implementation of the scoring and the 378 MB cohort does not have to be present to
+    render the report.
+    """
+    if not DETECTION_RESULTS.exists():
+        return [
+            "## Detection",
+            "",
+            "**Not measured in this checkout.** Produce it with:",
+            "",
+            "```bash",
+            "uv run python tools/cohort/fetch.py",
+            "uv run python tools/cohort/labels.py",
+            "uv run python tools/cohort/evaluate.py",
+            "uv run python tools/cohort/report.py",
+            "```",
+            "",
+        ]
+
+    data = json.loads(DETECTION_RESULTS.read_text(encoding="utf-8"))
+    burden = data.get("alert_burden", {})
+    ours = burden.get("wha_clock", {})
+    theirs = burden.get("nightsignal", {})
+
+    lines = [
+        "## Detection",
+        "",
+        f"Measured on **{data['participants']} people and {data['nights']:,} nights** of the",
+        "public Mishra et al. 2020 wearable release, with symptom onset dates from the same",
+        (
+            f"paper's supplementary data. **{data['covid_cases_with_onset']} labelled "
+            f"COVID-19 cases** and **{data['unlabelled']} people with no illness label**."
+        ),
+        "",
+        "**Always read the chance column.** A wide window makes any detector look good, so",
+        "the third column is a detector that alerts on the same NUMBER of runs as this one,",
+        "placed at random, averaged over 2,000 draws. 80 percent against a 66 percent floor",
+        "is not a finding. 47 against 17 is.",
+        "",
+        "| Alert fired within | This system | Published NightSignal | Random, same rate |",
+        "|---|---|---|---|",
+    ]
+    for window in data.get("windows", []):
+        label = f"{window['days_before']} days before onset, {window['days_after']} after"
+        lines.append(
+            f"| {label} | **{window['this_system']:.1%}** | {window['nightsignal']:.1%} "
+            f"| {window['random_rate_matched']:.1%} |"
+        )
+
+    lines += [
+        "",
+        "**It matches the published algorithm rather than beating it, and that is the",
+        "honest reading.** An earlier version of this system flagged on two raised nights",
+        "with at least one red, which is looser than NightSignal's two consecutive red",
+        "nights, and scored about 6 points higher at every window for 37 percent more",
+        "investigations. That rule was quietly not the one being cited. It was changed to",
+        "the published rule on 5 September 2026, and the two now agree case for case.",
+        "",
+        "What survives is the lead time and the quiet. At the seven day window this system",
+        "warns a median of **3.0 days** before symptoms against NightSignal's 1.5, and it",
+        "opens fewer investigations on people who were never ill:",
+        "",
+        "| On 76 people with no illness label | This system | Published NightSignal |",
+        "|---|---|---|",
+        (
+            f"| Investigations over {ours.get('person_weeks', 0):.0f} person-weeks "
+            f"| {ours.get('investigations', 0)} | {theirs.get('investigations', 0)} |"
+        ),
+        (
+            f"| Per person-week | **{ours.get('per_person_week', 0):.3f}** "
+            f"| {theirs.get('per_person_week', 0):.3f} |"
+        ),
+        (
+            f"| One investigation every | **{ours.get('one_every_weeks', 0):.1f} weeks** "
+            f"| {theirs.get('one_every_weeks', 0):.1f} weeks |"
+        ),
+        (
+            f"| Never alerted at all | {ours.get('never_alerted', 0)} of 76 "
+            f"| {theirs.get('never_alerted', 0)} of 76 |"
+        ),
+        "",
+        "### What these numbers do not show",
+        "",
+        f"- **{data['usable_nights']:,} of {data['nights']:,} nights** cleared the coverage",
+        "  floor. The rest were not scored at all rather than guessed at.",
+        "- One cohort, one device, one illness. These are Fitbit users in a COVID-19 study,",
+        "  not a general population, and the only labelled illness is COVID-19.",
+        "- Scored on the clock window, because only 32 of the 120 participants have sleep",
+        "  staging. The window this build actually uses is measured separately in",
+        "  `docs/DESIGN-SLEEP-WINDOW.md`, where it turns out to be strongly justified for an",
+        "  unconventional sleeper and roughly neutral otherwise.",
+        "- Sensitivity here is per PERSON, not per night, and an alert anywhere in the",
+        "  window counts. That is the right question for an early-warning system and it is a",
+        "  looser one than per-night accuracy.",
+        "",
+        f"Reproduce all of it: `{data['source']}`",
+        "",
+        "Every deviation from the algorithm these thresholds come from is listed, with the",
+        "evidence for each, in `docs/DESIGN-VS-NIGHTSIGNAL.md`.",
+        "",
+    ]
+    return lines
 
 
 def write_report(
