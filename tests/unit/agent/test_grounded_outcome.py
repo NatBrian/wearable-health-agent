@@ -207,3 +207,67 @@ def test_the_outcome_is_written_knowing_what_the_person_said() -> None:
     prompt = client.complete.call_args_list[0].args[0]
     assert "probe_symptoms" in prompt.user
     assert "fever" in prompt.user
+
+
+def test_node_conclude_actually_writes_the_trace_the_screen_reads() -> None:
+    """The Trace tab's data must be written by the graph, through a real repository.
+
+    `episode_traces` was added with a writer at the end of `node_conclude`, guarded by
+    `hasattr(db, "record_episode_trace")`. That is the exact guard that once made every
+    tool in this system a no-op: no implementation of the `db` interface existed, so every
+    such guard was False and the code behind it never ran while everything stayed green.
+
+    Nothing exercised this one. The tests for the Trace tab INSERT rows into
+    `episode_traces` directly, so they would pass with the writer deleted, and on 5
+    September 2026 the live database had zero rows in that table. This drives the real
+    node with a real EpisodeRepository and asserts the row lands, so "the screen shows
+    every stage as pending because nothing ever wrote a trace" cannot come back silently.
+    """
+    import json
+    import sqlite3
+
+    from wha.agent.repository import EpisodeRepository
+    from wha.db.migrations import apply_schema
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    apply_schema(conn)
+
+    client = MagicMock()
+    client.complete.return_value = (
+        WriteOutcomeResponse(
+            observation="Your heart rate rose on two nights.",
+            claims=[
+                OutcomeClaim(
+                    text="Alcohol raises resting heart rate by roughly 2.8 bpm per drink.",
+                    evidence_span="Per-drink RHR +2.8 bpm",
+                )
+            ],
+            escalation_criteria=["Seek care if this persists."],
+        ),
+        LLMUsage(),
+    )
+
+    state = _state_with_retrieval()
+    node_conclude(state, llm_client=client, db=EpisodeRepository(conn=conn))
+
+    rows = conn.execute(
+        "SELECT episode_id, payload_json FROM episode_traces WHERE episode_id = ?",
+        (state["episode_id"],),
+    ).fetchall()
+    assert len(rows) == 1, "node_conclude wrote no trace, so the Trace tab has nothing to read"
+
+    payload = json.loads(rows[0]["payload_json"])
+    ran = set(payload["nodes_ran"])
+
+    # The stages that genuinely ran are named, and "measure" is not among them: that limb
+    # was deleted, and a trace naming it would put a permanently pending stage back on the
+    # screen. See test_the_trace_advertises_exactly_the_stages_the_graph_has.
+    assert {"preload", "investigate", "believe", "decide", "conclude", "critique"} <= ran
+    assert "measure" not in ran
+    assert "ask" not in ran, "no answers in this state, so nothing was asked"
+
+    # The tool calls travel with it, which is what the expander under 'investigate' renders.
+    assert any(
+        call["tool_name"] == "retrieve_clinical_evidence" for call in payload["tool_calls"]
+    )
