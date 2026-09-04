@@ -366,6 +366,22 @@ def post_settings(body: dict[str, Any]) -> Any:
     return service.update_settings(**body)
 
 
+@app.get("/subjects/{subject_id}/profile")
+def get_subject_profile(subject_id: str) -> Any:
+    """The five standing facts about a person that the rules actually read."""
+    return service.get_subject_profile(subject_id)
+
+
+@app.post("/subjects/{subject_id}/profile")
+def post_subject_profile(subject_id: str, body: dict[str, Any]) -> Any:
+    """Change them. This changes how the rules decide, so it is recorded."""
+    from wha.models import SubjectProfilePatch
+
+    return service.update_subject_profile(
+        SubjectProfilePatch.model_validate(body), subject_id=subject_id
+    )
+
+
 @app.post("/diagnostics/{component}")
 def check_component(component: str, overrides: dict[str, Any] | None = None) -> Any:
     """Probe one subsystem live: the bridge, the model provider, or Telegram.

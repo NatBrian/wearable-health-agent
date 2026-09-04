@@ -25,6 +25,7 @@ from wha.models import (
     BaselineRung,
     Citation,
     Disposition,
+    EpisodeContext,
     EpisodeOutcome,
     ExtractedFact,
     MeasurementResult,
@@ -404,6 +405,7 @@ def node_believe(
         features=features,
         answers=answers,
         measurements=measurements,
+        context=_episode_context(state, db, answers),
     )
 
     if db is not None:
@@ -440,6 +442,7 @@ def node_decide(
             features=state.get("features", []),
             answers=state.get("answers", []),
             measurements=state.get("measurements", []),
+            context=_episode_context(state, db, state.get("answers", [])),
         )
 
     depth_used = state.get("depth_used", 0)
@@ -949,6 +952,43 @@ def _cycle_applicability(answers: list[Answer]) -> bool | None:
     return None
 
 
+def _episode_context(state: EpisodeState, db: Any, answers: list[Answer]) -> EpisodeContext:
+    """The two facts `update_belief` reads from context and nothing ever supplied.
+
+    Both were dead wires. `luteal_applicable` was never passed by any caller, so the
+    menstrual cycle cause sat at exactly 0.0 for every episode and answering the question
+    changed nothing. `has_recent_illness` was read by name inside `update_belief` and was
+    not even a field on `EpisodeContext`, so a correctly constructed context would still
+    have failed the `hasattr` check.
+
+    Cycle applicability comes from the Settings profile first, because it is a standing
+    fact about a person and not worth spending an interruption on. An already-answered
+    `probe_cycle` is honoured as a fallback so a person who answered it before the profile
+    existed is not asked to repeat themselves.
+    """
+    subject_id = state.get("subject_id", "")
+
+    cycle: bool | None = None
+    if db is not None and hasattr(db, "get_profile_menstruates"):
+        cycle = db.get_profile_menstruates(subject_id)
+    if cycle is None:
+        cycle = _cycle_applicability(answers)
+
+    recent_illness = False
+    if db is not None and hasattr(db, "has_recent_illness_episode"):
+        recent_illness = db.has_recent_illness_episode(subject_id, local_today())
+
+    nights = state.get("nights", [])
+    return EpisodeContext(
+        subject_id=subject_id,
+        episode_opened_on=min((d.night_date for d in nights), default=local_today()),
+        rung=BaselineRung.COLD,
+        usable_nights=len(nights),
+        cycle_applicable=cycle,
+        has_recent_illness=recent_illness,
+    )
+
+
 def node_conclude(
     state: EpisodeState,
     llm_client: LLMClient | None = None,
@@ -967,6 +1007,7 @@ def node_conclude(
             features=state.get("features", []),
             answers=state.get("answers", []),
             measurements=state.get("measurements", []),
+            context=_episode_context(state, db, state.get("answers", [])),
         )
 
     answers = state.get("answers", [])
@@ -996,7 +1037,7 @@ def node_conclude(
         features=state.get("features", []),
         answers=answers,
         measurements=state.get("measurements", []),
-        cycle_applicable=_cycle_applicability(answers),
+        cycle_applicable=_episode_context(state, db, answers).cycle_applicable,
     )
 
     # The passages the agent actually retrieved during this episode. `citations` was

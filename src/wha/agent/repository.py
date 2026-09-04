@@ -16,7 +16,7 @@ episode was opened for.
 import json
 import sqlite3
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -458,6 +458,45 @@ class EpisodeRepository:
             (state, episode_id),
         )
         self._conn.commit()
+
+    def get_profile_menstruates(self, subject_id: str) -> bool | None:
+        """Whether this person menstruates, from the Settings profile, or None if unset.
+
+        A standing fact, so it is collected once rather than costing an interruption in
+        every investigation. None means unknown, and `update_belief` leaves the luteal
+        cause inert on unknown rather than assuming it applies, which it used to do for
+        everybody including every male user.
+        """
+        row = self._conn.execute(
+            "SELECT menstruates FROM subject_profile WHERE subject_id = ?",
+            (subject_id,),
+        ).fetchone()
+        if row is None or row["menstruates"] is None:
+            return None
+        return bool(row["menstruates"])
+
+    def has_recent_illness_episode(self, subject_id: str, today: date) -> bool:
+        """Whether a closed illness episode sits inside the published recovery window.
+
+        causes.yaml says the belief model "raises it sharply when a closed illness episode
+        exists within the published tail window", and nothing anywhere looked for one, so
+        the recovery_tail cause never rose above its base rate.
+
+        The window is RECOVERY_TAIL_DAYS, from Radin et al. 2021: resting heart rate did
+        not return to baseline until roughly 79 days after symptom onset.
+        """
+        from wha.constants import RECOVERY_TAIL_DAYS
+
+        cutoff = (today - timedelta(days=RECOVERY_TAIL_DAYS)).isoformat()
+        row = self._conn.execute(
+            """SELECT 1 FROM episodes
+                WHERE subject_id = ? AND state = 'CLOSED'
+                  AND disposition IN ('LIKELY_ILLNESS', 'ESCALATED')
+                  AND COALESCE(closed_on, opened_on) >= ?
+                LIMIT 1""",
+            (subject_id, cutoff),
+        ).fetchone()
+        return row is not None
 
     def record_review_requested(self, subject_id: str, episode_id: str, disposition: str) -> None:
         """Write down that the system stopped and asked a person to check its conclusion."""

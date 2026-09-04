@@ -14,6 +14,114 @@ from wha.ui.components.api import api
 from wha.ui.components.status_strip import render_status_strip
 
 
+def render_profile_section(subject_id: str) -> None:
+    """Five standing facts, each one read by something named.
+
+    The rule for being on this page is that something CONSUMES the field. That is why
+    weight, height and BMI are not here: nothing has a covariate model, the baseline
+    becomes personal after seven nights, and a field nobody reads tells you your data is
+    being used when it is not.
+    """
+    st.subheader("About you")
+    st.caption(
+        "Five things, asked once. Each one changes how a rule decides, and each one says "
+        "which. Nothing here is asked out of curiosity, and nothing you type in the last "
+        "box is ever shown to the AI."
+    )
+
+    profile = api().get_subject_profile(subject_id)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        age = st.number_input(
+            "Your age",
+            min_value=0,
+            max_value=120,
+            value=profile.age_years if profile.age_years is not None else 0,
+            help=(
+                "The chest pain rule this system uses was tested only on people aged 35 "
+                "and over. Below that it is not applied to you at all, and you are routed "
+                "the cautious way instead."
+            ),
+        )
+    with col2:
+        sex_options = ["Prefer not to say", "female", "male"]
+        sex_index = sex_options.index(profile.sex) if profile.sex in sex_options else 0
+        sex = st.selectbox(
+            "Sex",
+            sex_options,
+            index=sex_index,
+            help=(
+                "One item of the chest pain rule is whether you are a woman 65 or over, "
+                "or a man 55 or over. Answering here means you are not asked it during a "
+                "conversation about chest pain."
+            ),
+        )
+
+    vascular = st.checkbox(
+        "I have been diagnosed with coronary artery disease, a stroke or TIA, "
+        "or peripheral arterial disease",
+        value=bool(profile.known_vascular_disease),
+        help=(
+            "Another item of the same rule. It is the one most easily misremembered when "
+            "you are frightened, and it does not change from day to day."
+        ),
+    )
+
+    menstruates = st.checkbox(
+        "I menstruate",
+        value=bool(profile.menstruates),
+        help=(
+            "The menstrual cycle is one of the twelve causes this system weighs, and it "
+            "is the largest ordinary explanation for a raised night. Left unanswered it "
+            "is switched off entirely rather than assumed, so answering here makes the "
+            "reasoning about your nights more accurate."
+        ),
+    )
+
+    medicine = st.checkbox(
+        "I take a medicine that lowers my heart rate, such as a beta blocker",
+        value=bool(profile.rate_lowering_medicine),
+        help=(
+            "Nothing calculates with this. It exists so the system can tell you it is "
+            "less able to see an infection in you, rather than being quietly worse at "
+            "its job."
+        ),
+    )
+
+    notes = st.text_area(
+        "Anything your doctor should know",
+        value=profile.notes_for_doctor or "",
+        help=(
+            "For the summary you would hand a doctor. This is NEVER shown to the AI and "
+            "never enters its reasoning, because text the model reads without a source "
+            "behind it is exactly what this system is built to avoid."
+        ),
+    )
+
+    if st.button("Save", key="profile_save"):
+        api().update_subject_profile(
+            subject_id,
+            age_years=int(age) if age else None,
+            sex=None if sex == "Prefer not to say" else sex,
+            known_vascular_disease=vascular,
+            menstruates=menstruates,
+            rate_lowering_medicine=medicine,
+            notes_for_doctor=notes or None,
+        )
+        st.success("Saved.")
+        st.rerun()
+
+    if medicine:
+        st.warning(
+            "**A limitation, while that box is ticked.** Medicines that slow the heart "
+            "blunt the rise an infection causes, so an illness may not lift your "
+            "overnight rate far enough for this system to notice. It is less able to see "
+            "an infection in you than in somebody not taking one. That is a limitation of "
+            "the method, not a reason to change your medication."
+        )
+
+
 def render_connection_section(subject_id: str) -> None:
     """Render Bridge Connection settings, test button, and setup instructions."""
     st.subheader("Where your readings come from")
@@ -276,6 +384,8 @@ def render_settings_page(subject_id: str) -> None:
     render_status_strip(subject_id)
     st.write("---")
 
+    render_profile_section(subject_id)
+    st.write("---")
     render_connection_section(subject_id)
     st.write("---")
     render_llm_section(subject_id)

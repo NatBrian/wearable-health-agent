@@ -19,7 +19,6 @@ _ALL_PROBES_ASKED = [
     "probe_stress",
     "probe_vaccination",
     "probe_travel",
-    "probe_cycle",
     "probe_medication",
 ]
 

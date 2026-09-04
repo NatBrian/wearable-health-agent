@@ -68,7 +68,9 @@ from wha.service.scheduler import (
 from wha.service.settings import (
     delete_all_subject_data,
     get_service_settings,
+    get_subject_profile,
     update_settings,
+    update_subject_profile,
 )
 from wha.service.status import (
     get_system_status,
@@ -108,6 +110,7 @@ __all__ = [
     "get_pending_interaction",
     "get_permitted_tool_names",
     "get_service_settings",
+    "get_subject_profile",
     "get_system_status",
     "get_transcript",
     "latest_urgency",
@@ -136,6 +139,7 @@ __all__ = [
     "test_llm_connection",
     "test_telegram_connection",
     "update_settings",
+    "update_subject_profile",
     "verify_hash_chain",
     "write_evaluation_report",
 ]

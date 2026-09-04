@@ -321,3 +321,39 @@ CREATE TABLE IF NOT EXISTS triage_answers (
 CREATE TABLE IF NOT EXISTS schema_version (
   version INTEGER PRIMARY KEY
 );
+
+-- The five standing facts about a person that something in this system actually reads.
+--
+-- Added 5 September 2026, schema v7. The Marburg Heart Score was tested only on people
+-- aged 35 and over, `triage()` takes an `age_years` to enforce that, and nothing ever
+-- filled it in, so the rule ran on everybody. In a real run somebody typed "I am 24 and
+-- male", the system stored that, then applied a rule never tested on 24 year olds, scored
+-- 3 of 5 on three things common in a young adult with a pulled muscle, said urgent, and
+-- cited a study of 1,199 people aged 35 and over.
+--
+-- The test for including a field is whether something CONSUMES it. Weight, height and BMI
+-- are deliberately absent: nothing here reads them, and a field nobody reads tells a
+-- person their data is being used when it is not. Free-text health history is deliberately
+-- absent from this table too, because it would enter the conversation prompt, where the
+-- model would reason from it with no grounding and no citation.
+CREATE TABLE IF NOT EXISTS subject_profile (
+  subject_id       TEXT PRIMARY KEY REFERENCES subjects(subject_id),
+  -- Marburg age gate (minimum_age_years) and Marburg item 1.
+  age_years        INTEGER,
+  -- 'female', 'male' or NULL. Marburg item 1 is "woman 65 or over, or man 55 or over".
+  sex              TEXT CHECK (sex IN ('female','male') OR sex IS NULL),
+  -- Marburg item 2, pre-filled so the conversation asks the three that genuinely vary.
+  -- The item most likely to be misremembered under stress, and the one that never changes.
+  known_vascular_disease INTEGER,
+  -- The luteal cause in causes.yaml. A standing fact, not worth an interruption.
+  menstruates      INTEGER,
+  -- Read by nothing, deliberately. It becomes a DISCLOSURE: beta blockers blunt the heart
+  -- rate response to infection, so the system says "I am less able to see an infection in
+  -- you" rather than silently being worse at its job.
+  rate_lowering_medicine INTEGER,
+  -- For the doctor, never for the model. Rendered into the SBAR handover and excluded from
+  -- every prompt. This is the one place free text is allowed, precisely because it does
+  -- not enter the reasoning path.
+  notes_for_doctor TEXT,
+  updated_at_utc   TEXT NOT NULL
+);

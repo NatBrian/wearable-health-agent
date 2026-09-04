@@ -24,8 +24,14 @@ def test_corpus_covers_every_cause_probe_and_urgent_sign() -> None:
     for cause in load_causes():
         assert f"confounder_{cause.cause.value}" in docs
 
-    for probe_id in ("probe_symptoms", "probe_alcohol", "probe_cycle"):
+    # probe_cycle was here and is retired: the fact it asked for is a standing one and is
+    # collected once in Settings, so it costs no interruption at all. probe_medication
+    # replaces it as the third case, being the only remaining one-time probe.
+    for probe_id in ("probe_symptoms", "probe_alcohol", "probe_medication"):
         assert f"evidence_{probe_id}" in docs
+
+    # And it is genuinely gone, rather than merely unlisted above.
+    assert "evidence_probe_cycle" not in docs
 
     for rule_id in ("rf_chest_pain", "rf_breathless_at_rest", "rf_syncope"):
         assert f"escalation_{rule_id}" in docs

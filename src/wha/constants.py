@@ -239,6 +239,14 @@ FORECAST_HALF_WIDTH_FLOOR_BPM = 1.0  # a confident model can return a zero-width
 # heading above this block has always said it is. See docs/RESEARCH-AGENTIC-TRIAGE.md.
 
 # --- belief model ---------------------------------------------------------
+# How long after an illness the recovery_tail cause stays raised.
+#
+# Radin et al., JAMA Netw Open 2021;4(7):e2115959, n=234 COVID-positive against 641
+# symptomatic negative: resting heart rate "did not return to baseline until roughly 79
+# days after symptom onset". causes.yaml already says the belief model "raises it sharply
+# when a closed illness episode exists within the published tail window", and no code
+# anywhere looked for one, so the boost had never fired.
+RECOVERY_TAIL_DAYS = 79
 N_CAUSES = 12
 BELIEF_STATE_COUNT = 4096  # 2**12, enumerated exactly. Microseconds
 RESIDUAL_OBS_SD_BPM = 1.2  # measurement plus model noise on one night

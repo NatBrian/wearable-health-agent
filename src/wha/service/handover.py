@@ -169,6 +169,36 @@ def build_handover(
             )
 
         # ---- Background: what the device measured. Numbers, not impressions.
+        #
+        # The profile comes first, because it is the part a clinician can act on without
+        # reading anything else, and because `notes_for_doctor` exists precisely so a
+        # person can put something here that never enters a prompt. Information for the
+        # doctor is not information for the model.
+        from wha.service.settings import get_subject_profile
+
+        profile = get_subject_profile(subject_id, conn=conn)
+        described: list[str] = []
+        if profile.age_years is not None:
+            described.append(f"{profile.age_years} years old")
+        if profile.sex:
+            described.append(profile.sex)
+        if profile.known_vascular_disease:
+            described.append("known coronary, cerebrovascular or peripheral vascular disease")
+        if described:
+            handover.background.append("They recorded: " + ", ".join(described) + ".")
+        if profile.rate_lowering_medicine:
+            handover.background.append(
+                "They take a medicine that lowers heart rate. This system is less able to "
+                "detect an infection in them, because such medicines blunt the heart rate "
+                "rise an infection causes."
+            )
+        if profile.notes_for_doctor:
+            handover.background.append(
+                f'They asked that you be told: "{profile.notes_for_doctor.strip()}". '
+                "This text was never shown to the language model and played no part in "
+                "anything the system concluded."
+            )
+
         window_end = datetime.now(UTC).date()
         if episode is not None:
             try:

@@ -38,7 +38,7 @@ from wha.db.iso import to_iso
 from wha.errors import LLMUnavailable, ValidationFailed
 from wha.llm.client import LLMClient, get_llm_client
 from wha.llm.prompts import get_prompt_definition
-from wha.models import Citation
+from wha.models import Citation, SubjectProfile
 from wha.retrieve.grounding import enforce_grounding
 from wha.retrieve.models import Citation as RetrievedPassage
 from wha.retrieve.models import GeneratedClaim
@@ -180,6 +180,51 @@ def established_urgency(conn: sqlite3.Connection, subject_id: str) -> str | None
     for row in rows:
         level = more_urgent(level, row["urgency"])
     return level
+
+
+# The two Marburg items that are standing facts about a person rather than facts about
+# this episode. Item 1 is "a woman 65 or over, or a man 55 or over", which age and sex
+# settle between them. Item 2 is known coronary, cerebrovascular or peripheral vascular
+# disease, which is the item most likely to be misremembered under stress and the one that
+# never changes.
+MARBURG_AGE_SEX_ITEM = "mhs_age_sex"
+MARBURG_VASCULAR_ITEM = "mhs_known_vascular"
+MARBURG_FEMALE_AGE = 65
+MARBURG_MALE_AGE = 55
+
+
+def profile_rule_answers(profile: SubjectProfile, valid_ids: set[str]) -> list[RuleAnswer]:
+    """Rule items the Settings profile already answers, so nobody is asked them twice.
+
+    Asking these during a chest pain conversation spends a turn at the worst possible
+    moment, and the answers do not depend on what is happening today.
+
+    A missing field yields no answer at all rather than a False. The rule then stays
+    incomplete and resolves the conservative way, which is what the design requires: not
+    knowing must never look like nothing being wrong.
+    """
+    answers: list[RuleAnswer] = []
+
+    if MARBURG_AGE_SEX_ITEM in valid_ids and profile.age_years is not None and profile.sex:
+        threshold = MARBURG_FEMALE_AGE if profile.sex == "female" else MARBURG_MALE_AGE
+        answers.append(
+            RuleAnswer(
+                item_id=MARBURG_AGE_SEX_ITEM,
+                answer=profile.age_years >= threshold,
+                quote=f"From your profile: {profile.age_years}, {profile.sex}.",
+            )
+        )
+
+    if MARBURG_VASCULAR_ITEM in valid_ids and profile.known_vascular_disease is not None:
+        answers.append(
+            RuleAnswer(
+                item_id=MARBURG_VASCULAR_ITEM,
+                answer=profile.known_vascular_disease,
+                quote="From your profile.",
+            )
+        )
+
+    return answers
 
 
 def save_rule_answers(
@@ -380,6 +425,13 @@ def respond(
     """One conversational turn, with every deterministic check applied around the model."""
     record_turn(conn, subject_id, "user", user_message, episode_id=episode_id)
 
+    # The standing facts, read once. Everything that reads them treats a missing value as
+    # unknown and behaves conservatively. Imported here rather than at module level:
+    # wha.service imports this module, so a top-level import is a cycle.
+    from wha.service.settings import get_subject_profile
+
+    profile = get_subject_profile(subject_id, conn=conn)
+
     # 1. The floor, on the person's own words, before the model is involved at all.
     safety = check_red_flags_with_tier_c(user_text=user_message)
     triggered = list(safety.triggered_flags)
@@ -470,6 +522,14 @@ def respond(
         for a in (list(result.rule_answers) + list(extracted.rule_answers))
         if a.item_id in valid_ids
     ]
+    # Two of the five Marburg items are standing facts, not things to ask somebody who is
+    # frightened about their chest. Age, sex and known vascular disease are collected once
+    # in Settings, so the conversation only has to ask the three that genuinely vary.
+    collected.extend(
+        a
+        for a in profile_rule_answers(profile, valid_ids)
+        if a.item_id not in {c.item_id for c in collected}
+    )
     if presentation and collected:
         save_rule_answers(conn, subject_id, presentation, collected, episode_id=episode_id)
         known = load_rule_answers(conn, subject_id, presentation)
@@ -484,8 +544,17 @@ def respond(
     outcome: TriageOutcome | None = None
     rule_urgency: str | None = None
     if presentation:
+        # The age gate. Marburg was built on "1,199 unselected and consecutive patients
+        # aged >= 35 years", triage() has always taken an age_years to enforce that, and
+        # nothing ever filled it in, so the rule ran on everybody. In a real run a 24 year
+        # old scored 3 of 5 on three things common in a young adult with a pulled muscle
+        # and was told it was urgent, citing a study of people twice their age.
         outcome = triage(
-            presentation, gates=gates, answers=known, age_years=age_years, config=config
+            presentation,
+            gates=gates,
+            answers=known,
+            age_years=age_years if age_years is not None else profile.age_years,
+            config=config,
         )
         rule_urgency = outcome.urgency
 

@@ -555,6 +555,50 @@ class SettingsPatch(BaseModel):
     telegram_token: SecretStr | None = None
 
 
+class SubjectProfile(BaseModel):
+    """The standing facts about a person that something in this system actually reads.
+
+    Every field here is consumed by named code. That is the rule for being on this list,
+    and it is why weight, height and BMI are not: nothing has a covariate model, the
+    baseline becomes personal after seven nights, and a field nobody reads tells a person
+    their data is being used when it is not.
+
+    `notes_for_doctor` is the exception that proves the rule. It is free text, it goes into
+    the SBAR handover a clinician reads, and it enters no prompt. The distinction is the
+    point: information for the doctor is not information for the model. Free text in a
+    prompt is the "model reasons from unverified clinical text" path this whole project
+    exists to prevent, and it would feel safe precisely because the person wrote it.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    subject_id: str
+    # The Marburg age gate (minimum_age_years: 35) and Marburg item 1.
+    age_years: int | None = None
+    sex: Literal["female", "male"] | None = None
+    # Marburg item 2. Pre-filled so the conversation asks only the three that vary.
+    known_vascular_disease: bool | None = None
+    # The luteal cause in causes.yaml. A standing fact, not worth an interruption.
+    menstruates: bool | None = None
+    # Read by nothing on purpose. It becomes a disclosure rather than a covariate.
+    rate_lowering_medicine: bool | None = None
+    notes_for_doctor: str | None = None
+    updated_at_utc: datetime | None = None
+
+
+class SubjectProfilePatch(BaseModel):
+    """Every field optional, so a partial update leaves the rest alone."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    age_years: int | None = None
+    sex: Literal["female", "male"] | None = None
+    known_vascular_disease: bool | None = None
+    menstruates: bool | None = None
+    rate_lowering_medicine: bool | None = None
+    notes_for_doctor: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # 6.6 Agent, tool and LLM models
 # ---------------------------------------------------------------------------
@@ -657,6 +701,11 @@ class EpisodeContext(BaseModel):
     prior_illness_episodes: list[PastEpisodeSummary] = Field(default_factory=list)
     cycle_applicable: bool | None = None  # None means not yet asked
     cycle_last_period_start: date | None = None
+    # `update_belief` reads this by name and raises recovery_tail sharply when it is True.
+    # It was not on this model, so `hasattr(context, "has_recent_illness")` was False even
+    # for a correctly built context, and nothing built one anyway. Two ways for the same
+    # boost to never fire.
+    has_recent_illness: bool = False
 
 
 class InjectionVerdict(BaseModel):

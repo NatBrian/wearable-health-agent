@@ -23,6 +23,7 @@ from wha.models import (
     PendingInteraction,
     Settings,
     Subject,
+    SubjectProfile,
     SystemStatus,
 )
 
@@ -252,6 +253,14 @@ class ApiClient:
 
     def update_settings(self, **kwargs: Any) -> Any:
         return self._request("POST", "/settings", json=kwargs)
+
+    def get_subject_profile(self, subject_id: str) -> SubjectProfile:
+        raw = self._request("GET", f"/subjects/{subject_id}/profile")
+        return SubjectProfile.model_validate(raw)
+
+    def update_subject_profile(self, subject_id: str, **fields: Any) -> SubjectProfile:
+        raw = self._request("POST", f"/subjects/{subject_id}/profile", json=fields)
+        return SubjectProfile.model_validate(raw)
 
     def check_component(self, component: str, **overrides: Any) -> Any:
         """Probe a subsystem, optionally against values not yet saved."""

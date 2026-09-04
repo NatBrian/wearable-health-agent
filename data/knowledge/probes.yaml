@@ -162,24 +162,19 @@ probes:
       usually be near zero. It exists so the arithmetic can decide that, rather than the
       option being absent.
 
-  - probe_id: probe_cycle
-    target_cause: luteal
-    interruption_cost: 0.4
-    one_time: true
-    fallback_text: "Do you menstruate, and if so when did your last period start?"
-    answer_space:
-      - {option_id: na,     label: "Not applicable"}
-      - {option_id: recent, label: "Started within the last 2 weeks"}
-      - {option_id: older,  label: "Started more than 2 weeks ago"}
-      - {option_id: skip,   label: "Prefer not to say"}
-    likelihood:
-      present: {na: 0.01, recent: 0.20, older: 0.74, skip: 0.05}
-      absent:  {na: 0.55, recent: 0.24, older: 0.16, skip: 0.05}
-    provenance: ASSUMED
-    assumption: >
-      A ONE-TIME setup question, hence the low cost: once answered it becomes a modelled
-      covariate and is never asked again. "Prefer not to say" is a first-class option and
-      leaves the base rate unchanged rather than assuming either way.
+  # probe_cycle was here and is RETIRED, 5 September 2026.
+  #
+  # It asked "do you menstruate, and when did your last period start". The first half is a
+  # standing fact about a person, not a fact about tonight, and it is now collected once
+  # in Settings where it costs no interruption at all. The second half was never used: the
+  # luteal cause is a plain on-off in the belief model and `cycle_last_period_start` was
+  # read by nothing.
+  #
+  # Retiring it frees an interruption from the weekly allowance and removes the only probe
+  # whose answer had nowhere to go: `luteal_applicable` was never passed by any caller, so
+  # the cause sat at exactly 0.0 through every episode and answering this question changed
+  # nothing. An already-recorded answer is still honoured, in
+  # `wha.agent.nodes._cycle_applicability`, so nobody who answered it is asked again.
 
   - probe_id: probe_medication
     target_cause: medication

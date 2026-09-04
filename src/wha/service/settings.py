@@ -4,14 +4,18 @@ import os
 import sqlite3
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 from wha.db import connect
 from wha.db.audit_chain import append_audit
+from wha.db.iso import from_iso, to_iso
 from wha.db.migrations import apply_schema
 from wha.models import (
     AuditEvent,
     Settings,
     SettingsPatch,
+    SubjectProfile,
+    SubjectProfilePatch,
 )
 
 
@@ -163,6 +167,134 @@ def delete_all_subject_data(
 
             conn.execute("DELETE FROM episodes WHERE subject_id = ?", (subject_id,))
             conn.execute("DELETE FROM subjects WHERE subject_id = ?", (subject_id,))
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def get_subject_profile(
+    subject_id: str = "me",
+    conn: sqlite3.Connection | None = None,
+    db_path: "Path | None" = None,
+) -> SubjectProfile:
+    """The five standing facts, or an empty profile if none has been set.
+
+    An empty profile is not an error. Everything that reads it treats a missing value as
+    "unknown" and behaves conservatively, which is the whole reason the Marburg age gate
+    exists: it must refuse to score rather than guess.
+    """
+    close_conn = False
+    if conn is None:
+        conn = connect(db_path) if db_path is not None else connect()
+        apply_schema(conn)
+        close_conn = True
+    try:
+        row = conn.execute(
+            "SELECT * FROM subject_profile WHERE subject_id = ?", (subject_id,)
+        ).fetchone()
+        if row is None:
+            return SubjectProfile(subject_id=subject_id)
+        return SubjectProfile(
+            subject_id=row["subject_id"],
+            age_years=row["age_years"],
+            sex=row["sex"],
+            known_vascular_disease=_as_bool(row["known_vascular_disease"]),
+            menstruates=_as_bool(row["menstruates"]),
+            rate_lowering_medicine=_as_bool(row["rate_lowering_medicine"]),
+            notes_for_doctor=row["notes_for_doctor"],
+            updated_at_utc=from_iso(row["updated_at_utc"]) if row["updated_at_utc"] else None,
+        )
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def _as_bool(value: object) -> bool | None:
+    """SQLite has no boolean, and None must stay None rather than becoming False."""
+    return None if value is None else bool(value)
+
+
+def update_subject_profile(
+    patch: SubjectProfilePatch,
+    subject_id: str = "me",
+    conn: sqlite3.Connection | None = None,
+    db_path: "Path | None" = None,
+) -> SubjectProfile:
+    """Apply a partial update, and record it, because it changes how rules decide.
+
+    Setting an age changes whether the Marburg Heart Score is applied at all, and setting
+    whether the person menstruates switches a cause in the belief model on or off. Both are
+    decisions about how this system will reason about someone's health, so they belong in
+    the record the Audit page shows, under the `settings` operation the contract reserves.
+    """
+    close_conn = False
+    if conn is None:
+        conn = connect(db_path) if db_path is not None else connect()
+        apply_schema(conn)
+        close_conn = True
+    try:
+        current = get_subject_profile(subject_id, conn=conn)
+        merged = current.model_copy(
+            update={
+                field: value
+                for field, value in patch.model_dump(exclude_unset=True).items()
+                if value is not None
+            }
+        )
+        now = to_iso(datetime.now(UTC))
+        conn.execute(
+            """INSERT INTO subject_profile
+                 (subject_id, age_years, sex, known_vascular_disease, menstruates,
+                  rate_lowering_medicine, notes_for_doctor, updated_at_utc)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(subject_id) DO UPDATE SET
+                 age_years = excluded.age_years,
+                 sex = excluded.sex,
+                 known_vascular_disease = excluded.known_vascular_disease,
+                 menstruates = excluded.menstruates,
+                 rate_lowering_medicine = excluded.rate_lowering_medicine,
+                 notes_for_doctor = excluded.notes_for_doctor,
+                 updated_at_utc = excluded.updated_at_utc""",
+            (
+                subject_id,
+                merged.age_years,
+                merged.sex,
+                None
+                if merged.known_vascular_disease is None
+                else int(merged.known_vascular_disease),
+                None if merged.menstruates is None else int(merged.menstruates),
+                None
+                if merged.rate_lowering_medicine is None
+                else int(merged.rate_lowering_medicine),
+                merged.notes_for_doctor,
+                now,
+            ),
+        )
+        changed = sorted(patch.model_dump(exclude_unset=True))
+        append_audit(
+            conn,
+            AuditEvent(
+                event_id=f"evt_{uuid.uuid4().hex[:12]}",
+                subject_id=subject_id,
+                timestamp_utc=datetime.now(UTC),
+                actor="human",
+                operation="settings",
+                output={
+                    "fields_changed": changed,
+                    # The values themselves are not recorded. They are health facts about
+                    # the person, they are readable in the profile, and the audit log is
+                    # exported. What matters here is that a rule's inputs changed and when.
+                    "summary": (
+                        "You changed your profile. That changes how the rules decide: "
+                        "your age decides whether the chest pain rule can be applied to "
+                        "you at all, and whether you menstruate switches a cause in the "
+                        "model on or off."
+                    ),
+                },
+            ),
+        )
+        conn.commit()
+        return get_subject_profile(subject_id, conn=conn)
     finally:
         if close_conn:
             conn.close()
