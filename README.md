@@ -317,10 +317,20 @@ the system rather than something a person checking their own health acts on.
 
 ## Corpus & Knowledge Sources
 
+Written by a human, in this repository:
+
 * **`data/knowledge/causes.yaml`**: 12 cited clinical causes with peer-reviewed effect sizes, population base rates, and temporal dynamics.
 * **`data/knowledge/probes.yaml`**: 9 structured clinical questions with cited likelihood rows over discrete answer slots.
 * **`data/knowledge/red_flags.yaml`**: Emergency clinical symptoms requiring immediate escalation.
-* **`data/knowledge/sources.yaml`**: Complete bibliographic citations for all clinical numbers.
+* **`data/knowledge/sources.yaml`**: The allow-list of external sources, and complete bibliographic citations for all clinical numbers.
+
+Fetched from outside, and not redistributed here:
+
+* **MedlinePlus health topics** (National Library of Medicine, attribution-only). About 1,000 English topics, fetched with `uv run wha data fetch corpus`. This is the only material the agent can cite that describes a condition in general rather than describing this person. Which release is in use, with its SHA-256, is recorded in **`data/knowledge/corpus-sources.json`**. Fetched text is untrusted and is scanned for prompt injection before the model sees it, exactly like any other retrieved passage.
+
+Two layers `sources.yaml` names are still narrower than the design says: StatPearls has never been fetched, and the Singapore care-pathway material exists only as the wording already in `red_flags.yaml`. See `STATUS.md`.
+
+The agent may cite these and nothing else. There is no open web search, and it cannot write clinical text of its own: an assertion it cannot ground in a cited passage is either stripped or labelled on screen as coming from the model's own knowledge. Every figure in the authored corpus was checked against the paper it cites; what held up and what did not is in **`docs/CORPUS-VERIFICATION.md`**, and every clinical figure that was changed, with the source sentence quoted for it, is in **`docs/KNOWLEDGE-CHANGELOG.md`**.
 
 ---
 

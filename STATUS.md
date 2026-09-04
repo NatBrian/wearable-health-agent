@@ -1,6 +1,6 @@
 # STATUS — read this first
 
-**Last updated:** 4 September 2026 (premature closure, and two corrected figures)
+**Last updated:** 4 September 2026 (the consumer health corpus layer, and citation attribution)
 **Branch:** `feat/agentic-early-warning-system` (14 commits ahead of the implementation work, nothing pushed)
 
 `HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
@@ -11,7 +11,7 @@ file describes where things actually stand.
 ## Verify in one minute
 
 ```bash
-uv run pytest                     # 536 passed, 1 skipped
+uv run pytest                     # 546 passed, 1 skipped
 uv run ruff check src tests       # clean
 uv run ruff format --check src tests
 uv run wha doctor                 # no fail rows
@@ -47,16 +47,16 @@ All of the above is fixed. The detail is in `plan/PROGRESS.md`.
 
 | Check | Result |
 |---|---|
-| Tests | **536 passed, 1 skipped**, no ignore list |
+| Tests | **546 passed, 1 skipped**, no ignore list |
 | Lint and format | clean |
 | `wha doctor` | no fail rows |
-| Frozen scenarios | **11 of 11** |
-| Evaluation | measured, in `EVALUATION.md` |
+| Frozen scenarios | **11 of 11**, run live against the real provider |
+| Evaluation | measured, in `EVALUATION.md`, regenerated 4 September |
+| Corpus | **1,852 chunks**, four layers, one of them fetched |
 
-The scenario that fails is `no-response-timeout`, and it is a fixture defect rather than a
-code defect: its injected amplitude yields a 3.65 bpm residual against a 4.0 bpm threshold,
-so no alert event can form. Forcing it green would mean editing a frozen fixture or nudging
-a constant. Recorded in `plan/BLOCKERS.md` with the measurements.
+The eleven scenarios take longer than ten minutes to run back to back live, so run them in
+two batches. If a batch is killed part-way, check for an orphaned `python.exe`: a killed
+run holds `data/demo.sqlite` open and the next run fails with WinError 32.
 
 ---
 
@@ -511,28 +511,93 @@ the real watch.
 
 ---
 
+## The agent can cite general health information now, and says where it came from
+
+`sources.yaml` has described four corpus layers since the design was written. Only three
+existed. The agent could explain why a night was flagged, what else might explain it, and
+the rule behind an escalation, and if asked what a fever is it had to refuse, because the
+only alternative was writing clinical text from the model's own knowledge.
+
+**The URL recorded for the missing layer was a 404 and appears never to have existed.** It
+named an undated `mplus_topics_compressed.zip`; MedlinePlus publishes dated snapshots,
+Tuesday to Saturday. `wha.retrieve.medlineplus` resolves the newest at fetch time and
+raises rather than guessing if the scheme changes, so the entry cannot rot the same way
+twice. `wha data fetch corpus` used to return "Corpus target verified" and fetch nothing.
+
+Snapshot 2026-09-03: **1,013 English topics** of 2,033, the rest Spanish or summaries short
+enough to be a pointer rather than information. Date, URL and SHA-256 are in
+`data/knowledge/corpus-sources.json`. The release itself is not committed, because it is a
+thousand topics this project does not own under an attribution-only licence.
+
+**What it cost, measured rather than assumed.** The index went from 133 chunks to 1,852, a
+fourteenfold increase. The authored escalation rules still surface in the top six for
+"chest pain", "I fainted" and "my chest hurts and I feel sick", and a test asserts it,
+because a thousand fetched topics burying this system's own safety rules is the plausible
+failure here. The deterministic floor never consults retrieval, so what changed is what the
+person reads and what the model reasons over, not whether an escalation fires. Embeddings
+are cached to disk keyed by a digest of the chunk text: **343s cold, 3.0s warm**.
+
+One older test asserted our chest-pain rule was rank 1 for "chest pain". With a consumer
+layer present, MedlinePlus ranks first and our rule second. That assertion encoded the
+absence of layer 1: holding it would have meant the corpus could never grow the layer it
+most needed. Corrected to assert presence in the results, after measuring the top-6
+behaviour rather than to make it go green.
+
+### What driving the dashboard found, again
+
+Answered the pending Marburg question, then asked "what is costochondritis?". It answered
+from MedlinePlus, flagged its two ungrounded sentences amber, and held the same-day urgency
+the rule had already set. **The citation underneath rendered as a bold title and an
+identifier and nothing else.** That is traceable and it is not attribution, and the licence
+is attribution-only. It also hid the distinction that matters more than the licence:
+general background about a condition and a safety rule about this person looked identical
+sitting under a piece of health advice.
+
+`wha.ui.components.citations` now names the source in words everywhere a citation is drawn.
+Fixing it broke an import on the Today page, and **ruff and 546 tests were entirely happy
+while that page was dead.** Reloading the page as a user caught it in seconds. That is the
+fourth time in this project that a passing suite has said nothing about whether the screen
+renders.
+
+**The Telegram path has not been checked since the layer was added.** It renders citations
+through different code. There is no evidence it names the source.
+
+---
+
 ## Open items for a human
 
 `plan/BLOCKERS.md`. The ones that matter:
 
-1. **Two cited figures did not survive checking.** In `causes.yaml` the luteal citation
-   states wrist skin temperature +0.44 C and respiratory rate +0.60/min; read off Goodale
-   et al. 2019 those are +0.45 and +0.47. Neither channel is used, so this is a citation
-   defect rather than a clinical one. And `EXERCISE_EFFECT_BPM` could not be verified at
-   all: Leota et al. 2025 is paywalled everywhere tried. Both files are read-only to me and
-   were not touched. `docs/CORPUS-VERIFICATION.md` has the full record.
-2. **Whether to fetch MedlinePlus.** It is free and attribution-only, and it is the only
-   route to the agent being able to cite general health information about a condition.
-3. **`no-response-timeout`** closes `LIKELY_BENIGN` where `UNRESOLVED` is the honest
-   disposition for a question that was never answered.
-4. **Blood oxygen has no likelihood** in `causes.yaml`, so it is captured and shown but
-   cannot move the belief. Adding one is a clinical judgement. Note the readings are sparse
+1. **Two corpus layers are still smaller than `sources.yaml` says.** StatPearls, the real
+   clinical-reference layer, has never been fetched; what the corpus calls layer 2 is three
+   passages generated from `constants.py`. And the Singapore care-pathway layer exists only
+   as the nine passages already in `red_flags.yaml`, not the curated set the design
+   describes (polyclinic against GP against A&E against 995, plus national dengue
+   guidance). Neither is broken. Both are narrower than the plan.
+2. **The Telegram side has never been checked with a MedlinePlus citation.** Different
+   rendering code from the dashboard. Send a general health question over Telegram and read
+   what comes back.
+3. **Blood oxygen has no likelihood** in `causes.yaml`, so it is captured and shown but
+   cannot move the belief. Adding one is a clinical judgement, and no published study
+   relates a wearable oxygen reading to any of the twelve causes. Readings are also sparse
    (five across seven days) and noisy (an 80 percent sixty-six seconds before a 92).
-5. **Cohort datasets absent.** `data/datasets/stanford` and `pmdata` are empty and
-   `cohort_labels.yaml` was never authored, so detection accuracy is honestly reported as
-   "not evaluated" rather than given a number.
-6. **`git stash@{0}`** holds the reverted SpO2/respiratory/skin-temperature work. Now
+4. **Cohort datasets absent, and the decision is delegated to the next session.** The user
+   said: decide yourself, fetch them if accuracy needs them, leave them if not, but decide.
+   `data/datasets/stanford` and `pmdata` are empty and `cohort_labels.yaml` was never
+   authored, so detection accuracy is honestly reported as "not evaluated". Every judgement
+   about the person is made against their own baseline only and has never been checked
+   against anyone else's data. **Write the reasoning down whichever way it goes.**
+5. **`.env` is pointed at the simulation** and everything verified this session ran on
+   simulated data. Restore `.env.phase4-backup` before real use, and not before being
+   asked.
+6. **The nightly scheduler is not running.** Expected while `wha serve` is only up for
+   testing, but nothing is watching the data on a schedule.
+7. **`git stash@{0}`** holds the reverted SpO2/respiratory/skin-temperature work. Now
    superseded by the proper implementation and safe to drop.
+
+Resolved since the last update: the two cited figures that did not survive checking (both
+corrected against the published papers, recorded in `docs/KNOWLEDGE-CHANGELOG.md`), the
+missing consumer health layer, and `no-response-timeout`, which now closes `UNRESOLVED`.
 
 ---
 
@@ -559,5 +624,7 @@ the real watch.
 | Why only seven data channels | `docs/DESIGN-DATA-CHANNELS.md` |
 | Does the policy actually work | `EVALUATION.md` |
 | What the agent may cite, and whether it checks out | `docs/CORPUS-VERIFICATION.md` |
+| Which MedlinePlus release is in use | `data/knowledge/corpus-sources.json` |
+| Every clinical figure changed, and the source quoted for it | `docs/KNOWLEDGE-CHANGELOG.md` |
 | The original rules and constraints | `HANDOFF.md` |
 | The frozen contract | `plan/02-contracts.md` |

@@ -574,7 +574,7 @@ budget counts, silently resetting it.
 basis, and a simulation would then be unable to message a real person however it is run.
 
 
-## corpus — two cited figures did not survive checking against the paper
+## corpus — RESOLVED. Two cited figures did not survive checking against the paper
 
 **What I tried:** before generating `data/knowledge/corpus.yaml`, fetched every paper the
 corpus quotes and read the sentence carrying each number. Full record in
@@ -604,12 +604,15 @@ computation, so this is a citation-accuracy defect and not a clinical one. For t
 table, possibly nothing: the quoted sentence is about sleep measures and the table entry is
 about nocturnal heart rate, and the paper reports both.
 
-**What I need:** `causes.yaml` and `constants.py` are read-only to me and I have not
-touched either. A human should correct the two luteal figures to +0.45 and +0.47, and
-confirm the three exercise values against the paper's own table.
+**RESOLVED.** The user granted a narrow exception to the read-only rule: correct a figure
+only where the published source can be quoted contradicting it, and record every change.
+Both were corrected and are in `docs/KNOWLEDGE-CHANGELOG.md` with the quoted source
+sentence beside the old and new value. The luteal figures are now +0.45 and +0.47.
+`EXERCISE_EFFECT_BPM` is now `{"0-2h": 2.91, "2-4h": 1.87, "4-6h": 1.58}` with the paper's
+own table reproduced in the comment above it.
 
 
-## corpus — the consumer health layer of the corpus does not exist
+## corpus — RESOLVED. The consumer health layer of the corpus did not exist
 
 **What I tried:** built the retrievable corpus from the sources `sources.yaml` names.
 
@@ -628,9 +631,30 @@ information about a condition, because this repository holds none. Writing that 
 the model's own knowledge is the one line this project must not cross, so it was not
 crossed.
 
-**What I need:** a decision on whether to fetch MedlinePlus. It is free, attribution-only,
-and its licence is unambiguous. Until then the absence is disclosed in
-`docs/DISCLOSURES.md` and on the episode Evidence tab.
+**RESOLVED 4 September 2026.** MedlinePlus was fetched. Snapshot 2026-09-03, 1,013 English
+topics of the 2,033 in the release, the rest Spanish or summaries short enough to be a
+pointer rather than information. The snapshot date, URL and SHA-256 are recorded in
+`data/knowledge/corpus-sources.json`; the release itself is not committed, because it is a
+thousand topics this project does not own under an attribution-only licence.
+
+The URL `sources.yaml` recorded was a 404 and appears never to have existed. It named an
+undated `mplus_topics_compressed.zip`; MedlinePlus publishes dated snapshots, Tuesday to
+Saturday. `wha.retrieve.medlineplus` now resolves the newest one from the index page at
+fetch time and raises rather than guessing when the scheme changes. `wha data fetch corpus`
+previously returned "Corpus target verified" and fetched nothing; it now really fetches.
+
+The index went from 133 chunks to 1,852. The authored escalation rules still surface in the
+top six for "chest pain", "I fainted" and "my chest hurts and I feel sick", asserted by
+`test_the_authored_safety_rules_are_not_swamped_by_a_thousand_topics`. Embeddings are
+cached to disk: 343s cold, 3.0s warm.
+
+**STILL OPEN, and narrower than the original blocker:** layer 2 in the sense `sources.yaml`
+means it, StatPearls, has never been fetched. What the corpus calls layer 2 is three
+passages generated from `constants.py` describing how this system measures the person. And
+the Singapore care-pathway layer exists only as the wording already in `red_flags.yaml`,
+nine passages, not the curated set `sources.yaml` describes (polyclinic against GP against
+A&E against 995, plus national dengue guidance). Neither is broken. Both are smaller than
+the design says they are.
 
 
 ## demo-order — RESOLVED. A frozen scenario meant different things depending on run order
@@ -691,3 +715,47 @@ disclosed, which is what is in place now.
 Separately: "that's reassuring" is not in `never_say`, which covers "you are fine",
 "nothing to worry about" and similar. Whether it belongs there is a wording judgement about
 a human-authored safety list, so I have not added it.
+
+
+## corpus — the Telegram side has never been checked with a MedlinePlus citation
+
+**What I tried:** verified the new consumer health layer by driving the dashboard as an
+ordinary person: answered the pending Marburg question, then asked "what is
+costochondritis?".
+
+**What happened:** it worked, and it exposed a real defect. The answer came from MedlinePlus,
+the two sentences from the model's own knowledge were flagged amber, and the same-day
+urgency the Marburg rule had already set was held. But the citation rendered as a bold
+title and an identifier and nothing else, which is not attribution under an
+attribution-only licence, and it made general background about a condition look identical
+to a safety rule about this person. `wha.ui.components.citations` now names the source in
+words in all three places a citation is drawn on the dashboard.
+
+**What I think is wrong:** the Telegram path renders citations through different code and
+has not been checked at all since the layer was added. There is no evidence it names the
+source. Given that fixing the dashboard rendering broke an import on the Today page while
+ruff and 546 tests stayed green, "it probably works" is worth very little here.
+
+**What I need:** someone to send a general health question over Telegram and read what
+comes back, the same way the dashboard was checked. `docs/RUNBOOK-SIMULATION.md` has the
+setup.
+
+
+## cohort — the decision on public wearable datasets is mine to make and is not made
+
+**What I tried:** nothing yet. The user explicitly delegated this: "Do not ask me about
+external data. If you think we need them for accuracy then fetch them, if not then leave
+them. Plan your best decision."
+
+**What happened:** `data/datasets/stanford` and `pmdata` are still empty and
+`cohort_labels.yaml` was never authored, so detection accuracy is honestly reported as
+"not evaluated" rather than given a number. Every judgement this system makes about the
+person is made against their own baseline only, and has never been checked against anyone
+else's data.
+
+**What I think is wrong:** the absence itself is defensible for a single-user tool, and it
+is disclosed. What is not defensible is leaving a delegated decision unmade and unwritten.
+
+**What I need:** nothing from a human. The next session should decide, write the reason
+down whichever way it goes, and either fetch the data or record why it is not worth it.
+

@@ -1,5 +1,12 @@
 # Handover: the agentic flow
 
+> **COMPLETE, 4 September 2026.** All five items in the plan below were done, and the work
+> carried on well past them: the red-flag design was replaced with a validated decision
+> rule, the conversation became genuinely multi-turn on both the dashboard and Telegram,
+> the dashboard became an HTTP client so it can be swapped for React, and the consumer
+> health corpus layer was fetched. **Read `STATUS.md` for where things actually stand.**
+> This file is kept for the reasoning it records, not as a list of things to do.
+
 **Written 3 September 2026, mid-task.** The production simulation is finished and its
 defects are fixed. This document covers the piece that is planned but **not started**:
 whether the agent reasons like an agent, and whether what it says is grounded and cited.
