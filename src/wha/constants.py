@@ -408,6 +408,23 @@ DEPTH_BUDGET_PER_EPISODE = 5
 # The honest behaviour when the sensor is the leading explanation is to say the night
 # could not be judged. See wha/policy/select.py.
 
+# How long a "see a doctor today" stays current before the banner says how old it is.
+#
+# UNEVIDENCED, and it is a presentation rule rather than a clinical one. No study says
+# when an urgency should stop being displayed, and this is NOT a judgement that the person
+# is now safe.
+#
+# What it encodes is narrower: an instruction with the word "today" in it stops being
+# current after a while, either they went or they did not, and this system has no way to
+# know which. A red banner that never goes away is one you learn to ignore, which is the
+# alarm fatigue this project cites in its own constants.
+#
+# The urgency is NEVER dropped silently. After this window the banner still appears, still
+# says what was concluded and when, and adds that the system does not know what happened
+# since. History keeps it either way. Only a person saying they have seen somebody clears
+# it, and that is recorded too.
+URGENCY_STALE_DAYS = 7
+
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36
 MEASUREMENT_TIMEOUT_HOURS = 24

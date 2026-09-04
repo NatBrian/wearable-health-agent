@@ -265,10 +265,14 @@ class ToolRegistry:
                 freshness="fresh",
                 note=clamp_note,
             )
+            latency_ms = None
         else:
             t0 = time.perf_counter()
             result = handler(args, context, db)
-            _latency_ms = int((time.perf_counter() - t0) * 1000)
+            # Measured here and then discarded into a name with a leading underscore, so
+            # AuditEvent.latency_ms was always None and the record could not say how long
+            # anything took. On the page whose purpose is to show what the system did.
+            latency_ms = int((time.perf_counter() - t0) * 1000)
             if clamp_note:
                 result = result.model_copy(
                     update={"note": f"{result.note}; {clamp_note}" if result.note else clamp_note}
@@ -291,6 +295,7 @@ class ToolRegistry:
             tool_args=args,
             tool_result=format_tool_result_for_audit(result),
             permission_decision="allowed",
+            latency_ms=latency_ms,
         )
         context.audit_events.append(event)
         if db is not None and hasattr(db, "append_audit"):

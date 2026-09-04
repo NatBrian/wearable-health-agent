@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from wha.audit.monitor import record_ingest
 from wha.config import get_settings
@@ -65,7 +66,9 @@ def run_ingest(
 
         norm = normalise_and_store(conn, raw_payloads)
         stored = len(norm.heart_rate_samples)
-        record_ingest(conn, subj, stored, "your watch")
+        # The newest sample now on record, so a poll that re-fetched the same window
+        # writes nothing rather than another identical line.
+        record_ingest(conn, subj, stored, "your watch", _newest_sample(conn, subj))
         conn.close()
         return stored
 
@@ -86,9 +89,18 @@ def run_ingest(
     raw_payload = syn.fetch(subject_id=subj)
     norm = normalise_and_store(conn, raw_payload)
     stored = len(norm.heart_rate_samples)
-    record_ingest(conn, subj, stored, "simulated data")
+    record_ingest(conn, subj, stored, "simulated data", _newest_sample(conn, subj))
     conn.close()
     return stored
+
+
+def _newest_sample(conn: Any, subject_id: str) -> str | None:
+    """The most recent heart rate sample timestamp on record for this subject."""
+    row = conn.execute(
+        "SELECT MAX(ts_utc) AS newest FROM heart_rate_samples WHERE subject_id = ?",
+        (subject_id,),
+    ).fetchone()
+    return row["newest"] if row is not None and row["newest"] else None
 
 
 def describe_device_capability(

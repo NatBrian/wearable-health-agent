@@ -252,10 +252,21 @@ def post_message(subject_id: str, body: MessageBody) -> Any:
 @app.get("/subjects/{subject_id}/urgency")
 def get_urgency(subject_id: str) -> dict[str, Any]:
     """What the rules have concluded, and which rule concluded it."""
+    state = service.urgency_banner(subject_id)
     return {
-        "urgency": service.latest_urgency(subject_id),
+        "urgency": state["urgency"],
         "reason": service.latest_urgency_reason(subject_id),
+        "set_on": state["set_on"],
+        "days_ago": state["days_ago"],
+        "stale": state["stale"],
+        "cleared": state["cleared"],
     }
+
+
+@app.post("/subjects/{subject_id}/urgency/acknowledged")
+def acknowledge_urgency(subject_id: str) -> dict[str, Any]:
+    """The person says they have seen somebody about it. Recorded, not erased."""
+    return service.acknowledge_urgency(subject_id)
 
 
 # --------------------------------------------------------------------- handover

@@ -667,6 +667,17 @@ def node_ask(
                 channel=getattr(notifier, "channel", "none"),
                 episode_id=episode_id,
             )
+            # And in the audit chain, under the `notify` operation the contract reserves
+            # and nothing had ever written. The notifications table knew; the page that
+            # claims everything is written down reads the chain.
+            if hasattr(db, "record_notification_sent"):
+                db.record_notification_sent(
+                    subject_id=state.get("subject_id", ""),
+                    episode_id=episode_id,
+                    kind="QUESTION",
+                    channel=getattr(notifier, "channel", "none"),
+                    text=updated_question.text,
+                )
 
     # Park the episode where the interface can see it. `get_pending_interaction` only
     # surfaces a question for an episode in AWAITING_USER, and nothing ever set that state,

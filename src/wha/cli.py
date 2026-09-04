@@ -19,13 +19,14 @@ from wha.service import (
     get_monitoring_since,
     get_service_settings,
     list_episodes,
-    report_symptoms,
     run_demo,
     run_doctor,
     run_evaluation_suite,
     run_ingest,
     run_nightly,
     search_corpus,
+    send_message,
+    source_label,
     step_episode,
     write_evaluation_report,
 )
@@ -199,23 +200,38 @@ def tell(
     able to keep fluids down escalate immediately, before any model is consulted. That
     floor could only ever be reached through a question the agent chose to ask, and the
     agent frequently chooses not to ask. Someone with chest pain had no way to say so.
+
+    ONE PATH, as of 5 September 2026. This used to call `report_symptoms`, a second
+    implementation of "check what the person said and escalate" that behaved differently
+    from the conversation engine the dashboard and Telegram use. "I have chest pain" typed
+    here went straight to an ambulance; typed in the dashboard it opened a Marburg
+    conversation. It now goes through `send_message`, so all three surfaces behave the same
+    way and repeat reports append to one investigation instead of opening a new one each
+    time.
     """
-    res = report_symptoms(subject_id=subject or get_service_settings().subject, text=text)
+    reply = send_message(subject_id=subject or get_service_settings().subject, text=text)
 
-    if res.escalated:
-        typer.echo("")
+    typer.echo("")
+    if reply.urgency == "urgent":
         typer.echo("  THIS NEEDS MEDICAL ATTENTION")
-        for line in res.guidance:
-            typer.echo(f"  {line}")
-        typer.echo("")
-        typer.echo(f"  Recorded against investigation {res.episode_id or '-'}.")
-        sys.exit(0)
+    elif reply.urgency == "same_day":
+        typer.echo("  YOU SHOULD SEE A DOCTOR TODAY")
 
-    typer.echo("Thank you, that has been recorded.")
-    typer.echo(
-        "Nothing you described needs urgent attention. It will be taken into account the "
-        "next time a night is looked into."
-    )
+    typer.echo(f"  {reply.text}")
+
+    if reply.uncited:
+        typer.echo("")
+        typer.echo("  Not from a cited source, worth checking:")
+        for note in reply.uncited:
+            typer.echo(f"    {note}")
+
+    if reply.citations:
+        typer.echo("")
+        typer.echo("  Sources:")
+        for citation in reply.citations:
+            typer.echo(f"    {citation.title} ({source_label(citation.source_id)})")
+
+    typer.echo("")
     sys.exit(0)
 
 

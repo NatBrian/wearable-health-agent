@@ -46,10 +46,37 @@ def _event(subject_id: str, actor: str, operation: str, **kwargs: Any) -> AuditE
     )
 
 
-def record_ingest(conn: sqlite3.Connection, subject_id: str, stored: int, source_kind: str) -> None:
-    """Note that data arrived. Silent when a poll brought nothing new."""
+def record_ingest(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    stored: int,
+    source_kind: str,
+    newest_sample_utc: str | None = None,
+) -> None:
+    """Note that data arrived. Silent unless something NEWER than last time arrived.
+
+    "A check that found nothing new does not appear" is what the Audit page tells the
+    reader, and it was not true. This stayed quiet only when zero rows were written, and
+    re-pulling the same window rewrites the same rows, so a poll every thirty minutes
+    produced an entry every thirty minutes. The live log held five entries minutes apart
+    all reading "9785 heart rate samples arrived", which buries the tool calls between
+    dozens of identical lines.
+
+    Comparing against the newest sample already recorded is what makes the claim true: a
+    poll that re-fetched the same window has nothing newer in it and writes nothing.
+    """
     if stored <= 0:
         return
+
+    if newest_sample_utc is not None:
+        previous = conn.execute(
+            """SELECT MAX(json_extract(output_json, '$.newest_sample_utc')) AS latest
+                 FROM audit_events
+                WHERE subject_id = ? AND operation = 'ingest'""",
+            (subject_id,),
+        ).fetchone()
+        if previous is not None and previous["latest"] and previous["latest"] >= newest_sample_utc:
+            return
     append_audit(
         conn,
         _event(
@@ -59,6 +86,7 @@ def record_ingest(conn: sqlite3.Connection, subject_id: str, stored: int, source
             input={"source": source_kind},
             output={
                 "stored_samples": stored,
+                "newest_sample_utc": newest_sample_utc,
                 "summary": f"{stored} heart rate samples arrived from the {source_kind} source.",
             },
         ),
@@ -78,8 +106,8 @@ def _not_flagged_reason(baseline: Baseline, detection: Detection) -> str | None:
         )
     if detection.level.value in ("YELLOW", "RED"):
         return (
-            f"Raised, but a run of {DETECT_PERSISTENCE_NIGHTS} consecutive elevated nights "
-            "including at least one RED is required before an investigation opens."
+            f"Raised, but a run of {DETECT_PERSISTENCE_NIGHTS} consecutive RED nights is "
+            "required before an investigation opens."
         )
     return "Not raised, so there was nothing to investigate."
 
@@ -478,6 +506,79 @@ def record_data_safety_escalation(
                 ),
             },
             safety_event="red_flag_vitals",
+        ),
+    )
+    conn.commit()
+
+
+def record_notification_sent(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    episode_id: str | None,
+    kind: str,
+    channel: str,
+    text: str,
+) -> None:
+    """Record that something was sent to the person's phone.
+
+    `notify` is one of the ten operations the contract reserves and nothing had ever
+    written one, so the record could not show that a question reached anybody. The
+    `notifications` table knew, but the Audit page reads the audit chain, and that page is
+    the one that claims everything this system does is written down.
+
+    The message text is recorded. It is what the person received, it is the system's own
+    words rather than theirs, and a record of "a notification was sent" that does not say
+    what it said is not much of a record.
+    """
+    append_audit(
+        conn,
+        _event(
+            subject_id,
+            "system",
+            "notify",
+            episode_id=episode_id,
+            output={
+                "kind": kind,
+                "channel": channel,
+                "text": text,
+                "summary": f"A {kind.lower()} was sent to your {channel}.",
+            },
+        ),
+    )
+    conn.commit()
+
+
+def record_urgency_acknowledged(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    urgency: str,
+    set_on: str | None,
+) -> None:
+    """Record that the person says they have seen somebody about an urgency.
+
+    This is the only thing that clears the banner, and clearing a red banner belongs on
+    the record as much as raising one does. It does not lower the urgency: the ratchet in
+    `established_urgency` is unchanged and History still shows it.
+    """
+    append_audit(
+        conn,
+        _event(
+            subject_id,
+            "human",
+            "human_decision",
+            human_decision="urgency_acknowledged",
+            human_decision_rationale=f"Seen about a {urgency} urgency set on {set_on}.",
+            permission_decision="allowed",
+            output={
+                "urgency": urgency,
+                "set_on": set_on,
+                "summary": (
+                    "You said you have seen somebody about this, so the banner stops "
+                    "showing. The urgency itself is not removed and it stays in your "
+                    "history, because this system has no way to know what a clinician "
+                    "found."
+                ),
+            },
         ),
     )
     conn.commit()

@@ -316,12 +316,41 @@ def render_conversation(subject_id: str) -> str | None:
 
 
 def render_urgency_banner(urgency: str, subject_id: str) -> None:
-    """What the rules concluded, drawn above everything else on the page."""
+    """What the rules concluded, when, and whether you have dealt with it.
 
-    if urgency == "urgent":
+    A "see a doctor today" banner from eleven days ago sat here with no date on it and no
+    way to clear it. A red banner that never goes away is one you learn to ignore, which is
+    the alarm fatigue this project cites in its own constants.
+
+    Nothing here lowers an urgency. The ratchet is untouched and History keeps it. What
+    changes is that the banner says how old it is, and that saying you have seen somebody
+    stops it repeating an instruction with "today" in it for a fortnight.
+    """
+    state = api().get_urgency(subject_id)
+    days_ago = state.get("days_ago")
+    set_on = str(state.get("set_on") or "")[:10]
+
+    if state.get("cleared"):
+        st.info(
+            f"**You said you have seen somebody about this.** The {urgency.replace('_', ' ')} "
+            f"conclusion from {set_on} is still in your history and has not been removed. "
+            "If anything changes, say so and the rules will read it again."
+        )
+        return
+
+    if state.get("stale"):
+        st.warning(
+            f"**This was set {days_ago} days ago, on {set_on}, and said to seek care that "
+            "day.** It has not been repeated since and this system has no way to know what "
+            "happened. It is not saying you are fine now."
+        )
+    elif urgency == "urgent":
         st.error("**This needs medical attention today.**")
     else:
         st.warning("**You should see a doctor today.**")
+
+    if days_ago is not None and not state.get("stale") and days_ago > 0:
+        st.caption(f"Set on {set_on}, {days_ago} day{'s' if days_ago != 1 else ''} ago.")
 
     reason = api().latest_urgency_reason(subject_id)
     if reason:
@@ -330,6 +359,10 @@ def render_urgency_banner(urgency: str, subject_id: str) -> None:
         "Decided by a fixed rule from what you told it, not by the AI. The AI cannot "
         "lower this. Open **Summary for your doctor** below to take the detail with you."
     )
+
+    if st.button("I have seen someone about this", key="urgency_seen"):
+        api().acknowledge_urgency(subject_id)
+        st.rerun()
 
 
 def render_handover(subject_id: str) -> None:

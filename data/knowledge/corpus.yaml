@@ -170,22 +170,15 @@ documents:
       5:52-57; Mishica et al. 2022, PLoS One 17(1):e0262333, nocturnal versus morning heart
       rate measures
 - doc_id: escalation_rf_chest_pain
-  title: 'Urgent sign: rf_chest_pain'
+  title: 'Urgent sign: Chest pain or pressure'
   layer: 3
   source_url: data/knowledge/red_flags.yaml
   licence: Ours
-  text: '# Urgent sign: rf_chest_pain
+  text: '# Chest pain or pressure
 
 
-    This is a tier A sign. One match is enough, and it goes straight to an urgent escalation
-    without passing through any reasoning about likelihood.
-
-
-    ## What the person said
-
-
-    Any of: "chest pain", "chest pressure", "chest tightness", "pain in my chest", "tight
-    chest", "crushing", "elephant on my chest", "band around my chest".
+    This is an urgent sign. One report of it is enough, and it goes straight to an urgent
+    escalation without passing through any reasoning about how likely anything is.
 
 
     ## What to do
@@ -197,28 +190,28 @@ documents:
     ## Why this is on the urgent list
 
 
-    Cannot be excluded from wearable data, and it is time-critical.'
+    Cannot be excluded from wearable data, and it is time-critical.
+
+
+    ## How people describe it
+
+
+    People describe this as chest pain, chest pressure, chest tightness, pain in my chest,
+    tight chest, crushing, elephant on my chest, or band around my chest.'
   metadata:
     topic: escalation
     tier: A
     rule_id: rf_chest_pain
 - doc_id: escalation_rf_breathless_at_rest
-  title: 'Urgent sign: rf_breathless_at_rest'
+  title: 'Urgent sign: Breathlessness at rest'
   layer: 3
   source_url: data/knowledge/red_flags.yaml
   licence: Ours
-  text: '# Urgent sign: rf_breathless_at_rest
+  text: '# Breathlessness at rest
 
 
-    This is a tier A sign. One match is enough, and it goes straight to an urgent escalation
-    without passing through any reasoning about likelihood.
-
-
-    ## What the person said
-
-
-    Any of: "can''t breathe", "cannot breathe", "short of breath at rest", "breathless sitting",
-    "gasping", "struggling to breathe", "breathless just lying".
+    This is an urgent sign. One report of it is enough, and it goes straight to an urgent
+    escalation without passing through any reasoning about how likely anything is.
 
 
     ## What to do
@@ -230,28 +223,28 @@ documents:
     ## Why this is on the urgent list
 
 
-    Distinguish from exertional breathlessness, which is tier B.'
+    Distinguish from exertional breathlessness, which is tier B.
+
+
+    ## How people describe it
+
+
+    People describe this as can''t breathe, cannot breathe, short of breath at rest, breathless
+    sitting, gasping, struggling to breathe, or breathless just lying.'
   metadata:
     topic: escalation
     tier: A
     rule_id: rf_breathless_at_rest
 - doc_id: escalation_rf_confusion
-  title: 'Urgent sign: rf_confusion'
+  title: 'Urgent sign: New confusion'
   layer: 3
   source_url: data/knowledge/red_flags.yaml
   licence: Ours
-  text: '# Urgent sign: rf_confusion
+  text: '# New confusion
 
 
-    This is a tier A sign. One match is enough, and it goes straight to an urgent escalation
-    without passing through any reasoning about likelihood.
-
-
-    ## What the person said
-
-
-    Any of: "confused", "disoriented", "can''t think straight", "slurred", "not making sense",
-    "drowsy and confused".
+    This is an urgent sign. One report of it is enough, and it goes straight to an urgent
+    escalation without passing through any reasoning about how likely anything is.
 
 
     ## What to do
@@ -263,28 +256,28 @@ documents:
     ## Why this is on the urgent list
 
 
-    A recognised marker of serious systemic illness across many conditions.'
+    A recognised marker of serious systemic illness across many conditions.
+
+
+    ## How people describe it
+
+
+    People describe this as confused, disoriented, can''t think straight, slurred, not making
+    sense, or drowsy and confused.'
   metadata:
     topic: escalation
     tier: A
     rule_id: rf_confusion
 - doc_id: escalation_rf_syncope
-  title: 'Urgent sign: rf_syncope'
+  title: 'Urgent sign: Fainting or near-fainting'
   layer: 3
   source_url: data/knowledge/red_flags.yaml
   licence: Ours
-  text: '# Urgent sign: rf_syncope
+  text: '# Fainting or near-fainting
 
 
-    This is a tier A sign. One match is enough, and it goes straight to an urgent escalation
-    without passing through any reasoning about likelihood.
-
-
-    ## What the person said
-
-
-    Any of: "fainted", "passed out", "blacked out", "nearly fainted", "about to pass out",
-    "lost consciousness".
+    This is an urgent sign. One report of it is enough, and it goes straight to an urgent
+    escalation without passing through any reasoning about how likely anything is.
 
 
     ## What to do
@@ -296,31 +289,28 @@ documents:
     ## Why this is on the urgent list
 
 
-    Cardiac and volume causes cannot be excluded here.'
+    Cardiac and volume causes cannot be excluded here.
+
+
+    ## How people describe it
+
+
+    People describe this as fainted, passed out, blacked out, nearly fainted, about to pass
+    out, or lost consciousness.'
   metadata:
     topic: escalation
     tier: A
     rule_id: rf_syncope
 - doc_id: escalation_rf_meningism
-  title: 'Urgent sign: rf_meningism'
+  title: 'Urgent sign: A stiff neck with fever'
   layer: 3
   source_url: data/knowledge/red_flags.yaml
   licence: Ours
-  text: '# Urgent sign: rf_meningism
+  text: '# A stiff neck with fever
 
 
-    This is a tier A sign. One match is enough, and it goes straight to an urgent escalation
-    without passing through any reasoning about likelihood.
-
-
-    ## What the person said
-
-
-    Any of: "stiff neck", "neck stiffness", "can''t touch chin to chest", "light hurts my
-    eyes", "photophobia".
-
-
-    This rule alone is not enough. It fires only alongside: fever.
+    This is an urgent sign. One report of it is enough, and it goes straight to an urgent
+    escalation without passing through any reasoning about how likely anything is.
 
 
     ## What to do
@@ -333,28 +323,34 @@ documents:
 
 
     The one tier-A rule with a conjunction, because a stiff neck alone is usually musculoskeletal.
-    With fever it is not something to wait on.'
+    With fever it is not something to wait on.
+
+
+    ## When this one does not stand alone
+
+
+    On its own this is usually something else. It is treated as urgent only alongside fever.
+
+
+    ## How people describe it
+
+
+    People describe this as stiff neck, neck stiffness, can''t touch chin to chest, light
+    hurts my eyes, or photophobia.'
   metadata:
     topic: escalation
     tier: A
     rule_id: rf_meningism
 - doc_id: escalation_rf_bleeding
-  title: 'Urgent sign: rf_bleeding'
+  title: 'Urgent sign: Uncontrolled or unexplained bleeding'
   layer: 3
   source_url: data/knowledge/red_flags.yaml
   licence: Ours
-  text: '# Urgent sign: rf_bleeding
+  text: '# Uncontrolled or unexplained bleeding
 
 
-    This is a tier A sign. One match is enough, and it goes straight to an urgent escalation
-    without passing through any reasoning about likelihood.
-
-
-    ## What the person said
-
-
-    Any of: "bleeding that won''t stop", "coughing up blood", "vomiting blood", "blood in
-    my stool", "black stool".
+    This is an urgent sign. One report of it is enough, and it goes straight to an urgent
+    escalation without passing through any reasoning about how likely anything is.
 
 
     ## What to do
@@ -366,7 +362,14 @@ documents:
     ## Why this is on the urgent list
 
 
-    Time-critical and outside anything this system can assess.'
+    Time-critical and outside anything this system can assess.
+
+
+    ## How people describe it
+
+
+    People describe this as bleeding that won''t stop, coughing up blood, vomiting blood,
+    blood in my stool, or black stool.'
   metadata:
     topic: escalation
     tier: A
@@ -383,23 +386,26 @@ documents:
     number of nights, is worth being seen the same day.
 
 
-    - **rf_fever**: "fever", "feverish", "temperature", "burning up", "chills", "shivering".
-    Counts as persistent after 3 nights.
+    - **Fever**, if it has not settled within 3 nights. People describe this as people describe
+    this as fever, feverish, temperature, burning up, chills, or shivering.
 
-    - **rf_body_aches**: "aching all over", "body aches", "muscle aches", "everything hurts".
-    Counts as persistent after 4 nights.
+    - **Body aches**, if it has not settled within 4 nights. People describe this as people
+    describe this as aching all over, body aches, muscle aches, or everything hurts.
 
-    - **rf_severe_fatigue**: "exhausted", "can''t get out of bed", "no energy at all", "wiped
-    out", "completely drained". Counts as persistent after 4 nights.
+    - **Severe fatigue**, if it has not settled within 4 nights. People describe this as people
+    describe this as exhausted, can''t get out of bed, no energy at all, wiped out, or completely
+    drained.
 
-    - **rf_poor_intake**: "can''t eat", "not eating", "can''t keep fluids down", "no appetite
-    at all". Counts as persistent after 2 nights.
+    - **Not eating or drinking**, if it has not settled within 2 nights. People describe this
+    as people describe this as can''t eat, not eating, can''t keep fluids down, or no appetite
+    at all.
 
-    - **rf_exertional_breathlessness**: "out of breath on the stairs", "breathless walking",
-    "short of breath when I move". Counts as persistent after 2 nights.
+    - **Breathlessness on exertion**, if it has not settled within 2 nights. People describe
+    this as people describe this as out of breath on the stairs, breathless walking, or short
+    of breath when I move.
 
-    - **rf_persistent_vomiting**: "vomiting", "throwing up", "being sick repeatedly". Counts
-    as persistent after 2 nights.
+    - **Repeated vomiting**, if it has not settled within 2 nights. People describe this as
+    people describe this as vomiting, throwing up, or being sick repeatedly.
 
 
     ## What to do

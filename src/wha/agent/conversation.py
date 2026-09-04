@@ -33,8 +33,9 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from wha.audit.monitor import record_conversation_turn
+from wha.clock import local_today
 from wha.constants import CONVERSATION_MAX_TURNS, TRIAGE_MAX_TURNS_BEFORE_ESCALATE
-from wha.db.iso import to_iso
+from wha.db.iso import from_iso, to_iso
 from wha.errors import LLMUnavailable, ValidationFailed
 from wha.llm.client import LLMClient, get_llm_client
 from wha.llm.prompts import get_prompt_definition
@@ -171,6 +172,10 @@ def established_urgency(conn: sqlite3.Connection, subject_id: str) -> str | None
 
     Read back from the transcript rather than held in memory, so a restart cannot lose an
     escalation and quietly start again from calm.
+
+    UNBOUNDED ON PURPOSE, and this is the one the model and the ratchet read. Urgency may
+    never fall because something reasoned it down, and narrowing this would be exactly
+    that. What ages is the BANNER, not the fact; see `urgency_state`.
     """
     rows = conn.execute(
         "SELECT urgency FROM conversation_turns WHERE subject_id = ? AND urgency IS NOT NULL",
@@ -180,6 +185,61 @@ def established_urgency(conn: sqlite3.Connection, subject_id: str) -> str | None
     for row in rows:
         level = more_urgent(level, row["urgency"])
     return level
+
+
+def urgency_state(conn: sqlite3.Connection, subject_id: str) -> dict[str, Any]:
+    """The urgency, when it was set, how old it is, and whether it has been dealt with.
+
+    A "see a doctor today" banner from eleven days ago sat at the top of the page with no
+    date on it and no way to clear it. A red banner that never goes away is one you learn
+    to ignore, which is the alarm fatigue this project cites in its own constants.
+
+    Nothing here lowers an urgency. `established_urgency` is unchanged and still monotone;
+    this adds the two things the screen was missing, WHEN and WHETHER YOU DEALT WITH IT,
+    and lets the interface say so instead of repeating an instruction with "today" in it
+    for a fortnight.
+    """
+    from wha.constants import URGENCY_STALE_DAYS
+
+    level = established_urgency(conn, subject_id)
+    if level is None:
+        return {"urgency": None, "set_on": None, "days_ago": None, "stale": False, "cleared": False}
+
+    row = conn.execute(
+        """SELECT MIN(created_at_utc) AS first_set FROM conversation_turns
+            WHERE subject_id = ? AND urgency = ?""",
+        (subject_id, level),
+    ).fetchone()
+    set_on = row["first_set"] if row is not None and row["first_set"] else None
+    days_ago = None
+    if set_on:
+        try:
+            days_ago = (datetime.now(UTC) - from_iso(set_on)).days
+        except (TypeError, ValueError):
+            days_ago = None
+
+    # Cleared only by the person saying they have seen somebody, and only if they said so
+    # AFTER the urgency was set. Recorded in the audit chain under the `human_decision`
+    # operation, so clearing a red banner is itself on the record.
+    cleared = False
+    if set_on:
+        seen = conn.execute(
+            """SELECT 1 FROM audit_events
+                WHERE subject_id = ? AND operation = 'human_decision'
+                  AND human_decision = 'urgency_acknowledged'
+                  AND timestamp_utc >= ?
+                LIMIT 1""",
+            (subject_id, set_on),
+        ).fetchone()
+        cleared = seen is not None
+
+    return {
+        "urgency": level,
+        "set_on": set_on,
+        "days_ago": days_ago,
+        "stale": bool(days_ago is not None and days_ago >= URGENCY_STALE_DAYS),
+        "cleared": cleared,
+    }
 
 
 # The two Marburg items that are standing facts about a person rather than facts about
@@ -630,6 +690,28 @@ def respond(
     # 5. Urgency is the most urgent thing anything has established, ever. Monotone by
     #    construction: nothing the model wrote can lower it.
     urgency = more_urgent(more_urgent(prior, floor_urgency), rule_urgency)
+
+    # An urgent conversation opens an investigation, so there is ONE escalation path.
+    #
+    # There were two. `report_symptoms` did this with its own SQL and the conversation
+    # engine did not do it at all, so "I have chest pain" behaved differently depending on
+    # where it was typed: the command line opened an episode, the dashboard and Telegram
+    # did not. Worse, only `report_symptoms` opened one and it opened a NEW one every
+    # time, so the live database holds five identical closed escalated episodes with the
+    # same dates, never investigated, all shown separately on History.
+    #
+    # `open_or_append_episode` appends to an open episode rather than opening a second, so
+    # saying the same thing twice produces one investigation. It is also where the
+    # concurrency assertion lives.
+    if urgency in ("urgent", "same_day") and episode_id is None:
+        from wha.service.episode_lifecycle import open_or_append_episode
+
+        try:
+            episode_id = open_or_append_episode(conn, subject_id, local_today())
+        except Exception:  # noqa: BLE001
+            # A failure to open the investigation must not cost the person the escalation
+            # itself, which is already in the reply and in the conversation record.
+            episode_id = None
 
     # 6. Grounding: verbatim containment, in code.
     searchable = [

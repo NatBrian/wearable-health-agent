@@ -52,6 +52,44 @@ def latest_urgency(
             connection.close()
 
 
+def urgency_banner(
+    subject_id: str,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> dict[str, Any]:
+    """What to show above the page: the urgency, when it was set, and how old it is."""
+    from wha.agent.conversation import urgency_state
+
+    connection, close = _open(conn, db_path)
+    try:
+        return urgency_state(connection, subject_id)
+    finally:
+        if close:
+            connection.close()
+
+
+def acknowledge_urgency(
+    subject_id: str,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> dict[str, Any]:
+    """The person says they have seen somebody. Stops the banner, keeps the record."""
+    from wha.agent.conversation import urgency_state
+    from wha.audit.monitor import record_urgency_acknowledged
+
+    connection, close = _open(conn, db_path)
+    try:
+        state = urgency_state(connection, subject_id)
+        if state["urgency"] is not None:
+            record_urgency_acknowledged(
+                connection, subject_id, str(state["urgency"]), state["set_on"]
+            )
+        return urgency_state(connection, subject_id)
+    finally:
+        if close:
+            connection.close()
+
+
 def latest_urgency_reason(
     subject_id: str,
     conn: sqlite3.Connection | None = None,

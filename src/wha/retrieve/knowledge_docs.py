@@ -201,6 +201,55 @@ def generate_layer_2_method_docs() -> list[CorpusDocument]:
     return docs
 
 
+# The passages are what a person READS. They used to be generated straight out of the YAML
+# with the match lists in them, so somebody looking at the evidence behind an escalation was
+# shown 'Any of: "stiff neck", "neck stiffness", "can't touch chin to chest"'. That is an
+# internal keyword list presented as clinical evidence, and it publishes exactly which words
+# cause an escalation, which is an invitation to phrase around them.
+#
+# The rule id stays in the metadata, so the audit trail still links a passage back to the
+# rule that produced it. Only the phrase list is gone from the text.
+_SIGN_TITLES: dict[str, str] = {
+    "rf_chest_pain": "Chest pain or pressure",
+    "rf_breathless_at_rest": "Breathlessness at rest",
+    "rf_confusion": "New confusion",
+    "rf_syncope": "Fainting or near-fainting",
+    "rf_meningism": "A stiff neck with fever",
+    "rf_bleeding": "Uncontrolled or unexplained bleeding",
+    "rf_fever": "Fever",
+    "rf_body_aches": "Body aches",
+    "rf_severe_fatigue": "Severe fatigue",
+    "rf_poor_intake": "Not eating or drinking",
+    "rf_exertional_breathlessness": "Breathlessness on exertion",
+    "rf_persistent_vomiting": "Repeated vomiting",
+}
+
+
+def _sign_title(rule_id: str) -> str:
+    """A readable name for a rule, falling back to the id rather than inventing one."""
+    return _SIGN_TITLES.get(rule_id, rule_id)
+
+
+def _describe_phrases(matches: list[str]) -> str:
+    """The words people use for this sign, as a sentence rather than a quoted list.
+
+    The vocabulary has to survive: retrieval is what puts this passage in front of the
+    agent when somebody writes "I fainted", and a test asserts that the authored safety
+    rules are not swamped by a thousand MedlinePlus topics. Removing the words entirely
+    broke that, which is exactly what the test is for.
+
+    What changes is the presentation. It read `Any of: "stiff neck", "neck stiffness",
+    "can't touch chin to chest"`, which is a configuration file shown as clinical
+    evidence. The same words as a sentence read as health information.
+    """
+    phrases = [str(m).strip() for m in matches if str(m).strip()]
+    if not phrases:
+        return ""
+    if len(phrases) == 1:
+        return f"People describe this as {phrases[0]}."
+    return "People describe this as " + ", ".join(phrases[:-1]) + f", or {phrases[-1]}."
+
+
 def generate_layer_3_escalation_docs(
     red_flags: dict[str, Any] | None = None,
 ) -> list[CorpusDocument]:
@@ -214,26 +263,15 @@ def generate_layer_3_escalation_docs(
 
     for rule in data.get("tier_a", []) or []:
         rule_id = rule.get("id", "rf_unknown")
-        phrases = ", ".join(f'"{m}"' for m in rule.get("match", []))
         also = rule.get("requires_also")
         lines = [
-            f"# Urgent sign: {rule_id}",
+            f"# {_sign_title(rule_id)}",
             "",
             (
-                "This is a tier A sign. One match is enough, and it goes straight to an "
-                "urgent escalation without passing through any reasoning about likelihood."
+                "This is an urgent sign. One report of it is enough, and it goes straight "
+                "to an urgent escalation without passing through any reasoning about how "
+                "likely anything is."
             ),
-            "",
-            "## What the person said",
-            "",
-            f"Any of: {phrases}.",
-        ]
-        if also:
-            lines += [
-                "",
-                f"This rule alone is not enough. It fires only alongside: {', '.join(also)}.",
-            ]
-        lines += [
             "",
             "## What to do",
             "",
@@ -243,10 +281,21 @@ def generate_layer_3_escalation_docs(
             "",
             str(rule.get("rationale", "")).strip(),
         ]
+        if also:
+            lines += [
+                "",
+                "## When this one does not stand alone",
+                "",
+                "On its own this is usually something else. It is treated as urgent only "
+                "alongside " + ", ".join(str(a) for a in also) + ".",
+            ]
+        described = _describe_phrases(rule.get("match", []))
+        if described:
+            lines += ["", "## How people describe it", "", described]
         docs.append(
             CorpusDocument(
                 doc_id=f"escalation_{rule_id}",
-                title=f"Urgent sign: {rule_id}",
+                title=f"Urgent sign: {_sign_title(rule_id)}",
                 layer=3,
                 source_url="data/knowledge/red_flags.yaml",
                 licence="Ours",
@@ -267,11 +316,16 @@ def generate_layer_3_escalation_docs(
             "",
         ]
         for rule in tier_b:
-            phrases = ", ".join(f'"{m}"' for m in rule.get("match", []))
             persist = rule.get("persist_nights")
+            described = _describe_phrases(rule.get("match", []))
             lines.append(
-                f"- **{rule.get('id', 'rf_unknown')}**: {phrases}."
-                + (f" Counts as persistent after {persist} nights." if persist else "")
+                f"- **{_sign_title(rule.get('id', 'rf_unknown'))}**"
+                + (f", if it has not settled within {persist} nights." if persist else ".")
+                + (
+                    f" People describe this as {described[0].lower() + described[1:]}"
+                    if described
+                    else ""
+                )
             )
         guidance = str(data.get("tier_b_guidance", "")).strip()
         if guidance:

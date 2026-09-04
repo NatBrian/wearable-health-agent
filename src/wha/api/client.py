@@ -251,6 +251,10 @@ class ApiClient:
     def update_settings(self, **kwargs: Any) -> Any:
         return self._request("POST", "/settings", json=kwargs)
 
+    def acknowledge_urgency(self, subject_id: str) -> dict[str, Any]:
+        raw = self._request("POST", f"/subjects/{subject_id}/urgency/acknowledged")
+        return raw if isinstance(raw, dict) else {}
+
     def get_knowledge_provenance(self) -> dict[str, dict[str, str]]:
         raw = self._request("GET", "/knowledge/provenance")
         return raw if isinstance(raw, dict) else {}

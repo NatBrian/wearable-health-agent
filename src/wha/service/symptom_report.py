@@ -46,6 +46,23 @@ def report_symptoms(
 ) -> SymptomReportResult:
     """Run a free-text symptom report through the deterministic floor and Tier C.
 
+    NARROWED to the demo harness on 5 September 2026, and it is no longer a second
+    escalation path.
+
+    This and `wha.agent.conversation.respond` were two implementations of "check what the
+    person said and escalate", and they behaved differently. "I have chest pain" typed at
+    the command line came here and went straight to an ambulance; typed in the dashboard it
+    opened a Marburg conversation and asked about exertion first. Same words, same system,
+    two answers.
+
+    Worse, only this one opened an episode and it opened a NEW one every time, so the live
+    database holds five identical closed escalated episodes with the same dates, never
+    investigated, each shown separately on History.
+
+    `wha tell` now calls `send_message` like every other surface. What remains here is the
+    deterministic half without a model, which is what the frozen scenarios need: they must
+    run unattended and reproducibly, and a conversation is neither.
+
     An escalation closes any open episode as ESCALATED and records one, so the outcome is
     visible in history rather than existing only as a message the person has to remember.
     """
@@ -167,12 +184,21 @@ def notify_escalation(
 
     if delivered:
         try:
-            EpisodeRepository(conn=conn).record_notification(
+            repo = EpisodeRepository(conn=conn)
+            channel = getattr(get_notifier(), "channel", "none")
+            repo.record_notification(
                 interaction_id=episode_id,
                 recipient=subject_id,
                 kind="ESCALATION",
-                channel=getattr(get_notifier(), "channel", "none"),
+                channel=channel,
                 episode_id=episode_id,
+            )
+            repo.record_notification_sent(
+                subject_id=subject_id,
+                episode_id=episode_id,
+                kind="ESCALATION",
+                channel=channel,
+                text=body,
             )
         except Exception:  # noqa: BLE001, S110
             pass

@@ -477,6 +477,19 @@ class EpisodeRepository:
         )
         self._conn.commit()
 
+    def record_notification_sent(
+        self,
+        subject_id: str,
+        episode_id: str | None,
+        kind: str,
+        channel: str,
+        text: str,
+    ) -> None:
+        """Put a delivered message in the tamper-evident record, not only in a table."""
+        from wha.audit.monitor import record_notification_sent
+
+        record_notification_sent(self._conn, subject_id, episode_id, kind, channel, text)
+
     def record_episode_trace(self, episode_id: str, payload: dict[str, Any]) -> None:
         """What the agent did in this episode, written by the graph that did it.
 

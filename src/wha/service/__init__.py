@@ -4,6 +4,10 @@ from wha.errors import (
     ConfigError,
     SourceUnavailable,
 )
+
+# Re-exported so the CLI can name a passage's source without importing below the
+# service layer, which its own boundary test forbids.
+from wha.retrieve.attribution import source_label
 from wha.service.audit import (
     count_audit_events,
     export_audit,
@@ -18,10 +22,12 @@ from wha.service.belief import (
     get_knowledge_provenance,
 )
 from wha.service.conversation import (
+    acknowledge_urgency,
     get_transcript,
     latest_urgency,
     latest_urgency_reason,
     send_message,
+    urgency_banner,
 )
 from wha.service.corpus import (
     build_corpus_file,
@@ -95,6 +101,7 @@ __all__ = [
     "Handover",
     "SourceUnavailable",
     "SymptomReportResult",
+    "acknowledge_urgency",
     "build_corpus_file",
     "build_handover",
     "count_audit_events",
@@ -133,6 +140,7 @@ __all__ = [
     "run_nightly",
     "search_corpus",
     "send_message",
+    "source_label",
     "step_episode",
     "submit_answer",
     "submit_human_decision",
@@ -142,6 +150,7 @@ __all__ = [
     "test_telegram_connection",
     "update_settings",
     "update_subject_profile",
+    "urgency_banner",
     "verify_hash_chain",
     "write_evaluation_report",
 ]
