@@ -1110,7 +1110,7 @@ checkpoint (approve, edit, reject, escalate)" is auto-approved by a background j
 "observable workflow: visible planning steps, state changes, and tool calls" reports every
 stage as skipped; "explicit stop conditions" includes one that is computed and never read;
 and "mitigates hallucinations" does not cover the escalation criteria. Every one of those is
-a small fix, and all four are in `docs/REFINEMENT-PLAN.md` above item 13.
+a small fix: items 1, 2, 9 and 24 in `docs/REFINEMENT-PLAN.md`.
 
 ---
 

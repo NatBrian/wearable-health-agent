@@ -7,12 +7,68 @@ add a feature: this project does not need more parts.
 Written 4 September 2026 from `docs/DESIGN-REVIEW.md`. The evidence is in
 `docs/EVIDENCE-LOG.md`.
 
+**This document is complete on its own.** Every component that the review gave a verdict of
+FIX, SIMPLIFY, DROP or UNEVIDENCED has an item below. The coverage table in the next section
+proves that, so you can read this file and nothing else. The review is only needed if you
+want the reasoning behind a verdict or the evidence behind a number.
+
 **Effort** is my estimate of focused work: **S** under an hour, **M** a few hours, **L** a
 day or more, **XL** a clinical decision plus a day or more.
 
-**A note on ordering.** The first four items are safety. Items 5 to 12 are things that are
-documented as working and are not. Items 13 onward are honesty and deletion. If you only do
-the first page, do the first page.
+---
+
+## Coverage: every verdict in the review, and where it lands here
+
+Components the review marked **KEEP** are listed at the end, because they need no work. Read
+that list too: knowing what is already right is as useful as knowing what is not.
+
+| Component | Verdict | Item |
+|---|---|---|
+| Escalation criteria exempt from the grounding check | FIX, top priority | **1** |
+| Human review checkpoint auto-approved | FIX, top priority | **2** |
+| Blood oxygen rule, never called | FIX | **3** |
+| Two extreme heart rate rules, never called | FIX | **3** |
+| Marburg age gate never fed | FIX | **4** |
+| infection effect 1.60 bpm | FIX, top priority | **5** |
+| exertion effect 4.14 bpm in `causes.yaml` | FIX | **6** |
+| Baseline scale, still population-blended | FIX | **6** |
+| Cycle applicability never passed to the belief model | FIX | **7** |
+| `get_data_quality` returns fabricated numbers | FIX | **8** |
+| Execution trace reports every stage as skipped | FIX | **9** |
+| Telegram does not name the source | FIX | **10** |
+| Today page wording, three errors | FIX | **11** |
+| "Probably nothing to worry about" headline | FIX | **11** |
+| `text_source` always recorded as "fallback" | FIX | **12** |
+| `baseline_nights` and `baseline_rung` hard-coded | FIX | **12** |
+| ESCALATED maps to the action "monitor" | FIX | **12** |
+| `stripped_claims` hard-coded empty | FIX | **12** |
+| Offers a temperature reading it cannot take | FIX | **13** |
+| Alcohol dose collected and discarded | FIX | **14** |
+| Nine probe likelihood tables | UNEVIDENCED | **15** |
+| travel, sleep effect, unexplained spread | UNEVIDENCED | **15** |
+| Amber "not from a cited source" label | UNEVIDENCED as a guarantee | **15** |
+| Population prior described as "525 adults" | FIX | **16** |
+| Blood oxygen thresholds attributed to WHO | FIX | **16** |
+| Downie 2013 used beyond its population | FIX | **16** |
+| Detection accuracy "not evaluated" | FIX, now measured | **17** |
+| Persistence rule looser than published | FIX | **18** |
+| Nightly value: median, and no step filter | FIX | **18** |
+| Missing StatPearls and care-pathway layers | FIX the claim | **19** |
+| Reranking described but absent | DROP the claim | **19** |
+| Sleep window justification narrower than stated | FIX the claim | **19** |
+| Chronos forecast | **DROP** | **20** |
+| `get_local_disease_activity` | **DROP** | **21** |
+| MEASURE limb | **DROP** | **22** |
+| Duplicate residual likelihood | SIMPLIFY | **23** |
+| `CONVERSATION_MAX_TURNS` unenforced | FIX or DROP | **24** |
+| `report_symptoms` second escalation path | SIMPLIFY | **25** |
+| `one_time` dropped by the probe loader | FIX | **26** |
+| Interruption budget of 2 per week | SIMPLIFY | **27** |
+| Retrieval relevance | FIX | **28** |
+| Generated corpus layers leak the phrase lists | FIX | **29** |
+| Monotone urgency, no expiry | FIX the expiry | **30** |
+| Differential panel presentation | FIX | **31** |
+| Audit padding, missing notify, null latency | FIX | **32** |
 
 ---
 
@@ -163,9 +219,8 @@ which of three numbers is wrong. It is this one.
 
 **Risk of doing it.** Raising the infection effect raises p(infection) on every elevation,
 which will make the system ask more questions and reach LIKELY_ILLNESS more often. That is
-the intended direction, and it must be measured: re-run
-`uv run wha eval-report` and all eleven scenarios, and expect several expectations to move.
-Do not pick a number to make a scenario pass. Measure first, then assert.
+the intended direction, and it must be measured: re-run `uv run wha eval-report` and all
+eleven scenarios, and expect several expectations to move.
 
 **What I am not doing for you.** I am not proposing a replacement number. Mishra reports a
 median 7 bpm increase during detected abnormal periods, but that sample is conditioned on
@@ -299,28 +354,87 @@ phrase from `never_say`.
 - `stripped_claims` is set to `[]` in `get_episode` and never filled, so the Evidence tab
   always shows "No claims were stripped" whatever happened.
 
+## 13. Stop the agent offering things the watch cannot do
+**FIX · Effort S · Risk: none**
+
+**What.** Two small changes to the conversation path.
+
+First, tell the model what the device actually provides. The `converse` prompt does not list
+the available channels, so the model invents them. In a real Telegram message sent during
+this review it wrote:
+
+> "Would you like me to check your current temperature readings from your watch?"
+
+The Galaxy Watch 5 does not report skin temperature, and `docs/DESIGN-DATA-CHANNELS.md`
+records that it never has.
+
+Second, stop printing the question twice. `conversation.respond` does
+`text = f"{text}\n\n{question}"`, and the model had already put the same sentence in the
+reply, so the person saw it twice in one message.
+
+**Why.** A health assistant offering a measurement it cannot take is a small thing that
+destroys trust quickly, and it is the kind of prompt fragility the report's limitations
+section should be able to say has been addressed rather than observed.
+
+**Risk of doing it.** None. Guard the append with a containment check, and add the channel
+list to the prompt context that already carries the episode summary.
+
+## 14. Stop collecting an alcohol dose you then discard
+**FIX · Effort M · Risk: low**
+
+**What.** `probe_alcohol` offers "None", "1 to 2", "3 to 4", "5 or more". The belief model
+has a single binary alcohol switch, so all three drinking answers produce exactly the same
+effect size of 2.60 bpm.
+
+Two honest ways out, and the second is free:
+
+1. Scale the effect by the reported dose. The source paper supports it: "Increases in
+   alcohol intake were associated with dose-dependent increases in RHR." But choosing the
+   mapping from a band to a number is a clinical judgement, so it is an XL item, not an M.
+2. Reduce the answer space to "None" and "Yes", and stop implying the amount matters to
+   the arithmetic. Effort S, and it makes the interface honest immediately.
+
+**Why.** The system asks a person a more detailed question than it can use, which costs
+the same interruption and buys nothing. There is also a citation problem underneath:
+the paper's 2.8 and 2.4 bpm figures are the contrast between **one drink above** the
+person's average and **one below**, a two-drink span, not the effect of drinking at all.
+
+**Risk of doing it.** Option 2 loses information you might want later. Record the free-text
+answer even if the arithmetic ignores it.
+
 ---
 
 # Tier 2. Honesty.
 
-## 13. Say on screen which numbers are guesses
+## 15. Say on screen which numbers are guesses
 **UNEVIDENCED · Effort M · Risk: none**
 
 **What.** The rule this project sets itself is that an unevidenced choice is stated in the
-docs **and on the dashboard**. About thirty probe likelihood numbers, three cause effect
-sizes, two policy thresholds and two vitals thresholds are declared unevidenced in the files
-and are indistinguishable on screen from figures backed by a study of 14,689 people.
+docs **and on the dashboard**. Three groups need a visible marker:
 
-The differential panel already quotes them at you: "That answer is expected in 25% of cases
-where this is contributing, against 3% where it is not (probes.yaml, probe_symptoms,
-provenance ASSUMED)". The provenance is there and it is in small print at the end. Make it a
-visible marker.
+- **About thirty probe likelihood numbers.** The differential panel already quotes them at
+  you: "That answer is expected in 25% of cases where this is contributing, against 3% where
+  it is not (probes.yaml, probe_symptoms, provenance ASSUMED)". The provenance is there, in
+  small print, at the end. Make it a marker rather than a footnote.
+- **Three cause parameters**: the travel effect size and spread, the sleep restriction
+  effect size, and the unexplained spread. On screen these are indistinguishable from
+  figures backed by a study of 14,689 people.
+- **The amber "not from a cited source" label itself.** It depends on the model classifying
+  its own sentences, which is the same judgement the model is making. In a real transcript
+  the model wrote "that's reassuring" and "which suggests it might be muscular" straight
+  into the reply with no warning, while on an adjacent turn it correctly moved a similar
+  sentence into the amber panel. The screen currently implies the labelling is complete. It
+  is a floor, not a ceiling, and `BLOCKERS.md` already records this. Say so where the amber
+  panel appears.
 
 **Why.** It is the project's own rule, and `probes.yaml` is unusually honest about the
 problem: "A model asked to cite these will search, find nothing, and produce a confident
 number anyway."
 
-## 14. Correct three citations that do not say what they are used to say
+**While you are there.** "that's reassuring" is not on the `never_say` list and arguably
+should be. That is a wording judgement about a human-authored safety list, so it is yours.
+
+## 16. Correct three citations that do not say what they are used to say
 **FIX · Effort S · Risk: none**
 
 - **The infection percentages** are from Natarajan, Su and Heneghan 2022, *Frontiers in
@@ -341,7 +455,7 @@ Two smaller ones: `POP_PRIOR_CITATION_PLAIN` should say first-year university st
 than the review, whose own conclusion is that the overestimation "may not be clinically
 relevant".
 
-## 15. Publish the detection accuracy, and answer the delegated question
+## 17. Publish the detection accuracy, and answer the delegated question
 **Effort M · Risk: none**
 
 **What.** `EVALUATION.md` says detection accuracy is "not evaluated" because the datasets are
@@ -365,30 +479,66 @@ Alert burden on 76 people with no illness label, 738 person-weeks: **one investi
 Report the wide-window number **with** the chance floor beside it or not at all. 83 percent
 against a 73.5 percent chance floor is not a result.
 
+The harness that produced these is in `scratch/`, which is gitignored. Promote
+`scratch/cohort_eval.py` into the repository as part of this item, because a number nobody
+can reproduce is worth very little.
+
 **Risk of doing it.** The honest headline is lower than the 80 percent the project currently
 quotes from NightSignal. It is also the first real evidence the project has, and it says the
 detector works.
 
-## 16. State the four deviations from the published algorithm
-**Effort S · Risk: none**
+## 18. State the four deviations from the published algorithm
+**Effort S to document, M if you adopt the step filter · Risk: low**
 
 The window, the step filter, mean versus median, the baseline window, and the looser
 red-alert rule all differ from the algorithm whose thresholds and sensitivity this project
-cites. The cohort measurement shows the trade is favourable. Write it down as a decision
-rather than leaving it as an undocumented divergence.
+cites:
 
-While there: adding NightSignal's **zero-step filter** is nearly free and would remove
-exactly the motion artefact that the sensor-artifact cause exists to model. Worth testing
-on the cohort harness before adopting.
+| | NightSignal, as published and implemented by its authors | This system |
+|---|---|---|
+| window | midnight to 06:59 | the sleep the watch recorded |
+| minutes counted | only minutes with zero steps | all minutes in the window |
+| nightly value | the mean | the median |
+| baseline | expanding median of every prior night, including tonight | median of a trailing 28 nights, excluding tonight |
+| red alert | two consecutive nights at or above baseline + 4 | two consecutive raised nights with at least one at +4 |
+
+The cohort measurement in item 17 shows the trade is favourable overall. Write it down as a
+decision rather than leaving it as an undocumented divergence.
+
+**Worth testing:** adding NightSignal's **zero-step filter** is nearly free and would remove
+exactly the motion artefact the sensor-artifact cause exists to model. Run it through
+`scratch/cohort_eval.py` before adopting, because it will change both sensitivity and the
+alert rate.
+
+## 19. Correct what the design documents claim exists
+**FIX the claim · Effort S · Risk: none**
+
+Three places where a document describes something that is not there:
+
+- **`sources.yaml` describes four corpus layers.** StatPearls, the actual clinical-reference
+  layer, has never been fetched; what the corpus calls layer 2 is three passages generated
+  from `constants.py`. The Singapore care-pathway layer is the nine passages already in
+  `red_flags.yaml`, not the curated national guidance the design describes. Both are in
+  `BLOCKERS.md` and `sources.yaml` still describes them as present.
+- **There is no reranking.** `grep -rni "rerank|cross.encoder"` over `src` and the contract
+  returns nothing. Retrieval is BM25 plus dense cosine fused by reciprocal rank fusion. RRF
+  is fusion, not reranking. If any write-up describes a reranking stage, correct it. Adding
+  one is item 28, and until then the claim should not be made.
+- **The sleep window is justified more narrowly than stated.** `docs/DESIGN-SLEEP-WINDOW.md`
+  presents it as a general improvement. Measured on 21 real people with real sleep staging,
+  the night-to-night spread improved for 6, worsened for 5 and was unchanged for 10, because
+  only 3 of the 21 sleep substantially outside a midnight-to-07:00 window. It is strongly
+  justified for a person who sleeps 03:00 to 11:00, which is this project's own subject, and
+  roughly neutral for a conventional sleeper. Say that.
 
 ---
 
-# Tier 3. Delete.
+# Tier 3. Delete and simplify.
 
 Deleting is the cheapest way to make this project better, and a deletion with a reason
 written down is a stronger result than a feature.
 
-## 17. Delete the Chronos forecast
+## 20. Delete the Chronos forecast
 **DROP · Effort S · Risk: low, and it costs you a talking point**
 
 182 MB of model weights, a PyTorch dependency, a per-night inference, and one advisory
@@ -401,7 +551,7 @@ signal rate.
 foundation model is a legitimate reason for a coursework project. It is not a clinical one,
 and the write-up should not imply otherwise.
 
-## 18. Delete `get_local_disease_activity`
+## 21. Delete `get_local_disease_activity`
 **DROP · Effort S · Risk: none**
 
 It fetches a government endpoint with no query parameters and returns
@@ -415,7 +565,7 @@ Implementing it properly means adding a cause and a likelihood, which is a clini
 and a large piece of work. Delete the tool and the claim, and put "local outbreak context"
 in the further-work section where it belongs.
 
-## 19. Delete the MEASURE limb, or fix all three breaks
+## 22. Delete the MEASURE limb, or fix all three breaks
 **DROP · Effort S to delete, M to fix · Risk: low**
 
 Three independent breaks: nothing writes to the `measurements` table,
@@ -427,7 +577,7 @@ the differential at 0.5 or more, which is an unevidenced threshold, and it asks 
 count their pulse for 30 seconds and double it, a measurement with considerable error of its
 own. The simpler honest behaviour is to tell the person the night could not be judged.
 
-## 20. Delete the unreachable belief code
+## 23. Delete the unreachable belief code
 **SIMPLIFY · Effort S · Risk: none**
 
 `compute_residual_loglik` exists twice, in `belief/likelihood.py` and `belief/inference.py`,
@@ -435,15 +585,15 @@ with different index clamping. Coverage over a production run shows the `likelih
 and the whole of `run_exact_inference` never execute. Delete the unreachable pair and keep
 one implementation, in the module the project says the arithmetic must be checkable in.
 
-## 21. Delete or enforce `CONVERSATION_MAX_TURNS`
-**SIMPLIFY · Effort S · Risk: low**
+## 24. Delete or enforce `CONVERSATION_MAX_TURNS`
+**FIX or DROP · Effort S · Risk: low**
 
 The code computes whether you are at the limit, attaches it to the reply, and nothing reads
 it. A stop condition that does not stop anything is worse than none, because it appears in
 the report as a control that exists. Either refuse past the limit with a message that names
 why, or delete the constant, the field and the AMIE citation.
 
-## 22. Collapse the second escalation path
+## 25. Collapse the second escalation path
 **SIMPLIFY · Effort M · Risk: low**
 
 `report_symptoms` reimplements "check the floor, open an episode, close it ESCALATED,
@@ -456,28 +606,56 @@ zero, all displayed separately on History, all from this path. Pick one path. Th
 conversation engine is the better one; give it the ability to open and close an episode, and
 make the CLI call it.
 
-## 23. Drop `one_time`, or implement it
-**Effort S · Risk: none**
+## 26. Drop `one_time`, or implement it
+**FIX · Effort S · Risk: none**
 
 `probes.yaml` marks two probes `one_time: true` and justifies their low interruption cost
-with "asked once and then becomes a modelled covariate". The loader never reads the field
-and drops it silently. Either honour it across episodes or delete it and re-price the two
-probes.
+with "asked once and then becomes a modelled covariate". `ProbeDefinition` forbids extra
+fields and `load_probes` constructs it field by field without reading `one_time`, so the
+field is dropped silently. `already_asked_probe_ids` is per episode, so nothing makes them
+once. Either honour it across episodes or delete it and re-price the two probes.
+
+## 27. Simplify the interruption budget
+**SIMPLIFY · Effort S · Risk: low**
+
+**What.** There are two counters: `INTERRUPTION_BUDGET_PER_WEEK = 2` for unsolicited
+contacts, and `DEPTH_BUDGET_PER_EPISODE = 5` for questions inside one investigation. Keep
+the second. The first is not doing anything.
+
+**Why.** Measured on 76 healthy people over 738 person-weeks, the detector opens an
+investigation **once every 3.6 weeks**, and the policy asks at most one question per episode.
+A limit of two per week is never approached. Live confirmation from an episode with budget
+headroom: the agent asked one question and then stopped because every remaining probe fell
+below its interruption cost. The quiet band did the work, not the counter.
+
+Keep the alarm-fatigue reasoning, which is right and well cited. Stop presenting a counter
+that has never bound as the thing preventing over-interruption, because the EVSI arithmetic
+is the honest answer and it is a better story.
+
+**Evidence.** The citation behind the counter is a systematic review of **intensive care unit
+bedside monitors** (Chromik et al. 2022): "Of all patient monitoring alarms, 72% to 99% are
+either technically false... or clinically irrelevant". Extending that to a phone notification
+is a large jump the file does not acknowledge.
+
+**Risk of doing it.** If item 5 raises the infection effect, the alert rate will rise and the
+weekly counter may start to bind. Re-measure with `scratch/cohort_eval.py` after item 5
+before removing it, and keep the constant if the new rate warrants it.
 
 ---
 
 # Tier 4. Worth doing if there is time.
 
-## 24. Add a reranker
+## 28. Add a reranker
 **Effort M · Risk: low**
 
 There is none today; RRF is fusion, not reranking. The relevance problems are exactly what a
 reranker fixes: for a fever episode four of five cited passages were about meningism, and
-the top-ranked "evidence" was the list of answer options for the symptom question. A small
-cross-encoder over the top 20 candidates is a well-understood addition and would be the
-highest-value retrieval change available.
+the top-ranked "evidence" was the list of answer options for the symptom question. In a chest
+pain conversation the single cited source under an urgent escalation was "How to Prevent
+Heart Disease". A small cross-encoder over the top 20 candidates is a well-understood
+addition and would be the highest-value retrieval change available.
 
-## 25. Stop the generated corpus layers leaking the internals
+## 29. Stop the generated corpus layers leaking the internals
 **Effort S · Risk: none**
 
 Layers 2 and 3 are generated from YAML, so the passages shown to a lay reader include the
@@ -485,7 +663,7 @@ raw phrase-match lists and the whole tier B table with its trigger phrases. That
 internal keyword list presented as clinical evidence, and it publishes exactly which words
 cause an escalation. Generate prose from those files rather than rendering them.
 
-## 26. Give urgency an expiry
+## 30. Give urgency an expiry
 **Effort M · Risk: medium**
 
 Urgency is the maximum over the entire transcript with no time limit, so a "see a doctor
@@ -497,20 +675,21 @@ cites in its own constants.
 but it must be explicit: show the date it was set, and ask the person to confirm they sought
 care rather than silently dropping it.
 
-## 27. Rename the differential panel, or change what it shows
+## 31. Rename the differential panel, or change what it shows
 **Effort M · Risk: low**
 
 The twelve numbers are independent marginal probabilities that do not sum to one and do not
 compete. Labelled "Cause Differential" and drawn as a ranked bar chart, they read as a
 differential diagnosis. Measured on a real closed episode: disposition LIKELY_ILLNESS, chart
 underneath showing **stress at 0.9228** in first place, with the attached reason "Nothing
-gathered in this episode speaks to this cause either way."
+gathered in this episode speaks to this cause either way." The audit page repeats it in
+words: "most likely stress at 93%, chance of illness 78%".
 
 Cheapest fix: rank by **how much this episode's evidence moved each cause** rather than by
 absolute probability, and say in the heading that these are independent probabilities. That
 turns a misleading chart into the most informative one in the product.
 
-## 28. Fix the audit padding and the empty latency column
+## 32. Fix the audit padding and the empty latency column
 **Effort S · Risk: none**
 
 `record_ingest` skips only when zero rows were written, and re-pulling the same window
@@ -519,17 +698,75 @@ reading "9785 heart rate samples arrived", under a caption that says a check fin
 new does not appear. Compare against the last recorded count, or record the newest sample
 timestamp instead.
 
-The tool registry measures each call's duration into `_latency_ms` and discards it, so the
-audit's latency column is always null and the trace's duration is always None.
+Two smaller gaps in the same log: notifications are never recorded even though `notify` is a
+permitted operation, so the record does not show that a question reached your phone. And the
+tool registry measures each call's duration into `_latency_ms` and discards it, so the audit
+latency column is always null and the trace duration is always None.
+
+---
+
+# What needs no work
+
+These came out of the review as **KEEP**. They are listed so you know what not to touch, and
+so the report can say which parts are evidenced.
+
+**The maths.** The sleep window as a design (see item 19 for the claim), the 180 minute
+coverage floor, the personal baseline centre after seven nights, the 3.0 and 4.0 bpm
+detection thresholds, the exercise subtraction table, and the robust z-score.
+
+**The knowledge tables.** Luteal, vaccination, recovery tail and the sleep restriction base
+rate all checked out exactly against their papers, as did all 28 exercise contrasts.
+
+**The safety design.** The tier A / tier B / tier C set-union floor, and the Marburg Heart
+Score division of labour where the model elicits and the rule decides. That is the best
+single idea in the system.
+
+**The belief model.** Exact enumeration over 4,096 states in log space, and the temporal
+profiles that do the actual work of separating causes.
+
+**The policy.** The EVSI calculation, the derived 0.10 threshold, the swept interruption
+cost, and the depth, tool-call and step budgets, which do bind.
+
+**The agent.** The tool selection loop and the edge that re-enters investigation after an
+answer, the LangGraph interrupt and resume across process restarts, the closed tool
+registry, and the subtractive-only critique node.
+
+**Retrieval and grounding.** Hybrid BM25 plus dense embeddings with reciprocal rank fusion,
+injection scanning that contains rather than drops, and above all the verbatim
+claim-to-source containment test, which is the best safety idea in the system and was
+verified working on a live message.
+
+**The interfaces.** The HTTP boundary with `/config` reading constants from the module, the
+conversation's two-call design, and the hash-chained audit log with its plain-English nightly
+narratives.
+
+**The evaluation.** The policy comparison with five comparators including never-ask and
+always-ask, and the eleven frozen scenarios run live.
+
+---
+
+# If you only have one day
+
+1. **Item 1**, escalation criteria through the checks. One hour, and it is the biggest safety
+   hole in the system.
+2. **Item 11**, the four sentences on Today. One hour, and it is the most-read screen.
+3. **Item 10**, name the source on Telegram. Half an hour, and it closes an open blocker and
+   a licence obligation.
+4. **Item 17**, publish the detection numbers. Two hours, and it turns the project's weakest
+   claim into its strongest one.
+5. **Items 20 and 21**, delete Chronos and the disease activity tool. One hour, and the
+   project gets smaller and more honest at the same time.
+
+That is a day, it removes the worst safety gap, it makes the main screen truthful, and it
+gives the project the evidence it has been missing since it started.
 
 ---
 
 # What I would not do
 
-- **Do not add StatPearls or the Singapore care-pathway layer yet.** Both are recorded as
-  missing and `sources.yaml` describes them as present. Correct the description first. The
-  corpus is already fourteen times the size it was and the measured problem is relevance,
-  not volume.
+- **Do not add StatPearls or the Singapore care-pathway layer yet.** Correct the description
+  first (item 19). The corpus is already fourteen times the size it was and the measured
+  problem is relevance, not volume.
 - **Do not add more causes.** Twelve is already more than the evidence supports for several
   of them, and the ranked display problem gets worse with each one.
 - **Do not build multi-user support.** One person, one phone. The API is unauthenticated on
@@ -539,22 +776,5 @@ audit's latency column is always null and the trace's duration is always None.
   and change the expectation with the reason in the commit. Measure, then assert.
 - **Do not chase the remaining unevidenced numbers with more searching.** I looked. The
   self-report likelihoods do not exist in the literature and `probes.yaml` is right that
-  better data will not fix that, because the measurement has not been made. Label them and
-  move on.
-
----
-
-# If you only have one day
-
-1. Item 1, escalation criteria through the checks. One hour, and it is the biggest safety
-   hole in the system.
-2. Item 11, the four sentences on Today. One hour, and it is the most-read screen.
-3. Item 10, name the source on Telegram. Half an hour, and it closes an open blocker and a
-   licence obligation.
-4. Item 15, publish the detection numbers. Two hours, and it turns the project's weakest
-   claim into its strongest one.
-5. Item 17 and 18, delete Chronos and the disease activity tool. One hour, and the project
-   gets smaller and more honest at the same time.
-
-That is a day, it removes the worst safety gap, it makes the main screen truthful, and it
-gives the project the evidence it has been missing since it started.
+  better data will not fix that, because the measurement has not been made. Label them
+  (item 15) and move on.
