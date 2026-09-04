@@ -5,7 +5,7 @@ import streamlit as st
 
 from wha.models import EpisodeDetail
 from wha.ui.components.api import api
-from wha.ui.components.citations import ATTRIBUTION_NOTE, is_external, source_label
+from wha.ui.components.citations import attribution_note, is_external, source_label
 from wha.ui.components.pipeline_trace import render_pipeline_trace
 
 
@@ -127,7 +127,7 @@ def render_conversation_tab(detail: EpisodeDetail) -> None:
                     f'(`{c.source_id}`): *"{c.passage[:300]}"*'
                 )
             if any(is_external(c.source_id) for c in reply.citations):
-                st.caption(ATTRIBUTION_NOTE)
+                st.caption(attribution_note())
         if reply.uncited:
             st.warning(
                 "**Not from a cited source.** These came from the AI's own general "
@@ -189,7 +189,7 @@ def render_evidence_tab(detail: EpisodeDetail) -> None:
         # passage from it is shown. It also travels inside the passage text itself, because
         # a passage can be copied into the doctor handover and leave this screen behind.
         if any(is_external(c.source_id) for c in detail.citations):
-            st.caption(ATTRIBUTION_NOTE)
+            st.caption(attribution_note())
 
     st.write("---")
     st.subheader("🛡️ Stripped Claims")

@@ -10,14 +10,11 @@ import yaml
 from wha.belief.states import CAUSE_ORDER, PRESENT
 from wha.constants import (
     MIN_NOCTURNAL_MINUTES,
-    RESIDUAL_OBS_SD_BPM,
     SHORT_SLEEP_HOURS,
 )
 from wha.models import (
     Answer,
     CauseId,
-    CausePrior,
-    MeasurementResult,
     NightlyFeatures,
 )
 
@@ -41,41 +38,6 @@ def load_probes_raw(path: Path | str | None = None) -> dict[str, Any]:
     if path is None:
         _probes_cache = result
     return result
-
-
-def compute_residual_loglik(
-    residual_bpm: float,
-    elapsed_nights: int,
-    priors: Sequence[CausePrior],
-) -> np.ndarray:
-    """Compute Gaussian log-likelihood vector (4096,) for an observed residual on night t."""
-    prior_map = {p.cause: p for p in priors}
-
-    mu_eff_list: list[float] = []
-    sd_eff_list: list[float] = []
-    w_t_list: list[float] = []
-
-    for cause in CAUSE_ORDER:
-        cp = prior_map[cause]
-        mu_eff_list.append(cp.effect_mean_bpm)
-        sd_eff_list.append(cp.effect_sd_bpm)
-
-        prof = cp.profile
-        # Clamped at both ends. Only the upper bound was applied, so a negative elapsed
-        # count, which arises the moment nights are not in ascending order, indexed the
-        # profile from its tail. prof[-1] is the fully-resolved weight, so an out-of-order
-        # night silently asserted that every cause had already passed.
-        idx = max(0, min(elapsed_nights, len(prof) - 1))
-        w_t_list.append(prof[idx])
-
-    mu_eff = np.array(mu_eff_list, dtype=np.float64)
-    sd_eff = np.array(sd_eff_list, dtype=np.float64)
-    w_t = np.array(w_t_list, dtype=np.float64)
-
-    mu = (PRESENT * (mu_eff * w_t)).sum(axis=1)
-    var = (RESIDUAL_OBS_SD_BPM**2) + (PRESENT * ((sd_eff * w_t) ** 2)).sum(axis=1)
-
-    return -0.5 * (np.log(2.0 * np.pi * var) + ((residual_bpm - mu) ** 2) / var)
 
 
 def compute_exercise_logfactor(features: Sequence[NightlyFeatures]) -> np.ndarray | None:
@@ -160,23 +122,3 @@ def compute_answer_logfactor(
     p_abs = max(p_abs, 1e-6)
 
     return PRESENT[:, idx] * np.log(p_pres) + (~PRESENT[:, idx]) * np.log(p_abs)
-
-
-def compute_measurement_logfactor(
-    meas: MeasurementResult | dict[str, Any],
-) -> np.ndarray | None:
-    """Spot measurement consistent with elevated RHR provides evidence against sensor artifact."""
-    if isinstance(meas, dict):
-        kind = str(meas.get("kind"))
-        satisfied = bool(meas.get("satisfied", False))
-        val = meas.get("value")
-    else:
-        kind = meas.kind
-        satisfied = meas.satisfied
-        val = meas.value
-
-    if not satisfied or val is None or kind != "spot_resting_hr":
-        return None
-
-    idx = CAUSE_ORDER.index(CauseId.SENSOR_ARTIFACT)
-    return PRESENT[:, idx] * (-1.5) + (~PRESENT[:, idx]) * 0.3

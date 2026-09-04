@@ -23,7 +23,6 @@ CLOSED_TOOL_REGISTRY: set[str] = {
     "get_data_quality",
     "find_similar_past_episodes",
     "retrieve_clinical_evidence",
-    "get_local_disease_activity",
 }
 
 
@@ -59,10 +58,6 @@ TOOL_SIGNATURES: dict[str, str] = {
         'retrieve_clinical_evidence(query: "free text", layer: int optional) '
         "-> passages from the local clinical corpus. THE ARGUMENT IS `query`. "
         'Put the symptom or cause in it, for example {"query": "fever"}'
-    ),
-    "get_local_disease_activity": (
-        "get_local_disease_activity(url: optional, allow-listed only) "
-        "-> local outbreak and air quality signals"
     ),
 }
 

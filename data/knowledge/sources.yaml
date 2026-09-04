@@ -14,30 +14,23 @@
 
 schema_version: "1.0"
 
-# --- Live endpoints. The only network the agent can reach. -------------------
-live_endpoints:
-
-  - id: nea_dengue_clusters
-    url: "https://data.gov.sg/api/action/datastore_search"
-    resource: "dengue-clusters-geojson"
-    auth: none
-    cache_hours: 6
-    schema_validated: true
-    used_by: get_local_disease_activity
-    note: >
-      Open, unauthenticated, from a named authority. Verified reachable without
-      credentials. Cluster polygons with case counts. A subject inside an active cluster
-      materially raises the dengue prior, and no shipped product does this.
-
-  - id: nea_air_quality
-    url: "https://api.data.gov.sg/v1/environment/psi"
-    auth: none
-    cache_hours: 6
-    schema_validated: true
-    used_by: get_local_disease_activity
-    note: >
-      Haze materially affects respiratory symptoms in this region, so it is a genuine
-      confounder for a respiratory complaint rather than decoration.
+# --- Live endpoints. There are none. -----------------------------------------
+#
+# REMOVED 5 September 2026, with the tool that used them. Two Singapore government
+# endpoints were listed here, a dengue cluster feed and an air quality feed, and
+# `get_local_disease_activity` called the first one WITH NO SEARCH TERMS and returned
+# `{"status": "active", "bytes": 12345}`, the length of the response. It never read the
+# clusters, never checked whether the person was inside one, and never called the second
+# endpoint at all.
+#
+# This entry claimed "A subject inside an active cluster materially raises the dengue
+# prior, and no shipped product does this." Nothing raised any prior, and causes.yaml has
+# no dengue cause to raise. Making it real would mean adding a cause and a likelihood with
+# no published figure behind either.
+#
+# The consequence is worth stating plainly: the agent's tools now touch no network at all.
+# Everything it can read is on this machine.
+live_endpoints: []
 
 # --- Corpus sources. Fetched once, indexed locally, never queried live. -------
 corpus_sources:

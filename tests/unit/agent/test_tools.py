@@ -303,53 +303,24 @@ def test_missing_data_returns_ok_false_not_raise() -> None:
     assert res.note is not None
 
 
-def test_disease_activity_refuses_unlisted_url() -> None:
-    """Attempts to pass an unlisted URL to get_local_disease_activity are strictly refused."""
+def test_no_tool_touches_the_network() -> None:
+    """All of them now, not six of seven.
+
+    `get_local_disease_activity` was the seventh and the only one that opened a socket. It
+    called a government endpoint with no search terms and returned the LENGTH of the
+    response, so it was deleted rather than repaired. Two tests about refusing an
+    unlisted URL and surviving an unreachable host went with it: neither is a claim about
+    anything that still exists.
+    """
     registry = create_default_tool_registry()
     context = ToolContext(subject_id="sub_001")
 
-    res = registry.invoke(
-        "get_local_disease_activity",
-        {"url": "https://malicious-site.com/data.json"},
-        context,
-    )
-
-    assert res.ok is False
-    assert res.freshness == "missing"
-    assert "Refused" in res.note
-
-
-def test_disease_activity_unreachable_does_not_raise() -> None:
-    """When disease activity endpoint is unreachable, tool returns ok=False without raising."""
-    registry = create_default_tool_registry()
-    context = ToolContext(subject_id="sub_001")
-
-    with patch("urllib.request.urlopen", side_effect=OSError("Network unreachable")):
-        res = registry.invoke("get_local_disease_activity", {}, context)
-
-    assert res.ok is False
-    assert res.freshness == "missing"
-    assert "unreachable" in res.note
-
-
-def test_no_network_in_six_of_seven_tools() -> None:
-    """Six out of seven tools never make any network requests."""
-    registry = create_default_tool_registry()
-    context = ToolContext(subject_id="sub_001")
-
-    six_tools = [
-        "get_nightly_features",
-        "get_personal_baseline",
-        "get_known_events",
-        "get_data_quality",
-        "find_similar_past_episodes",
-        "retrieve_clinical_evidence",
-    ]
+    assert len(CLOSED_TOOL_REGISTRY) == 6
 
     with patch(
         "urllib.request.urlopen", side_effect=AssertionError("Network called on offline tool")
     ):
-        for name in six_tools:
+        for name in sorted(CLOSED_TOOL_REGISTRY):
             res = registry.invoke(
                 name, {"start": "2026-08-01", "end": "2026-08-05", "query": "fever"}, context
             )

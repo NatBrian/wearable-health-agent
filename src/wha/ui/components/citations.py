@@ -1,39 +1,32 @@
-"""Naming the source a quoted passage came from, in words rather than in an identifier.
+"""Naming a passage's source on screen, from the labels the API serves.
 
-A citation rendered as ``(medlineplus_4744#c0)`` is traceable but not readable, and the
-MedlinePlus licence is attribution-only: the National Library of Medicine has to be named
-wherever its text is shown, not implied by an identifier prefix. The same labelling also
-tells a person at a glance whether they are reading general background about a condition
-or a rule this system applies to them, which is the distinction that matters most when
-the passage is sitting underneath a piece of health advice.
+The labels are constants, so `/config` carries them and this module never imports below
+the API. They are not duplicated here: a second copy would drift, and the phone and the
+dashboard disagreeing about who wrote a passage is the defect this replaced.
 """
 
-MEDLINEPLUS_LABEL = "MedlinePlus, National Library of Medicine"
-
-_PREFIX_LABELS: tuple[tuple[str, str], ...] = (
-    ("medlineplus", MEDLINEPLUS_LABEL),
-    ("escalation", "this system's safety rules"),
-    ("method", "how this system measures you"),
-    ("evidence", "the evidence behind a question it asks"),
-    ("confounder", "the evidence behind a competing explanation"),
-)
+from wha.ui.components.api import config
 
 
 def source_label(source_id: str) -> str:
     """A human name for where a passage came from. Falls back to the repository."""
-    for prefix, label in _PREFIX_LABELS:
+    prefixes: dict[str, str] = config().get("SOURCE_LABEL_PREFIXES", {})
+    for prefix, label in prefixes.items():
         if source_id.startswith(prefix):
             return label
-    return "this repository's own knowledge"
+    return str(config().get("SOURCE_LABEL_FALLBACK", "this repository's own knowledge"))
 
 
 def is_external(source_id: str) -> bool:
-    """True when the passage is fetched text rather than something authored here."""
-    return source_id.startswith("medlineplus")
+    """True when the passage is fetched text rather than something rendered here."""
+    return source_id.startswith(str(config().get("EXTERNAL_SOURCE_PREFIX", "medlineplus")))
 
 
-ATTRIBUTION_NOTE = (
-    "Passages from MedlinePlus come from the National Library of Medicine and are used "
-    "with attribution. They are general information about a condition, not about you, "
-    "and say nothing about your own readings."
-)
+def medlineplus_label() -> str:
+    """The credit the licence requires, in the words the constant carries."""
+    return str(config().get("MEDLINEPLUS_LABEL", "MedlinePlus, National Library of Medicine"))
+
+
+def attribution_note() -> str:
+    """Why an external passage carries a credit, shown wherever one is."""
+    return str(config().get("ATTRIBUTION_NOTE", ""))

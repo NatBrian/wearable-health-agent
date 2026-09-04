@@ -321,9 +321,6 @@ def _oracle_response(oracle: dict[str, Any], payload: Any) -> Any:
             response["free_text"] = oracle["free_text"]
         return response
 
-    if kind == "measurement":
-        return {"measurement_id": payload.get("interaction_id"), "declined": True}
-
     if kind == "human_review":
         # The oracle stands in for the person, which is the whole point of a frozen
         # scenario: the run has to be unattended and deterministic. This is NOT the

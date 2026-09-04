@@ -24,7 +24,6 @@ from wha.models import (
     Forecast,
     ForecastStatus,
     InteractionView,
-    MeasurementRequest,
     MeasurementResult,
     NightlyFeatures,
     PendingInteraction,
@@ -94,28 +93,9 @@ def get_pending_interaction(
                     draft_outcome=draft,
                 )
 
-        # 2. Measurement
-        for ep in ep_rows:
-            if ep["state"] == "AWAITING_MEASUREMENT":
-                ep_id = ep["episode_id"]
-                m_row = conn.execute(
-                    """SELECT id, kind, instruction, expires_at_utc FROM measurements
-                       WHERE episode_id = ? AND status = 'PENDING'
-                       ORDER BY requested_at_utc DESC LIMIT 1""",
-                    (ep_id,),
-                ).fetchone()
-                if m_row:
-                    m_req = MeasurementRequest(
-                        measurement_id=m_row["id"],
-                        kind=m_row["kind"],
-                        instruction=m_row["instruction"],
-                        expires_at_utc=datetime.fromisoformat(m_row["expires_at_utc"]),
-                    )
-                    return PendingInteraction(
-                        kind="measurement",
-                        episode_id=ep_id,
-                        measurement=m_req,
-                    )
+        # 2. Measurement was here. The spot-reading limb was removed on 5 September
+        #    2026, so nothing can create a PENDING measurement any more. The table is kept
+        #    so databases written before this still open.
 
         # 3. Question
         for ep in ep_rows:

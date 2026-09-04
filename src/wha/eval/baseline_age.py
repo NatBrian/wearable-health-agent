@@ -1,4 +1,10 @@
-"""Baseline age evaluation suite comparing shrinkage baseline against Chronos."""
+"""How detection performance depends on how many of the person's own nights exist.
+
+The Chronos comparison this used to carry is gone with the forecast itself, removed on
+5 September 2026 after measuring that it separates illness WORSE than the plain residual
+(AUC 0.586 against 0.629 over 7,295 nights). `use_chronos` was a parameter no caller ever
+set to True.
+"""
 
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -6,7 +12,6 @@ from typing import Any
 
 from wha.detect.baseline import compute_baseline
 from wha.detect.detector import compute_detection_for_features
-from wha.detect.forecast import forecast_night
 from wha.eval.metrics import (
     clopper_pearson_interval,
     evaluate_episode_recall,
@@ -43,7 +48,6 @@ def evaluate_truncated_history(
     features_by_participant: dict[str, list[NightlyFeatures]],
     labels_by_participant: dict[str, dict[str, Any]],
     n_nights: int,
-    use_chronos: bool = False,
 ) -> dict[str, float]:
     """Evaluate detector performance when participant history is truncated to N usable nights."""
     truncated_dets: dict[str, list[Detection]] = {}
@@ -56,7 +60,6 @@ def evaluate_truncated_history(
             hist = usable_feats[: i + 1]
             curr_feat = hist[-1]
             bl = compute_baseline(hist[:-1])
-            fc = forecast_night(hist[:-1], actual_rhr=curr_feat.rhr_bpm) if use_chronos else None
 
             # The run of consecutive elevated nights immediately before this one. Omitting
             # it left the default empty tuple, so no night could ever satisfy the
@@ -68,7 +71,6 @@ def evaluate_truncated_history(
                 features=curr_feat,
                 baseline=bl,
                 preceding_consecutive_levels=preceding,
-                forecast=fc,
             )
             p_dets.append(det)
 
@@ -97,22 +99,18 @@ def run_baseline_age_eval(
     feats = features_by_participant if features_by_participant is not None else {}
     n_episodes = sum(1 for meta in stanford_labels.values() if meta.get("symptom_onset"))
 
+    # One arm now, not two. The second was the same detector with a Chronos forecast
+    # attached, and the forecast never set `level` or `flagged`, so the two arms computed
+    # identical alerts and the "chronos_recall" column was the shrinkage column under
+    # another name. The forecast itself is gone; see tools/cohort/chronos.py.
     curve_rows: list[dict[str, Any]] = []
     for n in TRUNCATION_POINTS:
-        res_shrinkage = evaluate_truncated_history(
-            feats, stanford_labels, n_nights=n, use_chronos=False
-        )
-        res_chronos = evaluate_truncated_history(
-            feats, stanford_labels, n_nights=n, use_chronos=True
-        )
-
+        result = evaluate_truncated_history(feats, stanford_labels, n_nights=n)
         curve_rows.append(
             {
                 "n_usable_nights": n,
-                "shrinkage_recall": res_shrinkage["recall"],
-                "shrinkage_far": res_shrinkage["events_per_user_week"],
-                "chronos_recall": res_chronos["recall"],
-                "chronos_far": res_chronos["events_per_user_week"],
+                "shrinkage_recall": result["recall"],
+                "shrinkage_far": result["events_per_user_week"],
             }
         )
 

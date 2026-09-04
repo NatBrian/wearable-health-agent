@@ -7,14 +7,12 @@ from wha.belief.causes import load_causes
 from wha.belief.inference import (
     compute_prior_logprobs,
     compute_residual_loglik,
-    run_exact_inference,
     softmax,
 )
 from wha.belief.likelihood import (
     compute_answer_logfactor,
     compute_coverage_logfactor,
     compute_exercise_logfactor,
-    compute_measurement_logfactor,
     compute_sleep_logfactor,
 )
 from wha.belief.states import CAUSE_ORDER, NUM_CAUSES, NUM_STATES, PRESENT
@@ -111,11 +109,11 @@ def update_belief(
         if ans_factor is not None:
             log_post = log_post + ans_factor
 
-    # 4. Spot measurements
-    for meas in measurements:
-        meas_factor = compute_measurement_logfactor(meas)
-        if meas_factor is not None:
-            log_post = log_post + meas_factor
+    # 4. Spot measurements were removed on 5 September 2026, with the limb that produced
+    #    them. `compute_measurement_logfactor` moved weight away from sensor artifact by a
+    #    hardcoded -1.5, against 0.3 the other way, and neither number came from anywhere.
+    #    The `measurements` parameter is kept so an old caller still type-checks, and it
+    #    now contributes nothing. See wha/policy/select.py.
 
     # 5. Prior illness tail from context
     if context is not None:
@@ -157,7 +155,6 @@ __all__ = [
     "compute_prior_logprobs",
     "compute_residual_loglik",
     "load_causes",
-    "run_exact_inference",
     "softmax",
     "update_belief",
 ]

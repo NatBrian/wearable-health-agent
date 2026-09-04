@@ -17,7 +17,6 @@ from wha.constants import (
 from wha.db import transaction
 from wha.detect.baseline import compute_baseline
 from wha.detect.explained import explained_bpm
-from wha.detect.forecast import forecast_night
 from wha.features import compute_night
 from wha.models import (
     Baseline,
@@ -230,23 +229,28 @@ def detect_night(
     ).fetchone()
     previous = dict(prior_row) if prior_row is not None else None
 
-    # 4. Compute detection
+    # 4. Compute detection.
     #
-    # The forecast is run here, which is the only place that has both the history and
-    # tonight's reading. `forecast_night` existed, was tested seven ways, and was called by
-    # nothing in the pipeline: this function took an optional Forecast that defaulted to
-    # NOT_RUN, and every caller left it out. A subject with 41 usable nights against a
-    # five-night minimum therefore recorded NOT_RUN on every night, while `wha doctor`
-    # reported the 182 MB of model weights as present and STATUS.md claimed Chronos was
-    # forecasting.
+    # THE CHRONOS FORECAST WAS REMOVED ON 5 SEPTEMBER 2026, on evidence rather than taste.
+    # 182 MB of weights, a deep learning framework as a dependency, a prediction every
+    # night, and one advisory paragraph that changed nothing.
     #
-    # It is advisory and stays advisory. It never sets level or flagged, and it is not
-    # evidence in the belief model: no study was found showing a forecast residual
-    # identifies which cause is present, and Alavi et al. 2022, the source of this
-    # system's thresholds, measured plain baseline deviation at 78 percent sensitivity
-    # against 54 and 44 percent for the two forecast-style detectors it compared.
-    fc = forecast if forecast is not None else forecast_night(history, features.rhr_bpm)
-    detection = compute_detection_for_features(features, baseline, preceding_levels, fc)
+    # Measured on 7,295 nights of the Mishra 2020 cohort (uv run python
+    # tools/cohort/chronos.py), asking whether it separates illness nights from ordinary
+    # ones better than the number the detector already has:
+    #
+    #   plain baseline residual : AUC 0.629
+    #   Chronos forecast_z      : AUC 0.586
+    #
+    # An AUC of 0.5 is no separation at all, so the forecast separates illness WORSE than
+    # the residual. It is not a duplicate, the two correlate at 0.73, so it measures
+    # something slightly different; what it measures is just not more useful. Asked
+    # whether it catches anything the detector misses, across 30 labelled infections: one
+    # case at the most generous setting, none at tighter ones.
+    #
+    # The forecast_status column stays, set to NOT_RUN, so databases written before this
+    # still open and old rows still read.
+    detection = compute_detection_for_features(features, baseline, preceding_levels, forecast)
 
     # 5. Persist baseline and detection
     reasons_json = json.dumps(detection.reasons)

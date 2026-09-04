@@ -1,24 +1,28 @@
-"""Unit tests for baseline age evaluation suite."""
+"""How detection performance depends on how many of the person's own nights exist.
+
+CORRECTED 5 September 2026. This patched `wha.detect.forecast.get_chronos_pipeline` and
+asserted that every row of the curve carried both a `shrinkage_` and a `chronos_` figure.
+
+Two things were wrong with that, and only the second is about the deletion.
+
+The `chronos_` column was never a second estimator. Both arms called the same detector,
+and the forecast never set `level` or `flagged`, so the two arms computed identical alerts
+and the second column was the first under another name. A test asserting "both estimators
+are present" passed on a table that had one estimator in it twice.
+
+The forecast is now gone entirely, measured rather than argued: over 7,295 nights of the
+Mishra 2020 cohort it separated illness nights from ordinary ones WORSE than the plain
+residual (AUC 0.586 against 0.629) and caught at most one of thirty infections the
+detector missed. See `tools/cohort/chronos.py`.
+"""
 
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any
-from unittest.mock import patch
 
 from wha.eval.baseline_age import run_baseline_age_eval
 from wha.models import NightlyFeatures
 
-
-class StubPipeline:
-    """Stub pipeline returning deterministic quantiles."""
-
-    def predict_quantiles(
-        self,
-        context: Any,
-        prediction_length: int = 1,
-        quantile_levels: list[float] | None = None,
-    ) -> dict[float, float]:
-        return {0.1: 58.0, 0.5: 60.0, 0.9: 62.0}
+TRUNCATION_POINTS = 7
 
 
 def _make_features(subject_id: str, n_nights: int) -> list[NightlyFeatures]:
@@ -30,6 +34,7 @@ def _make_features(subject_id: str, n_nights: int) -> list[NightlyFeatures]:
             NightlyFeatures(
                 subject_id=subject_id,
                 night_date=d,
+                # Two consecutive raised nights, which is what the persistence rule needs.
                 rhr_bpm=60.0 + (5.0 if i in {10, 11} else 0.0),
                 coverage_minutes=420,
                 usable=True,
@@ -38,54 +43,51 @@ def _make_features(subject_id: str, n_nights: int) -> list[NightlyFeatures]:
     return feats
 
 
-def test_baseline_age_uses_real_code_path(tmp_path: Path) -> None:
-    """Baseline age evaluation executes real compute_baseline and detection pipeline."""
-    labels = {
-        "stanford": {
-            "p01": {
-                "covid_positive": True,
-                "symptom_onset": "2026-08-12",
-            }
-        }
-    }
-    feats = {"p01": _make_features("p01", 30)}
+def _labels() -> dict:
+    return {"stanford": {"p01": {"covid_positive": True, "symptom_onset": "2026-08-12"}}}
 
-    with patch("wha.detect.forecast.get_chronos_pipeline", return_value=StubPipeline()):
-        res = run_baseline_age_eval(
-            features_by_participant=feats,
-            labels=labels,
-            eval_dir=tmp_path,
-        )
+
+def test_baseline_age_uses_real_code_path(tmp_path: Path) -> None:
+    """It runs the real compute_baseline and the real detector, with nothing patched.
+
+    Nothing needs patching now. The stub pipeline this used to install existed only to
+    stand in for Chronos.
+    """
+    res = run_baseline_age_eval(
+        features_by_participant={"p01": _make_features("p01", 30)},
+        labels=_labels(),
+        eval_dir=tmp_path,
+    )
 
     assert res.suite == "baseline-age"
-    assert "baseline_age_curve" in res.tables
     curve = res.tables["baseline_age_curve"]
-    assert len(curve) == 7
+    assert len(curve) == TRUNCATION_POINTS
 
 
-def test_curve_has_both_estimators(tmp_path: Path) -> None:
-    """Every truncation point records metrics for both the shrinkage baseline and Chronos."""
-    labels = {
-        "stanford": {
-            "p01": {
-                "covid_positive": True,
-                "symptom_onset": "2026-08-12",
-            }
-        }
-    }
-    feats = {"p01": _make_features("p01", 30)}
+def test_the_curve_reports_one_estimator_because_there_is_one(tmp_path: Path) -> None:
+    """No `chronos_` column, because there was never a second estimator behind it."""
+    res = run_baseline_age_eval(
+        features_by_participant={"p01": _make_features("p01", 30)},
+        labels=_labels(),
+        eval_dir=tmp_path,
+    )
 
-    with patch("wha.detect.forecast.get_chronos_pipeline", return_value=StubPipeline()):
-        res = run_baseline_age_eval(
-            features_by_participant=feats,
-            labels=labels,
-            eval_dir=tmp_path,
-        )
+    for row in res.tables["baseline_age_curve"]:
+        assert set(row) == {"n_usable_nights", "shrinkage_recall", "shrinkage_far"}
 
-    curve = res.tables["baseline_age_curve"]
-    for row in curve:
-        assert "n_usable_nights" in row
-        assert "shrinkage_recall" in row
-        assert "shrinkage_far" in row
-        assert "chronos_recall" in row
-        assert "chronos_far" in row
+
+def test_recall_is_zero_below_the_alerting_floor(tmp_path: Path) -> None:
+    """Nothing is flagged before the baseline is the person's own, so nothing is recalled.
+
+    Worth asserting because a curve that started above zero would mean the truncation was
+    not being applied, and this evaluation exists to show exactly that floor.
+    """
+    res = run_baseline_age_eval(
+        features_by_participant={"p01": _make_features("p01", 30)},
+        labels=_labels(),
+        eval_dir=tmp_path,
+    )
+
+    curve = {row["n_usable_nights"]: row for row in res.tables["baseline_age_curve"]}
+    assert curve[3]["shrinkage_recall"] == 0.0
+    assert curve[5]["shrinkage_recall"] == 0.0

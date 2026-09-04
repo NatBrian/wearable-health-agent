@@ -15,10 +15,6 @@ from wha.detect.detector import (
     detect_range,
 )
 from wha.detect.explained import explained_bpm
-from wha.detect.forecast import (
-    forecast_night,
-    get_chronos_pipeline,
-)
 
 __all__ = [
     "compute_baseline",
@@ -29,7 +25,5 @@ __all__ = [
     "detect_range",
     "detect_trivial",
     "explained_bpm",
-    "forecast_night",
-    "get_chronos_pipeline",
     "rung_for",
 ]

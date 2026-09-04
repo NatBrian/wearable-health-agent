@@ -1,15 +1,10 @@
 """Policy action selection, disposition mapping, and probe scoring."""
 
-import uuid
 from collections.abc import Sequence
-from datetime import UTC, datetime, timedelta
 
 from wha.constants import (
-    DEPTH_BUDGET_PER_EPISODE,
     EPISODE_MAX_NIGHTS,
     EPISODE_MAX_STEPS,
-    MEASURE_MIN_LEADING_PROBABILITY,
-    MEASUREMENT_TIMEOUT_HOURS,
     POLICY_COST_PER_INTERRUPT,
 )
 from wha.models import (
@@ -19,7 +14,6 @@ from wha.models import (
     BeliefState,
     CauseId,
     Disposition,
-    MeasurementRequest,
     Probe,
     Question,
 )
@@ -115,49 +109,26 @@ def select_action(
             rejected=rejected_for_ask,
         )
 
-    # 5. A spot reading, when the leading explanation is the sensor itself.
+    # 5. THE SPOT READING WAS REMOVED ON 5 SEPTEMBER 2026.
     #
-    # ActionKind.MEASURE appeared only in the graph's router. The policy never selected it,
-    # so node_measure, the "A quick reading would help" screen, submit_measurement_done and
-    # compute_measurement_logfactor were all unreachable and the measurements table had
-    # never held a row. A whole limb of a health system that had never executed.
+    # When sensor artifact led the differential the policy asked the person to count their
+    # own pulse for thirty seconds and double it. Three invented numbers held that up, none
+    # of them from any paper:
     #
-    # This is the case it was built for. When sensor artifact leads the differential, no
-    # question can settle it: the person cannot tell you whether their watch misread them.
-    # A resting heart rate taken by hand can, and compute_measurement_logfactor already
-    # knows what to do with the answer, moving weight away from sensor artifact when a
-    # manual reading agrees with the device.
+    #   MEASURE_MIN_LEADING_PROBABILITY = 0.5   when to ask
+    #   -1.5 and 0.3                            what the answer was worth, hardcoded in
+    #                                           wha/belief/likelihood.py, not even in the
+    #                                           knowledge tables
     #
-    # Gated on the same pending check as asking, so it cannot stack on an outstanding
-    # question, and it consumes the episode depth budget rather than the weekly one
-    # because it is a request rather than an interruption.
-    leading_cause, leading_p = (belief.top(1) or [(None, 0.0)])[0]
-    if (
-        leading_cause is CauseId.SENSOR_ARTIFACT
-        and leading_p >= MEASURE_MIN_LEADING_PROBABILITY
-        and not has_pending_interaction
-        and episode_questions_asked < DEPTH_BUDGET_PER_EPISODE
-        and not already_measured
-    ):
-        return Action(
-            kind=ActionKind.MEASURE,
-            measurement=MeasurementRequest(
-                measurement_id=f"m_{uuid.uuid4().hex[:12]}",
-                kind="spot_resting_hr",
-                instruction=(
-                    "Sit still for two minutes, then take your resting heart rate by hand: "
-                    "count the beats at your wrist for 30 seconds and double it. Your watch "
-                    "may have misread last night, and a reading you took yourself is the "
-                    "only way to tell."
-                ),
-                expires_at_utc=datetime.now(UTC) + timedelta(hours=MEASUREMENT_TIMEOUT_HOURS),
-            ),
-            rationale=(
-                f"Sensor artifact leads the differential at {leading_p:.2f}. No question "
-                "can resolve it; a hand-taken reading can."
-            ),
-            rejected=all_rejected,
-        )
+    # And it could not complete: `_resume_value` in the scheduler answered every
+    # measurement interrupt with `declined`, whatever the person did.
+    #
+    # The idea is also weaker than it looks. Asking a hand count to adjudicate a wrist
+    # sensor asks a noisier instrument to judge a less noisy one. The honest behaviour when
+    # the sensor is the leading explanation is to say the night could not be judged, which
+    # is what `determine_disposition` now does through INSUFFICIENT_DATA.
+    #
+    # The `measurements` table is kept so databases written before this still open.
 
     # 6. Check if another night of observation could plausibly resolve decision
     # Inside active uncertainty band and budget allows more nights
@@ -237,6 +208,24 @@ def determine_disposition(
     top_cause, top_prob = belief.top(1)[0]
     if top_cause in EVENT_CAUSES and top_prob >= 0.50 and p_inf < DERIVED_TREATMENT_THRESHOLD:
         return Disposition.EXPLAINED_BY_EVENT
+
+    # When the watch itself is the leading explanation, say the night could not be judged.
+    #
+    # The system used to ask for a hand-taken pulse here instead. That limb was removed on
+    # 5 September 2026: it rested on three numbers with no source, and it asked the
+    # noisier instrument to adjudicate the less noisy one. This is what replaces it, and
+    # it is the honest answer rather than a weaker one. INSUFFICIENT_DATA already means
+    # "this night cannot be judged", it is already in the disposition set, and it is
+    # already what a COLD baseline returns for the same reason.
+    #
+    # Placed after the illness check for the same reason silence is: a sensor doubt must
+    # never be able to talk an escalation down, only to prevent a confident conclusion.
+    if (
+        top_cause is CauseId.SENSOR_ARTIFACT
+        and top_prob >= 0.50
+        and p_inf < DERIVED_TREATMENT_THRESHOLD
+    ):
+        return Disposition.INSUFFICIENT_DATA
 
     # Check budget/caps exhaustion inside the band
     if (

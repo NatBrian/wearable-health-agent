@@ -12,17 +12,16 @@ def fetch_data(target: str) -> str:
     settings = get_settings()
 
     if target_clean == "chronos":
-        # Cache chronos model
-        settings.model_cache_dir.mkdir(parents=True, exist_ok=True)
-        try:
-            from wha.detect.forecast import get_chronos_pipeline
-
-            get_chronos_pipeline()
-            return f"Chronos foundation model cached to {settings.model_cache_dir}"
-        except ImportError:
-            return "Chronos library not installed; skipped model download."
-        except Exception as e:  # noqa: BLE001
-            return f"Chronos fetch notice: {e}"
+        # The forecast was removed on 5 September 2026, on a measurement: over 7,295
+        # nights it separated illness worse than the residual the detector already has
+        # (AUC 0.586 against 0.629) and caught at most one of 30 infections the detector
+        # missed. Answering plainly rather than silently doing nothing, because a command
+        # that reports success having done nothing is a defect this project has had before.
+        return (
+            "Chronos was removed on 5 September 2026. It separated illness worse than the "
+            "baseline residual the detector already computes, measured on 7,295 nights. "
+            "See tools/cohort/chronos.py. There is nothing to fetch."
+        )
 
     if target_clean in {"stanford", "pmdata"}:
         dataset_dir = settings.data_dir / target_clean

@@ -27,11 +27,6 @@ CONTRACT_CONSTANTS = [
     "EXERCISE_EFFECT_BPM",
     "EXERCISE_LOOKBACK_HOURS",
     "SHORT_SLEEP_HOURS",
-    "FORECAST_MODEL",
-    "FORECAST_MIN_NIGHTS",
-    "FORECAST_Q_LO",
-    "FORECAST_Q_HI",
-    "FORECAST_HALF_WIDTH_FLOOR_BPM",
     "N_CAUSES",
     "BELIEF_STATE_COUNT",
     "RESIDUAL_OBS_SD_BPM",
@@ -60,10 +55,41 @@ CONTRACT_CONSTANTS = [
 ]
 
 
+# Constants docs/CONTRACTS.md still lists that the code deliberately no longer has.
+#
+# The contract is read-only, so it cannot be amended here, and the disagreement is
+# recorded in BLOCKERS.md instead of being hidden. Keeping these as dead names purely to
+# satisfy a list would be the exact defect this project keeps producing: something
+# defined, referenced, and never reached.
+REMOVED_FROM_THE_CODE: dict[str, str] = {
+    "FORECAST_MODEL": "Chronos removed 5 September 2026, see tools/cohort/chronos.py",
+    "FORECAST_MIN_NIGHTS": "same",
+    "FORECAST_Q_LO": "same",
+    "FORECAST_Q_HI": "same",
+    "FORECAST_HALF_WIDTH_FLOOR_BPM": "same",
+}
+
+
 def test_every_contract_constant_exists() -> None:
     """All contract constants exist in constants.py."""
     for name in CONTRACT_CONSTANTS:
         assert hasattr(constants, name), f"Constant {name} is missing from constants.py"
+
+
+def test_the_only_missing_contract_constants_are_the_ones_deliberately_removed() -> None:
+    """The disagreement with the contract is enumerated, not silent.
+
+    Chronos was removed on a measurement: over 7,295 nights it separated illness worse
+    than the residual the detector already computes, AUC 0.586 against 0.629. Its five
+    constants went with it. docs/CONTRACTS.md still lists them and is read-only, so this
+    names exactly which entries the code no longer honours, and BLOCKERS.md asks for the
+    amendment.
+    """
+    for name in REMOVED_FROM_THE_CODE:
+        assert not hasattr(constants, name), (
+            f"{name} is back in constants.py. If Chronos returned, restore it to "
+            "CONTRACT_CONSTANTS and delete it from this list."
+        )
 
 
 def test_causeid_has_twelve_members() -> None:

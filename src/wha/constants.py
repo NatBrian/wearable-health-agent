@@ -216,27 +216,66 @@ EXERCISE_EFFECT_BPM = {"0-2h": 2.91, "2-4h": 1.87, "4-6h": 1.58}
 EXERCISE_LOOKBACK_HOURS = 6
 SHORT_SLEEP_HOURS = 5.5  # covariate only, never subtracted
 
-# --- forecast (advisory, never sets level or flagged) ----------------------
-FORECAST_MODEL = "amazon/chronos-bolt-small"  # swept in the ablation
-FORECAST_MIN_NIGHTS = 5  # below this: status TOO_FEW_NIGHTS
-FORECAST_Q_LO = 0.10
-FORECAST_Q_HI = 0.90
-FORECAST_HALF_WIDTH_FLOOR_BPM = 1.0  # a confident model can return a zero-width band
-# FORECAST_AS_EVIDENCE and FORECAST_EVIDENCE_SD_BPM were removed on 4 September 2026.
-# They asserted that the forecast contributed to the belief model and named an ablation
-# toggle for it. No such contribution ever existed: there is no forecast log-factor in
-# wha.belief, and both constants were read by nothing anywhere in the codebase.
+# --- forecast: REMOVED 5 September 2026 -----------------------------------
 #
-# They were not reinstated, because the evidence does not support the path they described.
-# No study was found showing that a forecast residual carries information about WHICH
-# cause is present, which is what the belief model needs. Alavi et al. 2022, the source of
-# this system's detection thresholds, compared three detectors on this exact problem and
-# measured plain baseline deviation (NightSignal) at 78 percent sensitivity against 54
-# percent for CuSum and 44 percent for RHRAD at the same false-signal rate: the simplest
-# method beat both forecast-style ones.
+# FORECAST_MODEL, FORECAST_MIN_NIGHTS, FORECAST_Q_LO, FORECAST_Q_HI and
+# FORECAST_HALF_WIDTH_FLOOR_BPM are gone with wha/detect/forecast.py. A Chronos-Bolt
+# time-series foundation model, 182 MB of weights and a prediction every night, produced
+# one advisory paragraph that changed nothing.
 #
-# The forecast now actually runs and is shown as advisory context, which is what the
-# heading above this block has always said it is. See docs/RESEARCH-AGENTIC-TRIAGE.md.
+# Removed on a measurement, not on taste. Across 7,295 nights of the Mishra 2020 cohort
+# (uv run python tools/cohort/chronos.py), asked whether the forecast separates illness
+# nights from ordinary ones better than the residual the detector already has:
+#
+#   plain baseline residual : AUC 0.629
+#   Chronos forecast_z      : AUC 0.586
+#
+# An AUC of 0.5 is no separation, so the forecast separates illness WORSE than the number
+# already on hand. The two correlate at 0.73, so it is measuring something slightly
+# different; that something is just not more useful. Across 30 labelled infections it
+# caught ONE the detector missed at the most generous setting and none at tighter ones.
+#
+# Alavi et al. 2022, the source of this system's thresholds, points the same way: it
+# measured plain baseline deviation at 78 percent sensitivity against 54 for CuSum and 44
+# for RHRAD, both forecast-style detectors.
+#
+# `forecast_status` stays in the schema, set to NOT_RUN, so databases written before this
+# still open and old rows still read.
+#
+# The dependency is gone too: chronos-forecasting, accelerate and einops are removed from
+# pyproject.toml. TORCH IS NOT, and the refinement plan was wrong to expect it to be:
+# sentence-transformers needs it for the bge-small embeddings the hybrid retrieval
+# actually uses, so removing it would have broken search.
+
+# --- naming the source of a quoted passage --------------------------------
+#
+# A citation rendered as "(medlineplus_4744#c0)" is traceable and not readable, and the
+# MedlinePlus licence is attribution-only: the National Library of Medicine has to be
+# NAMED wherever its text is shown, not implied by an identifier prefix. The same labels
+# also tell a person at a glance whether they are reading general background about a
+# condition or a rule this system applies to them, which is the distinction that matters
+# most when the passage sits underneath a piece of health advice.
+#
+# Here rather than under ui/, because the phone needs them too. They used to live in
+# wha/ui/components/citations.py, and the Telegram path correctly refuses to import
+# anything under ui/, so a MedlinePlus passage arrived on a real phone labelled
+# `Sources: Fever`, crediting nobody. Constants are served by /config, so a replacement
+# front end gets them over HTTP like everything else.
+MEDLINEPLUS_LABEL = "MedlinePlus, National Library of Medicine"
+SOURCE_LABEL_PREFIXES: dict[str, str] = {
+    "medlineplus": MEDLINEPLUS_LABEL,
+    "escalation": "this system's safety rules",
+    "method": "how this system measures you",
+    "evidence": "the evidence behind a question it asks",
+    "confounder": "the evidence behind a competing explanation",
+}
+SOURCE_LABEL_FALLBACK = "this repository's own knowledge"
+EXTERNAL_SOURCE_PREFIX = "medlineplus"
+ATTRIBUTION_NOTE = (
+    "Passages from MedlinePlus come from the National Library of Medicine and are used "
+    "with attribution. They are general information about a condition, not about you, "
+    "and say nothing about your own readings."
+)
 
 # --- belief model ---------------------------------------------------------
 # How long after an illness the recovery_tail cause stays raised.
@@ -328,15 +367,21 @@ CONVERSATION_DEPTH_CITATION = (
 # Questions the EVSI policy may ask across one episode, separate from the conversation.
 DEPTH_BUDGET_PER_EPISODE = 5
 
-# How strongly sensor artifact must lead the differential before the system asks for a
-# hand-taken reading instead of a question.
+# MEASURE_MIN_LEADING_PROBABILITY was removed on 5 September 2026, with the spot-reading
+# limb it gated.
 #
-# UNEVIDENCED. No study says where this belongs. It exists because the alternative was a
-# limb that never ran at all: ActionKind.MEASURE appeared only in the graph's router, the
-# policy never selected it, and the measurements table had never held a row. Set at the
-# level where sensor artifact is clearly the leading explanation rather than merely
-# present, so a spot check is asked for rarely. Disclosed in docs/DISCLOSURES.md.
-MEASURE_MIN_LEADING_PROBABILITY = 0.5
+# It was 0.5 with no source, and it decided when to ask somebody to count their own pulse
+# for thirty seconds in order to judge whether their watch had misread them. Two more
+# invented numbers sat behind it, -1.5 and 0.3, the log-factor that answer contributed,
+# hardcoded in wha/belief/likelihood.py rather than in a knowledge table.
+#
+# The idea is weaker than it looks: asking a hand count to adjudicate a wrist sensor asks
+# the noisier instrument to judge the less noisy one. And it could not complete anyway,
+# because `_resume_value` in the scheduler answered every measurement interrupt with
+# "declined" regardless of what the person did.
+#
+# The honest behaviour when the sensor is the leading explanation is to say the night
+# could not be judged. See wha/policy/select.py.
 
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36

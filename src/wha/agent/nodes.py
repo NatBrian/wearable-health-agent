@@ -28,7 +28,6 @@ from wha.models import (
     EpisodeContext,
     EpisodeOutcome,
     ExtractedFact,
-    MeasurementResult,
     Question,
 )
 from wha.notify.protocol import MessageKind
@@ -738,67 +737,6 @@ def node_ask(
 
     return {
         "answers": [answer],
-        "step": state.get("step", 0) + 1,
-    }
-
-
-def node_measure(
-    state: EpisodeState,
-    notifier: Any = None,
-    db: Any = None,
-) -> dict[str, Any]:
-    """Measure node with idempotent pre-interrupt execution."""
-    action = state.get("action")
-    episode_id = state.get("episode_id", "ep_default")
-    measurement_id = (
-        action.measurement.measurement_id
-        if action and action.measurement
-        else f"meas_{episode_id}_{state.get('step', 0)}"
-    )
-
-    # 1. Idempotent check & notify
-    already_sent = False
-    if db is not None and hasattr(db, "has_notification_for"):
-        already_sent = db.has_notification_for(measurement_id)
-
-    if not already_sent and notifier is not None:
-        delivered = notifier.send(
-            recipient_id=state.get("subject_id"),
-            kind=MessageKind.MEASUREMENT,
-            text="Please perform spot measurement.",
-            interaction_id=measurement_id,
-        )
-        if delivered and db is not None and hasattr(db, "record_notification"):
-            db.record_notification(interaction_id=measurement_id, recipient=state.get("subject_id"))
-
-    # 2. Interrupt
-    raw_response = interrupt(
-        {
-            "kind": "measurement",
-            "interaction_id": measurement_id,
-        }
-    )
-
-    # 3. Post-interrupt parsing
-    if isinstance(raw_response, MeasurementResult):
-        meas_res = raw_response
-    elif isinstance(raw_response, dict):
-        meas_res = MeasurementResult(
-            measurement_id=measurement_id,
-            kind=raw_response.get("kind", "spot_resting_hr"),
-            value=raw_response.get("value"),
-            observed_at_utc=raw_response.get("observed_at_utc"),
-            satisfied=raw_response.get("satisfied", False),
-        )
-    else:
-        meas_res = MeasurementResult(
-            measurement_id=measurement_id,
-            kind="spot_resting_hr",
-            satisfied=False,
-        )
-
-    return {
-        "measurements": [meas_res],
         "step": state.get("step", 0) + 1,
     }
 

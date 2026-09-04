@@ -3,6 +3,7 @@
 from datetime import UTC, date, datetime
 from unittest.mock import MagicMock, patch
 
+from wha.api.client import ApiClient
 from wha.models import (
     AnswerOption,
     BaselineRung,
@@ -107,32 +108,40 @@ def test_today_pending_question() -> None:
         assert ans.declined is False
 
 
-def test_today_pending_measurement() -> None:
-    """Pending measurement renders instruction, and clicking Done calls submit_measurement_done."""
+def test_today_shows_nothing_for_a_measurement_that_can_no_longer_be_requested() -> None:
+    """The spot-reading limb was removed on 5 September 2026, screen included.
+
+    This asserted that a pending measurement rendered a "A quick reading would help"
+    panel with a Done button. Nothing can create a pending measurement now: the policy no
+    longer selects MEASURE, the graph has no measure node, and the API endpoint is gone.
+    Leaving the panel would be a screen that can never appear, which is the exact defect
+    this codebase keeps producing.
+
+    A stale row from an older database must render nothing rather than crash, which is
+    what this now checks.
+    """
     m_req = MeasurementRequest(
         measurement_id="meas_456",
         kind="spot_resting_hr",
         instruction="Please sit quietly for 2 minutes and log resting heart rate.",
         expires_at_utc=datetime.now(UTC),
     )
-    pending = PendingInteraction(
-        kind="measurement",
-        episode_id="ep_001",
-        measurement=m_req,
-    )
+    pending = PendingInteraction(kind="measurement", episode_id="ep_001", measurement=m_req)
 
     with (
         patch("streamlit.warning") as mock_warning,
+        patch("streamlit.subheader") as mock_subheader,
         patch("streamlit.button", side_effect=[True, False]),
         patch("streamlit.columns", return_value=[MagicMock(), MagicMock()]),
         patch("streamlit.rerun"),
-        patch("wha.api.client.ApiClient.submit_measurement_done") as mock_submit,
     ):
         render_inbox(subject_id="sub_test", pending=pending)
-        assert mock_warning.called
-        assert "sit quietly" in mock_warning.call_args[0][0]
-        assert mock_submit.called
-        assert mock_submit.call_args[0][0] == "meas_456"
+
+    assert not mock_warning.called
+    assert not mock_subheader.called
+    assert not hasattr(ApiClient, "submit_measurement_done"), (
+        "the endpoint is gone, so the client method must be too"
+    )
 
 
 def test_today_pending_review() -> None:

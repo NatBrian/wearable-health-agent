@@ -19,7 +19,6 @@ from wha.agent.nodes import (
     node_critique,
     node_decide,
     node_investigate,
-    node_measure,
     node_preload,
     node_review,
 )
@@ -46,7 +45,6 @@ __all__ = [
     "node_critique",
     "node_decide",
     "node_investigate",
-    "node_measure",
     "node_preload",
     "node_review",
     "run_episode_step",

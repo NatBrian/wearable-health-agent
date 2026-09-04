@@ -9,7 +9,7 @@ from wha.config import get_settings
 from wha.db import apply_schema, connect
 from wha.detect.baseline import rung_for
 from wha.policy import load_probes
-from wha.service.checks import chronos_weights_cached, dataset_present, read_schema_version
+from wha.service.checks import dataset_present, read_schema_version
 
 DoctorStatus = Literal["ok", "warn", "fail", "miss", "off", "info"]
 
@@ -141,16 +141,6 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
                 detail=f"{', '.join(missing)} absent. Run: uv run wha data fetch <name>",
             )
         )
-
-    # 7. Chronos model check
-    chronos_ok, chronos_detail = chronos_weights_cached()
-    items.append(
-        DoctorItem(
-            name="chronos",
-            status="ok" if chronos_ok else "info",
-            detail=chronos_detail,
-        )
-    )
 
     # 8. Baseline for default subject
     if conn is not None:

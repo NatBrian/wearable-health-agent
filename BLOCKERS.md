@@ -841,3 +841,29 @@ full working with what it changes is in `docs/KNOWLEDGE-CHANGELOG.md`.
 sentence should become: `scale` shrinks the same way from `WITHIN_PERSON_SCALE_PRIOR_BPM`
 toward a scaled MAD, floored at `BASELINE_SCALE_FLOOR_BPM`. Until then the contract and the
 code disagree on one line, and the code is the one with the measurement behind it.
+
+
+## contract - `docs/CONTRACTS.md` lists five constants for a subsystem that was removed
+
+**What I tried:** item 22 of `docs/REFINEMENT-PLAN.md`, deleting the Chronos forecast.
+
+**What happened:** `FORECAST_MODEL`, `FORECAST_MIN_NIGHTS`, `FORECAST_Q_LO`,
+`FORECAST_Q_HI` and `FORECAST_HALF_WIDTH_FLOOR_BPM` are gone from `src/wha/constants.py`
+along with `src/wha/detect/forecast.py`. `docs/CONTRACTS.md` still lists all five.
+
+**What I think is wrong:** nothing in the code. The forecast was removed on a measurement
+rather than a preference. Over 7,295 nights of the Mishra 2020 cohort it separates illness
+nights from ordinary ones WORSE than the plain baseline residual the detector already
+computes, AUC 0.586 against 0.629, where 0.5 is no separation at all. Across 30 labelled
+infections it caught one the detector missed at the most generous threshold and none at
+tighter ones. Reproduce with `uv run python tools/cohort/chronos.py`.
+
+Keeping the five constants as dead names purely to satisfy a list would be the exact
+defect this codebase keeps producing: something defined, referenced, and never reached.
+`tests/unit/test_contracts.py` names them in `REMOVED_FROM_THE_CODE` and asserts they stay
+gone, so the disagreement is enumerated rather than hidden.
+
+**What I need:** the five entries deleted from `docs/CONTRACTS.md`, which is read-only to
+me, along with the `forecast_*` fields on the `Detection` model if you want the contract to
+match. The `forecast_status` COLUMN is deliberately kept, set to `NOT_RUN`, so databases
+written before this still open and old rows still read.

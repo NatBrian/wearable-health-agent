@@ -1,32 +1,13 @@
-"""Implementation of the seven closed T1 read-only tools."""
+"""Implementation of the six closed T1 read-only tools. None of them touches the network."""
 
 import statistics
-import urllib.request
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-
-import yaml
 
 from wha.agent.tools.registry import ToolContext, ToolRegistry, ToolResult
 from wha.constants import INGEST_STALE_WARN_HOURS, MIN_NOCTURNAL_MINUTES
 from wha.retrieve.index import HybridIndex
 from wha.safety.injection import scan_untrusted
-
-ALLOWED_LIVE_ENDPOINTS: set[str] = {
-    "https://data.gov.sg/api/action/datastore_search",
-    "https://api.data.gov.sg/v1/environment/psi",
-}
-
-
-def load_allowed_sources_urls() -> set[str]:
-    """Load live endpoint URLs from data/knowledge/sources.yaml."""
-    try:
-        with open("data/knowledge/sources.yaml", encoding="utf-8") as f:
-            content = yaml.safe_load(f)
-        endpoints = content.get("live_endpoints", [])
-        return {ep["url"] for ep in endpoints if "url" in ep}
-    except (OSError, yaml.YAMLError, KeyError, TypeError):
-        return ALLOWED_LIVE_ENDPOINTS
 
 
 def tool_get_nightly_features(
@@ -352,57 +333,23 @@ def tool_retrieve_clinical_evidence(
     )
 
 
-def tool_get_local_disease_activity(
-    args: dict[str, Any], context: ToolContext, db: Any = None
-) -> ToolResult:
-    """Query live allow-listed local disease surveillance endpoints."""
-    custom_url = args.get("url")
-    allowed_urls = load_allowed_sources_urls()
-
-    # Refuse any URL not in sources.yaml allow-list
-    if custom_url and custom_url not in allowed_urls:
-        return ToolResult(
-            tool_name="get_local_disease_activity",
-            args=args,
-            ok=False,
-            value=None,
-            source_ids=[],
-            as_of_utc=context.now_utc,
-            freshness="missing",
-            note=f"Refused: URL '{custom_url}' is not in sources.yaml allow-list.",
-        )
-
-    target_url = custom_url or "https://data.gov.sg/api/action/datastore_search"
-
-    try:
-        req = urllib.request.Request(target_url, headers={"User-Agent": "WHA/1.0"})
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            data = resp.read()
-            return ToolResult(
-                tool_name="get_local_disease_activity",
-                args=args,
-                ok=True,
-                value={"status": "active", "bytes": len(data)},
-                source_ids=["nea_dengue_clusters"],
-                as_of_utc=context.now_utc,
-                freshness="fresh",
-            )
-    except (OSError, TimeoutError, ValueError, urllib.error.URLError) as e:
-        # Never raise into graph: return ok=False with note
-        return ToolResult(
-            tool_name="get_local_disease_activity",
-            args=args,
-            ok=False,
-            value=None,
-            source_ids=[],
-            as_of_utc=context.now_utc,
-            freshness="missing",
-            note=f"Disease surveillance endpoint unreachable: {e}",
-        )
-
-
 def create_default_tool_registry() -> ToolRegistry:
-    """Create and configure a ToolRegistry with all seven T1 read-only tools."""
+    """The six T1 read-only tools.
+
+    Six, not seven. `get_local_disease_activity` was deleted on 5 September 2026. It
+    called a Singapore government address with NO SEARCH TERMS and returned
+    `{"status": "active", "bytes": 12345}`, which is the length of the response. It never
+    read the dengue clusters, never checked whether the person was inside one, and never
+    asked the air quality service that was also allow-listed.
+
+    sources.yaml claimed "A subject inside an active cluster materially raises the dengue
+    prior, and no shipped product does this." Nothing raised any prior, and there is no
+    dengue cause in causes.yaml to raise. Making it real would mean adding a cause and a
+    likelihood, which is exactly the kind of number this project has stopped generating.
+
+    Deleting it also removes the only tool that touched the network, so the closed tool
+    list is now entirely local.
+    """
     registry = ToolRegistry()
     registry.register("get_nightly_features", tool_get_nightly_features)
     registry.register("get_personal_baseline", tool_get_personal_baseline)
@@ -410,5 +357,4 @@ def create_default_tool_registry() -> ToolRegistry:
     registry.register("get_data_quality", tool_get_data_quality)
     registry.register("find_similar_past_episodes", tool_find_similar_past_episodes)
     registry.register("retrieve_clinical_evidence", tool_retrieve_clinical_evidence)
-    registry.register("get_local_disease_activity", tool_get_local_disease_activity)
     return registry

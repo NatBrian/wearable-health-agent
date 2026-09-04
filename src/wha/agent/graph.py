@@ -21,7 +21,6 @@ from wha.agent.nodes import (
     node_critique,
     node_decide,
     node_investigate,
-    node_measure,
     node_preload,
     node_review,
 )
@@ -64,8 +63,6 @@ def route_after_decide(state: EpisodeState) -> str:
 
     if action.kind == ActionKind.ASK:
         return "ask"
-    elif action.kind == ActionKind.MEASURE:
-        return "measure"
     elif action.kind == ActionKind.OBSERVE:
         return END
     else:
@@ -154,7 +151,6 @@ def build_agent_graph(
     builder.add_node("believe", bind(node_believe))
     builder.add_node("decide", bind(node_decide))
     builder.add_node("ask", bind(node_ask))
-    builder.add_node("measure", bind(node_measure))
     builder.add_node("conclude", bind(node_conclude))
     builder.add_node("critique", bind(node_critique))
     builder.add_node("review", bind(node_review))
@@ -169,7 +165,6 @@ def build_agent_graph(
         route_after_decide,
         {
             "ask": "ask",
-            "measure": "measure",
             "conclude": "conclude",
             END: END,
         },
@@ -180,7 +175,6 @@ def build_agent_graph(
         route_after_ask,
         {"conclude": "conclude", "believe": "believe", "investigate": "investigate"},
     )
-    builder.add_edge("measure", "believe")
     builder.add_edge("conclude", "critique")
     builder.add_edge("critique", "review")
     builder.add_edge("review", END)

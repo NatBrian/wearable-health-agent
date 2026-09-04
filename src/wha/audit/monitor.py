@@ -29,11 +29,10 @@ from wha.constants import (
     DETECT_PERSISTENCE_NIGHTS,
     DETECT_RED_BPM,
     DETECT_YELLOW_BPM,
-    FORECAST_MIN_NIGHTS,
     MIN_NOCTURNAL_MINUTES,
 )
 from wha.db.audit_chain import append_audit
-from wha.models import AuditEvent, Baseline, Detection, ForecastStatus, NightlyFeatures
+from wha.models import AuditEvent, Baseline, Detection, NightlyFeatures
 
 
 def _event(subject_id: str, actor: str, operation: str, **kwargs: Any) -> AuditEvent:
@@ -85,22 +84,6 @@ def _not_flagged_reason(baseline: Baseline, detection: Detection) -> str | None:
     return "Not raised, so there was nothing to investigate."
 
 
-def _forecast_reason(baseline: Baseline, detection: Detection) -> str:
-    status = detection.forecast.status
-    if status == ForecastStatus.TOO_FEW_NIGHTS or (
-        status == ForecastStatus.NOT_RUN and baseline.usable_nights < FORECAST_MIN_NIGHTS
-    ):
-        return (
-            f"The forecasting model did not run: it needs {FORECAST_MIN_NIGHTS} usable "
-            f"nights and there are {baseline.usable_nights}."
-        )
-    if status == ForecastStatus.NOT_RUN:
-        return "The forecasting model did not run."
-    if status == ForecastStatus.FAILED:
-        return "The forecasting model was called and failed. The night was judged without it."
-    return "The forecasting model ran and its estimate is advisory only."
-
-
 def night_reasoning(
     features: NightlyFeatures,
     baseline: Baseline,
@@ -136,7 +119,6 @@ def night_reasoning(
         "level": detection.level.value,
         "flagged": detection.flagged,
         "why_not_flagged": _not_flagged_reason(baseline, detection),
-        "forecast": _forecast_reason(baseline, detection),
     }
 
 
@@ -295,7 +277,6 @@ def night_narrative(
     elif reason:
         lines.append(reason)
 
-    lines.append(_forecast_reason(baseline, detection))
     lines.append(why_entry)
     return lines
 

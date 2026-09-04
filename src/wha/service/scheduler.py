@@ -279,8 +279,9 @@ def _resume_value(conn: Any, episode_id: str, pending: Any) -> dict[str, Any] | 
             response["free_text"] = row["free_text"]
         return response
 
-    if kind == "measurement":
-        return {"measurement_id": pending.get("interaction_id"), "declined": True}
+    # A "measurement" interrupt can no longer be raised: the spot-reading limb was removed
+    # on 5 September 2026. This branch answered every one of them with `declined` whatever
+    # the person did, which is why the limb could not complete even after it was connected.
 
     if kind == "human_review":
         # This used to fall through to {"decision": "approve"}, so a background job

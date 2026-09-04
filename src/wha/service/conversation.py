@@ -12,6 +12,7 @@ from wha.agent.conversation import ConversationReply, load_transcript, respond
 from wha.agent.conversation import established_urgency as _established_urgency
 from wha.db.connection import connect
 from wha.db.migrations import apply_schema
+from wha.retrieve.attribution import ATTRIBUTION_NOTE, is_external, source_label
 
 
 def _open(conn: sqlite3.Connection | None, db_path: Path | None) -> tuple[sqlite3.Connection, bool]:
@@ -149,29 +150,91 @@ def format_for_telegram(reply: ConversationReply, max_chars: int = 900) -> str:
     study behind it. Draelos et al. 2025 measured 5 to 13 percent of unguarded
     frontier-model answers to patient questions as outright unsafe.
     """
+    # Split by what must survive a trim. A phone message is short and something has to go
+    # first; deciding that by position is how a cut once landed inside the amber block,
+    # keeping its label and losing the warning it carried.
+    essential: list[str] = []
     parts: list[str] = []
-    if reply.urgency == "urgent":
-        parts.append("THIS NEEDS MEDICAL ATTENTION TODAY.")
-    elif reply.urgency == "same_day":
-        parts.append("You should see a doctor today.")
 
-    parts.append(reply.text)
+    if reply.urgency == "urgent":
+        essential.append("THIS NEEDS MEDICAL ATTENTION TODAY.")
+    elif reply.urgency == "same_day":
+        essential.append("You should see a doctor today.")
+
+    essential.append(reply.text)
 
     if reply.uncited:
-        parts.append(
+        # Essential. A sentence the model invented must not arrive looking like one with a
+        # study behind it, and dropping this block is exactly that.
+        essential.append(
             "Not from a cited source (the AI's own general knowledge, worth checking): "
             + " ".join(reply.uncited)
         )
     if reply.citations:
-        titles = ", ".join(dict.fromkeys(c.title for c in reply.citations))
-        parts.append(f"Sources: {titles}")
+        # Name the source in words, not just the topic title. The dashboard labels a quoted
+        # passage "MedlinePlus, National Library of Medicine"; this path said
+        # `Sources: Fever`, which credits nobody, under a licence that is
+        # attribution-only. The labels used to live under ui/, which this module correctly
+        # refuses to import, so the phone had no way to reach them.
+        named: dict[str, list[str]] = {}
+        for citation in reply.citations:
+            named.setdefault(source_label(citation.source_id), []).append(citation.title)
+        parts.append(
+            "Sources: "
+            + "; ".join(
+                f"{title} ({label})"
+                for label, titles in named.items()
+                for title in dict.fromkeys(titles)
+            )
+        )
+        if any(is_external(c.source_id) for c in reply.citations):
+            parts.append(ATTRIBUTION_NOTE)
     if reply.urgency:
         parts.append("Decided by a fixed rule from what you told it. The AI cannot lower it.")
 
-    text = "\n\n".join(p for p in parts if p)
-    if len(text) > max_chars:
-        text = text[: max_chars - 3].rstrip() + "..."
-    return text
+    return _trim_to_whole_sentences(essential, parts, max_chars)
+
+
+# The amber block travels as one piece or not at all. A trim that lands inside it turns a
+# warning that a sentence has no source behind it into a sentence that reads as sourced,
+# which is what happened in a real message.
+_UNCITED_MARKER = "Not from a cited source"
+
+
+def _trim_to_whole_sentences(essential: list[str], optional: list[str], max_chars: int) -> str:
+    """Fit the message by dropping optional blocks, then whole sentences. Never mid-word.
+
+    Messages were cut at 900 characters wherever that fell. In one real message the cut
+    landed inside the "not from a cited source" block, so its label survived and the
+    warning it carried did not, which is the one trim this must never make.
+
+    Nothing in `essential` is dropped: the urgency line, the reply itself, and the amber
+    block all survive. If those alone do not fit, the REPLY is cut back to a sentence
+    boundary and the blocks around it stay whole.
+    """
+    must = [p for p in essential if p]
+    extra = [p for p in optional if p]
+
+    while extra and len("\n\n".join(must + extra)) > max_chars:
+        extra.pop()
+
+    text = "\n\n".join(must + extra)
+    if len(text) <= max_chars or not must:
+        return text[:max_chars] if len(text) > max_chars else text
+
+    # Only the essential blocks are left and they still do not fit. The reply is the last
+    # of them unless the amber block is present, in which case it is the one before.
+    reply_at = len(must) - 2 if len(must) >= 2 and _UNCITED_MARKER in must[-1] else len(must) - 1
+    around = "\n\n".join(must[:reply_at] + must[reply_at + 1 :])
+    budget = max_chars - len(around) - (2 if around else 0)
+
+    # Three characters reserved for the ellipsis. A message that just stops reads as a
+    # delivery failure; one that ends "..." says plainly that there was more.
+    cut = must[reply_at][: max(0, budget - 3)]
+    boundary = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    trimmed = (cut[: boundary + 1] if boundary > 0 else cut.rstrip()).strip()
+    must[reply_at] = f"{trimmed}..."
+    return "\n\n".join(p for p in must if p)
 
 
 def converse_over_telegram(

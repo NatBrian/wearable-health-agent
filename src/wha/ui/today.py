@@ -11,7 +11,7 @@ from wha.models import (
     SystemStatus,
 )
 from wha.ui.components.api import api, config, today
-from wha.ui.components.citations import ATTRIBUTION_NOTE, is_external, source_label
+from wha.ui.components.citations import attribution_note, is_external, source_label
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
     describe_bpm_difference,
@@ -116,19 +116,6 @@ def render_inbox(
                 st.rerun()
 
         st.caption("Skipping is fine. You will not be asked this again for this episode.")
-
-    elif pending.kind == "measurement" and pending.measurement:
-        m = pending.measurement
-        st.subheader("A quick reading would help")
-        st.warning(m.instruction)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("I've done it", key=f"m_done_{m.measurement_id}", type="primary"):
-                api().submit_measurement_done(m.measurement_id)
-                st.rerun()
-        with col2:
-            if st.button("Not right now", key=f"m_cant_{m.measurement_id}"):
-                st.info("No problem. This will be skipped for today.")
 
     elif pending.kind == "review" and pending.draft_outcome:
         draft = pending.draft_outcome
@@ -238,33 +225,6 @@ def render_last_night_summary(subject_id: str, status: SystemStatus | None = Non
         st.write(f"In words: {describe_bpm_difference(n.residual_bpm)}.")
         st.caption(f"Internal level for this night: {phrase.technical}")
 
-        # The forecast. It ran for the first time on 4 September 2026: the model existed,
-        # was tested, and was called by nothing, so every night read NOT_RUN. It is shown
-        # here and nowhere near a decision, because it is advisory and is not evidence in
-        # the belief model.
-        if n.forecast_status == "OK" and n.forecast_bpm is not None:
-            st.write("---")
-            st.write(
-                f"**A second opinion, for interest.** Before seeing last night, a "
-                f"forecasting model trained on time series expected about "
-                f"{n.forecast_bpm:.1f} bpm from the shape of your recent nights."
-            )
-            if n.rhr_bpm is not None:
-                gap = n.rhr_bpm - n.forecast_bpm
-                st.caption(
-                    f"Your actual reading was {n.rhr_bpm:.1f} bpm, which is "
-                    f"{abs(gap):.1f} bpm {'above' if gap >= 0 else 'below'} what it "
-                    "expected. This changes nothing. It does not decide whether a night "
-                    "is looked into and it is not used to work out why. It is here so you "
-                    "can see whether the night was a surprise given the recent trend, "
-                    "which is a different question from whether it was high for you."
-                )
-        elif n.forecast_status == "TOO_FEW_NIGHTS":
-            st.caption(
-                "The forecasting model needs a few more nights before it will say "
-                "anything, and declines rather than guessing."
-            )
-
 
 def render_open_episodes(subject_id: str) -> None:
     """List anything currently being looked into."""
@@ -318,7 +278,7 @@ def render_conversation(subject_id: str) -> str | None:
                         )
                         st.caption(f'"{" ".join(str(c["passage"]).split())[:400]}"')
                     if any(is_external(c["source_id"]) for c in citations):
-                        st.caption(ATTRIBUTION_NOTE)
+                        st.caption(attribution_note())
             if uncited:
                 st.warning(
                     "**Not from a cited source.** The following came from the AI's own "

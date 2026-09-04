@@ -153,16 +153,28 @@ def test_an_ingest_that_brings_data_is_recorded(tmp_path: Path) -> None:
 # -- the words themselves ------------------------------------------------------------
 
 
-def test_the_narrative_explains_why_the_model_did_not_run() -> None:
-    """The silence that prompted this: the ML and the agent did nothing and said nothing."""
+def test_the_narrative_explains_why_nothing_could_be_flagged() -> None:
+    """The silence that prompted this: the deterministic half did work and said nothing.
+
+    CORRECTED 5 September 2026. This also asserted "forecasting model did not run" and
+    "5 usable nights", which were the Chronos explanation. Chronos is gone, measured
+    rather than argued: over 7,295 nights it separated illness worse than the residual the
+    detector already computes, AUC 0.586 against 0.629. A narrative explaining why a model
+    that no longer exists declined to run is noise on a page whose purpose is to say what
+    happened.
+
+    What the narrative must still do is explain the OTHER refusal, which is real: below
+    seven of the person's own nights the centre is still mostly a population guess, so
+    nothing can be flagged. That is a decision made about them and it is still recorded.
+    """
     lines = " ".join(
         night_narrative(
             _features(), _baseline(3), _detection(DetectionLevel.GREEN, -10.4), "First."
         )
     )
-    assert "forecasting model did not run" in lines
-    assert "5 usable nights" in lines
     assert "Nothing can be flagged yet" in lines
+    assert "7 nights" in lines
+    assert "forecast" not in lines.lower(), "a model that was removed does not get a line"
 
 
 def test_the_narrative_says_which_window_was_used() -> None:

@@ -160,9 +160,6 @@ class ApiClient:
             },
         )
 
-    def submit_measurement_done(self, measurement_id: str) -> None:
-        self._request("POST", f"/measurements/{measurement_id}/done")
-
     # ------------------------------------------------------------ conversation
 
     def get_transcript(self, subject_id: str, limit: int = 40) -> list[dict[str, Any]]:

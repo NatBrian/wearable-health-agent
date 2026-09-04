@@ -1,7 +1,7 @@
 """The MEASURE limb: when the sensor itself is the leading explanation."""
 
-from wha.models import ActionKind, BeliefState, CauseId
-from wha.policy.select import select_action
+from wha.models import ActionKind, BaselineRung, BeliefState, CauseId, Disposition
+from wha.policy.select import determine_disposition, select_action
 
 
 def _sensor_artifact_belief(p: float = 0.9) -> BeliefState:
@@ -23,45 +23,32 @@ _ALL_PROBES_ASKED = [
 ]
 
 
-def test_a_spot_reading_is_requested_when_the_sensor_itself_leads() -> None:
-    """ActionKind.MEASURE was never selected by anything.
+def test_no_spot_reading_is_ever_requested() -> None:
+    """The MEASURE limb was removed on 5 September 2026, so nothing selects it.
 
-    It appeared only in the graph's router, so node_measure, the "A quick reading would
-    help" screen, submit_measurement_done and compute_measurement_logfactor were all
-    unreachable and the measurements table had never held a row. This is the case the limb
-    was built for: no question can settle whether a watch misread you, and a hand-taken
-    reading can.
+    These three tests asserted that a hand-taken pulse was requested when sensor artifact
+    led the differential. That limb is gone, and the reason is worth keeping here because
+    it is the reason the tests changed.
+
+    Three invented numbers held it up, none of them from any paper: the 0.5 leading
+    probability that decided when to ask, and the -1.5 and 0.3 log-factor the answer
+    contributed, hardcoded in wha/belief/likelihood.py rather than in a knowledge table.
+    It also could not complete: `_resume_value` in the scheduler answered every
+    measurement interrupt with `declined` whatever the person did.
+
+    And the idea is weaker than it looks. Asking somebody to count their own pulse for
+    thirty seconds in order to judge whether their wrist sensor misread them asks the
+    noisier instrument to adjudicate the less noisy one.
+
+    What replaces it is saying so: when the sensor leads, the night could not be judged.
     """
-    action = select_action(
-        belief=_sensor_artifact_belief(),
-        already_asked_probe_ids=_ALL_PROBES_ASKED,
-    )
-
-    assert action.kind == ActionKind.MEASURE
-    assert action.measurement is not None
-    assert action.measurement.kind == "spot_resting_hr"
-    assert "by hand" in action.measurement.instruction
-
-
-def test_a_spot_reading_is_asked_for_once_per_episode() -> None:
-    """Asking twice for the same reading is not more information, it is nagging."""
-    action = select_action(
-        belief=_sensor_artifact_belief(),
-        already_asked_probe_ids=_ALL_PROBES_ASKED,
-        already_measured=True,
-    )
-
-    assert action.kind != ActionKind.MEASURE
-
-
-def test_no_spot_reading_when_the_sensor_is_merely_one_candidate() -> None:
-    """It fires when the sensor leads, not whenever artifact is on the list at all."""
-    action = select_action(
-        belief=_sensor_artifact_belief(p=0.2),
-        already_asked_probe_ids=_ALL_PROBES_ASKED,
-    )
-
-    assert action.kind != ActionKind.MEASURE
+    for probability in (0.9, 0.6, 0.5, 0.2):
+        action = select_action(
+            belief=_sensor_artifact_belief(p=probability),
+            already_asked_probe_ids=_ALL_PROBES_ASKED,
+        )
+        assert action.kind != ActionKind.MEASURE, f"a spot reading was requested at p={probability}"
+        assert action.measurement is None
 
 
 def test_a_spot_reading_never_stacks_on_an_outstanding_question() -> None:
@@ -138,3 +125,29 @@ def test_a_recorded_event_still_explains_a_night_despite_an_unanswered_question(
         determine_disposition(explained, rung=BaselineRung.MATURE, unanswered_questions=1)
         == Disposition.EXPLAINED_BY_EVENT
     )
+
+
+def test_a_sensor_doubt_means_the_night_could_not_be_judged() -> None:
+    """What replaces the spot reading, and it is the honest answer rather than a weaker one.
+
+    The system used to respond to a leading sensor artifact by asking the person to count
+    their own pulse. INSUFFICIENT_DATA already means "this night cannot be judged", it is
+    already in the disposition set, and a COLD baseline already returns it for the same
+    reason.
+    """
+    assert (
+        determine_disposition(_sensor_artifact_belief(p=0.9), rung=BaselineRung.MATURE)
+        == Disposition.INSUFFICIENT_DATA
+    )
+
+
+def test_a_sensor_doubt_never_talks_an_escalation_down() -> None:
+    """Urgency may always rise. A doubt about the watch must not lower it."""
+    from wha.models import BeliefState, CauseId
+
+    marginals = {c: 0.02 for c in CauseId}
+    marginals[CauseId.SENSOR_ARTIFACT] = 0.90
+    marginals[CauseId.INFECTION] = 0.80
+    belief = BeliefState(marginals=marginals, p_illness=0.80)
+
+    assert determine_disposition(belief, rung=BaselineRung.MATURE) == Disposition.LIKELY_ILLNESS

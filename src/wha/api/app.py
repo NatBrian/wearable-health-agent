@@ -228,13 +228,6 @@ def submit_review(episode_id: str, body: DecisionBody) -> dict[str, str]:
     return {"status": "recorded"}
 
 
-@app.post("/measurements/{measurement_id}/done")
-def submit_measurement(measurement_id: str) -> dict[str, str]:
-    """Record that a requested hand-taken reading was done."""
-    service.submit_measurement_done(measurement_id)
-    return {"status": "recorded"}
-
-
 # ------------------------------------------------------------------ conversation
 
 

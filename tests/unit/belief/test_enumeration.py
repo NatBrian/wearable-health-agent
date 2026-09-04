@@ -1,4 +1,14 @@
-"""Unit tests for the 4096 state presence matrix and exact log-space inference."""
+"""The 4096 state presence matrix and exact log-space inference.
+
+These called `run_exact_inference`, which was deleted on 5 September 2026. It was a second
+implementation of the same inference `update_belief` performs, coverage over a production
+run showed it never executing, and the two had ALREADY diverged once: it defaulted cycle
+applicability to True while `update_belief` treated unknown as inert, so the two entry
+points returned different posteriors for identical input.
+
+Pointed at the live path instead. A test of the arithmetic is worth more when it tests the
+copy of the arithmetic that runs.
+"""
 
 from datetime import date, timedelta
 
@@ -7,7 +17,7 @@ import numpy as np
 from wha.belief import (
     PRESENT,
     load_causes,
-    run_exact_inference,
+    update_belief,
 )
 from wha.models import (
     CauseId,
@@ -47,7 +57,7 @@ def test_state_matrix_shape_and_content() -> None:
 def test_posterior_sums_to_one() -> None:
     """Posterior distribution over all 4096 states sums to 1.0."""
     dets = [_make_det(0, 3.5), _make_det(1, 4.0)]
-    belief = run_exact_inference(dets)
+    belief = update_belief(dets)
 
     # Reconstruct state posterior from state_logprob
     state_probs = np.exp(np.array(belief.state_logprob) - np.max(belief.state_logprob))
@@ -59,7 +69,7 @@ def test_posterior_sums_to_one() -> None:
 def test_marginals_do_not_sum_to_one() -> None:
     """Marginals represent independent cause contribution probabilities and do NOT sum to 1."""
     dets = [_make_det(0, 4.5), _make_det(1, 4.5)]
-    belief = run_exact_inference(dets)
+    belief = update_belief(dets)
 
     marginal_sum = sum(belief.marginals.values())
     # With 12 causes and high residual, multiple causes have positive probability, sum > 1.0
@@ -76,7 +86,7 @@ def test_no_evidence_returns_priors() -> None:
     priors = load_causes()
     prior_map = {p.cause: p.base_rate for p in priors}
 
-    belief = run_exact_inference([], luteal_applicable=True)
+    belief = update_belief([], luteal_applicable=True)
     for cause, prob in belief.marginals.items():
         expected_prob = prior_map[cause]
         assert abs(prob - expected_prob) < 1e-5
@@ -89,8 +99,8 @@ def test_unasked_cycle_leaves_luteal_inert() -> None:
     direction only: luteal is the largest benign effect in causes.yaml, so granting it a
     0.450 base rate lets it explain away the elevations the system exists to investigate.
     """
-    unknown = run_exact_inference([])
-    applicable = run_exact_inference([], luteal_applicable=True)
+    unknown = update_belief([])
+    applicable = update_belief([], luteal_applicable=True)
 
     assert unknown.marginals[CauseId.LUTEAL] < 1e-6
     assert applicable.marginals[CauseId.LUTEAL] > 0.4
@@ -99,7 +109,7 @@ def test_unasked_cycle_leaves_luteal_inert() -> None:
 def test_log_space_no_underflow() -> None:
     """Ten consecutive nights of large residuals stays finite and non-uniform without underflow."""
     dets = [_make_det(i, 8.0) for i in range(10)]
-    belief = run_exact_inference(dets)
+    belief = update_belief(dets)
 
     for prob in belief.marginals.values():
         assert not np.isnan(prob)
@@ -114,8 +124,8 @@ def test_log_space_no_underflow() -> None:
 def test_recompute_is_deterministic() -> None:
     """Recomputing inference on identical inputs produces bit-identical marginals."""
     dets = [_make_det(0, 3.8), _make_det(1, 4.2), _make_det(2, 5.0)]
-    b1 = run_exact_inference(dets)
-    b2 = run_exact_inference(dets)
+    b1 = update_belief(dets)
+    b2 = update_belief(dets)
 
     assert b1.marginals == b2.marginals
     assert b1.p_illness == b2.p_illness
