@@ -1140,7 +1140,6 @@ def node_conclude(
                 "nodes_ran": sorted(
                     {"preload", "investigate", "believe", "decide", "conclude", "critique"}
                     | ({"ask"} if answers else set())
-                    | ({"measure"} if state.get("measurements") else set())
                 ),
                 "tool_calls": [
                     {

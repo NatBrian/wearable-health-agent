@@ -34,13 +34,19 @@ from wha.models import (
 )
 from wha.policy.probes import load_probes
 
+# One entry per node in `wha.agent.graph`, in execution order, and NOTHING ELSE. The Trace
+# tab renders this list, so a name here that the graph does not have is shown to a person as
+# a stage of their own investigation that is permanently pending. "measure" was exactly that:
+# `node_measure` was deleted, this list was not updated, and the Trace tab went on
+# advertising "Request spot resting heart rate or overnight wear" for a limb that no longer
+# existed, explaining its absence with "No spot reading was requested". Found by opening the
+# tab, 5 September 2026.
 CANONICAL_STAGES = [
     ("preload", "Fetch preloaded nightly features, baselines, and quality metrics"),
     ("investigate", "Query closed T1 tools for clinical context and evidence"),
     ("believe", "Enumerate exact 4096-state joint belief over 12 causes"),
     ("decide", "Select EVSI-optimal action and evaluate veto policy"),
     ("ask", "Prompt user for targeted symptom/exposure probe"),
-    ("measure", "Request spot resting heart rate or overnight wear"),
     ("conclude", "Draft structured clinical outcome with bounded differential"),
     ("critique", "Verify deterministic claim grounding and strip ungrounded assertions"),
     ("review", "Human clinician or supervisor review checkpoint"),
@@ -588,8 +594,6 @@ def _pipeline_stages(trace: dict[str, Any]) -> list[PipelineStage]:
             reason = f"{description}. Not needed for this episode."
             if name == "ask":
                 reason = "No question was worth its interruption, so none was asked."
-            elif name == "measure":
-                reason = "No spot reading was requested."
             elif name == "review":
                 reason = "This episode has not reached the review checkpoint."
             stages.append(

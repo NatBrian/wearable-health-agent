@@ -18,6 +18,7 @@ from wha.service import (
     get_pending_interaction,
     submit_answer,
 )
+from wha.service.episodes import CANONICAL_STAGES
 
 
 def _seed_sample_episode(conn) -> tuple[str, str, str]:
@@ -218,7 +219,13 @@ def test_episode_detail_includes_skipped_stages() -> None:
 
     detail = get_episode(ep_id, conn=conn)
     assert detail.summary.episode_id == ep_id
-    assert len(detail.stages) == 9
+
+    # Was `== 9`, which counted the deleted `measure` limb. The graph has eight nodes and
+    # `test_the_trace_advertises_exactly_the_stages_the_graph_has` is what holds that to
+    # the graph, so this asserts every canonical stage is present rather than a number
+    # that has to be remembered when a node is added or removed.
+    assert len(detail.stages) == len(CANONICAL_STAGES)
+    assert [s.name for s in detail.stages] == [name for name, _ in CANONICAL_STAGES]
 
     stage_map = {s.name: s for s in detail.stages}
     assert stage_map["preload"].status == StageStatus.RAN
@@ -264,3 +271,44 @@ def test_episode_detail_includes_rejected_probes() -> None:
     assert len(interaction.rejected) == 2
     assert interaction.rejected[0] == ("probe_exertion", 0.12)
     assert interaction.rejected[1] == ("probe_stress", 0.08)
+
+
+def test_the_trace_advertises_exactly_the_stages_the_graph_has() -> None:
+    """A name in CANONICAL_STAGES that the graph lacks is shown as permanently pending.
+
+    That is what a person sees on the Trace tab: a stage of their own investigation with a
+    description of what it does and a reason it did not happen. "measure" sat there after
+    `node_measure` was deleted, saying "Request spot resting heart rate or overnight wear"
+    and "No spot reading was requested", for a limb that no longer existed. Found by
+    opening the tab. Nothing failed, because nothing compared the two lists.
+
+    Read from the compiled graph rather than a hand-written list, so adding a node without
+    telling the Trace tab fails here too, in the other direction.
+    """
+    import ast
+    from pathlib import Path
+
+    graph_src = Path(__file__).resolve().parents[3] / "src" / "wha" / "agent" / "graph.py"
+    tree = ast.parse(graph_src.read_text(encoding="utf-8"))
+
+    in_graph: list[str] = []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "add_node"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+        ):
+            in_graph.append(str(node.args[0].value))
+
+    assert in_graph, "no add_node calls found, so this test proves nothing"
+
+    advertised = [name for name, _ in CANONICAL_STAGES]
+    assert advertised == in_graph, (
+        f"the Trace tab and the graph disagree.\n"
+        f"  advertised but not in the graph: {sorted(set(advertised) - set(in_graph))}\n"
+        f"  in the graph but never shown:    {sorted(set(in_graph) - set(advertised))}\n"
+        f"  order advertised: {advertised}\n"
+        f"  order in graph:   {in_graph}"
+    )
