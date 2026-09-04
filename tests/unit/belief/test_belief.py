@@ -129,7 +129,12 @@ def test_answer_updates_only_target_cause_materially() -> None:
     dets = [_make_det(0, 3.5)]
     b_before = update_belief(dets, luteal_applicable=True)
 
-    ans_drinking = Answer(probe_id="probe_alcohol", option_id="three")
+    # "three" was the "3 to 4 drinks" slot. probe_alcohol now has two options, because
+    # the belief model has a single on-off alcohol switch and all three drinking answers
+    # did the same thing, so the question was spending an interruption on a detail nothing
+    # could use. An option id that no longer exists contributes no likelihood factor at
+    # all, which is why this test measured a zero shift rather than a small one.
+    ans_drinking = Answer(probe_id="probe_alcohol", option_id="yes")
     b_after = update_belief(dets, answers=[ans_drinking], luteal_applicable=True)
 
     alc_shift = abs(b_after.marginals[CauseId.ALCOHOL] - b_before.marginals[CauseId.ALCOHOL])

@@ -253,3 +253,40 @@ on refusing every question about a condition.
 **Now:** the newest snapshot is resolved from the index page at fetch time, so the entry
 cannot rot again, and the snapshot actually used is recorded with its SHA-256 in
 `data/knowledge/corpus-sources.json`.
+
+---
+
+## 2026-09-05 — `probes.yaml`, the alcohol question drops to two options
+
+**Changed:** `probe_alcohol.answer_space` from `None / 1 to 2 / 3 to 4 / 5 or more` to
+`None / Yes`, and the likelihood rows from four columns to two, summing the three drinking
+columns.
+
+**Why.** The belief model has a single on-off alcohol switch. All three drinking answers
+produced exactly the same posterior, so a whole interruption was being spent collecting a
+detail nothing could use, and the question implied a precision the model does not have.
+The merge is the only one that leaves the belief unchanged for anyone who would have
+answered any of the three.
+
+**Not scaled by amount, deliberately.** The paper supports dose dependence, but no
+published figure maps "3 to 4 drinks" to a number of beats. Building that would mean
+inventing exactly the kind of number this directory is not allowed to contain. The free
+text is still recorded, so the detail is not lost.
+
+**Two tests restated, not weakened.** One passed `option_id="three"`, which no longer
+exists, so it contributed no likelihood factor at all and measured a zero shift. The other
+passed two labels against a four-slot probe to trigger a mismatch, and two now matches; it
+passes three instead. Both are about the mechanism, not about a particular count.
+
+---
+
+## 2026-09-05 — `causes.yaml`, what the alcohol figures actually measure
+
+**Changed:** the `citation` block. No figure moved.
+
+**Why.** It presented Grosicki's 2.8 and 2.4 bpm as per-drink effects. They are the
+contrast between **one drink above** a person's own average and **one drink below** it, a
+two-drink span, not the effect of drinking against not drinking. Reading them as per-drink
+and taking the midpoint gives the stored 2.60. That is defensible for "drank last night"
+only because the span brackets it, and the file now says so rather than leaving a reader
+to infer a measurement the paper did not make.

@@ -127,7 +127,11 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
                         "Resting heart rate",
                         f"{feat.rhr_bpm:.1f} bpm" if feat.rhr_bpm is not None else "n/a",
                     )
-                    st.caption("Measured between midnight and 7am.")
+                    st.caption(
+                        "Measured over the sleep your watch recorded."
+                        if getattr(feat, "rhr_window_source", "clock") == "sleep"
+                        else "Measured between midnight and 7am, because no sleep was recorded."
+                    )
                     st.metric(
                         "Your usual for this period",
                         f"{base.centre_bpm:.1f} bpm" if base.centre_bpm is not None else "n/a",

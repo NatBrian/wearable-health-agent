@@ -598,8 +598,13 @@ documents:
 
 
     Source: Grosicki et al., PLOS Digit Health 2026;5(3):e0001284. n=20,968, 5,109,185 person-days,
-    within-person. Per-drink RHR +2.8 bpm (99.9% CI 2.7-2.9) in females, +2.4 (2.3-2.4) in
-    males. Base rate: alcohol consumed on 29.9 percent of person-days in the same cohort.
+    within-person. Base rate: alcohol consumed on 29.9 percent of person-days in the same
+    cohort. WHAT THE 2.8 AND 2.4 FIGURES ACTUALLY ARE, corrected 5 September 2026: they are
+    the contrast between ONE DRINK ABOVE a person''s own average and ONE DRINK BELOW it, a
+    two-drink span, not the effect of drinking against not drinking. Reading them as per-drink
+    and taking the midpoint gives 2.60, which this row uses. That is a defensible figure for
+    "drank last night" only because the span brackets it; it is not what the paper measured,
+    and it is stated here rather than left to be inferred.
 
 
     ## How it behaves over successive nights
@@ -622,9 +627,13 @@ documents:
     cause_id: alcohol
     layer: 4
     citation: 'Grosicki et al., PLOS Digit Health 2026;5(3):e0001284. n=20,968, 5,109,185
-      person-days, within-person. Per-drink RHR +2.8 bpm (99.9% CI 2.7-2.9) in females, +2.4
-      (2.3-2.4) in males. Base rate: alcohol consumed on 29.9 percent of person-days in the
-      same cohort.'
+      person-days, within-person. Base rate: alcohol consumed on 29.9 percent of person-days
+      in the same cohort. WHAT THE 2.8 AND 2.4 FIGURES ACTUALLY ARE, corrected 5 September
+      2026: they are the contrast between ONE DRINK ABOVE a person''s own average and ONE
+      DRINK BELOW it, a two-drink span, not the effect of drinking against not drinking. Reading
+      them as per-drink and taking the midpoint gives 2.60, which this row uses. That is a
+      defensible figure for "drank last night" only because the span brackets it; it is not
+      what the paper measured, and it is stated here rather than left to be inferred.'
 - doc_id: confounder_exertion
   title: 'Confounder evidence: Unrecorded or under-recorded exertion'
   layer: 4
@@ -1233,11 +1242,7 @@ documents:
 
     - **none**: "None"
 
-    - **one2**: "1 to 2"
-
-    - **three**: "3 to 4"
-
-    - **five**: "5 or more"
+    - **yes**: "Yes"
 
 
     ## How much each answer moves the belief
@@ -1249,11 +1254,7 @@ documents:
 
     - "None": 0.10 if present, 0.92 if absent.
 
-    - "1 to 2": 0.40 if present, 0.06 if absent.
-
-    - "3 to 4": 0.35 if present, 0.01 if absent.
-
-    - "5 or more": 0.15 if present, 0.01 if absent.
+    - "Yes": 0.90 if present, 0.08 if absent.
 
 
     ## How reliable these numbers are
@@ -1268,7 +1269,9 @@ documents:
 
     Under-reporting is well documented in the general self-report literature but has not been
     quantified for a next-morning app prompt. The 10 percent "none" given present encodes
-    both under-reporting and recall error. Set conservatively.'
+    both under-reporting and recall error. The two rows are the previous four with the three
+    drinking options summed, which is the only merge that leaves the belief unchanged for
+    anyone who would have answered any of them.'
   metadata:
     topic: probe_evidence
     probe_id: probe_alcohol

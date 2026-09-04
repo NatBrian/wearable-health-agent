@@ -627,6 +627,12 @@ def node_ask(
             evsi=question.probe.evsi,
             interruption_cost=question.probe.interruption_cost,
             rejected=list(action.rejected),
+            # Whether the model wrote this sentence or the canned one was used. The
+            # column defaults to "fallback" and nothing ever passed anything, so every
+            # question in the record claimed the canned wording had been used, including
+            # the ones the model wrote. That is the single field the Audit page uses to
+            # show which words came from where.
+            text_source=updated_question.text_source,
         )
 
     # 3. Idempotent send notification: check if already sent
@@ -844,15 +850,16 @@ def _enforce_claims(
     claims: list[OutcomeClaim],
     passages: list[dict[str, Any]],
     observation: str,
-) -> tuple[str, list[Citation], int]:
+) -> tuple[str, list[Citation], int, list[str]]:
     """Check each claim against the retrieved text, and strip the ones that fail.
 
     Returns the observation with unsupported claims removed, the citations that actually
-    support what remains, and the count of claims that failed. Attribution is decided by
-    :func:`enforce_grounding` from where the span was found, not by what the model said.
+    support what remains, the count of claims that failed, and their text. Attribution is
+    decided by :func:`enforce_grounding` from where the span was found, not by what the
+    model said.
     """
     if not claims:
-        return observation, [], 0
+        return observation, [], 0, []
 
     # Two Citation models exist. wha.retrieve.models.Citation is what the grounding check
     # searches; wha.models.Citation is what an EpisodeOutcome records. Conflating them
@@ -872,15 +879,22 @@ def _enforce_claims(
 
     grounded_texts = {c.text for c in grounded}
     cleaned = observation
+    stripped: list[str] = []
     for claim in claims:
-        if claim.text and claim.text not in grounded_texts and claim.text in cleaned:
+        if claim.text and claim.text not in grounded_texts:
             # Stripped before display, per the contract. A claim whose span is not in any
             # retrieved passage does not get to appear in the prose a person reads.
-            cleaned = cleaned.replace(claim.text, "").strip()
+            #
+            # Recorded as well as removed. The episode view assigned `stripped_claims` an
+            # empty list and never filled it, so the panel whose whole job is to show what
+            # was taken out showed a green tick even on episodes where something was.
+            stripped.append(claim.text)
+            if claim.text in cleaned:
+                cleaned = cleaned.replace(claim.text, "").strip()
 
     cited_ids = {c.citation for c in grounded if c.citation}
     supporting = _citations_for([p for p in passages if str(p.get("chunk_id", "")) in cited_ids])
-    return cleaned or observation, supporting, unsupported
+    return cleaned or observation, supporting, unsupported, stripped
 
 
 def _episode_numbers(state: EpisodeState) -> set[float]:
@@ -1012,16 +1026,25 @@ def node_conclude(
 
     answers = state.get("answers", [])
 
+    # The subject's real baseline, fetched once. The rung decides the disposition, and both
+    # figures go into the outcome, where they were hardcoded to 28 nights and MATURE.
+    #
+    # Assuming a mature baseline let a cold-start subject be given a confident disposition
+    # off two nights of data, which is precisely what INSUFFICIENT_DATA exists to prevent.
+    conclude_rung = BaselineRung.MATURE
+    conclude_nights = len(nights)
+    if db is not None and hasattr(db, "get_baseline"):
+        stored = db.get_baseline(state.get("subject_id", ""), local_today())
+        if stored is not None:
+            conclude_rung = stored.rung
+            conclude_nights = stored.usable_nights
+    elif db is not None and hasattr(db, "get_baseline_rung"):
+        conclude_rung = db.get_baseline_rung(state.get("subject_id", ""), local_today())
+
     action_model = state.get("action")
     if action_model is not None and action_model.disposition is not None:
         disposition = action_model.disposition
     else:
-        # The subject's real rung, not an assumed MATURE. Assuming a mature baseline here
-        # let a cold-start subject be given a confident disposition off two nights of data,
-        # which is precisely what INSUFFICIENT_DATA exists to prevent.
-        conclude_rung = BaselineRung.MATURE
-        if db is not None and hasattr(db, "get_baseline_rung"):
-            conclude_rung = db.get_baseline_rung(state.get("subject_id", ""), local_today())
         disposition = determine_disposition(
             belief,
             rung=conclude_rung,
@@ -1046,8 +1069,20 @@ def node_conclude(
     passages = _retrieved_passages(state.get("tool_calls", []))
 
     observation = f"Observed {len(nights)} nights. Primary finding: {disposition.value}."
+    # An ESCALATED episode used to record its recommended action as "monitor", because the
+    # expression here was a two-way choice over a five-way disposition. The record then
+    # said the system had told somebody to keep an eye on it, on the one occasion it had
+    # told them to seek care now.
+    action_by_disposition: dict[Disposition, str] = {
+        Disposition.ESCALATED: "seek_urgent_care",
+        Disposition.LIKELY_ILLNESS: "rest",
+        Disposition.UNRESOLVED: "monitor",
+        Disposition.LIKELY_BENIGN: "monitor",
+        Disposition.EXPLAINED_BY_EVENT: "monitor",
+        Disposition.INSUFFICIENT_DATA: "monitor",
+    }
     action_val: Literal["rest", "monitor", "seek_same_day_care", "seek_urgent_care"] = (
-        "rest" if disposition == Disposition.LIKELY_ILLNESS else "monitor"
+        action_by_disposition.get(disposition, "monitor")  # type: ignore[assignment]
     )
     # Selected, never written. The two lines that used to sit here duplicated the general
     # wording in red_flags.yaml, and the first of them asserted a ">3 nights" threshold
@@ -1062,6 +1097,7 @@ def node_conclude(
     # Which sentences survived grounding is reported separately as unsupported_claims.
     citations = _citations_for(passages)
     unsupported_claims = 0
+    stripped_claims: list[str] = []
 
     client = llm_client or get_llm_client()
     try:
@@ -1092,7 +1128,7 @@ def node_conclude(
         # Claim-to-source enforcement, which the contract specifies as a deterministic
         # verbatim containment test rather than a judgement. The model's claims were
         # parsed and then dropped on the floor, so this never ran on anything.
-        observation, _, unsupported_claims = _enforce_claims(
+        observation, _, unsupported_claims, stripped_claims = _enforce_claims(
             claims=outcome_res.claims,
             passages=passages,
             observation=observation,
@@ -1115,8 +1151,12 @@ def node_conclude(
         closed_on=closed_on,
         disposition=disposition,
         observation=observation,
-        baseline_nights=28,
-        baseline_rung=BaselineRung.MATURE,
+        # The real figures, which this function already fetched a few lines above to
+        # decide the disposition. These were hardcoded, so every outcome ever written
+        # claimed 28 nights and a fully established baseline, including outcomes for
+        # subjects with four.
+        baseline_nights=conclude_nights,
+        baseline_rung=conclude_rung,
         differential=differential,
         # Both the facts extracted from tool output and the passages that were actually
         # cited. Naming only the fact fields described where a number came from and never
@@ -1135,6 +1175,35 @@ def node_conclude(
         interruptions_used_this_week=_interruptions_this_week(db, state.get("subject_id", "")),
         depth_used_this_episode=state.get("depth_used", 0),
     )
+
+    # What the agent actually did, written by the graph that did it. The Trace tab used to
+    # infer this by matching stage names against the audit log's `operation` column, which
+    # holds ten fixed values and none of them is a stage name, so every stage on every
+    # episode was reported as skipped with an invented reason.
+    if db is not None and hasattr(db, "record_episode_trace"):
+        db.record_episode_trace(
+            episode_id=state.get("episode_id", ""),
+            payload={
+                "nodes_ran": sorted(
+                    {"preload", "investigate", "believe", "decide", "conclude", "critique"}
+                    | ({"ask"} if answers else set())
+                    | ({"measure"} if state.get("measurements") else set())
+                ),
+                "tool_calls": [
+                    {
+                        "tool_name": call.get("tool_name"),
+                        "args": call.get("args", {}),
+                        "ok": call.get("ok", True),
+                        "note": call.get("note") or call.get("error"),
+                    }
+                    for call in state.get("tool_calls", [])
+                ],
+                "tool_call_count": state.get("tool_call_count", 0),
+                "depth_used": state.get("depth_used", 0),
+                "stripped_claims": stripped_claims,
+                "questions_asked": len(answers),
+            },
+        )
 
     return {
         "draft": draft,

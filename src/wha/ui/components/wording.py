@@ -56,7 +56,11 @@ DISPOSITION_PHRASES: dict[str, Phrase] = {
         "LIKELY_ILLNESS",
     ),
     Disposition.LIKELY_BENIGN.value: Phrase(
-        "Probably nothing to worry about",
+        # This read "Probably nothing to worry about", and "nothing to worry about" is on
+        # the `never_say` list in red_flags.yaml. The phrase filter runs on what the MODEL
+        # writes and not on the interface's own words, so the system was breaking its own
+        # safety rule in a string it shipped. See test_no_interface_phrase_is_on_never_say.
+        "Nothing points towards illness",
         "Nothing here points towards illness. Keep an eye on how you feel.",
         "LIKELY_BENIGN",
     ),

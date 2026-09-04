@@ -357,3 +357,26 @@ CREATE TABLE IF NOT EXISTS subject_profile (
   notes_for_doctor TEXT,
   updated_at_utc   TEXT NOT NULL
 );
+
+-- What the agent actually did in an episode, recorded by the graph rather than inferred.
+--
+-- Added 5 September 2026, schema v8. The Trace tab listed nine stages and marked EVERY ONE
+-- as skipped, on every episode, with an invented reason: "Ask probe not selected by EVSI
+-- optimizer" appeared on episodes whose own summary said a question had been asked. The
+-- cause was that `get_episode` matched stage names against the `operation` column of the
+-- audit log, which holds ten fixed values and none of them is a stage name, so no row
+-- could ever match and the fallback branch ran every time.
+--
+-- The audit log was rejected as the fix. Writing a row per node roughly triples it and
+-- buries the tool calls, which are the entries that matter. The graph already knows which
+-- nodes ran, so it records that here.
+--
+-- Also holds the claims the grounding check removed. `stripped_claims` on the episode view
+-- was assigned an empty list and never filled, so the panel that exists to show what was
+-- taken out of the prose showed a green tick on every episode, including ones where a
+-- claim had genuinely been stripped.
+CREATE TABLE IF NOT EXISTS episode_traces (
+  episode_id     TEXT PRIMARY KEY REFERENCES episodes(episode_id),
+  payload_json   TEXT NOT NULL,
+  updated_at_utc TEXT NOT NULL
+);

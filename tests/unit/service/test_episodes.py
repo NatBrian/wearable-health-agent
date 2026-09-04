@@ -104,16 +104,30 @@ def _seed_sample_episode(conn) -> tuple[str, str, str]:
         (ep_id, "1.0", outcome.model_dump_json(), "2026-08-16T08:00:00Z"),
     )
 
-    # Audit event for preload and investigate ran
+    # What the agent did, as node_conclude records it.
+    #
+    # This used to insert audit rows with operation "preload" and "investigate", which the
+    # AuditEvent model does not permit: the column holds ten fixed values and neither of
+    # those is one of them. So the fixture built a database state production can never
+    # produce, and that is why the Trace tab reporting every stage as skipped on every
+    # real episode went unnoticed by a passing test.
     conn.execute(
-        """INSERT INTO audit_events (event_id, subject_id, episode_id, timestamp_utc, actor, operation, hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        ("ev_01", sub_id, ep_id, "2026-08-15T08:00:00Z", "agent", "preload", "hash01"),
-    )
-    conn.execute(
-        """INSERT INTO audit_events (event_id, subject_id, episode_id, timestamp_utc, actor, operation, hash)
-           VALUES (?, ?, ?, ?, ?, ?, ?)""",
-        ("ev_02", sub_id, ep_id, "2026-08-15T08:01:00Z", "agent", "investigate", "hash02"),
+        """INSERT INTO episode_traces (episode_id, payload_json, updated_at_utc)
+           VALUES (?, ?, ?)""",
+        (
+            ep_id,
+            json.dumps(
+                {
+                    "nodes_ran": ["preload", "investigate", "believe", "decide"],
+                    "tool_calls": [{"tool_name": "get_nightly_features", "args": {}, "ok": True}],
+                    "tool_call_count": 1,
+                    "depth_used": 0,
+                    "stripped_claims": ["An unsupported sentence."],
+                    "questions_asked": 1,
+                }
+            ),
+            "2026-08-15T08:01:00Z",
+        ),
     )
     conn.commit()
 
@@ -212,6 +226,30 @@ def test_episode_detail_includes_skipped_stages() -> None:
     # Skipped stages are present in list and have explicit reasons
     assert stage_map["review"].status == StageStatus.SKIPPED
     assert "review" in stage_map["review"].reason.lower()
+
+    # The expander in wha/ui/components/pipeline_trace.py is written and has never had
+    # anything to render, because detail_json was always an empty dict.
+    assert stage_map["investigate"].detail_json["tool_calls"], "the tool calls are not shown"
+
+    # And the panel that shows what the grounding check removed had a green tick on every
+    # episode, because stripped_claims was assigned an empty list and never filled.
+    assert detail.stripped_claims == ["An unsupported sentence."]
+
+
+def test_an_episode_with_no_trace_is_pending_rather_than_skipped() -> None:
+    """ "We did not write it down" is a different claim from "it did not run".
+
+    Episodes closed before the trace record existed must not be reported as having
+    skipped every stage, which is what the old inference did to every episode.
+    """
+    conn = connect(":memory:")
+    apply_schema(conn)
+    _sub_id, ep_id, _int_id = _seed_sample_episode(conn)
+    conn.execute("DELETE FROM episode_traces WHERE episode_id = ?", (ep_id,))
+    conn.commit()
+
+    detail = get_episode(ep_id, conn=conn)
+    assert {s.status for s in detail.stages} == {StageStatus.PENDING}
 
 
 def test_episode_detail_includes_rejected_probes() -> None:

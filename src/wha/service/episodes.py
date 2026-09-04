@@ -499,47 +499,13 @@ def get_episode(
                 )
             )
 
-        # 5. Citations & Stripped Claims
+        # 5. Citations, and the claims the grounding check removed.
         citations = outcome.citations if outcome else []
-        stripped_claims: list[str] = []
+        trace = _episode_trace(conn, episode_id)
+        stripped_claims: list[str] = list(trace.get("stripped_claims", []))
 
-        # 6. Pipeline stages derivation (Canonical stages: ran vs skipped with explicit reason)
-        audit_rows = conn.execute(
-            "SELECT operation, latency_ms, safety_event, input_json, output_json FROM audit_events WHERE episode_id = ?",
-            (episode_id,),
-        ).fetchall()
-        op_map = {ar["operation"]: ar for ar in audit_rows}
-
-        stages: list[PipelineStage] = []
-        for stg_name, default_reason in CANONICAL_STAGES:
-            if stg_name in op_map:
-                ar = op_map[stg_name]
-                stages.append(
-                    PipelineStage(
-                        name=stg_name,
-                        status=StageStatus.RAN,
-                        reason=f"Executed stage {stg_name}",
-                        duration_ms=ar["latency_ms"],
-                        detail_json={},
-                    )
-                )
-            else:
-                # Inferred skipped stage with recorded reason
-                skip_reason = f"Stage {stg_name} skipped: not invoked in policy sequence"
-                if stg_name == "review":
-                    skip_reason = "Human review checkpoint bypassed (direct auto-approval)"
-                elif stg_name in ("ask", "measure"):
-                    skip_reason = f"{stg_name.capitalize()} probe not selected by EVSI optimizer"
-
-                stages.append(
-                    PipelineStage(
-                        name=stg_name,
-                        status=StageStatus.SKIPPED,
-                        reason=skip_reason,
-                        duration_ms=None,
-                        detail_json={},
-                    )
-                )
+        # 6. What the agent actually did, from the record the graph wrote.
+        stages = _pipeline_stages(trace)
 
         # Build summary
         top_cause = None
@@ -575,6 +541,86 @@ def get_episode(
     finally:
         if close_conn:
             conn.close()
+
+
+def _episode_trace(conn: sqlite3.Connection, episode_id: str) -> dict[str, Any]:
+    """What `node_conclude` recorded about this episode, or an empty record."""
+    row = conn.execute(
+        "SELECT payload_json FROM episode_traces WHERE episode_id = ?", (episode_id,)
+    ).fetchone()
+    if row is None or not row["payload_json"]:
+        return {}
+    try:
+        loaded = json.loads(row["payload_json"])
+    except (TypeError, ValueError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _pipeline_stages(trace: dict[str, Any]) -> list[PipelineStage]:
+    """The nine stages, and which of them ran.
+
+    This used to match stage names against the `operation` column of the audit log. That
+    column holds ten fixed values and none of them is a stage name, so nothing could ever
+    match and every stage on every episode was reported SKIPPED with a made-up reason,
+    including "Ask probe not selected by EVSI optimizer" on episodes whose own summary
+    said a question had been asked. The belief chart directly below showed the probability
+    moving, so the page contradicted itself.
+
+    An episode with no trace record predates this and is reported PENDING rather than
+    SKIPPED, because "we did not write it down" is not the same claim as "it did not run".
+    """
+    ran = set(trace.get("nodes_ran", []))
+    tool_calls = list(trace.get("tool_calls", []))
+
+    stages: list[PipelineStage] = []
+    for name, description in CANONICAL_STAGES:
+        if not trace:
+            stages.append(
+                PipelineStage(
+                    name=name,
+                    status=StageStatus.PENDING,
+                    reason="This episode ran before the system recorded which stages ran.",
+                    detail_json={},
+                )
+            )
+            continue
+
+        if name in ran:
+            detail: dict[str, Any] = {}
+            if name == "investigate" and tool_calls:
+                # The expander in wha/ui/components/pipeline_trace.py is written and has
+                # never had data to render.
+                detail = {"tool_calls": tool_calls}
+            elif name == "ask":
+                detail = {"questions_asked": trace.get("questions_asked", 0)}
+            elif name == "critique" and trace.get("stripped_claims"):
+                detail = {"stripped_claims": trace["stripped_claims"]}
+            stages.append(
+                PipelineStage(
+                    name=name,
+                    status=StageStatus.RAN,
+                    reason=description,
+                    detail_json=detail,
+                )
+            )
+        else:
+            reason = f"{description}. Not needed for this episode."
+            if name == "ask":
+                reason = "No question was worth its interruption, so none was asked."
+            elif name == "measure":
+                reason = "No spot reading was requested."
+            elif name == "review":
+                reason = "This episode has not reached the review checkpoint."
+            stages.append(
+                PipelineStage(
+                    name=name,
+                    status=StageStatus.SKIPPED,
+                    reason=reason,
+                    detail_json={},
+                )
+            )
+    return stages
 
 
 def _run_start(conn: sqlite3.Connection, subject_id: str, opened_on: str) -> str:

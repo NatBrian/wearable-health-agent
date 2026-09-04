@@ -1,5 +1,6 @@
 """Implementation of the seven closed T1 read-only tools."""
 
+import statistics
 import urllib.request
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
@@ -7,7 +8,7 @@ from typing import Any
 import yaml
 
 from wha.agent.tools.registry import ToolContext, ToolRegistry, ToolResult
-from wha.constants import INGEST_STALE_WARN_HOURS
+from wha.constants import INGEST_STALE_WARN_HOURS, MIN_NOCTURNAL_MINUTES
 from wha.retrieve.index import HybridIndex
 from wha.safety.injection import scan_untrusted
 
@@ -153,14 +154,67 @@ def tool_get_known_events(args: dict[str, Any], context: ToolContext, db: Any = 
 
 
 def tool_get_data_quality(args: dict[str, Any], context: ToolContext, db: Any = None) -> ToolResult:
-    """Read coverage, missing intervals, and dropped sample statistics."""
+    """How much of each night the watch actually measured, and what was thrown away.
+
+    This returned `{"coverage_ratio": 0.95, "missing_hours": 0.35, "dropped_samples": 0}`,
+    the same three invented numbers for every person on every night, and never looked at
+    the database at all. It received `db` and ignored it.
+
+    That is the one tool whose whole job is to say whether the watch might have misread the
+    night, so the agent was reasoning about data quality from three constants while the
+    belief maths used the real coverage from the same rows. The audit log of a live run
+    shows it reporting 0.95 on nights whose measured coverage was 341 to 362 minutes.
+    """
     start_str = args.get("start") or args.get("start_date")
     end_str = args.get("end") or args.get("end_date")
 
+    nights: list[Any] = []
+    if db is not None and hasattr(db, "get_nightly_features") and start_str and end_str:
+        try:
+            nights = db.get_nightly_features(
+                context.subject_id,
+                date.fromisoformat(str(start_str)),
+                date.fromisoformat(str(end_str)),
+            )
+        except (ValueError, TypeError, AttributeError, OSError):
+            nights = []
+
+    if not nights:
+        return ToolResult(
+            tool_name="get_data_quality",
+            args=args,
+            ok=True,
+            value=None,
+            source_ids=[],
+            as_of_utc=context.now_utc,
+            freshness="missing",
+            note=(
+                f"No nights with any reading between {start_str} and {end_str}, so there "
+                "is nothing to judge the quality of. This is not a report of good quality."
+            ),
+        )
+
+    covered = [n.coverage_minutes for n in nights if n.coverage_minutes is not None]
+    usable = [n for n in nights if n.usable]
+    total_possible = MIN_NOCTURNAL_MINUTES * len(nights)
+
     quality_summary = {
-        "coverage_ratio": 0.95,
-        "missing_hours": 0.35,
-        "dropped_samples": 0,
+        "nights": len(nights),
+        "usable_nights": len(usable),
+        "unusable_nights": len(nights) - len(usable),
+        # Against the coverage floor a night has to clear to be scored at all, so a ratio
+        # of 1.0 means "enough of every night", not "a full night".
+        "coverage_ratio": (
+            round(min(1.0, sum(covered) / total_possible), 3) if total_possible else 0.0
+        ),
+        "median_coverage_minutes": round(statistics.median(covered), 1) if covered else 0.0,
+        "min_coverage_minutes": min(covered) if covered else 0.0,
+        "coverage_floor_minutes": MIN_NOCTURNAL_MINUTES,
+        "dropped_samples": sum(n.implausible_dropped or 0 for n in nights),
+        "worst_nights": [
+            {"night": n.night_date.isoformat(), "coverage_minutes": n.coverage_minutes}
+            for n in sorted(nights, key=lambda x: x.coverage_minutes or 0)[:3]
+        ],
     }
 
     return ToolResult(

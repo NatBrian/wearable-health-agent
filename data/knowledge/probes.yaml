@@ -61,19 +61,29 @@ probes:
     target_cause: alcohol
     interruption_cost: 1.0
     fallback_text: "Did you have any alcohol last night?"
+    # TWO OPTIONS, not four. This offered "None", "1 to 2", "3 to 4" and "5 or more", and
+    # the belief model has a single on-off alcohol switch, so all three drinking answers
+    # did exactly the same thing. The question spent a whole interruption collecting a
+    # detail nothing could use, and implied a precision the model does not have.
+    #
+    # Scaling the effect by the reported amount was the alternative and is not taken. The
+    # paper supports dose dependence, but no published figure maps "3 to 4 drinks" to a
+    # number of beats, so building it would mean inventing exactly the kind of number this
+    # file is not allowed to contain. The free text is still recorded, so the detail is not
+    # lost; it simply does not pretend to feed the arithmetic.
     answer_space:
-      - {option_id: none,  label: "None"}
-      - {option_id: one2,  label: "1 to 2"}
-      - {option_id: three, label: "3 to 4"}
-      - {option_id: five,  label: "5 or more"}
+      - {option_id: none, label: "None"}
+      - {option_id: "yes", label: "Yes"}
     likelihood:
-      present: {none: 0.10, one2: 0.40, three: 0.35, five: 0.15}
-      absent:  {none: 0.92, one2: 0.06, three: 0.01, five: 0.01}
+      present: {none: 0.10, "yes": 0.90}
+      absent:  {none: 0.92, "yes": 0.08}
     provenance: ASSUMED
     assumption: >
       Under-reporting is well documented in the general self-report literature but has not
       been quantified for a next-morning app prompt. The 10 percent "none" given present
-      encodes both under-reporting and recall error. Set conservatively.
+      encodes both under-reporting and recall error. The two rows are the previous four
+      with the three drinking options summed, which is the only merge that leaves the
+      belief unchanged for anyone who would have answered any of them.
 
   - probe_id: probe_exertion
     target_cause: exertion

@@ -195,16 +195,28 @@ def render_last_night_summary(subject_id: str, status: SystemStatus | None = Non
     else:
         st.info(f"**{phrase.label}.** {phrase.explanation}")
 
+    # Say which window this night was actually measured over. It said "between midnight
+    # and 7am" on every night, including the ones measured over the sleep the watch
+    # recorded, which is the design decision this project is proudest of. The History page
+    # described it correctly and the main screen did not.
+    over_sleep = getattr(n, "rhr_window_source", "clock") == "sleep"
+    window_words = (
+        "over the sleep your watch recorded"
+        if over_sleep
+        else "between midnight and 7am, because no sleep was recorded"
+    )
     st.caption(
         f"Night of {n.night_date}. Your watch was in contact for "
-        f"{n.coverage_minutes} minutes between midnight and 7am."
+        f"{n.coverage_minutes} minutes {window_words}."
     )
 
     with st.expander("Show the numbers"):
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Resting heart rate", f"{n.rhr_bpm:.1f} bpm")
-            st.caption("Your lowest sustained rate between midnight and 7am.")
+            # It is the MEDIAN across the window, not a minimum. A lowest sustained rate
+            # is a different statistic and would move for different reasons.
+            st.caption(f"The middle of your readings across that window, taken {window_words}.")
         with col2:
             st.metric(
                 "Compared with your usual",
@@ -217,8 +229,10 @@ def render_last_night_summary(subject_id: str, status: SystemStatus | None = Non
                 f"{n.residual_bpm:+.1f} bpm" if n.residual_bpm is not None else "n/a",
             )
             st.caption(
-                "The same difference after subtracting what a recorded workout or "
-                "short sleep would be expected to add. This is what gets judged."
+                "The same difference after subtracting what a recorded workout would be "
+                "expected to add. This is what gets judged. Short sleep is NOT subtracted: "
+                "it is weighed as one of the twelve explanations instead, because "
+                "subtracting an uncertain quantity would manufacture confidence."
             )
 
         st.write(f"In words: {describe_bpm_difference(n.residual_bpm)}.")

@@ -459,6 +459,23 @@ class EpisodeRepository:
         )
         self._conn.commit()
 
+    def record_episode_trace(self, episode_id: str, payload: dict[str, Any]) -> None:
+        """What the agent did in this episode, written by the graph that did it.
+
+        Replaces inferring the Trace tab from the audit log's `operation` column, which
+        holds ten fixed values, none of them a stage name, so nothing ever matched and
+        every stage on every episode was reported as skipped.
+        """
+        self._conn.execute(
+            """INSERT INTO episode_traces (episode_id, payload_json, updated_at_utc)
+               VALUES (?, ?, ?)
+               ON CONFLICT(episode_id) DO UPDATE SET
+                 payload_json = excluded.payload_json,
+                 updated_at_utc = excluded.updated_at_utc""",
+            (episode_id, json.dumps(payload, default=str), to_iso(datetime.now(UTC))),
+        )
+        self._conn.commit()
+
     def get_profile_menstruates(self, subject_id: str) -> bool | None:
         """Whether this person menstruates, from the Settings profile, or None if unset.
 

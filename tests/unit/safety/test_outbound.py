@@ -10,7 +10,7 @@ def test_outbound_rejects_url() -> None:
         kind="QUESTION",
         text="Visit https://malicious-site.com/survey to log your symptoms.",
         probe_id="probe_alcohol",
-        option_labels=["None", "1 to 2", "3 to 4", "5 or more"],
+        option_labels=["None", "Yes"],
     )
 
     res = validate_outbound(msg)
@@ -21,13 +21,18 @@ def test_outbound_rejects_url() -> None:
 
 
 def test_outbound_rejects_slot_mismatch() -> None:
-    """Option labels whose count does not match the probe's answer space trigger fallback."""
-    # probe_alcohol has 4 options in probes.yaml. Passing 2 options causes slot mismatch.
+    """Option labels whose count does not match the probe's answer space trigger fallback.
+
+    probe_alcohol has TWO options now, not four: the belief model has one on-off alcohol
+    switch, so the four-way question collected a detail nothing could use. The mismatch is
+    restated against that, because the test is about the count disagreeing and not about
+    any particular count.
+    """
     msg = OutboundMessage(
         kind="QUESTION",
         text="Did you have any drinks last night?",
         probe_id="probe_alcohol",
-        option_labels=["Yes", "No"],  # Mismatch: 2 instead of 4
+        option_labels=["None", "1 to 2", "3 or more"],  # Mismatch: 3 against 2
     )
 
     res = validate_outbound(msg)

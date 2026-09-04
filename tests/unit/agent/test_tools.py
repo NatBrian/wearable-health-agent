@@ -13,7 +13,7 @@ from wha.agent.tools import (
     create_default_tool_registry,
 )
 from wha.errors import PermissionDenied
-from wha.models import ControlTier
+from wha.models import ControlTier, NightlyFeatures
 
 
 def test_registry_is_closed() -> None:
@@ -196,15 +196,63 @@ def test_no_tool_can_write() -> None:
 
 
 def test_every_result_carries_provenance() -> None:
-    """Every tool return carries valid provenance source_ids, as_of_utc, and freshness."""
+    """Every tool return carries valid provenance, and says so honestly when it has none.
+
+    CORRECTED 5 September 2026. This invoked `get_data_quality` with NO database and
+    asserted a non-empty `source_ids`, which only passed because the tool returned three
+    invented constants regardless of input: coverage_ratio 0.95, missing_hours 0.35,
+    dropped_samples 0, for every person on every night. It now reads the nights, so with
+    no database it correctly has nothing to cite, exactly like `get_nightly_features` and
+    `get_known_events` on the same path.
+
+    Both halves are asserted here: a real read carries sources, and an empty read carries
+    a note saying it found nothing rather than an empty result that reads as good news.
+    """
     registry = create_default_tool_registry()
     context = ToolContext(subject_id="sub_001")
 
-    res = registry.invoke("get_data_quality", {"start": "2026-08-01", "end": "2026-08-05"}, context)
-    assert isinstance(res.source_ids, list)
-    assert len(res.source_ids) > 0
-    assert isinstance(res.as_of_utc, datetime)
-    assert res.freshness in ("fresh", "stale", "missing")
+    nothing = registry.invoke(
+        "get_data_quality", {"start": "2026-08-01", "end": "2026-08-05"}, context
+    )
+    assert nothing.source_ids == []
+    assert nothing.freshness == "missing"
+    assert nothing.note and "not a report of good quality" in nothing.note
+    assert isinstance(nothing.as_of_utc, datetime)
+
+    class _Nights:
+        def get_nightly_features(self, subject_id: str, start: date, end: date) -> list:
+            return [
+                NightlyFeatures(
+                    subject_id=subject_id,
+                    night_date=start,
+                    rhr_bpm=58.0,
+                    coverage_minutes=341,
+                    implausible_dropped=4,
+                    usable=True,
+                ),
+                NightlyFeatures(
+                    subject_id=subject_id,
+                    night_date=end,
+                    rhr_bpm=None,
+                    coverage_minutes=40,
+                    implausible_dropped=0,
+                    usable=False,
+                ),
+            ]
+
+    # A fresh registry, because results are cached per episode by tool name and args, so
+    # reusing this one would hand back the empty result above rather than reading anything.
+    real = create_default_tool_registry().invoke(
+        "get_data_quality", {"start": "2026-08-01", "end": "2026-08-05"}, context, db=_Nights()
+    )
+    assert real.source_ids and real.freshness == "fresh"
+    assert isinstance(real.as_of_utc, datetime)
+
+    # The real coverage, not 0.95. This is the number the belief maths already used.
+    assert real.value["nights"] == 2
+    assert real.value["usable_nights"] == 1
+    assert real.value["min_coverage_minutes"] == 40
+    assert real.value["dropped_samples"] == 4
 
 
 def test_stale_data_is_flagged_not_hidden() -> None:

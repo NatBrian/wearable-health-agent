@@ -5,7 +5,7 @@ from pathlib import Path
 
 from wha.errors import ConfigError
 
-DB_VERSION = 7
+DB_VERSION = 8
 
 # Columns added after version 1. CREATE TABLE IF NOT EXISTS does not alter a table that
 # already exists, so a database created before a column was introduced would silently

@@ -617,9 +617,13 @@ def respond(
         c.text for c in result.grounded_claims if c.text not in grounded_texts
     ]
 
+    # Append the question only when it is not already in the reply. The model routinely
+    # puts the same sentence in both fields, and the result was a real message that asked
+    # the person about their temperature twice in a row.
     text = _sanitise(result.reply)
-    if result.question:
-        text = f"{text}\n\n{_sanitise(result.question)}"
+    question = _sanitise(result.question) if result.question else ""
+    if question and question.strip().casefold() not in text.casefold():
+        text = f"{text}\n\n{question}"
 
     reply = ConversationReply(
         text=text.strip(),
