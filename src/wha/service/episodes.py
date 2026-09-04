@@ -275,7 +275,17 @@ def submit_human_decision(
     rationale: str | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> None:
-    """Process human review decision for an episode."""
+    """Apply a person's review decision by resuming the graph that is waiting for it.
+
+    This used to close the episode with its own SQL while the graph stayed parked on the
+    `interrupt()` in `node_review`, so the same four decisions were implemented twice, in
+    two places, differently. The scheduler then reached the abandoned interrupt later and
+    resumed it with a hardcoded "approve".
+
+    Resuming is the only path now. `node_review` already knows what reject, edit, escalate
+    and approve mean, it writes the decision into the audit record, and `review` runs
+    straight to END, so nothing here makes a model call.
+    """
     close_conn = False
     if conn is None:
         conn = connect()
@@ -291,39 +301,19 @@ def submit_human_decision(
         if ep_row is None or ep_row["state"] != "AWAITING_HUMAN_REVIEW":
             return
 
-        now_d = local_today().isoformat()
-        if decision == "approve":
-            conn.execute(
-                "UPDATE episodes SET state = 'CLOSED', closed_on = ? WHERE episode_id = ?",
-                (now_d, episode_id),
-            )
-        elif decision == "reject":
-            conn.execute(
-                "UPDATE episodes SET state = 'CLOSED', disposition = 'UNRESOLVED', closed_on = ? WHERE episode_id = ?",
-                (now_d, episode_id),
-            )
-        elif decision == "escalate":
-            conn.execute(
-                "UPDATE episodes SET state = 'CLOSED', disposition = 'ESCALATED', closed_on = ? WHERE episode_id = ?",
-                (now_d, episode_id),
-            )
-        elif decision == "edit" and edited_prose:
-            # Update outcome observation
-            out_row = conn.execute(
-                "SELECT payload_json FROM outcomes WHERE episode_id = ?",
-                (episode_id,),
-            ).fetchone()
-            if out_row and out_row["payload_json"]:
-                payload = json.loads(out_row["payload_json"])
-                payload["observation"] = edited_prose
-                conn.execute(
-                    "UPDATE outcomes SET payload_json = ? WHERE episode_id = ?",
-                    (json.dumps(payload), episode_id),
-                )
-            conn.execute(
-                "UPDATE episodes SET state = 'CLOSED', closed_on = ? WHERE episode_id = ?",
-                (now_d, episode_id),
-            )
+        # Changed wording is an edit whichever button was pressed. The dashboard puts the
+        # draft in a text area beside "Looks right", so a person who reworded it and
+        # approved it meant to keep their wording, and both the old SQL path and the first
+        # version of this one dropped it on the floor: only decision == "edit" was read,
+        # and no button in the interface sends that.
+        resume: dict[str, Any] = {"decision": decision}
+        if edited_prose and decision in ("approve", "edit"):
+            resume["decision"] = "edit"
+            resume["edited_observation"] = edited_prose
+        if rationale:
+            resume["rationale"] = rationale
+
+        step_episode(episode_id, conn=conn, resume=resume)
         conn.commit()
     finally:
         if close_conn:

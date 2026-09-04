@@ -325,6 +325,12 @@ def _oracle_response(oracle: dict[str, Any], payload: Any) -> Any:
         return {"measurement_id": payload.get("interaction_id"), "declined": True}
 
     if kind == "human_review":
+        # The oracle stands in for the person, which is the whole point of a frozen
+        # scenario: the run has to be unattended and deterministic. This is NOT the
+        # production path. There, nothing answers on the person's behalf; the episode
+        # parks until they decide or REVIEW_TIMEOUT_HOURS closes it UNREVIEWED. See
+        # `_resume_value` in wha/service/scheduler.py, which used to do what this line
+        # does and recorded it as a human decision.
         return {"decision": "approve"}
 
     return {"decision": "approve"}

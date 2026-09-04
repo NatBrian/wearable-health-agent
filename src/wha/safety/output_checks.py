@@ -30,6 +30,7 @@ DIAGNOSIS_PHRASES = [
     "diagnosis is confirmed",
 ]
 
+
 def default_escalation_criteria(config: RedFlagsConfig | None = None) -> list[str]:
     """The two general care-pathway lines, read from `red_flags.yaml`.
 

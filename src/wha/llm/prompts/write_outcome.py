@@ -26,8 +26,7 @@ PROMPT = PromptDefinition(
         "Retrieved Passages: {passages}"
     ),
     output_schema=(
-        '{"observation": str, "claims": [{"text": str, "evidence_span": str}], '
-        '"action_text": str}'
+        '{"observation": str, "claims": [{"text": str, "evidence_span": str}], "action_text": str}'
     ),
     constraints=[
         "Every claim must be strictly grounded in cited physiological evidence or user reports.",

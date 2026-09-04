@@ -459,6 +459,32 @@ class EpisodeRepository:
         )
         self._conn.commit()
 
+    def record_review_requested(self, subject_id: str, episode_id: str, disposition: str) -> None:
+        """Write down that the system stopped and asked a person to check its conclusion."""
+        from wha.audit.monitor import record_review_requested
+
+        record_review_requested(self._conn, subject_id, episode_id, disposition)
+
+    def record_review_decision(
+        self,
+        subject_id: str,
+        episode_id: str,
+        decision: str,
+        rationale: str | None = None,
+        reviewed_by_person: bool = True,
+    ) -> None:
+        """Write down how the review ended, and whether a person was involved at all."""
+        from wha.audit.monitor import record_review_decision
+
+        record_review_decision(
+            self._conn,
+            subject_id,
+            episode_id,
+            decision,
+            rationale=rationale,
+            reviewed_by_person=reviewed_by_person,
+        )
+
     def record_interaction_answer(
         self,
         interaction_id: str,

@@ -366,3 +366,98 @@ def record_conversation_turn(
         ),
     )
     conn.commit()
+
+
+def review_requested_at(conn: sqlite3.Connection, episode_id: str) -> datetime | None:
+    """When this episode first asked a person to review its draft, if it ever did.
+
+    Read from the audit log rather than a column on the episode, because the log already
+    reserves the `human_decision` operation for exactly this and nothing had ever written
+    one. It is also the honest place for it: whether a person reviewed a conclusion about
+    their own health belongs in the record they can check, not only in a status field.
+    """
+    row = conn.execute(
+        """SELECT MIN(timestamp_utc) AS first_asked FROM audit_events
+            WHERE episode_id = ? AND operation = 'human_decision'
+              AND human_decision IS NULL""",
+        (episode_id,),
+    ).fetchone()
+    if row is None or not row["first_asked"]:
+        return None
+    return datetime.fromisoformat(row["first_asked"])
+
+
+def record_review_requested(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    episode_id: str,
+    disposition: str,
+) -> None:
+    """Record that the system paused and asked a person to check its conclusion.
+
+    Written once per episode. `node_review` re-runs in full whenever the interrupt it
+    parks on is resumed, so writing unconditionally would add an identical row on every
+    tick and bury the decision that follows it.
+    """
+    if review_requested_at(conn, episode_id) is not None:
+        return
+
+    append_audit(
+        conn,
+        _event(
+            subject_id,
+            "agent",
+            "human_decision",
+            episode_id=episode_id,
+            permission_decision="required_approval",
+            output={
+                "draft_disposition": disposition,
+                "summary": (
+                    "The system drafted a conclusion and stopped, because a person is "
+                    "meant to check it before it is recorded. Nothing is closed until "
+                    "you approve, edit, reject or escalate it."
+                ),
+            },
+        ),
+    )
+    conn.commit()
+
+
+def record_review_decision(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    episode_id: str,
+    decision: str,
+    rationale: str | None = None,
+    reviewed_by_person: bool = True,
+) -> None:
+    """Record how the review ended, and whether a person was actually involved.
+
+    A background job used to answer "approve" fifteen minutes later and the record then
+    showed a human decision that never happened. That is worse than having no checkpoint,
+    so an unreviewed close is recorded as `closed_unreviewed` by the `system` actor and is
+    never called an approval.
+    """
+    append_audit(
+        conn,
+        _event(
+            subject_id,
+            "human" if reviewed_by_person else "system",
+            "human_decision",
+            episode_id=episode_id,
+            human_decision=decision,
+            human_decision_rationale=rationale,
+            permission_decision="allowed" if reviewed_by_person else "required_approval",
+            output={
+                "summary": (
+                    f"You reviewed the draft and chose to {decision} it."
+                    if reviewed_by_person
+                    else (
+                        "Nobody reviewed this draft within the time allowed, so it was "
+                        "closed unreviewed. It was not approved."
+                    )
+                ),
+            },
+        ),
+    )
+    conn.commit()

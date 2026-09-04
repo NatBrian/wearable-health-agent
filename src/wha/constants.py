@@ -294,6 +294,20 @@ MEASURE_MIN_LEADING_PROBABILITY = 0.5
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36
 MEASUREMENT_TIMEOUT_HOURS = 24
+
+# How long a drafted conclusion waits for a person to check it before it closes UNREVIEWED.
+#
+# The review checkpoint was auto-approved by a background job fifteen minutes after the
+# draft appeared, and the record then said a human had approved it. Nothing may answer on
+# the person's behalf, so the episode has to be able to park indefinitely, and something
+# has to release it eventually or it parks forever.
+#
+# Set to ANSWER_TIMEOUT_HOURS deliberately. There is no evidence on how long a person
+# should be given to review a wearable early-warning conclusion, so inventing a separate
+# figure would be inventing a number. The same window the system already allows for
+# answering a question is the honest choice, and a review is a lighter ask than an answer.
+# A release records `closed_unreviewed` and is never recorded as an approval.
+REVIEW_TIMEOUT_HOURS = ANSWER_TIMEOUT_HOURS
 EPISODE_MAX_NIGHTS = 10
 EPISODE_MAX_STEPS = 40  # hard graph recursion cap
 MAX_TOOL_CALLS_PER_EPISODE = 25  # bounds the free T1 investigation loop

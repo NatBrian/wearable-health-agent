@@ -11,6 +11,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
+from wha.audit.monitor import review_requested_at
 from wha.clock import local_today
 from wha.config import get_settings
 from wha.constants import (
@@ -18,6 +19,7 @@ from wha.constants import (
     MEASUREMENT_TIMEOUT_HOURS,
     NIGHTLY_RESCORE_DAYS,
     NIGHTLY_RESCORE_INTERVAL_HOURS,
+    REVIEW_TIMEOUT_HOURS,
     STARTUP_CATCHUP_DAYS,
 )
 from wha.db import connect
@@ -249,7 +251,7 @@ def _resume_value(conn: Any, episode_id: str, pending: Any) -> dict[str, Any] | 
     fixture oracle, so live answers and scenario answers enter the graph identically.
     """
     if not isinstance(pending, dict):
-        return {"decision": "approve"}
+        return None
 
     kind = pending.get("kind")
 
@@ -280,7 +282,23 @@ def _resume_value(conn: Any, episode_id: str, pending: Any) -> dict[str, Any] | 
     if kind == "measurement":
         return {"measurement_id": pending.get("interaction_id"), "declined": True}
 
-    return {"decision": "approve"}
+    if kind == "human_review":
+        # This used to fall through to {"decision": "approve"}, so a background job
+        # approved a conclusion about someone's health on their behalf about fifteen
+        # minutes after it was drafted, and the record said a human had done it. The
+        # episode now stays parked until the person decides, or until
+        # REVIEW_TIMEOUT_HOURS releases it as closed unreviewed, which is never recorded
+        # as an approval.
+        requested = review_requested_at(conn, episode_id)
+        if requested is None:
+            return None
+        if requested.tzinfo is None:
+            requested = requested.replace(tzinfo=UTC)
+        if datetime.now(UTC) - requested >= timedelta(hours=REVIEW_TIMEOUT_HOURS):
+            return {"timed_out": True}
+        return None
+
+    return None
 
 
 def poll_telegram_once(db_path: Path | None = None) -> dict[str, Any]:

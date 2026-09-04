@@ -14,6 +14,8 @@ a sentence is being shown that no reviewed file contains.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -28,7 +30,7 @@ from wha.safety.rules import load_red_flags
 
 def reviewed_sentences() -> set[str]:
     """Every care-pathway sentence that exists in red_flags.yaml, normalised."""
-    raw = yaml.safe_load(open("data/knowledge/red_flags.yaml", encoding="utf-8"))
+    raw = yaml.safe_load(Path("data/knowledge/red_flags.yaml").read_text(encoding="utf-8"))
     out: set[str] = set()
     for rule in raw["tier_a"] + raw.get("vitals", []):
         if rule.get("guidance"):
