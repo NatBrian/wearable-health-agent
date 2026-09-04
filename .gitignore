@@ -70,3 +70,7 @@ data/sim_state.json
 # Local run logs from `wha serve` and the mock watch.
 serve.log
 mockwatch.log
+
+# --- Review session scratch space (analysis scripts, downloaded cohort data, notes). ---
+# Not part of the product. Nothing here is imported by src/.
+scratch/
