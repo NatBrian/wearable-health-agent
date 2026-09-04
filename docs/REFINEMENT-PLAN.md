@@ -54,7 +54,7 @@ than a day.
 | Part of the system | Verdict | Item |
 |---|---|---|
 | `data/knowledge/` says a human wrote it, and a model did | **FIX, top priority** | **1** |
-| Escalation criteria are checked by nothing | FIX | **2** |
+| Escalation criteria are checked by nothing | FIX, by deletion | **2** |
 | Human review checkpoint approves itself | FIX | **3** |
 | Blood oxygen rule has never run | FIX | **4** |
 | The two extreme heart rate rules have never run | FIX | **4** |
@@ -264,7 +264,12 @@ describe.
 
 ## 2. Stop generating the "when to seek care" text
 
-`FIX` · Effort **S** · Risk **low**
+`FIX, by deletion` · Effort **S** · Risk **low**
+
+**Why FIX and not DROP.** The text stays. Every outcome still tells you when to seek care,
+and you lose nothing on screen. What is deleted is the model's freedom to write it, which is
+how the fix is done rather than what it costs you. A DROP would mean the guidance itself does
+not earn its place, and it does.
 
 **The problem.** The outcome has a field that tells you when to seek care. The AI writes it
 freely, and it is the only text in the system that goes through no check at all. In a real
