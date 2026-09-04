@@ -6,7 +6,7 @@ flag and opened an investigation. ``step_episode`` could only advance an episode
 that tests had inserted by hand, so in a real run the agent had nothing to advance and
 the detect-to-investigate link did not exist.
 
-The rules implemented here come from ``plan/02-contracts.md``:
+The rules implemented here come from ``docs/CONTRACTS.md``:
 
 * at most one non-CLOSED episode per subject, ever, asserted rather than assumed
 * a night flagged while an episode is open is appended to it, not given a new episode

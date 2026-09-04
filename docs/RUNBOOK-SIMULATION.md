@@ -151,7 +151,7 @@ policy nodes entirely.
 
 ## Known limitations of the simulation
 
-Recorded in full in `plan/BLOCKERS.md`:
+Recorded in full in `BLOCKERS.md`:
 
 - An **OBSERVE decision is never revisited.** Once the policy chooses to wait, the belief
   does not move again on later nights; the episode exits through the deterministic

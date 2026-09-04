@@ -21,7 +21,7 @@ That includes all of these, which are the same act wearing different clothes:
 - catching the exception the test was meant to surface
 
 If a test appears to be wrong, **it may well be**, but that is a decision for a human. Record it in
-`plan/BLOCKERS.md` and move to the next independent task.
+`BLOCKERS.md` and move to the next independent task.
 
 You may **add** tests freely.
 
@@ -47,14 +47,18 @@ Never create, edit, move or delete anything under:
 
 ```
 data/knowledge/     the cited medical tables. Authored by a human, with sources
-plan/               the design. You may only write PROGRESS.md and BLOCKERS.md
+history/            the finished build plan, briefs and proposal. ALL of it
+docs/CONTRACTS.md   the frozen contract. Still binding, never edited
 research/           evidence corpus
 archive/            a superseded earlier generation. Not fact
-PROPOSAL.md         the narrative artefact
-HANDOFF.md          project history
 ```
 
-Inside `plan/` you may write **only** `PROGRESS.md` and `BLOCKERS.md`.
+**The whole build plan moved to `history/` on 4 September 2026** and is entirely read-only.
+`BLOCKERS.md` came out to the repository root, beside `STATUS.md`, because it is a live document
+and nothing live should sit inside a finished plan. `PROGRESS.md` is frozen as a build log. The
+two files you keep current are **`STATUS.md`** and **`BLOCKERS.md`**, both at the root.
+
+Everything in `history/` is read-only, and is edited only when the user asks for it directly.
 
 **One narrow exception to `data/knowledge/`, granted by the user on 4 September 2026.** A clinical
 figure in `data/knowledge/` or `src/wha/constants.py` may be corrected in exactly one circumstance:
@@ -70,7 +74,7 @@ Adding a **new** clinical figure is not covered by the exception and remains for
 
 ## 4. Contracts
 
-`plan/02-contracts.md` defines every schema, model, field name, enum value, service signature and
+`docs/CONTRACTS.md` defines every schema, model, field name, enum value, service signature and
 constant. **Never** rename a field, add one, widen a type, change an enum, alter a table, or change
 a function signature.
 
@@ -123,7 +127,7 @@ is a blocker, always.
 ## 9. Scope
 
 - Do not refactor code a task did not name.
-- Do not add a dependency. The list in `plan/02-contracts.md` section 1 is closed.
+- Do not add a dependency. The list in `docs/CONTRACTS.md` section 1 is closed.
 - Do not add a feature, a flag, a helper module or an abstraction "for later".
 - Do not upgrade or pin a version differently from `uv.lock`.
 

@@ -1,12 +1,26 @@
 # AGENTS.md
 
-Instructions for any coding agent working in this repository. This file is in context on every
-turn. Detailed rules live in `.agents/rules/`.
+Instructions for any coding agent working in this repository. Detailed rules live in
+`.agents/rules/`.
+
+**This file is not loaded automatically by every tool.** Claude Code auto-loads `CLAUDE.md`, which
+is short and points here; Gemini reads `GEMINI.md`, which does the same. Whichever one you were
+given, read this file once at the start of a session. If it and `CLAUDE.md` ever disagree, this
+file wins and `CLAUDE.md` needs correcting.
 
 > **The build is finished.** This file used to say "open `plan/PROGRESS.md`, find the first task
-> not marked done, do that task". All 67 of those tasks are done and that loop is over. The work
-> now is fixing, extending and verifying a system that exists. **Read `STATUS.md` first, every
-> time.** `plan/` is history and contract, not a queue.
+> not marked done, do that task". That loop is over: 63 of the 67 tasks are `[x]`, and the four
+> that are not are carried into `STATUS.md` and `BLOCKERS.md` rather than waiting in a
+> queue. The work now is fixing, extending and verifying a system that exists.
+>
+> **Read `STATUS.md` first, every time.** The three files you work from are all at the
+> repository root: **`STATUS.md`** (where things stand), **`BLOCKERS.md`** (what is open), and
+> this file (the rules).
+>
+> **You do not work from `history/`.** It holds the old build brief, the old proposal and the
+> 67-task plan, all finished and all describing nothing about the present. See
+> `history/README.md`. Schemas, models and constants are in `docs/CONTRACTS.md`, which the
+> source code cites by name and which is never edited.
 
 ---
 
@@ -14,7 +28,7 @@ turn. Detailed rules live in `.agents/rules/`.
 
 1. **Never modify, weaken, delete or skip a test to make something pass.** Not a loosened
    assertion, not a widened tolerance, not an `xfail`, not a changed expected value. If a test
-   looks wrong, that is a **blocker**: write it to `plan/BLOCKERS.md`.
+   looks wrong, that is a **blocker**: write it to `BLOCKERS.md`.
 
    If a test genuinely encoded a defect, you may correct it to assert the intended behaviour, but
    only after **measuring** the real behaviour first, and the reason goes in the commit message.
@@ -25,8 +39,9 @@ turn. Detailed rules live in `.agents/rules/`.
    **Never write clinical content from your own knowledge.** That is the one line this project
    must not cross. The agent may cite the corpus and nothing else.
 
-3. **`data/knowledge/`, `PROPOSAL.md`, `HANDOFF.md`, `research/`, `archive/` and everything in
-   `plan/` except `PROGRESS.md` and `BLOCKERS.md` are read-only inputs.**
+3. **`data/knowledge/`, `history/`, `docs/CONTRACTS.md`, `research/` and `archive/` are read-only
+   inputs.** The two files you keep current are `STATUS.md` and `BLOCKERS.md`, both at the
+   repository root.
 
    **One narrow exception, granted by the user on 4 September 2026.** A clinical figure in
    `data/knowledge/` or `src/wha/constants.py` may be corrected in exactly one circumstance: the
@@ -47,7 +62,7 @@ turn. Detailed rules live in `.agents/rules/`.
 
 ```
 1. Read STATUS.md. It is the only file guaranteed to describe the present.
-2. Read plan/BLOCKERS.md for what is open and why.
+2. Read BLOCKERS.md for what is open and why.
 3. Research before deciding. Every clinical or agentic design choice needs a citation,
    or an explicit written statement that nothing settles it.
 4. Do the work.
@@ -83,9 +98,10 @@ be **grounded in a cited passage** or it is stripped or labelled on screen. The 
 | Path | What it is | Writable? |
 |---|---|---|
 | `STATUS.md` | **Where the project actually stands. Read first** | Yes, keep current |
-| `plan/BLOCKERS.md` | What is open, and why | Yes, keep current |
-| `plan/02-contracts.md` | Schemas, models, constants, service signatures. **The contract** | No |
-| `plan/` (everything else) | The finished build plan. History | No |
+| `BLOCKERS.md` | What is open, and why. **Live, at the root** | Yes, keep current |
+| `docs/CONTRACTS.md` | Schemas, models, constants, service signatures. **Still binding**, cited from the source code, and never edited | No |
+| `history/` | **Finished work. Describes nothing about the present.** The old build brief and proposal, the 67-task plan, and the frozen build log that stops partway through the agentic work. See `history/README.md` | No |
+| `docs/` | The living design and disclosure documents | Yes, keep true |
 | `data/knowledge/` | Cited medical tables, authored by a human | **See rule 3** |
 | `data/corpus/` | Fetched external text, gitignored. Not authored here | Fetch only |
 | `docs/KNOWLEDGE-CHANGELOG.md` | Every clinical figure changed, with the source quoted | Yes |
@@ -162,7 +178,7 @@ open, and the next run fails with `WinError 32`.
 
 ## When you are stuck
 
-Append to `plan/BLOCKERS.md`:
+Append to `BLOCKERS.md`:
 
 ```markdown
 ## <task-id> or <area> - <one line>

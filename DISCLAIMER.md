@@ -17,5 +17,5 @@ condition. **If you have symptoms that concern you, contact a clinician or emerg
 wait for this system, and do not let its output delay you.**
 
 The limits of what this system can and cannot determine are stated at the level of mechanism in
-[`PROPOSAL.md`](PROPOSAL.md) section 2.5, and summarised in the README. Those limits are part of the
+[`history/PROPOSAL.md`](PROPOSAL.md) section 2.5, and summarised in the README. Those limits are part of the
 design, not caveats discovered afterwards.

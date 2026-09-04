@@ -1,8 +1,10 @@
 # Task workflow
 
-> **THE 67-TASK LOOP BELOW IS FINISHED.** `plan/PROGRESS.md` has no unticked rows and
-> `plan/tasks/` is history. The work now is fixing, extending and verifying a system that
-> exists: read **`STATUS.md`** for where it stands and **`plan/BLOCKERS.md`** for what is open.
+> **THE 67-TASK LOOP BELOW IS FINISHED.** `history/plan/PROGRESS.md` is a frozen build log, not a
+> queue: 63 rows are `[x]` and the four that are not are carried into `STATUS.md` and
+> `BLOCKERS.md`. The work now is fixing, extending and verifying a system that exists:
+> read **`STATUS.md`** for where it stands and **`BLOCKERS.md`** for what is open.
+> **Do not update `PROGRESS.md`.** Keep `STATUS.md` and `BLOCKERS.md` current instead.
 >
 > What still applies, and is why this file is kept: the definition of done, the blocker format,
 > commit discipline, and the rule that a recorded blocker beats a silent workaround. What has
@@ -18,15 +20,15 @@ This file is what makes that recoverable.
 ## The loop
 
 ```
-1. Open plan/PROGRESS.md
+1. Open history/plan/PROGRESS.md
 2. Find the first row not marked [x]
-3. Open ONLY that task file: plan/tasks/<id>.md
-4. Read plan/02-contracts.md and the ONE component document the task names
+3. Open ONLY that task file: history/plan/tasks/<id>.md
+4. Read docs/CONTRACTS.md and the ONE component document the task names
 5. Write the tests the task specifies, then the code
 6. Run the exit command
 7. Green  -> mark [x] with the date, COMMIT, then next task
    Red    -> fix your code
-   Stuck  -> append to plan/BLOCKERS.md, mark [!], go to the next INDEPENDENT task
+   Stuck  -> append to BLOCKERS.md, mark [!], go to the next INDEPENDENT task
 ```
 
 **One task at a time.** Do not read ahead, do not batch, do not start the next task before the
@@ -40,12 +42,12 @@ and that is the only thing keeping a long unattended run from drifting.
 For any task, load exactly:
 
 - `AGENTS.md` (already in context)
-- `plan/02-contracts.md`
+- `docs/CONTRACTS.md`
 - the **one** component document the task names
 - the task file
 - the source files the task names
 
-**Not** the whole `plan/` folder, not every component, not `research/`. Loading more degrades your
+**Not** the whole `history/plan/` folder, not every component, not `research/`. Loading more degrades your
 attention over the material that matters and is the main cause of contract drift.
 
 ---
@@ -83,7 +85,7 @@ device_map="cpu"), then predict() with a length-4 context.
 **What happened:** ValueError: context length 4 is below the minimum patch size.
 Exact text: <paste it>
 
-**What I think is wrong:** plan/components/06 assumes any context length works. The
+**What I think is wrong:** history/plan/components/06 assumes any context length works. The
 model has a minimum I did not find documented.
 
 **What I need:** a decision on the minimum nights before the forecast runs at all,

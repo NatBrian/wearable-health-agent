@@ -1,16 +1,19 @@
 # GEMINI.md
 
 **This file exists so the instructions load whichever filename convention your version uses.**
+Claude Code reads `CLAUDE.md`, Gemini reads this one, and both point at `AGENTS.md`, which holds
+the full rules.
 
 ## Read these two files, in this order, before doing anything
 
 1. **`STATUS.md`** at the repository root. **Where the project actually stands**, which is the only
-   thing guaranteed to be current. Then `plan/BLOCKERS.md` for what is open and why.
+   thing guaranteed to be current. Then `BLOCKERS.md` for what is open and why.
 2. **`AGENTS.md`** at the repository root. The hard rules, always in context.
 
-`HANDOFF.md` describes building this system from an empty `src/`. **That job is finished.** Read it
-for the reasoning and the traps it records, never as a list of things to do. Same for `plan/`: it is
-the finished build plan and the frozen contract, not a queue of tasks.
+**You do not work from `history/`.** It holds the old build brief, the old proposal and the
+67-task plan: all finished, all describing nothing about the present. Read `history/HANDOFF.md`
+for the traps it records, never as a list of things to do. Schemas, models and constants are in
+`docs/CONTRACTS.md`, which the source code cites by name and which is never edited.
 
 ## The four rules that matter most, in case nothing else loads
 

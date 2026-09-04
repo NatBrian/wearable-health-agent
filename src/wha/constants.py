@@ -1,6 +1,6 @@
 """Constants for Wearable Health Early Warning Agent (WHA).
 
-All constants are single-sourced here as specified in plan/02-contracts.md section 4.
+All constants are single-sourced here as specified in docs/CONTRACTS.md section 4.
 """
 
 # --- coverage and quality -------------------------------------------------
@@ -213,7 +213,7 @@ LEAK_EFFECT_SD_BPM = 3.0  # width of the `unexplained` effect prior
 UTILITY_MISS_ILLNESS = -9.0  # concluded benign, was illness
 UTILITY_FALSE_ALARM = -1.0  # concluded illness, was benign
 UTILITY_CORRECT = 0.0
-# Same utility units. Annotated "Swept" here and in plan/02-contracts.md, and exposed to
+# Same utility units. Annotated "Swept" here and in docs/CONTRACTS.md, and exposed to
 # the user as policy_cost_weight, so this is a tuning parameter rather than a clinical
 # figure. Set from the sweep in wha.eval.policy_oracle, measured over 40 simulated cases
 # split evenly between infections and benign mimics presenting identically:

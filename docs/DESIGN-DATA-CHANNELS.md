@@ -56,7 +56,7 @@ Heart rate variability, respiratory rate and skin temperature are the channels
 set for illness detection. All three are absent here:
 
 - **Skin temperature.** Samsung exposes it from **Galaxy Watch 6 onward**
-  (`PROPOSAL.md` section 4.7). The device in use is a Watch 5. It will never arrive.
+  (`history/PROPOSAL.md` section 4.7). The device in use is a Watch 5. It will never arrive.
 - **Heart rate variability and respiratory rate.** Not recorded by this watch, either
   because the feature is switched off or because it needs a manual reading that is not
   being taken.
@@ -128,7 +128,7 @@ Two things a human should weigh before that changes, both observed in the real d
    before a 92 percent one. A likelihood that does not model that noise will manufacture
    alarm.
 
-Recorded in `plan/BLOCKERS.md`.
+Recorded in `BLOCKERS.md`.
 
 ---
 

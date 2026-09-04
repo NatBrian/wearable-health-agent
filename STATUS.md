@@ -3,7 +3,7 @@
 **Last updated:** 4 September 2026 (the consumer health corpus layer, and citation attribution)
 **Branch:** `feat/agentic-early-warning-system` (14 commits ahead of the implementation work, nothing pushed)
 
-`HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
+`history/HANDOFF.md` describes the job of writing this system from nothing. That job is done. This
 file describes where things actually stand.
 
 ---
@@ -39,7 +39,7 @@ executed, produced output and passed 331 tests while doing none of its work:
   pain" did not escalate, and Tier C parsed every correct model response to zero flags.
 - `run_policy_eval` returned hardcoded accuracy constants no policy had produced.
 
-All of the above is fixed. The detail is in `plan/PROGRESS.md`.
+All of the above is fixed. The detail is in `history/plan/PROGRESS.md`.
 
 ---
 
@@ -85,7 +85,7 @@ Ingested and working. Three usable nights at **51, 56 and 48 bpm** with 379 to 4
 of wear out of a possible 420, and the baseline correctly shrinking from the population
 prior toward the subject (62.75 → 61.28 → 60.69) as nights accumulate.
 
-The watch provides **seven** channels, not the four `HANDOFF.md` section 10 originally
+The watch provides **seven** channels, not the four `history/HANDOFF.md` section 10 originally
 recorded. All seven are ingested. Heart rate variability, respiratory rate and skin
 temperature are absent and cannot be computed from one-minute averages. The reasoning, and
 why supporting the rest of Health Connect is not planned, is in
@@ -121,7 +121,7 @@ alternatives, the answer `fever` moves p(infection) from 0.071 to 0.3893, and th
 closes `LIKELY_BENIGN` on the quiet-run condition once nights return to GREEN.
 
 Three findings were recorded rather than fixed, because each is a design decision rather
-than a defect. They are in `plan/BLOCKERS.md`: an OBSERVE decision is never revisited on
+than a defect. They are in `BLOCKERS.md`: an OBSERVE decision is never revisited on
 later nights, episode dates come from the wall clock rather than the data, and the
 synthetic generator covers four of the seven live channels.
 
@@ -158,7 +158,7 @@ The nightly job no longer runs at 09:00. A clock trigger assumed the subject was
 synced by then; this one wakes around 11:00. Nights are re-scored on an interval and settle
 when their sleep arrives.
 
-`plan/02-contracts.md` is amended, schema is v4 (`nightly_features.rhr_window_source`).
+`docs/CONTRACTS.md` is amended, schema is v4 (`nightly_features.rhr_window_source`).
 
 ---
 
@@ -187,7 +187,7 @@ usable nights exist, seven being the figure that paper reports for baseline esta
 and nothing is flagged below that. Scale keeps its shrinkage: it sets band width and
 `robust_z`, never the level. `docs/DESIGN-BASELINE-CENTRE.md`, contract amended.
 
-This also corrected a diagnosis in `plan/BLOCKERS.md`. `no-response-timeout` was recorded
+This also corrected a diagnosis in `BLOCKERS.md`. `no-response-timeout` was recorded
 as needing a higher injected amplitude; in fact its 4.4 bpm was always right and the shrunk
 centre was eating the margin. Its residuals are now exactly 4.0, it reaches RED, opens an
 episode and asks a question. One expectation still fails, for a different and real reason:
@@ -219,7 +219,7 @@ it, so no streak is claimed below the alerting floor.
 
 A seven-scenario production simulation was run end to end as an ordinary person: healthy
 nights, exercise, an office party, feeling rough afterwards, a fever, a sore throat and
-severe diarrhoea. What works is described in `docs/HANDOFF-AGENTIC-FLOW.md`; the short
+severe diarrhoea. What works is described in `history/HANDOFF-AGENTIC-FLOW.md`; the short
 version is that the deterministic half is sound. Twenty healthy nights produced no
 interruptions, a 4 bpm rise caused by a workout was correctly explained away rather than
 raised, and the same physiological signal reached opposite conclusions depending on what
@@ -239,8 +239,8 @@ That task is now **done**. The next section describes it.
 
 ## The agent can now look something up, and say where it got it
 
-The five items in `docs/HANDOFF-AGENTIC-FLOW.md` are complete. The detail is in
-`plan/PROGRESS.md`; the short version is that the loop closes and the output is sourced.
+The five items in `history/HANDOFF-AGENTIC-FLOW.md` are complete. The detail is in
+`history/plan/PROGRESS.md`; the short version is that the loop closes and the output is sourced.
 
 **The graph returns to `investigate` after an answer.** That one edge is what makes the
 cycle hypothesis-driven. Measured on a live run against the mock watch:
@@ -261,7 +261,7 @@ Generated from `causes.yaml`, `red_flags.yaml`, `probes.yaml` and `constants.py`
 numbers interpolated from the constants rather than retyped. `wha corpus build` writes it
 out for review, `wha corpus search` queries it the way the agent does. Most citations
 matched verbatim, including every load-bearing one; two did not and are in
-`plan/BLOCKERS.md`. The record is **`docs/CORPUS-VERIFICATION.md`**.
+`BLOCKERS.md`. The record is **`docs/CORPUS-VERIFICATION.md`**.
 
 **No consumer health layer exists**, because writing one would be inventing clinical
 content. The agent can cite why a night was flagged, what else could explain it, what an
@@ -308,7 +308,7 @@ policy's own quiet band was.
 budget counts across subjects and the demo database is shared. Back to back the suite
 reported 5 of 11; individually, 10 of 11. Fixed by resetting the demo database per run. I
 believed the wrong number twice before checking, once because my own grep for `[FAIL]` was
-anchored while the lines are indented. Recorded in `plan/BLOCKERS.md`.
+anchored while the lines are indented. Recorded in `BLOCKERS.md`.
 
 Frozen scenarios remain **10 of 11**, with `no-response-timeout` failing for the reason
 already recorded: a timed-out question closes `LIKELY_BENIGN` where `UNRESOLVED` is honest.
@@ -402,7 +402,7 @@ It stays out of the belief model on evidence. No study was found showing a forec
 residual identifies *which* cause is present, and Alavi et al. 2022, the source of our
 thresholds, measured plain baseline deviation at 78 percent sensitivity against 54 for
 CuSum and 44 for RHRAD. `FORECAST_AS_EVIDENCE` and `FORECAST_EVIDENCE_SD_BPM` are deleted
-and `plan/02-contracts.md` amended.
+and `docs/CONTRACTS.md` amended.
 
 **MEASURE had never fired.** `ActionKind.MEASURE` appeared only in the graph's router, so
 `node_measure`, the "A quick reading would help" screen, `submit_measurement_done` and
@@ -566,7 +566,7 @@ through different code. There is no evidence it names the source.
 
 ## Open items for a human
 
-`plan/BLOCKERS.md`. The ones that matter:
+`BLOCKERS.md`. The ones that matter:
 
 1. **Two corpus layers are still smaller than `sources.yaml` says.** StatPearls, the real
    clinical-reference layer, has never been fetched; what the corpus calls layer 2 is three
@@ -619,12 +619,12 @@ missing consumer health layer, and `no-response-timeout`, which now closes `UNRE
 
 | Question | File |
 |---|---|
-| What was broken and fixed, in detail | `plan/PROGRESS.md` (end) |
-| What still needs a human | `plan/BLOCKERS.md` |
+| How the build ran, task by task | `history/plan/PROGRESS.md` (frozen build log, stops partway through the agentic work) |
+| What is open right now | `BLOCKERS.md` (root, live) |
 | Why only seven data channels | `docs/DESIGN-DATA-CHANNELS.md` |
 | Does the policy actually work | `EVALUATION.md` |
 | What the agent may cite, and whether it checks out | `docs/CORPUS-VERIFICATION.md` |
 | Which MedlinePlus release is in use | `data/knowledge/corpus-sources.json` |
 | Every clinical figure changed, and the source quoted for it | `docs/KNOWLEDGE-CHANGELOG.md` |
-| The original rules and constraints | `HANDOFF.md` |
-| The frozen contract | `plan/02-contracts.md` |
+| The original rules and constraints | `history/HANDOFF.md` |
+| The frozen contract | `docs/CONTRACTS.md` |

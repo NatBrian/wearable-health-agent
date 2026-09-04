@@ -1,7 +1,7 @@
 """Domain, service, tool, and LLM models for WHA.
 
 All models are defined here and are frozen with extra="forbid" by default
-as specified in plan/02-contracts.md section 6.
+as specified in docs/CONTRACTS.md section 6.
 """
 
 from datetime import date, datetime

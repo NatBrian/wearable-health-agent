@@ -91,7 +91,7 @@ class OutcomeClaim(BaseModel):
     """One clinical assertion, with the passage span the model says supports it.
 
     ``claims`` was a bare ``list[str]``, so there was nothing to check a claim against and
-    the claim-to-source enforcement in ``plan/02-contracts.md`` section 11.3 could not run
+    the claim-to-source enforcement in ``docs/CONTRACTS.md`` section 11.3 could not run
     even in principle. The span is what makes the check a deterministic containment test
     rather than a second opinion.
     """

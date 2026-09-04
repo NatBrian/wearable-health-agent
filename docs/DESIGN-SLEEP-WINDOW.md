@@ -134,7 +134,7 @@ internally consistent. The change makes the underlying measurement cleaner, so a
 of a given size is more meaningful than it was, not less. Thresholds calibrated on noisier
 data are, if anything, conservative when applied to cleaner data.
 
-This divergence from the source is deliberate and is recorded in `plan/02-contracts.md`.
+This divergence from the source is deliberate and is recorded in `docs/CONTRACTS.md`.
 
 ---
 

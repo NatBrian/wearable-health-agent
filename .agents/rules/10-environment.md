@@ -35,7 +35,7 @@ uv run wha doctor
 ```
 
 `uv sync` reads `pyproject.toml` and `uv.lock`. If `uv.lock` does not exist yet, the first task
-creates it with `uv lock`. If resolution fails, record it in `plan/BLOCKERS.md`. **Do not remove a
+creates it with `uv lock`. If resolution fails, record it in `BLOCKERS.md`. **Do not remove a
 dependency and do not drop the `numpy>=2` floor.**
 
 ---

@@ -140,7 +140,7 @@ def render_markdown(results: dict[str, EvaluationResult]) -> str:
             "**Not evaluated.** Detection accuracy needs the Stanford and PMData cohorts and",
             "their ground-truth labels. The datasets are not present and",
             "`data/knowledge/cohort_labels.yaml` has not been authored, so there is no honest",
-            "number to report here. See `plan/BLOCKERS.md`.",
+            "number to report here. See `BLOCKERS.md`.",
             "",
         ]
 

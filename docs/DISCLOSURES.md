@@ -91,7 +91,7 @@ transparency.
 - `docs/RESEARCH-AGENTIC-TRIAGE.md` — the evidence behind the conversation, the triage
   redesign and the clinician handover: why keyword matching was replaced, what a frontier
   model may and may not say here, and what remains unevidenced.
-- `plan/BLOCKERS.md` — the decisions deliberately left to a human, including whether the
+- `BLOCKERS.md` — the decisions deliberately left to a human, including whether the
   step at seven nights should be smoothed and whether one population mean is the right
   cold-start prior across ages and sexes.
 

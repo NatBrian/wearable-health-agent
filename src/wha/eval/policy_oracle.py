@@ -30,7 +30,7 @@ INJECTION_AMPLITUDES = [1.0, 2.0, 4.0, 6.0, 8.0]
 INJECTION_DURATIONS = [1, 2, 4, 7]
 
 # Cost weights swept for the frontier. POLICY_COST_PER_INTERRUPT is annotated "Swept" in
-# both constants.py and plan/02-contracts.md, and is exposed to the user as
+# both constants.py and docs/CONTRACTS.md, and is exposed to the user as
 # policy_cost_weight, so it is a tuning parameter rather than a cited clinical figure.
 COST_WEIGHT_SWEEP = [0.05, 0.10, 0.15, 0.20, 0.30, 0.50, 1.00]
 
