@@ -5,6 +5,7 @@ import streamlit as st
 
 from wha.models import EpisodeDetail
 from wha.ui.components.api import api
+from wha.ui.components.citations import ATTRIBUTION_NOTE, is_external, source_label
 from wha.ui.components.pipeline_trace import render_pipeline_trace
 
 
@@ -121,7 +122,12 @@ def render_conversation_tab(detail: EpisodeDetail) -> None:
         if reply.citations:
             st.markdown("**Where this comes from:**")
             for c in reply.citations:
-                st.caption(f'• **{c.title}** (`{c.source_id}`): *"{c.passage[:300]}"*')
+                st.caption(
+                    f"• **{c.title}** — {source_label(c.source_id)} "
+                    f'(`{c.source_id}`): *"{c.passage[:300]}"*'
+                )
+            if any(is_external(c.source_id) for c in reply.citations):
+                st.caption(ATTRIBUTION_NOTE)
         if reply.uncited:
             st.warning(
                 "**Not from a cited source.** These came from the AI's own general "
@@ -174,22 +180,16 @@ def render_evidence_tab(detail: EpisodeDetail) -> None:
         for idx, c in enumerate(detail.citations):
             uri_str = f" ([Link]({c.uri}))" if c.uri else ""
             st.markdown(
-                f"**{idx + 1}. {c.title}** (`{c.source_id}`){uri_str} — Score: `{c.retrieval_score:.3f}`"
+                f"**{idx + 1}. {c.title}** — {source_label(c.source_id)} "
+                f"(`{c.source_id}`){uri_str} — Score: `{c.retrieval_score:.3f}`"
             )
             st.info(f'"{c.passage}"')
 
         # The MedlinePlus licence is attribution-only, so the source is named wherever a
         # passage from it is shown. It also travels inside the passage text itself, because
         # a passage can be copied into the doctor handover and leave this screen behind.
-        if any(
-            c.source_id.startswith("medlineplus") or "MedlinePlus" in c.passage
-            for c in detail.citations
-        ):
-            st.caption(
-                "Passages marked MedlinePlus come from the National Library of Medicine, "
-                "used with attribution. They are general information about a condition, "
-                "not about you, and say nothing about your own readings."
-            )
+        if any(is_external(c.source_id) for c in detail.citations):
+            st.caption(ATTRIBUTION_NOTE)
 
     st.write("---")
     st.subheader("🛡️ Stripped Claims")

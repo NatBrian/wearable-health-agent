@@ -11,6 +11,7 @@ from wha.models import (
     SystemStatus,
 )
 from wha.ui.components.api import api, config, today
+from wha.ui.components.citations import ATTRIBUTION_NOTE, is_external, source_label
 from wha.ui.components.status_strip import render_status_strip
 from wha.ui.components.wording import (
     describe_bpm_difference,
@@ -297,8 +298,13 @@ def render_conversation(subject_id: str) -> str | None:
             if citations:
                 with st.expander(f"Where this comes from ({len(citations)})"):
                     for c in citations:
-                        st.caption(f"**{c['title']}** (`{c['source_id']}`)")
+                        st.caption(
+                            f"**{c['title']}** — {source_label(c['source_id'])} "
+                            f"(`{c['source_id']}`)"
+                        )
                         st.caption(f'"{" ".join(str(c["passage"]).split())[:400]}"')
+                    if any(is_external(c["source_id"]) for c in citations):
+                        st.caption(ATTRIBUTION_NOTE)
             if uncited:
                 st.warning(
                     "**Not from a cited source.** The following came from the AI's own "
