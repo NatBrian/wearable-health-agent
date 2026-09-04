@@ -178,35 +178,84 @@ places say a human wrote this material, and two of them are the ones that matter
 
 **How to do it.**
 
-1. **Today, in ten minutes:** correct the header line in all six knowledge files, in
-   `data/knowledge/README.md`, and in the two that reach a reader:
-   **`src/wha/ui/audit.py:108`** and **`README.md:320`**. A file that lies about its own
-   provenance is worse than a file with no provenance line, and a *screen* that does it is
-   worse again.
-1b. Then the rest of the table above. The `src/wha/retrieve/` and `src/wha/service/`
-   docstrings are three one-line edits. `AGENTS.md` and `.agents/rules/` need the rule
-   rewritten, not just the sentence, which is step 4. `BLOCKERS.md:717` deferred a decision
-   on the grounds that a human wrote the safety list; that reason is void, so the decision is
-   open again.
-2. **Add a `GENERATED` provenance level** alongside CITED, DERIVED and ASSUMED. ASSUMED
-   currently reads as "a human made a careful judgement". Split it: ASSUMED means a person
-   decided, GENERATED means a model produced it and nobody has checked.
-3. **Triage by consequence, not by count.** Three groups:
+**Delete the claim. Do not replace it with "written by an AI".** That would be a different
+blanket claim and no more accurate: some numbers in these files are correctly cited to real
+papers and some have no source at all, and one header line cannot say both. The truthful
+statement already exists at the level where it belongs, which is the `provenance` field on
+each individual number. Remove the file-level claim and let that field carry the weight.
+
+**Step 1, the exact edits. About twenty minutes.** Precise, because most of these are two
+words inside a sentence that is otherwise true and should survive.
+
+| File and line | Change | The sentence still works because |
+|---|---|---|
+| **`src/wha/ui/audit.py:108`** | "against a human-written list" becomes "against a fixed list" | The point of the sentence is that the list is not the model's, and "fixed" says that |
+| **`README.md:320`** | "Written by a human, in this repository:" becomes "In this repository:" | It is a section heading for a file list |
+| `AGENTS.md:105` | "Cited medical tables, authored by a human" becomes "The clinical tables. Every number carries its own provenance" | |
+| `.agents/rules/20-prohibitions.md:49` | "the cited medical tables. Authored by a human, with sources" becomes "the clinical tables" | |
+| `src/wha/retrieve/knowledge_docs.py:1` | "rendered out of the knowledge a human authored" becomes "rendered out of the knowledge tables in this repository" | |
+| `src/wha/retrieve/knowledge_docs.py:14` | delete ", and it was written by a human" | The clause before it, that this is the only care-pathway guidance here, is true |
+| `src/wha/retrieve/corpus.py:17` | "The human-written prose in causes.yaml" becomes "The prose in causes.yaml" | |
+| `src/wha/service/corpus.py:14` | "rendered from knowledge a human authored" becomes "rendered from the knowledge tables" | |
+| `docs/CORPUS-VERIFICATION.md:5` | "three files a human authored" becomes "three files in this repository" | |
+| `docs/CORPUS-VERIFICATION.md:136` | delete "human-authored" | "the safety floor" is enough |
+| `docs/RESEARCH-AGENTIC-TRIAGE.md:312` | delete "human-authored" | |
+| `data/knowledge/*.yaml` headers | delete "Authored by a human." Keep "READ ONLY." | The read-only rule still applies, for the reason in step 4 |
+| `data/knowledge/triage_rules.yaml:30` | delete ", Reviewed by a human before use" | |
+| `data/knowledge/README.md:3` | delete "Authored by a human." | |
+| `data/knowledge/README.md:11` | delete only the last sentence, "That is why these files are authored and frozen rather than generated." | **Keep the paragraph before it.** The warning that a model asked for hundreds of cited probabilities will produce hundreds of plausible fabrications is true, and is now the most relevant sentence in the repository. It simply no longer supports the conclusion that was drawn from it |
+
+**Two that are not text edits.**
+
+- **`data/knowledge/triage_rules.yaml:4` is true. Leave it.** "TRANSCRIBED FROM PUBLISHED
+  RULES. Not authored, not invented, not tuned. Every item, weight and threshold below is
+  copied from the cited paper." I checked every Marburg item and every performance figure
+  against Bösner et al. 2010. It holds.
+- **`BLOCKERS.md:717` deferred a decision on this basis**, so removing the words is not
+  enough. It says adding "that's reassuring" to the never-say list is "a wording judgement
+  about a human-authored safety list, so I have not added it". **Decision: do not add it.**
+  The phrase is not an absolute reassurance like the others on that list, and in the real
+  transcript it was attached to a genuine clinical observation. Banning it only makes the
+  model write "that's a good sign" instead. The failure was that the sentence went unlabelled,
+  which is item 17, not the vocabulary. Close the blocker with that reasoning.
+- **`data/knowledge/sources.yaml:84`, "HAND-CURATED, NOT SCRAPED"**, describes a corpus layer
+  that was never built. That belongs with item 21, not here.
+
+**`history/` is a record of what was believed at the time. Leave it.** Six files there carry
+the claim, and `history/README.md` already states that nothing in it describes the present.
+Editing a frozen record to remove something that was genuinely believed when it was written
+is its own kind of rewriting.
+
+**Step 2. Strip the self-vouching prose from numbers that have no source.** Deleting the
+header is not enough on its own, because the commentary beside individual numbers does the
+same job in miniature: "set deliberately conservatively", "this is the honest encoding", "set
+deliberately SMALL, which UNDERSTATES how much short sleep explains". Those read as a
+person's reasoning and are a model's. Delete the vouching, keep the fact. `ASSUMED` already
+means "no published value exists", which is the useful thing to say and needs no new label.
+
+**Step 3. Triage by consequence, not by count.** Three groups:
    - **Measured.** The infection effect, spread and shape are now measured on real labelled
      data (item 6). Do the same for anything else you can measure.
    - **Findable.** Some have a real source that simply was not cited. The infection base rate
      is one: `causes.yaml` uses 0.025, and the standard figure is 2 to 4 colds a year lasting
      7 to 11 days, which is nearer 7 percent of days. Either cite a source or record the gap.
    - **Unmeasurable.** The 64 answer likelihoods are genuinely unmeasurable, and `probes.yaml`
-     is right about why. Mark them GENERATED and show it on screen (item 17).
-4. **Change the rule in `AGENTS.md` and `CLAUDE.md`.** They forbid editing these files because
-   a human authored them. That justification is void. Keep the files under change control, and
-   record every change in `docs/KNOWLEDGE-CHANGELOG.md` with its source, which is what that
-   file is for.
+     is right about why. They keep `ASSUMED`, which already means no published value
+     exists, and it is shown on screen (item 17).
+**Step 4. Change the rule in `AGENTS.md` and `CLAUDE.md`.** They forbid editing these files
+because a human authored them. That justification is void, but the rule is still right for a
+different reason: a clinical number should not change without a source and a record. Keep the
+files under change control, and keep recording every change in
+`docs/KNOWLEDGE-CHANGELOG.md` with the quoted source sentence, which is what that file is for.
 
-**How you will know it worked.** Open any file in `data/knowledge/` and the provenance line
-matches reality. Then pick three numbers at random and try to find where each came from. You
-should either reach a paper or reach a line saying no source exists.
+**How you will know it worked.** Two checks.
+
+First, `grep -rniE "authored by a human|written by a human|human-authored|human-written" .`
+over everything except `history/`, `research/` and `.venv/` returns nothing.
+
+Second, pick three numbers at random from `causes.yaml` or `probes.yaml` and try to find
+where each came from. You should reach either a paper or an `ASSUMED` label. You should never
+reach a sentence that tells you the number is trustworthy without saying why.
 
 **What could go wrong.** Nothing technical. The risk is to the report: this weakens the
 "never write clinical content from your own knowledge" claim. Say it plainly and it becomes a
