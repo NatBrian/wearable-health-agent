@@ -153,8 +153,21 @@ FORECAST_MIN_NIGHTS = 5  # below this: status TOO_FEW_NIGHTS
 FORECAST_Q_LO = 0.10
 FORECAST_Q_HI = 0.90
 FORECAST_HALF_WIDTH_FLOOR_BPM = 1.0  # a confident model can return a zero-width band
-FORECAST_AS_EVIDENCE = True  # ablation toggle for the belief contribution
-FORECAST_EVIDENCE_SD_BPM = 2.5  # deliberately wide: it observes the same night
+# FORECAST_AS_EVIDENCE and FORECAST_EVIDENCE_SD_BPM were removed on 4 September 2026.
+# They asserted that the forecast contributed to the belief model and named an ablation
+# toggle for it. No such contribution ever existed: there is no forecast log-factor in
+# wha.belief, and both constants were read by nothing anywhere in the codebase.
+#
+# They were not reinstated, because the evidence does not support the path they described.
+# No study was found showing that a forecast residual carries information about WHICH
+# cause is present, which is what the belief model needs. Alavi et al. 2022, the source of
+# this system's detection thresholds, compared three detectors on this exact problem and
+# measured plain baseline deviation (NightSignal) at 78 percent sensitivity against 54
+# percent for CuSum and 44 percent for RHRAD at the same false-signal rate: the simplest
+# method beat both forecast-style ones.
+#
+# The forecast now actually runs and is shown as advisory context, which is what the
+# heading above this block has always said it is. See docs/RESEARCH-AGENTIC-TRIAGE.md.
 
 # --- belief model ---------------------------------------------------------
 N_CAUSES = 12
@@ -237,6 +250,16 @@ CONVERSATION_DEPTH_CITATION = (
 
 # Questions the EVSI policy may ask across one episode, separate from the conversation.
 DEPTH_BUDGET_PER_EPISODE = 5
+
+# How strongly sensor artifact must lead the differential before the system asks for a
+# hand-taken reading instead of a question.
+#
+# UNEVIDENCED. No study says where this belongs. It exists because the alternative was a
+# limb that never ran at all: ActionKind.MEASURE appeared only in the graph's router, the
+# policy never selected it, and the measurements table had never held a row. Set at the
+# level where sensor artifact is clearly the leading explanation rather than merely
+# present, so a spot check is asked for rarely. Disclosed in docs/DISCLOSURES.md.
+MEASURE_MIN_LEADING_PROBABILITY = 0.5
 
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36

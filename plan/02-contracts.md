@@ -231,8 +231,14 @@ FORECAST_MIN_NIGHTS           = 5       # below this: status TOO_FEW_NIGHTS
 FORECAST_Q_LO                 = 0.10
 FORECAST_Q_HI                 = 0.90
 FORECAST_HALF_WIDTH_FLOOR_BPM = 1.0     # a confident model can return a zero-width band
-FORECAST_AS_EVIDENCE          = True    # ablation toggle for the belief contribution
-FORECAST_EVIDENCE_SD_BPM      = 2.5     # deliberately wide: it observes the same night
+# AMENDED 4 September 2026. FORECAST_AS_EVIDENCE and FORECAST_EVIDENCE_SD_BPM are
+# removed. The belief contribution they describe was specified here and never built:
+# no forecast log-factor exists in wha.belief and both constants were read by nothing.
+# It is now deliberately not built. No study was found showing a forecast residual
+# identifies which cause is present, and Alavi et al. 2022, the source of the detection
+# thresholds above, measured plain baseline deviation at 78 percent sensitivity against
+# 54 (CuSum) and 44 (RHRAD) at the same false-signal rate. The forecast runs and is
+# advisory, as the heading of this block has always said.
 
 # --- belief model ---------------------------------------------------------
 N_CAUSES                      = 12

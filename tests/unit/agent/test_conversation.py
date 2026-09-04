@@ -267,3 +267,41 @@ def test_nobody_is_left_in_limbo_when_the_rule_will_not_complete(conn) -> None:
     assert last.urgency == "urgent"
     assert "cautious direction" in (last.triage.meaning if last.triage else "")
     assert "not a finding" in (last.triage.meaning if last.triage else "")
+
+
+def test_every_turn_lands_in_the_tamper_evident_record(conn) -> None:
+    """The Audit page says everything the system does is written down as it happens.
+
+    After the conversation was added it recorded ingest, night scoring and the agent's tool
+    calls and nothing else, so the exchange in which someone described chest pain and was
+    routed to a doctor left no trace on the one page whose purpose is to be checkable.
+    """
+    client = _client(
+        ConverseResponse(reply="I need to ask you something."),
+        RuleExtraction(gates_confirmed=["gate_collapse"]),
+    )
+
+    _reply(conn, client, "chest pain and I blacked out", age_years=40)
+
+    rows = conn.execute(
+        "SELECT actor, operation, input_json, output_json, safety_event FROM audit_events"
+    ).fetchall()
+    chat_rows = [r for r in rows if r["operation"] == "chat"]
+
+    assert chat_rows, "the conversation left no entry in the audit chain"
+    entry = chat_rows[-1]
+    assert entry["actor"] == "human"
+    assert "blacked out" in entry["input_json"]
+    assert "urgent" in entry["output_json"]
+    assert entry["safety_event"] == "red_flag_conversation"
+
+
+def test_the_audit_chain_stays_verifiable_after_a_conversation(conn) -> None:
+    """A new entry type must not break the hash chain the Audit page verifies."""
+    from wha.service.audit import verify_hash_chain
+
+    client = _client(ConverseResponse(reply="Noted."))
+    _reply(conn, client, "I slept badly", age_years=40)
+
+    intact, bad_event = verify_hash_chain("sub_test", conn=conn)
+    assert intact, f"chain broken at {bad_event}"

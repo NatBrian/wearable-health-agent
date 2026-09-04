@@ -199,3 +199,93 @@ def test_model_loaded_once() -> None:
 
         assert p1 is p2
         assert mock_chronos.ChronosBoltPipeline.from_pretrained.call_count == 1
+
+
+def test_the_pipeline_actually_runs_the_forecast() -> None:
+    """detect_night must call the forecaster, not leave it at NOT_RUN.
+
+    forecast_night existed, was tested seven ways, and was called by nothing in the
+    pipeline: detect_night took an optional Forecast defaulting to NOT_RUN and every caller
+    left it out. A subject with 41 usable nights against a five-night minimum recorded
+    NOT_RUN on every night, while `wha doctor` reported the model weights present and
+    STATUS.md claimed Chronos was forecasting.
+    """
+    import tempfile
+    from datetime import UTC, date, datetime, timedelta
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from wha.db.connection import connect
+    from wha.db.iso import to_iso
+    from wha.db.migrations import apply_schema
+    from wha.detect.detector import detect_night
+    from wha.models import Forecast, ForecastStatus
+
+    db = Path(tempfile.mkdtemp()) / "f.sqlite"
+    conn = connect(db)
+    apply_schema(conn)
+    conn.execute(
+        """INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)
+           VALUES ('s', 's', 'synthetic', 'UTC', ?)""",
+        (to_iso(datetime.now(UTC)),),
+    )
+    start = date(2026, 8, 1)
+    for offset in range(20):
+        conn.execute(
+            """INSERT INTO nightly_features
+                 (subject_id, night_date, rhr_bpm, coverage_minutes, implausible_dropped,
+                  usable, steps_prev_day, sleep_hours, exercise_end_offset_h,
+                  computed_at_utc)
+               VALUES ('s', ?, 60.0, 400, 0, 1, 5000, 7.0, NULL, ?)""",
+            ((start + timedelta(days=offset)).isoformat(), to_iso(datetime.now(UTC))),
+        )
+    conn.commit()
+
+    expected = Forecast(
+        predicted_bpm=60.0, lo_bpm=59.0, hi_bpm=61.0, forecast_z=0.0, status=ForecastStatus.OK
+    )
+    with patch("wha.detect.detector.forecast_night", return_value=expected) as mock_forecast:
+        detection = detect_night(conn, "s", start + timedelta(days=19))
+
+    assert mock_forecast.called, "detect_night never asked for a forecast"
+    assert detection.forecast.status == ForecastStatus.OK
+    assert detection.forecast.predicted_bpm == 60.0
+
+
+def test_an_explicit_forecast_still_overrides_the_computed_one() -> None:
+    """Callers that supply a forecast, such as evaluations, keep control of it."""
+    import tempfile
+    from datetime import UTC, date, datetime
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from wha.db.connection import connect
+    from wha.db.iso import to_iso
+    from wha.db.migrations import apply_schema
+    from wha.detect.detector import detect_night
+    from wha.models import Forecast, ForecastStatus
+
+    db = Path(tempfile.mkdtemp()) / "g.sqlite"
+    conn = connect(db)
+    apply_schema(conn)
+    conn.execute(
+        """INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)
+           VALUES ('s', 's', 'synthetic', 'UTC', ?)""",
+        (to_iso(datetime.now(UTC)),),
+    )
+    night = date(2026, 8, 1)
+    conn.execute(
+        """INSERT INTO nightly_features
+             (subject_id, night_date, rhr_bpm, coverage_minutes, implausible_dropped,
+              usable, steps_prev_day, sleep_hours, exercise_end_offset_h, computed_at_utc)
+           VALUES ('s', ?, 60.0, 400, 0, 1, 5000, 7.0, NULL, ?)""",
+        (night.isoformat(), to_iso(datetime.now(UTC))),
+    )
+    conn.commit()
+
+    supplied = Forecast(predicted_bpm=42.0, status=ForecastStatus.OK)
+    with patch("wha.detect.detector.forecast_night") as mock_forecast:
+        detection = detect_night(conn, "s", night, forecast=supplied)
+
+    assert not mock_forecast.called
+    assert detection.forecast.predicted_bpm == 42.0

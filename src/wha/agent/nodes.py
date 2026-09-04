@@ -474,6 +474,9 @@ def node_decide(
         has_pending_interaction=pending,
         already_asked_probe_ids=asked_probe_ids,
         has_symptoms_evidence=has_symptoms_evidence,
+        # One spot check per episode. Asking twice for the same hand-taken reading is not
+        # more information, it is nagging.
+        already_measured=bool(state.get("measurements")),
     )
 
     client = llm_client or get_llm_client()

@@ -233,6 +233,33 @@ def render_last_night_summary(subject_id: str, status: SystemStatus | None = Non
         st.write(f"In words: {describe_bpm_difference(n.residual_bpm)}.")
         st.caption(f"Internal level for this night: {phrase.technical}")
 
+        # The forecast. It ran for the first time on 4 September 2026: the model existed,
+        # was tested, and was called by nothing, so every night read NOT_RUN. It is shown
+        # here and nowhere near a decision, because it is advisory and is not evidence in
+        # the belief model.
+        if n.forecast_status == "OK" and n.forecast_bpm is not None:
+            st.write("---")
+            st.write(
+                f"**A second opinion, for interest.** Before seeing last night, a "
+                f"forecasting model trained on time series expected about "
+                f"{n.forecast_bpm:.1f} bpm from the shape of your recent nights."
+            )
+            if n.rhr_bpm is not None:
+                gap = n.rhr_bpm - n.forecast_bpm
+                st.caption(
+                    f"Your actual reading was {n.rhr_bpm:.1f} bpm, which is "
+                    f"{abs(gap):.1f} bpm {'above' if gap >= 0 else 'below'} what it "
+                    "expected. This changes nothing. It does not decide whether a night "
+                    "is looked into and it is not used to work out why. It is here so you "
+                    "can see whether the night was a surprise given the recent trend, "
+                    "which is a different question from whether it was high for you."
+                )
+        elif n.forecast_status == "TOO_FEW_NIGHTS":
+            st.caption(
+                "The forecasting model needs a few more nights before it will say "
+                "anything, and declines rather than guessing."
+            )
+
 
 def render_open_episodes(subject_id: str) -> None:
     """List anything currently being looked into."""

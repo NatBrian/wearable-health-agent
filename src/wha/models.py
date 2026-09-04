@@ -388,6 +388,13 @@ class NightRow(BaseModel):
     usable: bool
     level: DetectionLevel
     episode_id: str | None = None
+    # What the forecasting model expected for this night, and how far the reading fell
+    # from it. Advisory only: it never sets the level or opens an investigation. Carried
+    # on the row so an interface can show it without reaching past the service layer.
+    forecast_bpm: float | None = None
+    forecast_lo_bpm: float | None = None
+    forecast_hi_bpm: float | None = None
+    forecast_status: str | None = None
 
 
 class NightDetail(BaseModel):

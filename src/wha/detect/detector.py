@@ -17,6 +17,7 @@ from wha.constants import (
 from wha.db import transaction
 from wha.detect.baseline import compute_baseline
 from wha.detect.explained import explained_bpm
+from wha.detect.forecast import forecast_night
 from wha.features import compute_night
 from wha.models import (
     Baseline,
@@ -215,7 +216,21 @@ def detect_night(
     previous = dict(prior_row) if prior_row is not None else None
 
     # 4. Compute detection
-    fc = forecast or Forecast(status=ForecastStatus.NOT_RUN)
+    #
+    # The forecast is run here, which is the only place that has both the history and
+    # tonight's reading. `forecast_night` existed, was tested seven ways, and was called by
+    # nothing in the pipeline: this function took an optional Forecast that defaulted to
+    # NOT_RUN, and every caller left it out. A subject with 41 usable nights against a
+    # five-night minimum therefore recorded NOT_RUN on every night, while `wha doctor`
+    # reported the 182 MB of model weights as present and STATUS.md claimed Chronos was
+    # forecasting.
+    #
+    # It is advisory and stays advisory. It never sets level or flagged, and it is not
+    # evidence in the belief model: no study was found showing a forecast residual
+    # identifies which cause is present, and Alavi et al. 2022, the source of this
+    # system's thresholds, measured plain baseline deviation at 78 percent sensitivity
+    # against 54 and 44 percent for the two forecast-style detectors it compared.
+    fc = forecast if forecast is not None else forecast_night(history, features.rhr_bpm)
     detection = compute_detection_for_features(features, baseline, preceding_levels, fc)
 
     # 5. Persist baseline and detection

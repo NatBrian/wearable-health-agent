@@ -32,6 +32,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from wha.audit.monitor import record_conversation_turn
 from wha.constants import CONVERSATION_MAX_TURNS, TRIAGE_MAX_TURNS_BEFORE_ESCALATE
 from wha.db.iso import to_iso
 from wha.errors import LLMUnavailable, ValidationFailed
@@ -563,6 +564,20 @@ def respond(
         triage=outcome,
         turn_index=turn_index + 1,
         at_turn_limit=at_limit,
+    )
+
+    record_conversation_turn(
+        conn,
+        subject_id=subject_id,
+        user_text=user_message,
+        reply_text=reply.text,
+        urgency=urgency,
+        triggered_flags=triggered,
+        citations=len(citations),
+        uncited=len(reply.uncited),
+        rule_id=outcome.rule_id if outcome else None,
+        score=outcome.score if outcome else None,
+        gate_triggered=outcome.gate_triggered if outcome else None,
     )
 
     record_turn(

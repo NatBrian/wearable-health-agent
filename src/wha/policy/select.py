@@ -1,10 +1,15 @@
 """Policy action selection, disposition mapping, and probe scoring."""
 
+import uuid
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 
 from wha.constants import (
+    DEPTH_BUDGET_PER_EPISODE,
     EPISODE_MAX_NIGHTS,
     EPISODE_MAX_STEPS,
+    MEASURE_MIN_LEADING_PROBABILITY,
+    MEASUREMENT_TIMEOUT_HOURS,
     POLICY_COST_PER_INTERRUPT,
 )
 from wha.models import (
@@ -14,6 +19,7 @@ from wha.models import (
     BeliefState,
     CauseId,
     Disposition,
+    MeasurementRequest,
     Probe,
     Question,
 )
@@ -34,6 +40,7 @@ def select_action(
     already_asked_probe_ids: Sequence[str] = (),
     has_symptoms_evidence: bool = False,
     cost_per_interrupt: float = POLICY_COST_PER_INTERRUPT,
+    already_measured: bool = False,
 ) -> Action:
     """Select the next policy action following the deterministic 6-step contract."""
     all_probes = probes if probes is not None else load_probes()
@@ -107,7 +114,51 @@ def select_action(
             rejected=rejected_for_ask,
         )
 
-    # 5. Check if another night of observation could plausibly resolve decision
+    # 5. A spot reading, when the leading explanation is the sensor itself.
+    #
+    # ActionKind.MEASURE appeared only in the graph's router. The policy never selected it,
+    # so node_measure, the "A quick reading would help" screen, submit_measurement_done and
+    # compute_measurement_logfactor were all unreachable and the measurements table had
+    # never held a row. A whole limb of a health system that had never executed.
+    #
+    # This is the case it was built for. When sensor artifact leads the differential, no
+    # question can settle it: the person cannot tell you whether their watch misread them.
+    # A resting heart rate taken by hand can, and compute_measurement_logfactor already
+    # knows what to do with the answer, moving weight away from sensor artifact when a
+    # manual reading agrees with the device.
+    #
+    # Gated on the same pending check as asking, so it cannot stack on an outstanding
+    # question, and it consumes the episode depth budget rather than the weekly one
+    # because it is a request rather than an interruption.
+    leading_cause, leading_p = (belief.top(1) or [(None, 0.0)])[0]
+    if (
+        leading_cause is CauseId.SENSOR_ARTIFACT
+        and leading_p >= MEASURE_MIN_LEADING_PROBABILITY
+        and not has_pending_interaction
+        and episode_questions_asked < DEPTH_BUDGET_PER_EPISODE
+        and not already_measured
+    ):
+        return Action(
+            kind=ActionKind.MEASURE,
+            measurement=MeasurementRequest(
+                measurement_id=f"m_{uuid.uuid4().hex[:12]}",
+                kind="spot_resting_hr",
+                instruction=(
+                    "Sit still for two minutes, then take your resting heart rate by hand: "
+                    "count the beats at your wrist for 30 seconds and double it. Your watch "
+                    "may have misread last night, and a reading you took yourself is the "
+                    "only way to tell."
+                ),
+                expires_at_utc=datetime.now(UTC) + timedelta(hours=MEASUREMENT_TIMEOUT_HOURS),
+            ),
+            rationale=(
+                f"Sensor artifact leads the differential at {leading_p:.2f}. No question "
+                "can resolve it; a hand-taken reading can."
+            ),
+            rejected=all_rejected,
+        )
+
+    # 6. Check if another night of observation could plausibly resolve decision
     # Inside active uncertainty band and budget allows more nights
     p_inf = belief.p_illness
     inside_uncertainty_band = 0.05 <= p_inf <= 0.40
@@ -122,7 +173,7 @@ def select_action(
             rejected=all_rejected,
         )
 
-    # 6. Conclude and assign disposition from belief
+    # 7. Conclude and assign disposition from belief
     disposition = determine_disposition(
         belief=belief,
         rung=rung,

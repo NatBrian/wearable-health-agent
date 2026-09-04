@@ -298,3 +298,71 @@ def night_narrative(
     lines.append(_forecast_reason(baseline, detection))
     lines.append(why_entry)
     return lines
+
+
+def record_conversation_turn(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    user_text: str,
+    reply_text: str,
+    urgency: str | None,
+    triggered_flags: list[str],
+    citations: int,
+    uncited: int,
+    rule_id: str | None = None,
+    score: int | None = None,
+    gate_triggered: str | None = None,
+) -> None:
+    """Put the conversation in the tamper-evident record.
+
+    The Audit page says "everything this system does is written down as it happens". After
+    the conversation was added it recorded ingest, night scoring and the agent's tool calls
+    and nothing else, so the exchange in which a person described chest pain and was routed
+    to a doctor left no trace on the page whose entire purpose is to be checkable.
+
+    The person's own words are recorded, because a rule fired on them and the record has to
+    show what it fired on. Retrieved passages are not: they are in the episode's citations
+    and would bury the entries that matter.
+    """
+    if urgency:
+        narrative = (
+            f"You wrote to the system, and a fixed rule set the urgency to {urgency}. "
+            "That decision was made by the rule, not by the AI, and the AI cannot lower it."
+        )
+    elif triggered_flags:
+        narrative = (
+            "You wrote to the system. A safety rule matched what you said and the system "
+            "started asking the questions a published decision rule needs before it can "
+            "say how urgent this is."
+        )
+    else:
+        narrative = "You wrote to the system and it answered."
+
+    if uncited:
+        narrative += (
+            f" {uncited} sentence(s) in the reply came from the AI's own knowledge with no "
+            "source behind them, and were labelled as such."
+        )
+
+    append_audit(
+        conn,
+        _event(
+            subject_id,
+            "human",
+            "chat",
+            input={"message": user_text},
+            output={
+                "reply": reply_text,
+                "urgency": urgency,
+                "triggered_flags": triggered_flags,
+                "decision_rule": rule_id,
+                "rule_score": score,
+                "unconditional_gate": gate_triggered,
+                "cited_claims": citations,
+                "uncited_statements": uncited,
+                "summary": narrative,
+            },
+            safety_event="red_flag_conversation" if triggered_flags else "none",
+        ),
+    )
+    conn.commit()

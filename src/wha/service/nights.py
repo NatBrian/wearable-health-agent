@@ -135,6 +135,10 @@ def list_nights(
                     usable=usable,
                     level=lvl,
                     episode_id=ep_id,
+                    forecast_bpm=det["forecast_bpm"] if det is not None else None,
+                    forecast_lo_bpm=det["forecast_lo_bpm"] if det is not None else None,
+                    forecast_hi_bpm=det["forecast_hi_bpm"] if det is not None else None,
+                    forecast_status=det["forecast_status"] if det is not None else None,
                 )
             )
             cur_date += timedelta(days=1)
