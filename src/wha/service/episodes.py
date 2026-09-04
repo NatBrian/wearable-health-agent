@@ -14,7 +14,6 @@ from wha.models import (
     AnswerOption,
     BeliefState,
     CauseId,
-    Citation,
     Detection,
     DetectionLevel,
     Disposition,
@@ -24,7 +23,6 @@ from wha.models import (
     EpisodeSummary,
     Forecast,
     ForecastStatus,
-    GroundedAnswer,
     InteractionView,
     MeasurementRequest,
     MeasurementResult,
@@ -583,75 +581,6 @@ def get_episode(
             measurements=measurements,
             citations=citations,
             stripped_claims=stripped_claims,
-        )
-    finally:
-        if close_conn:
-            conn.close()
-
-
-def ask_about_episode(
-    episode_id: str,
-    question: str,
-    conn: sqlite3.Connection | None = None,
-) -> GroundedAnswer:
-    """Answer a question about a closed or active episode strictly bounded to its own recorded evidence.
-
-    Has no tool access, cannot perform corpus-wide retrieval, and mutates no state.
-    Refuses ungrounded queries.
-    """
-    close_conn = False
-    if conn is None:
-        conn = connect()
-        apply_schema(conn)
-        close_conn = True
-
-    try:
-        ep_detail = get_episode(episode_id, conn=conn)
-        outcome = ep_detail.outcome
-
-        # Bounded evidence corpus: only citations and observation recorded in this episode
-        available_citations = ep_detail.citations
-
-        # Check for grounding overlap
-        q_tokens = set(question.lower().replace("?", "").split())
-
-        matched_citations: list[Citation] = []
-        for cit in available_citations:
-            cit_tokens = set(cit.passage.lower().split()) | set(cit.title.lower().split())
-            if q_tokens & cit_tokens:
-                matched_citations.append(cit)
-
-        if outcome is not None:
-            obs_tokens = set(outcome.observation.lower().split())
-            overlap = q_tokens & obs_tokens
-            if overlap or matched_citations:
-                text = (
-                    f"Based on episode {episode_id} evidence: {outcome.observation} "
-                    f"Disposition: {outcome.disposition}. Recommended action: {outcome.action}."
-                )
-                return GroundedAnswer(
-                    text=text,
-                    citations=matched_citations,
-                    refused=False,
-                    refusal_reason=None,
-                )
-
-        if matched_citations:
-            text = f"Based on episode {episode_id} evidence: {matched_citations[0].passage}"
-            return GroundedAnswer(
-                text=text,
-                citations=matched_citations,
-                refused=False,
-                refusal_reason=None,
-            )
-
-        return GroundedAnswer(
-            text="",
-            citations=[],
-            refused=True,
-            refusal_reason=(
-                f"Question '{question}' cannot be grounded in the bounded evidence of episode {episode_id}."
-            ),
         )
     finally:
         if close_conn:

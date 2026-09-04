@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from wha.models import EpisodeDetail
-from wha.service.episodes import ask_about_episode
+from wha.service.conversation import send_message
 from wha.ui.components.pipeline_trace import render_pipeline_trace
 
 
@@ -96,22 +96,41 @@ def render_conversation_tab(detail: EpisodeDetail) -> None:
     st.write("---")
     st.subheader("❓ Ask About This Episode")
     st.caption(
-        "Answers are strictly bounded to this episode's stored evidence and knowledge citations."
+        "This goes to the same conversation as the one on Today, with this investigation "
+        "as context, so there is one transcript rather than two. Every claim is either "
+        "cited or labelled as having no source, and the safety rules run on what you write."
     )
 
     user_q = st.text_input(
         "Ask a follow-up question...", key=f"followup_{detail.summary.episode_id}"
     )
     if st.button("Submit Follow-up", key=f"btn_followup_{detail.summary.episode_id}") and user_q:
-        answer = ask_about_episode(detail.summary.episode_id, user_q)
-        if answer.refused:
-            st.warning(f"⚠️ **Refused to answer:** {answer.refusal_reason or answer.text}")
-        else:
-            st.success(answer.text)
-            if answer.citations:
-                st.markdown("**Evidence Citations:**")
-                for c in answer.citations:
-                    st.caption(f'• **{c.title}** (`{c.source_id}`): *"{c.passage}"*')
+        # The real conversation engine, not the word-overlap lookup that used to sit here.
+        # That version made no model call at all, echoed the stored observation back, and
+        # refused anything it could not token-match. Leaving it in place beside a working
+        # conversation would have given the same question two different answers depending
+        # on which page it was asked from.
+        summary = detail.outcome.observation if detail.outcome else ""
+        reply = send_message(
+            subject_id=detail.summary.subject_id,
+            text=user_q,
+            episode_id=detail.summary.episode_id,
+            episode_summary=summary,
+        )
+        st.info(reply.text)
+        if reply.citations:
+            st.markdown("**Where this comes from:**")
+            for c in reply.citations:
+                st.caption(f'• **{c.title}** (`{c.source_id}`): *"{c.passage[:300]}"*')
+        if reply.uncited:
+            st.warning(
+                "**Not from a cited source.** These came from the AI's own general "
+                "knowledge, not from this system's references.",
+                icon="⚠️",
+            )
+            for note in reply.uncited:
+                st.caption(f"• {note}")
+        st.caption("Continued on the Today page, where the whole conversation lives.")
 
 
 def render_evidence_tab(detail: EpisodeDetail) -> None:

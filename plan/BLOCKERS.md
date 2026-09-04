@@ -657,3 +657,37 @@ scenario means the same thing whatever ran before it. A database named with `--d
 alone. Two tests cover both halves.
 
 **What I need:** nothing.
+
+
+## conversation — the uncited label depends on the model classifying its own sentences
+
+**What I tried:** drove the conversation through the Telegram path with the live model,
+answering a chest pain presentation across two turns.
+
+**What happened:** on one turn the model correctly put "the pain being the same when you
+press on it is consistent with a muscle strain" into `uncited_notes`, where the interface
+shows it under an amber "Not from a cited source" heading. On the next turn, with the same
+prompt, it wrote "that's reassuring" and "which suggests it might be muscular" directly into
+the reply, where they were shown with no warning at all.
+
+**What I think is wrong:** the split between grounded and uncited is asked for in the
+prompt and cannot be enforced in code, because deciding whether a sentence is a clinical
+claim is the same judgement the model is making. What IS enforced deterministically is
+narrower: the red-flag floor over the person's words, the never-say phrase list, and the
+rule that urgency can rise and never fall. Those hold regardless of what the model writes.
+
+The consequence is that the amber warning is a floor on labelling, not a ceiling on
+unlabelled model content. Draelos et al. 2025 (arXiv:2507.18905) measured 5 to 13 percent
+of unguarded frontier-model answers to patient questions as outright unsafe, so this
+matters.
+
+**What I need:** a decision between three options, none of which I should take alone.
+Adding a second model pass that classifies each sentence of the reply and moves clinical
+ones to the uncited list, which doubles the cost per turn and is still a model judgement.
+Restricting the reply to sentences that are either cited or drawn from a fixed set of
+templates, which would make the conversation much less useful. Or accepting it as
+disclosed, which is what is in place now.
+
+Separately: "that's reassuring" is not in `never_say`, which covers "you are fine",
+"nothing to worry about" and similar. Whether it belongs there is a wording judgement about
+a human-authored safety list, so I have not added it.

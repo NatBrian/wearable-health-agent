@@ -157,7 +157,7 @@ def test_expired_question_tap_changes_nothing() -> None:
     assert not mock_db.record_interaction_answer.called
 
 
-def test_free_text_with_no_pending_question_does_not_open_episode() -> None:
+def test_free_text_with_no_pending_question_is_answered_not_deflected() -> None:
     """Free text received when no question is pending points to the dashboard and does NOT open an episode."""
     mock_client = MagicMock()
     mock_db = MagicMock()
@@ -178,10 +178,24 @@ def test_free_text_with_no_pending_question_does_not_open_episode() -> None:
         },
     }
 
-    res = receiver.process_update(update)
-    assert res["status"] == "replied_dashboard_pointer"
-    assert res["opened_episode"] is False
-    # Verified reply sent with dashboard pointer
+    from unittest.mock import patch
+
+    from wha.agent.conversation import ConversationReply
+
+    # Free text with no pending question is now a conversation turn, not a brush-off.
+    # It used to answer "Please check your health dashboard for episode status and
+    # history", which meant the multi-turn conversation did not exist on the one channel
+    # the person actually uses. Opening an episode from a stray message is still refused:
+    # that is what this test has always been about.
+    reply = ConversationReply(text="Thanks, noted. Did you sleep normally after those?")
+    with patch(
+        "wha.service.conversation.converse_over_telegram",
+        return_value=(reply, "Thanks, noted. Did you sleep normally after those?"),
+    ):
+        res = receiver.process_update(update)
+
+    assert res["status"] == "conversed"
+    assert not mock_db.open_episode.called, "a stray message opened an investigation"
     assert mock_client.post.called
     call_payload = mock_client.post.call_args.kwargs.get("json", {})
-    assert "dashboard" in call_payload.get("text", "").lower()
+    assert "did you sleep normally" in call_payload.get("text", "").lower()

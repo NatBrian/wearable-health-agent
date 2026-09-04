@@ -14,7 +14,6 @@ from wha.models import (
     StageStatus,
 )
 from wha.service import (
-    ask_about_episode,
     get_episode,
     get_pending_interaction,
     submit_answer,
@@ -227,52 +226,3 @@ def test_episode_detail_includes_rejected_probes() -> None:
     assert len(interaction.rejected) == 2
     assert interaction.rejected[0] == ("probe_exertion", 0.12)
     assert interaction.rejected[1] == ("probe_stress", 0.08)
-
-
-def test_ask_about_episode_cannot_reach_corpus() -> None:
-    """ask_about_episode cannot perform global retrieval and is bounded to episode evidence."""
-    conn = connect(":memory:")
-    apply_schema(conn)
-    _sub_id, ep_id, _int_id = _seed_sample_episode(conn)
-
-    # Querying about something outside this episode's evidence (e.g. malaria treatment)
-    ans = ask_about_episode(ep_id, "What are the recommended treatments for malaria?", conn=conn)
-    assert ans.refused is True
-    assert ans.refusal_reason is not None
-    assert "cannot be grounded" in ans.refusal_reason
-
-
-def test_ask_about_episode_refuses_ungrounded() -> None:
-    """Questions that have no grounding in the episode's observation or citations are refused."""
-    conn = connect(":memory:")
-    apply_schema(conn)
-    _sub_id, ep_id, _int_id = _seed_sample_episode(conn)
-
-    ans = ask_about_episode(ep_id, "What is the stock price of Apple?", conn=conn)
-    assert ans.refused is True
-    assert ans.text == ""
-
-
-def test_ask_about_episode_changes_no_state() -> None:
-    """ask_about_episode is strictly read-only and mutates zero tables or counters."""
-    conn = connect(":memory:")
-    apply_schema(conn)
-    _sub_id, ep_id, _int_id = _seed_sample_episode(conn)
-
-    before_audit_count = conn.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
-    before_ep_state = conn.execute(
-        "SELECT state FROM episodes WHERE episode_id = ?", (ep_id,)
-    ).fetchone()[0]
-
-    # Valid grounded query
-    ans = ask_about_episode(ep_id, "Why was resting heart rate elevated?", conn=conn)
-    assert ans.refused is False
-    assert "alcohol" in ans.text.lower()
-
-    after_audit_count = conn.execute("SELECT COUNT(*) FROM audit_events").fetchone()[0]
-    after_ep_state = conn.execute(
-        "SELECT state FROM episodes WHERE episode_id = ?", (ep_id,)
-    ).fetchone()[0]
-
-    assert before_audit_count == after_audit_count
-    assert before_ep_state == after_ep_state

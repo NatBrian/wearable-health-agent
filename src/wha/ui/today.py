@@ -267,8 +267,10 @@ def render_conversation(subject_id: str) -> str | None:
     st.subheader("Talk to it")
     st.caption(
         "Ask anything about your readings, or tell it how you feel. It may ask you "
-        "questions back. Anything you write is checked by fixed rules before any AI sees "
-        "it, and those rules can raise how urgent this is but the AI can never lower it."
+        "questions back, and it answers on Telegram too. Anything you write is checked by "
+        "fixed rules before any AI sees it, and those rules can raise how urgent this is "
+        "but the AI can never lower it. Anything it says without a source should be "
+        "flagged amber below, though that labelling depends on the AI and is not perfect."
     )
 
     turns = get_transcript(subject_id)

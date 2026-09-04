@@ -15,7 +15,6 @@ from wha.models import (
     EpisodeOutcome,
     EpisodeState,
     EpisodeSummary,
-    GroundedAnswer,
     InteractionView,
     PipelineStage,
     StageStatus,
@@ -265,41 +264,6 @@ def test_episode_conversation_shows_rejected_probes() -> None:
         written = [call[0][0] for call in mock_write.call_args_list]
         assert any("probe_alcohol" in w for w in written)
         assert any("probe_workout" in w for w in written)
-
-
-def test_ask_about_episode_refuses_ungrounded() -> None:
-    """Follow-up Q&A refuses when an assertion cannot be grounded to the episode's evidence."""
-    refused_answer = GroundedAnswer(
-        text="I cannot answer this question based on the episode evidence.",
-        citations=[],
-        refused=True,
-        refusal_reason="Question cannot be grounded in the bounded evidence of episode ep_test.",
-    )
-    detail = EpisodeDetail(
-        summary=EpisodeSummary(
-            episode_id="ep_test",
-            opened_on=date(2026, 8, 1),
-            closed_on=date(2026, 8, 2),
-            state=EpisodeState.CLOSED,
-            disposition=Disposition.LIKELY_ILLNESS,
-            night_span=(date(2026, 8, 1), date(2026, 8, 2)),
-        ),
-        stages=[],
-        belief_history=[],
-        interactions=[],
-    )
-
-    with (
-        patch("streamlit.text_input", return_value="What is the weather outside?"),
-        patch("streamlit.button", return_value=True),
-        patch("wha.ui.components.episode_panel.ask_about_episode", return_value=refused_answer),
-        patch("streamlit.warning") as mock_warning,
-    ):
-        render_conversation_tab(detail)
-        assert mock_warning.called
-        warn_msg = mock_warning.call_args[0][0]
-        assert "Refused to answer" in warn_msg
-        assert "cannot be grounded" in warn_msg
 
 
 def test_stripped_claims_visible() -> None:

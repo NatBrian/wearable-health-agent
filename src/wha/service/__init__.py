@@ -36,7 +36,6 @@ from wha.service.doctor import (
     run_doctor,
 )
 from wha.service.episodes import (
-    ask_about_episode,
     get_episode,
     get_pending_interaction,
     list_episodes,
@@ -92,7 +91,6 @@ __all__ = [
     "Handover",
     "SourceUnavailable",
     "SymptomReportResult",
-    "ask_about_episode",
     "build_corpus_file",
     "build_handover",
     "create_scheduler",

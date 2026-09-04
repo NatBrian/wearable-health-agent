@@ -70,6 +70,42 @@ class TelegramReceiver:
         except (httpx.HTTPError, OSError) as exc:
             logger.warning("Failed to send reply message to %s: %s", chat_id, exc)
 
+    def _converse(self, chat_id: str | int | None, text: str, up_id: int) -> dict[str, Any]:
+        """Run one conversational turn and send the reply back to the phone.
+
+        Never raises into the polling loop. A conversation failing must not stop the
+        receiver, and it must not leave the person with silence, so a failure still sends
+        something that says what happened rather than nothing.
+        """
+        from wha.service.conversation import converse_over_telegram
+
+        if not text.strip():
+            self.save_offset(up_id + 1)
+            return {"status": "ignored_empty"}
+
+        try:
+            reply, message = converse_over_telegram(text)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Conversation turn failed for update %d: %s", up_id, exc)
+            if chat_id is not None:
+                self._send_reply(
+                    chat_id,
+                    "Something went wrong answering that, so I have not answered it. "
+                    "Nothing here is a judgement about how you are. If this is urgent, "
+                    "contact a doctor or emergency services rather than waiting for me.",
+                )
+            self.save_offset(up_id + 1)
+            return {"status": "conversation_failed"}
+
+        if chat_id is not None:
+            self._send_reply(chat_id, message)
+        self.save_offset(up_id + 1)
+        return {
+            "status": "conversed",
+            "urgency": reply.urgency,
+            "asked_item_id": reply.asked_item_id,
+        }
+
     def process_update(self, update: dict[str, Any]) -> dict[str, Any]:
         """Process a single Telegram update with identity checks and transaction idempotency."""
         up_id = update.get("update_id", 0)
@@ -188,14 +224,15 @@ class TelegramReceiver:
                 self.save_offset(up_id + 1)
                 return {"status": "answered_free_text"}
             else:
-                # Free text with no pending question: reply pointing to dashboard, DO NOT open episode
-                if chat_id is not None:
-                    self._send_reply(
-                        chat_id,
-                        "Please check your health dashboard for episode status and history.",
-                    )
-                self.save_offset(up_id + 1)
-                return {"status": "replied_dashboard_pointer", "opened_episode": False}
+                # Free text with no pending question is a conversation, not a stray input.
+                # This used to reply "Please check your health dashboard for episode status
+                # and history", which is a brush-off. The phone is where the person is, and
+                # answering only in the dashboard means the multi-turn conversation does
+                # not exist on the one channel they actually use.
+                #
+                # The same engine handles it as the dashboard, so there is one transcript,
+                # one safety floor and one set of citations however they reach it.
+                return self._converse(chat_id, text, up_id)
 
         self.save_offset(up_id + 1)
         return {"status": "processed"}

@@ -97,11 +97,18 @@ def send_message(
     age_years: int | None = None,
     conn: sqlite3.Connection | None = None,
     db_path: Path | None = None,
+    notify_on_escalation: bool = True,
 ) -> ConversationReply:
-    """One turn of conversation, with every deterministic check applied around the model."""
+    """One turn of conversation, with every deterministic check applied around the model.
+
+    When the rules raise the urgency, the phone is told, whichever surface the person was
+    typing on. Someone who reaches an escalation in the dashboard and then closes the laptop
+    should not be the only place that escalation exists.
+    """
     connection, close = _open(conn, db_path)
     try:
-        return respond(
+        before = _established_urgency(connection, subject_id)
+        reply = respond(
             connection,
             subject_id=subject_id,
             user_message=text,
@@ -109,6 +116,82 @@ def send_message(
             episode_summary=episode_summary,
             age_years=age_years,
         )
+        if notify_on_escalation and reply.urgency is not None and reply.urgency != before:
+            _push_escalation(subject_id, reply)
+        return reply
     finally:
         if close:
             connection.close()
+
+
+def _push_escalation(subject_id: str, reply: ConversationReply) -> None:
+    """Tell the phone that the urgency changed. Never raises into the conversation."""
+    try:
+        from wha.notify import get_notifier
+        from wha.notify.protocol import MessageKind
+
+        get_notifier().send(
+            recipient_id=subject_id,
+            kind=MessageKind.ESCALATION,
+            text=format_for_telegram(reply),
+        )
+    except Exception:  # noqa: BLE001
+        # A transport failure must not stop the conversation or lose the reply. The
+        # urgency is already recorded on the turn, so the dashboard still shows it.
+        return
+
+
+def format_for_telegram(reply: ConversationReply, max_chars: int = 900) -> str:
+    """One phone message carrying the reply, its urgency and what has no source.
+
+    The uncited marker travels with the text. On a phone there is no amber panel to put it
+    in, and a sentence the model made up must not arrive looking the same as one with a
+    study behind it. Draelos et al. 2025 measured 5 to 13 percent of unguarded
+    frontier-model answers to patient questions as outright unsafe.
+    """
+    parts: list[str] = []
+    if reply.urgency == "urgent":
+        parts.append("THIS NEEDS MEDICAL ATTENTION TODAY.")
+    elif reply.urgency == "same_day":
+        parts.append("You should see a doctor today.")
+
+    parts.append(reply.text)
+
+    if reply.uncited:
+        parts.append(
+            "Not from a cited source (the AI's own general knowledge, worth checking): "
+            + " ".join(reply.uncited)
+        )
+    if reply.citations:
+        titles = ", ".join(dict.fromkeys(c.title for c in reply.citations))
+        parts.append(f"Sources: {titles}")
+    if reply.urgency:
+        parts.append("Decided by a fixed rule from what you told it. The AI cannot lower it.")
+
+    text = "\n\n".join(p for p in parts if p)
+    if len(text) > max_chars:
+        text = text[: max_chars - 3].rstrip() + "..."
+    return text
+
+
+def converse_over_telegram(
+    text: str,
+    subject_id: str | None = None,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> tuple[ConversationReply, str]:
+    """A turn that arrived from the phone, and the message to send back to it.
+
+    Free text with no pending question used to be answered with "Please check your health
+    dashboard for episode status and history." The phone is where the person actually is,
+    and that reply is a brush-off rather than a conversation.
+    """
+    from wha.config import get_subject
+
+    reply = send_message(
+        subject_id=subject_id or get_subject(),
+        text=text,
+        conn=conn,
+        db_path=db_path,
+    )
+    return reply, format_for_telegram(reply)
