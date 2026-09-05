@@ -362,11 +362,15 @@ def test_the_contract_quotes_the_constant_values_the_code_holds() -> None:
             continue
         try:
             declared = eval(raw, {"__builtins__": {}}, {})
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001, S112
+            # A non-literal declaration, such as a computed expression or a type name.
+            # Only literal values can be compared, so the rest are skipped by design.
             continue
         actual = getattr(constants, name)
-        if isinstance(declared, (int, float)) and isinstance(actual, (int, float)):
-            if abs(float(declared) - float(actual)) > 1e-9:
-                problems.append(f"{name}: contract={declared} code={actual}")
-
+        if (
+            isinstance(declared, (int, float))
+            and isinstance(actual, (int, float))
+            and abs(float(declared) - float(actual)) > 1e-9
+        ):
+            problems.append(f"{name}: contract={declared} code={actual}")
     assert not problems, "docs/CONTRACTS.md and constants.py disagree:\n  " + "\n  ".join(problems)
