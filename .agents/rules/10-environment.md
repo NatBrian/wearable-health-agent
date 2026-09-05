@@ -52,7 +52,7 @@ uv run ruff check src tests            # lint
 uv run ruff check --fix src tests      # autofix what is safe
 uv run ruff format src tests           # format
 
-uv run wha doctor                      # database, bridge, LLM, Telegram, datasets
+uv run wha doctor                      # database, knowledge, bridge, LLM, Telegram, cohort, baseline
 uv run wha nightly --subject me        # one deterministic batch
 uv run wha demo run illness-onset      # a scenario end to end
 uv run wha serve                       # dashboard plus scheduler
@@ -91,12 +91,16 @@ Paths that must exist are created with `mkdir(parents=True, exist_ok=True)`, nev
 
 **About 33 GB free on C:, and no second drive.** Nothing else is available.
 
-- Stanford COVID-19-Wearables: 378 MB zipped, 3.64 GB extracted
-- PMData: 1.4 GB
+- Mishra et al. 2020 COVID-19-Wearables: 378 MB zipped, 3.64 GB extracted
+- PMData: 1.4 GB, and nothing in this repository reads it
 
-So: keep archives compressed, extract selectively, convert to parquet, delete intermediates. All of
-it lives under `data/datasets/`, which is gitignored. **Never commit a dataset, a database, a
-parquet file or a model weight.**
+So: keep archives compressed, extract selectively, convert to parquet, delete intermediates. The
+cohort lives under `data/cohort/`, fetched by `tools/cohort/fetch.py`, and all of `data/` is
+gitignored. **Never commit a dataset, a database, a parquet file or a model weight.**
+
+The 182 MB of Chronos weights that used to live in `data/model_cache/` are no longer needed: the
+forecast was deleted on 5 September 2026 after it separated illness worse than the plain residual
+the detector already computes.
 
 ---
 

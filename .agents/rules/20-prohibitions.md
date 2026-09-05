@@ -20,10 +20,32 @@ That includes all of these, which are the same act wearing different clothes:
 - wrapping the assertion in a conditional
 - catching the exception the test was meant to surface
 
-If a test appears to be wrong, **it may well be**, but that is a decision for a human. Record it in
-`BLOCKERS.md` and move to the next independent task.
-
 You may **add** tests freely.
+
+**The one narrow exception, and it is narrow.** A test can encode the defect rather than the
+intent, and then "never change a test" would freeze the bug. `CLAUDE.md` rule 2 states the
+exception and this is the same rule in full:
+
+1. **Measure the real behaviour first.** Run it, print it, write the number down. Never reason
+   about what it probably does.
+2. **Decide whether the new behaviour is correct**, on that measurement.
+3. **Then** change the expectation, with the measurement and the reason in the commit message.
+
+Measure, then assert. Never the reverse, and never "the test is probably stale".
+
+Worked examples from 5 September 2026, all in the git log:
+
+- `test_zero_nights_returns_population_prior` asserted the band used the BETWEEN-person SD of
+  8.64 bpm. Measured on 107 people, the within-person night-to-night scale is 3.71. The test was
+  asserting a category error, and the fix was to the code with the test corrected alongside it.
+- `test_episode_detail_includes_skipped_stages` asserted nine pipeline stages. The graph has
+  eight; the ninth was a limb that had been deleted. The count now derives from the source list
+  rather than a remembered number.
+- `test_a_sensor_doubt_means_the_night_could_not_be_judged` passed from a hand-built belief state
+  that `update_belief` never produces. Measured over 20 real combinations: the gate it guarded
+  fired in none of them. The test now drives the real belief model.
+
+If you cannot measure it, it is still a blocker.
 
 ---
 
@@ -86,11 +108,27 @@ Adding a **new** clinical figure is not covered by the exception and remains for
 ## 4. Contracts
 
 `docs/CONTRACTS.md` defines every schema, model, field name, enum value, service signature and
-constant. **Never** rename a field, add one, widen a type, change an enum, alter a table, or change
-a function signature.
+constant. **Never** rename a field, widen a type, change an enum, alter a table, or change a
+function signature.
 
 If a task cannot be completed without changing a contract, the task or the contract is wrong. That
-is a blocker, always.
+is a blocker, always. **The file itself is never edited by an agent**, because only the user can
+amend it.
+
+**What "blocker" means here in practice.** Four disagreements between the contract and the code
+are open right now, recorded in `BLOCKERS.md` with the reasoning and the measurement behind each:
+
+- five `FORECAST_*` constants the contract lists and the code no longer has, because the forecast
+  was deleted on evidence
+- a baseline scale line the contract describes and the code no longer computes
+- `NightRow.rhr_window_source`, added so two screens could stop asserting that the watch recorded
+  no sleep on nights when it did
+- `DifferentialItem.moved`, added so a chart could draw the quantity its own panel is ordered by
+
+Each was recorded rather than papered over, and `tests/unit/test_contracts.py` enumerates the
+removed constants so the disagreement is visible rather than silent. That is the shape to copy:
+**the contract wins until the user amends it, and the disagreement is written down where the next
+reader will find it.**
 
 ---
 

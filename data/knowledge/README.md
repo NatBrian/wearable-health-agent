@@ -22,12 +22,20 @@ only two things a reader should rely on, and `docs/DISCLOSURES.md` lists where e
 
 | File | Contents | Status |
 |---|---|---|
-| `causes.yaml` | Twelve causes: base rate, effect size, temporal profile | Authored |
-| `probes.yaml` | Nine probes: answer space and likelihood, two rows each | Authored |
-| `red_flags.yaml` | Three tiers plus vitals. The deterministic safety floor | Authored |
-| `sources.yaml` | The complete allow-list of endpoints and corpus sources | Authored |
-| `corpus.yaml` | Which documents are in the retrieval corpus | Pending |
-| `cohort_labels.yaml` | Illness labels for the cohort. **Not in the archive** | Pending, needs the paper's supplementary data |
+| `causes.yaml` | Twelve causes: base rate, effect size, temporal profile | Generated, then verified |
+| `probes.yaml` | **Eight** probes: answer space and likelihood, two rows each | Generated, every likelihood ASSUMED |
+| `red_flags.yaml` | Three tiers plus vitals. The deterministic safety floor | Generated, then verified |
+| `triage_rules.yaml` | The Marburg Heart Score, transcribed item by item | Transcribed from the paper |
+| `sources.yaml` | The complete allow-list of endpoints and corpus sources | Generated |
+| `corpus.yaml` | Which documents are in the retrieval corpus | Built by `wha corpus build` |
+
+`probe_cycle` was retired on 5 September 2026, taking the probe bank from nine to eight: the fact
+it asked for is a standing one about a person and now lives in the Settings profile, so spending
+part of a weekly interruption allowance on it was the wrong trade.
+
+`cohort_labels.yaml` was listed here as pending and **it was never needed**. The labels are in the
+Mishra et al. 2020 supplementary workbook on the same date shift as the public files, and
+`tools/cohort/labels.py` extracts them into `data/cohort/labels.json`.
 
 ---
 
@@ -37,7 +45,7 @@ only two things a reader should rely on, and `docs/DISCLOSURES.md` lists where e
 |---|---|---|
 | `CITED` | A published number | Full citation, and the study's n |
 | `DERIVED` | Computed from published numbers | The derivation is written out in the row |
-| `ASSUMED` | **No published value exists** | States the assumption, the direction it is conservative in, and it must appear in the sensitivity sweep |
+| `ASSUMED` | **No published value exists** | States the assumption and the direction it is conservative in. Begins with the words NO EVIDENCE FOUND |
 
 **The `ASSUMED` category is unavoidable and must not be disguised.** The research corpus is explicit
 that answer-reliability, meaning how accurately a person reports drinking or stress to an app, is
@@ -45,6 +53,12 @@ that answer-reliability, meaning how accurately a person reports drinking or str
 cleanly and the measurement discipline not at all".
 
 Better training data does not fix this. The measurement does not exist.
+
+**A sensitivity sweep is NOT a requirement, and this table used to say it was.** Fourteen figures
+carried a "Swept." annotation for an analysis that does not exist anywhere in this repository, and
+both the annotations and the requirement are gone. `tests/unit/policy/test_probes.py` has a test
+named `test_assumed_rows_appear_in_sweep_config` which checks no sweep config; it checks each
+likelihood dict has two entries. Do not read the name as evidence a sweep exists.
 
 **Every assumed value is set conservatively**, meaning it under-states how informative a question is.
 Over-stating it would make the system interrupt more, which is the failure this project exists to

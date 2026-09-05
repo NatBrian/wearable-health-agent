@@ -549,18 +549,26 @@ A pipeline review, stage by stage, driven rather than read.
 optional `Forecast` defaulting to `NOT_RUN` and every caller left it out. A subject with 41
 usable nights against a five-night minimum recorded `NOT_RUN` on every night, while
 `wha doctor` reported 182 MB of weights present and this file claimed Chronos was
-forecasting. It now runs, at 0.1 s per night once warm, and is shown as advisory context.
+forecasting. It was connected, which is what finally let it be measured, **and the
+measurement deleted it.** Over 7,295 cohort nights the forecast residual separated illness
+WORSE than the plain baseline residual the detector already computes, AUC 0.586 against
+0.629, and across 30 labelled infections it caught one the detector missed at the most
+generous threshold and none at tighter ones. `src/wha/detect/forecast.py`, the five
+`FORECAST_*` constants and the `chronos-forecasting` dependency are gone. Reproduce with
+`uv run python tools/cohort/chronos.py`.
 
-It stays out of the belief model on evidence. No study was found showing a forecast
-residual identifies *which* cause is present, and Alavi et al. 2022, the source of our
-thresholds, measured plain baseline deviation at 78 percent sensitivity against 54 for
-CuSum and 44 for RHRAD. `FORECAST_AS_EVIDENCE` and `FORECAST_EVIDENCE_SD_BPM` are deleted
-and `docs/CONTRACTS.md` amended.
+That agrees with the literature rather than contradicting it: Alavi et al. 2022, the source
+of our thresholds, measured plain baseline deviation at 78 percent sensitivity against 54
+for CuSum and 44 for a forecast-style detector.
 
 **MEASURE had never fired.** `ActionKind.MEASURE` appeared only in the graph's router, so
 `node_measure`, the "A quick reading would help" screen, `submit_measurement_done` and
 `compute_measurement_logfactor` were unreachable and the `measurements` table had never
-held a row. The policy now selects it when sensor artifact leads the differential.
+held a row. **The whole limb is deleted.** It was briefly replaced by a disposition gate
+that turned out to be unreachable too, measured over 20 combinations of coverage and
+residual and firing in none of them, so that went as well. The graph has eight nodes and
+`measure` is not one of them. What remains unfixed is in `BLOCKERS.md`: a night whose
+leading explanation is a sensor artifact still concludes LIKELY_ILLNESS.
 
 **Injection scanning had never run in production.** `scan_untrusted` was called only by
 `wha/eval/adversarial.py`, so the `injection-poisoned` scenario passed because the
@@ -784,7 +792,8 @@ does not cover.
 
 **Closed by the review, with the evidence in `history/review-2026-09/EVIDENCE-LOG.md`:**
 
-- **The cohort datasets and `cohort_labels.yaml`.** The delegated decision is made: fetch
+- **The cohort datasets, and the `cohort_labels.yaml` that was never needed.** The delegated
+  decision is made: fetch
   them. They were never unavailable. The Stanford set is a public 378 MB download and the
   symptom onset dates are in the same paper's Supplementary Data 1, on the same date shift as
   the public files. Detection accuracy is measured. Blockers A-25 and A-26 are answered.

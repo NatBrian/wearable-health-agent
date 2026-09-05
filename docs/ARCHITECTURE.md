@@ -1185,13 +1185,18 @@ A real check, from a Telegram message sent during this review. The model wrote "
 when your body temperature is higher than normal, usually above 98.6 °F (37 °C)". The
 MedlinePlus passage it cited contains "A normal temperature can vary from person to person,
 but it is usually around 98.6 °F (37 °C)." The span matched, the claim stood, and the
-citation is correct. This works.
+citation is correct. That is the mechanism working as designed, on the case it is designed
+for: an invented figure with no source behind it.
 
 ### Why this way?
 
 Because "did the model make that up" is the same judgement the model is already making, and
-asking it to grade itself is not a check. A verbatim containment test is decidable by code
-in microseconds and cannot be argued with.
+asking it to grade itself is not a check. A verbatim containment test is decidable by code in
+microseconds: the span is in a passage or it is not, and no model gets a say in the answer.
+
+That decidability is the whole reason to prefer it, and it is also exactly the reason it
+answers a narrower question than the name "grounding" suggests. The next section is that
+narrower question, and it is not a footnote.
 
 ### What it proves, and what it does not
 

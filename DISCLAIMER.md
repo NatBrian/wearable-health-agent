@@ -16,6 +16,16 @@ Always seek the advice of a qualified health provider with any question regardin
 condition. **If you have symptoms that concern you, contact a clinician or emergency services. Do not
 wait for this system, and do not let its output delay you.**
 
-The limits of what this system can and cannot determine are stated at the level of mechanism in
-[`history/PROPOSAL.md`](PROPOSAL.md) section 2.5, and summarised in the README. Those limits are part of the
-design, not caveats discovered afterwards.
+The limits of what this system can and cannot determine are indexed in
+[`docs/DISCLOSURES.md`](docs/DISCLOSURES.md), which lists every limitation, the evidence for it,
+and **the screen it appears on**: a limitation that lives only in a markdown file is not disclosed
+to the person using the system. They are part of the design, not caveats discovered afterwards.
+
+Two of them are worth stating here rather than only there. **Eight of the ten numbers in the
+deterministic safety floor have no published source**, and say so on the Audit page. And a
+sentence shown with a citation can still misdescribe the passage it cites: the check behind it
+proves the quoted span exists in the source, not that the sentence around it is a fair reading, so
+where the two differ **the passage is the one to believe**.
+
+The original mechanism-level discussion is in [`history/PROPOSAL.md`](history/PROPOSAL.md) section
+2.5, which is finished work and superseded in fourteen documented ways.

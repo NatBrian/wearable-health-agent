@@ -77,21 +77,29 @@ file and continues. If it is stale, work gets repeated or skipped.
 Append, never rewrite. One section per blocker:
 
 ```markdown
-## A-07 — Chronos cannot load on CPU with 4 nights of context
+## policy — a night the watch cannot vouch for still concludes LIKELY_ILLNESS
 
-**What I tried:** ChronosBoltPipeline.from_pretrained("amazon/chronos-bolt-tiny",
-device_map="cpu"), then predict() with a length-4 context.
+**What I tried:** item 24, whose check is "run the simulation with a poor coverage night, the
+outcome says the night could not be judged".
 
-**What happened:** ValueError: context length 4 is below the minimum patch size.
-Exact text: <paste it>
+**What happened:** it cannot pass. The gate required sensor_artifact as top cause at 0.50 or
+more AND p_illness below 0.10. Measured over 20 combinations of coverage 30 to 239 minutes and
+residual 3.2 to 10.0 bpm, it fired in none:
 
-**What I think is wrong:** history/plan/components/06 assumes any context length works. The
-model has a minimum I did not find documented.
+    coverage 30, residual 10.0 -> sensor 0.817, p_illness 0.138 -> LIKELY_ILLNESS
 
-**What I need:** a decision on the minimum nights before the forecast runs at all,
-and a constant for it. Suggest FORECAST_MIN_NIGHTS, and status TOO_FEW_NIGHTS
-below it, which the Forecast model already has.
+**What I think is wrong:** not the code. The same large residual that raises sensor_artifact
+raises p_illness, so the two conditions are mutually exclusive under this belief model.
+
+**What I need:** a decision I cannot make from evidence. Either a coverage figure below which a
+night is unjudgeable regardless of belief, which needs a source or an explicit UNEVIDENCED
+label, or a change to the outcome TEXT rather than the disposition so it cannot talk an
+escalation down. Both the disposition set and the outcome model are frozen by the contract.
 ```
+
+That is a real entry from `BLOCKERS.md`, 5 September 2026, chosen as the example because it
+shows the two things that make a blocker useful: **the measurement that establishes the problem**,
+and **the specific decision being asked for**. "It does not work" is not a blocker.
 
 Then move on. **A recorded blocker is a good outcome.** A silent workaround is the worst one.
 
