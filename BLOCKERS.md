@@ -1012,3 +1012,39 @@ something" about a reading the model does not trust.
   keeps its urgency and gains a sentence saying the reading is doubtful. This is the one I
   would choose, because it cannot talk an escalation down, but the disposition set and the
   outcome model are both frozen by `docs/CONTRACTS.md`.
+
+## corpus - RESOLVED 5 September 2026. The Telegram side names the source
+
+**The blocker asked for:** "someone to send a general health question over Telegram and read
+what comes back, the same way the dashboard was checked."
+
+**Done, both halves.**
+
+A real message was sent through `converse_over_telegram`, the same function the poller calls,
+asking "What is costochondritis?". The answer came from the model's own knowledge and arrived
+carrying its amber marker, which is the other half of the promise working on the phone:
+
+```
+Not from a cited source (the AI's own general knowledge, worth checking):
+Costochondritis is inflammation where your ribs meet your breastbone...
+```
+
+That run retrieved no MedlinePlus passage, so it did not exercise the attribution path. Driving
+the formatter with one directly gives:
+
+```
+Sources: Fever (MedlinePlus, National Library of Medicine)
+
+Passages from MedlinePlus come from the National Library of Medicine and are used with
+attribution. They are general information about a condition, not about you, and say nothing
+about your own readings.
+```
+
+The source is named in words, not as `Sources: Fever`, and the attribution note travels with it.
+Two tests hold it there: `test_medlineplus_is_named_not_just_its_topic_title` and
+`test_the_attribution_note_travels_with_external_text`.
+
+**Why it was fixed rather than duplicated.** The labels were in `wha.ui.components.citations`,
+which `wha.service.conversation` correctly refuses to import, so the phone had no way to reach
+them. They are constants now and both surfaces read the same ones, which is why the dashboard and
+the phone cannot drift apart on who wrote a passage.
