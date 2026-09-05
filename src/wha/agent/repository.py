@@ -517,6 +517,37 @@ class EpisodeRepository:
         )
         self._conn.commit()
 
+    def record_episode_stage_ran(self, episode_id: str, stage: str) -> None:
+        """Add one stage to an existing trace, for stages that run AFTER it is written.
+
+        `node_conclude` writes the trace, and `critique` and `review` run after it, so a
+        hardcoded set written at conclude time can never contain them. It listed "critique"
+        anyway, at a point where critique had not executed, and could never list "review".
+
+        That second one was not cosmetic. `node_review` is the ONLY node that returns
+        status "closed" or "unresolved", and `_close_if_concluded` refuses to close an
+        episode without it, so EVERY closed episode ran the review checkpoint. The Trace
+        tab rendered review as SKIPPED on all of them, with the reason "This episode has
+        not reached the review checkpoint" - the same class of invented reason item 11
+        exists to delete, on the one stage where a person most wants to know whether it
+        happened.
+        """
+        row = self._conn.execute(
+            "SELECT payload_json FROM episode_traces WHERE episode_id = ?", (episode_id,)
+        ).fetchone()
+        if row is None:
+            return
+        payload = json.loads(row["payload_json"])
+        ran = set(payload.get("nodes_ran", []))
+        if stage in ran:
+            return
+        payload["nodes_ran"] = sorted(ran | {stage})
+        self._conn.execute(
+            "UPDATE episode_traces SET payload_json = ?, updated_at_utc = ? WHERE episode_id = ?",
+            (json.dumps(payload, default=str), to_iso(datetime.now(UTC)), episode_id),
+        )
+        self._conn.commit()
+
     def get_profile_menstruates(self, subject_id: str) -> bool | None:
         """Whether this person menstruates, from the Settings profile, or None if unset.
 

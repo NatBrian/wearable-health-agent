@@ -1137,15 +1137,33 @@ def node_conclude(
         db.record_episode_trace(
             episode_id=state.get("episode_id", ""),
             payload={
+                # The stages that have ACTUALLY run by the time this line executes.
+                # "critique" was in this set and had not run yet; "review" could never be
+                # in it, because both run after conclude. They record themselves now,
+                # through `record_episode_stage_ran`.
                 "nodes_ran": sorted(
-                    {"preload", "investigate", "believe", "decide", "conclude", "critique"}
+                    {"preload", "investigate", "believe", "decide", "conclude"}
                     | ({"ask"} if answers else set())
                 ),
+                # THE FIELD NAMES ARE THE ONES THE EXPANDER READS. It rendered
+                # "(Source: `None`, Freshness: `current`)" with an empty `{}` of arguments
+                # on every call, because it read source_ref/arguments/result and this wrote
+                # tool_name/args/ok/note. Both sides now use ToolResult's own names, and
+                # `source_ids` and `freshness` are carried rather than dropped: they are
+                # what tell a reader whether the tool answered from fresh data.
+                #
+                # `value` is summarised rather than stored. The full result is already in
+                # the audit log, and a retrieval call returns several passages, so copying
+                # them here would put the corpus in the trace of every episode.
                 "tool_calls": [
                     {
                         "tool_name": call.get("tool_name"),
                         "args": call.get("args", {}),
                         "ok": call.get("ok", True),
+                        "source_ids": call.get("source_ids", []),
+                        "freshness": call.get("freshness"),
+                        "as_of_utc": call.get("as_of_utc"),
+                        "result_summary": _summarise_tool_value(call.get("value")),
                         "note": call.get("note") or call.get("error"),
                     }
                     for call in state.get("tool_calls", [])
@@ -1161,6 +1179,31 @@ def node_conclude(
         "draft": draft,
         "step": state.get("step", 0) + 1,
     }
+
+
+def _summarise_tool_value(value: Any) -> str:
+    """One readable line about what a tool returned, without copying the corpus into it."""
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return f"{len(value)} item{'s' if len(value) != 1 else ''}"
+    if isinstance(value, dict):
+        return ", ".join(f"{k}={str(v)[:40]}" for k, v in list(value.items())[:6])
+    return str(value)[:200]
+
+
+def _record_stage_ran(db: Any, state: EpisodeState, stage: str) -> None:
+    """Note that a stage ran, for the stages that execute after the trace is written.
+
+    Never raises into the graph: a trace that is missing a stage is a worse screen, and a
+    graph that dies recording one is a worse system.
+    """
+    if db is None or not hasattr(db, "record_episode_stage_ran"):
+        return
+    try:
+        db.record_episode_stage_ran(state.get("episode_id", ""), stage)
+    except Exception:  # noqa: BLE001
+        return
 
 
 def node_critique(
@@ -1234,6 +1277,8 @@ def node_critique(
         StopIteration,
     ):
         pass
+
+    _record_stage_ran(db, state, "critique")
 
     return {
         "draft": sanitized_draft,
@@ -1315,6 +1360,8 @@ def node_review(
             rationale=(raw_response.get("rationale") if isinstance(raw_response, dict) else None),
             reviewed_by_person=reviewed_by_person,
         )
+
+    _record_stage_ran(db, state, "review")
 
     return {
         "draft": final_draft,

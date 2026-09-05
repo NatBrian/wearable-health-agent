@@ -940,3 +940,35 @@ not done it, because it puts a model in charge of grading a model, and every oth
 this system is decidable by code. The alternative worth considering is answering "how does
 this system work" questions from the method passages verbatim rather than letting them be
 paraphrased at all, since those are the questions where the paraphrase has no upside.
+
+## contract - two models carry fields `docs/CONTRACTS.md` does not list
+
+**What I tried:** items 13 and 33 of `docs/REFINEMENT-PLAN.md`, both of which require a
+number to reach the screen that the contract's version of the model cannot carry.
+
+**What happened:** two frozen models gained a field.
+
+`NightRow` gained `rhr_window_source: str = "clock"`. Today and History both state, in
+words, whether a night was measured over recorded sleep or over the midnight-to-07:00
+fallback. The flag lived on `NightlyFeatures` and not on `NightRow`, and both pages read it
+through `getattr(n, "rhr_window_source", "clock")`, so the default always won and both
+asserted "because no sleep was recorded" on all 72 nights, including the 44 where sleep was
+recorded.
+
+`DifferentialItem` gained `moved: float = 0.0`, how far this episode's evidence moved the
+cause. The panel is titled and ordered by movement and drew bars of the final probability,
+so bar length meant something different from the ordering. Carrying the number is what lets
+the chart draw the thing the panel claims to show.
+
+**What I think is wrong:** nothing in the code, and the precedent is already set in this
+repository. The contract's `NightRow` also omits the four `forecast_*` fields that the code
+has carried since before this work began, so a contract-frozen model gaining a presentation
+field is a thing that has happened here before and was not recorded. It is recorded now.
+
+Neither field changes a decision. Both exist so a screen can state a fact it was already
+stating wrongly.
+
+**What I need:** two additions to `docs/CONTRACTS.md`, which is read-only to me:
+`rhr_window_source: str` on `NightRow` and `moved: float` on `DifferentialItem`. Until then
+the contract and the code disagree on two lines, and the code is the side a person is
+looking at.

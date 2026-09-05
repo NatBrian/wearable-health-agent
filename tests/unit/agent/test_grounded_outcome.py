@@ -249,7 +249,8 @@ def test_node_conclude_actually_writes_the_trace_the_screen_reads() -> None:
     )
 
     state = _state_with_retrieval()
-    node_conclude(state, llm_client=client, db=EpisodeRepository(conn=conn))
+    repo = EpisodeRepository(conn=conn)
+    node_conclude(state, llm_client=client, db=repo)
 
     rows = conn.execute(
         "SELECT episode_id, payload_json FROM episode_traces WHERE episode_id = ?",
@@ -263,12 +264,44 @@ def test_node_conclude_actually_writes_the_trace_the_screen_reads() -> None:
     # The stages that genuinely ran are named, and "measure" is not among them: that limb
     # was deleted, and a trace naming it would put a permanently pending stage back on the
     # screen. See test_the_trace_advertises_exactly_the_stages_the_graph_has.
-    assert {"preload", "investigate", "believe", "decide", "conclude", "critique"} <= ran
+    assert {"preload", "investigate", "believe", "decide", "conclude"} <= ran
     assert "measure" not in ran
     assert "ask" not in ran, "no answers in this state, so nothing was asked"
 
-    # The tool calls travel with it, which is what the expander under 'investigate' renders.
+    # conclude runs BEFORE critique and review, so it must not claim either has run. It
+    # claimed "critique" at a point where critique had not executed, and could never claim
+    # "review" at all.
+    assert "critique" not in ran, "conclude cannot know critique ran; critique runs after it"
+    assert "review" not in ran, "conclude cannot know review ran; review runs after it"
+
+    # The later stages append themselves, and review is the one that mattered: node_review
+    # is the ONLY node returning status "closed", and _close_if_concluded refuses to close
+    # without it, so EVERY closed episode ran review. The Trace tab reported it SKIPPED on
+    # all of them with "This episode has not reached the review checkpoint", the invented
+    # reason item 11 exists to delete.
+    def stages() -> list[str]:
+        return json.loads(
+            conn.execute(
+                "SELECT payload_json FROM episode_traces WHERE episode_id = ?",
+                (state["episode_id"],),
+            ).fetchone()["payload_json"]
+        )["nodes_ran"]
+
+    repo.record_episode_stage_ran(state["episode_id"], "critique")
+    repo.record_episode_stage_ran(state["episode_id"], "review")
+    assert {"critique", "review"} <= set(stages())
+
+    # Idempotent, because nodes re-run on resume after an interrupt.
+    repo.record_episode_stage_ran(state["episode_id"], "review")
+    assert stages().count("review") == 1
+
+    # The tool calls travel under the names the expander actually reads. It read
+    # source_ref / arguments / result while this wrote tool_name / args / ok / note, so
+    # every call rendered as "(Source: `None`, Freshness: `current`)" over an empty {}.
     assert any(call["tool_name"] == "retrieve_clinical_evidence" for call in payload["tool_calls"])
+    for call in payload["tool_calls"]:
+        for field in ("tool_name", "args", "ok", "source_ids", "freshness", "result_summary"):
+            assert field in call, f"the expander reads {field} and the trace does not carry it"
 
 
 def test_the_differential_ranks_by_movement_over_every_cause_not_the_largest_five() -> None:

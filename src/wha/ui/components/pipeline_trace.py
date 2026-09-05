@@ -33,15 +33,23 @@ def render_pipeline_trace(detail: EpisodeDetail) -> None:
                 if stage.name == "investigate" and "tool_calls" in stage.detail_json:
                     st.markdown("**🔧 Individual T1 Tool Calls Chosen at Runtime:**")
                     tool_calls = stage.detail_json["tool_calls"]
+                    # Field names match what node_conclude writes, which are ToolResult's
+                    # own. This read source_ref/arguments/result, which nothing has ever
+                    # written, so every call rendered as "(Source: `None`, Freshness:
+                    # `current`)" over an empty `{}`. The expander looked populated and
+                    # said nothing.
                     for idx, tc in enumerate(tool_calls):
+                        sources = ", ".join(tc.get("source_ids") or []) or "none recorded"
+                        freshness = tc.get("freshness") or "not recorded"
                         st.markdown(
                             f"**{idx + 1}. `{tc.get('tool_name')}`** "
-                            f"(Source: `{tc.get('source_ref')}`, Freshness: `{tc.get('freshness', 'current')}`)"
+                            f"(Sources: `{sources}`, Freshness: `{freshness}`)"
                         )
-                        st.json(tc.get("arguments", {}))
-                        if "result" in tc:
-                            st.caption("Result:")
-                            st.write(tc["result"])
+                        st.json(tc.get("args", {}))
+                        if tc.get("result_summary"):
+                            st.caption(f"Returned: {tc['result_summary']}")
+                        if tc.get("note"):
+                            st.caption(f"Note: {tc['note']}")
                 else:
                     st.json(stage.detail_json)
 
