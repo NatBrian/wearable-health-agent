@@ -144,7 +144,6 @@ def test_no_document_quotes_a_policy_accuracy_the_eval_did_not_produce() -> None
     policy had produced.
     """
     import json
-    import re
     from pathlib import Path
 
     repo = Path(__file__).resolve().parents[3]
@@ -157,10 +156,32 @@ def test_no_document_quotes_a_policy_accuracy_the_eval_did_not_produce() -> None
     assert always_ask is not None, "policy.json has no always-ask accuracy"
 
     superseded = "0.925"
+
+    # Records that quote the wrong number ON PURPOSE are excluded by name.
+    # docs/AUDIT-2026-09-05.md is the independent audit that FOUND this mismatch; it
+    # quotes 0.925 as the finding, and rewriting it to say 0.825 would erase the thing it
+    # exists to record. Its own header says it is kept unedited. The changelog and the
+    # blocker file are the same shape: a correction has to be able to name what it
+    # corrected.
+    PRESERVED_RECORDS = {"AUDIT-2026-09-05.md", "KNOWLEDGE-CHANGELOG.md"}
+
+    # The retracted figure must not appear at all, on any line, rather than only on lines
+    # labelled "Always ask". The first version of this test required both on one line and
+    # therefore missed docs/DESIGN-DATA-CHANNELS.md, which phrases it as "asks one
+    # well-chosen question scores 0.925" with no label. Caught by reintroducing the number
+    # and watching the test pass anyway.
+    searched = list(repo.glob("docs/*.md")) + [
+        repo / "README.md",
+        repo / "STATUS.md",
+        repo / "AGENTS.md",
+        repo / "EVALUATION.md",
+    ]
     wrong: list[str] = []
-    for path in repo.glob("docs/*.md"):
+    for path in searched:
+        if path.name in PRESERVED_RECORDS or not path.exists():
+            continue
         for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if superseded in line and re.search(r"always[ _]ask", line, re.IGNORECASE):
+            if superseded in line:
                 wrong.append(f"{path.relative_to(repo)}:{i}: {line.strip()[:80]}")
 
     assert not wrong, (
