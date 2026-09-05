@@ -47,10 +47,23 @@ def default_escalation_criteria(config: RedFlagsConfig | None = None) -> list[st
     return list(cfg.outcome_guidance.default)
 
 
+# Which tier B sign a leading cause corresponds to, for step 2 of the selection below.
+#
+# Deliberately tiny and deliberately not clever. Only causes whose relationship to a sign in
+# red_flags.yaml is unambiguous appear here; everything else falls through to the defaults.
+# The alternative, inferring a sign from a cause name, would be this system writing care
+# guidance from an association it made up, which is the whole thing item 2 removed.
+CAUSE_TO_TIER_B: dict[str, tuple[str, ...]] = {
+    "infection": ("rf_fever",),
+    "recovery_tail": ("rf_severe_fatigue",),
+}
+
+
 def select_escalation_criteria(
     disposition: Disposition,
     triggered_flags: list[str] | None = None,
     config: RedFlagsConfig | None = None,
+    leading_cause: str | None = None,
 ) -> list[str]:
     """Choose when-to-seek-care wording. Never write it.
 
@@ -65,6 +78,13 @@ def select_escalation_criteria(
 
     Order is deliberate. The specific reason this person is being told to seek care comes
     first, and the general boundary follows it.
+
+    `leading_cause` is the top of the differential, and item 2 asked for it: "infection
+    leading with a reported fever selects the tier B fever wording". It was not passed for
+    two days, so a tier B symptom that never met its persistence rule never escalated, its
+    id never reached `triggered_flags`, and its specific wording could not be chosen. The
+    practical effect was small because the second default line is itself the fever wording,
+    but the selection the item describes did not exist.
     """
     cfg = config or load_red_flags()
     flags = set(triggered_flags or [])
@@ -85,12 +105,24 @@ def select_escalation_criteria(
     if tier_b_hit and cfg.tier_b_guidance:
         selected.append(" ".join(cfg.tier_b_guidance.split()))
 
-    # 2. An escalated episode with no surviving flag detail still says the urgent line
+    # 2. The leading explanation, when the floor did not already speak to it.
+    #
+    #    Only ever ADDS a line that is already in red_flags.yaml, and only for a cause the
+    #    file maps to a sign. It cannot invent wording and it cannot remove any.
+    if leading_cause and not tier_b_hit:
+        for brule in cfg.tier_b:
+            if brule.id in CAUSE_TO_TIER_B.get(leading_cause, ()) and brule.guidance:
+                selected.append(brule.guidance.strip())
+                if cfg.tier_b_guidance:
+                    selected.append(" ".join(cfg.tier_b_guidance.split()))
+                break
+
+    # 3. An escalated episode with no surviving flag detail still says the urgent line
     #    first, because the disposition itself is the reason.
     if disposition == Disposition.ESCALATED and not selected:
         selected.extend(default_escalation_criteria(cfg)[:1])
 
-    # 3. The general boundary, on every outcome including LIKELY_BENIGN. A benign
+    # 4. The general boundary, on every outcome including LIKELY_BENIGN. A benign
     #    conclusion is the one a person is most likely to act on by doing nothing.
     selected.extend(default_escalation_criteria(cfg))
 

@@ -1043,6 +1043,11 @@ def node_conclude(
     escalation_criteria = select_escalation_criteria(
         disposition=disposition,
         triggered_flags=list(state.get("triggered_flags", [])),
+        # The top of the differential, which item 2 asked for and which was never passed.
+        # `differential` is ordered by how far this episode MOVED each cause, so the first
+        # entry is the explanation the evidence actually argued for rather than the one
+        # with the largest base rate.
+        leading_cause=(differential[0].cause.value if differential else None),
     )
 
     # Everything this episode looked up, whether or not a sentence ended up quoting it.

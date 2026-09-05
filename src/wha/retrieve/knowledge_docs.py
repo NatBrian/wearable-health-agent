@@ -346,6 +346,43 @@ def generate_layer_3_escalation_docs(
             )
         )
 
+    # The two care-pathway lines every outcome carries.
+    #
+    # Item 2 moved these into red_flags.yaml with the stated purpose "so the corpus can
+    # cite it", and then no generator read them, so the sentences a person is most likely
+    # to act on were the only care guidance in the system that could not be retrieved or
+    # cited. They are shown on every episode regardless of disposition, including
+    # LIKELY_BENIGN, which is the one a person is most likely to act on by doing nothing.
+    guidance_lines = [
+        str(line).strip()
+        for line in (data.get("outcome_guidance", {}) or {}).get("default", []) or []
+        if str(line).strip()
+    ]
+    if guidance_lines:
+        lines = [
+            "# When to seek care, whatever this system concluded",
+            "",
+            (
+                "These two sentences are attached to every investigation this system "
+                "closes, including the ones it concludes are probably nothing. They are "
+                "selected from a fixed list and never written fresh, so no wording here "
+                "was composed by a language model."
+            ),
+            "",
+        ]
+        lines += [f"- {line}" for line in guidance_lines]
+        docs.append(
+            CorpusDocument(
+                doc_id="escalation_outcome_guidance",
+                title="When to seek care, whatever this system concluded",
+                layer=3,
+                source_url="data/knowledge/red_flags.yaml",
+                licence="Ours",
+                text="\n".join(lines),
+                metadata={"topic": "escalation", "tier": "outcome_guidance"},
+            )
+        )
+
     vitals = data.get("vitals", []) or []
     if vitals:
         lines = [

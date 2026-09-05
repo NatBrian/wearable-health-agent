@@ -163,3 +163,57 @@ def test_the_oxygen_thresholds_are_not_credited_to_who() -> None:
                 offenders.append(f"{path.relative_to(repo)}:{i}: {line.strip()[:80]}")
 
     assert not offenders, "the levels are still credited to WHO:\n  " + "\n  ".join(offenders)
+
+
+def test_the_leading_cause_selects_its_own_wording() -> None:
+    """Item 2 asked for selection "from the disposition, the triggered flags AND the top of
+    the differential", with "infection leading with a reported fever selects the tier B
+    fever wording". The differential was never passed, so that half did not exist.
+
+    It mattered less than it looks, because the second default line is itself the fever
+    wording, but a selection the plan describes and the code does not do is still a
+    selection that does not happen. The route also had a second block: `triggered_flags` is
+    written in exactly one place and only inside the `if safety.escalate` branch, so a tier
+    B symptom that never met its persistence rule never reached the state at all.
+    """
+    from wha.safety.output_checks import CAUSE_TO_TIER_B
+
+    plain = select_escalation_criteria(Disposition.LIKELY_ILLNESS)
+    led = select_escalation_criteria(Disposition.LIKELY_ILLNESS, leading_cause="infection")
+
+    assert len(led) > len(plain), "the leading cause added nothing"
+    assert any("See a doctor today." == line for line in led)
+
+    # It may only ADD, and only wording that already exists in the file.
+    assert set(plain) <= set(led), "the leading cause removed a line"
+    sentences = reviewed_sentences()
+    for line in led:
+        assert " ".join(line.split()) in sentences, f"not from red_flags.yaml: {line!r}"
+
+    # An unmapped cause changes nothing, rather than guessing at a sign.
+    assert select_escalation_criteria(Disposition.LIKELY_ILLNESS, leading_cause="stress") == plain
+    assert "stress" not in CAUSE_TO_TIER_B
+
+
+def test_the_care_pathway_sentences_can_be_retrieved_and_cited() -> None:
+    """Item 2 moved these into red_flags.yaml "so the corpus can cite it", and no generator
+    read them.
+
+    They are the most action-guiding text the system produces, attached to every outcome
+    including LIKELY_BENIGN, and they were the only care guidance in the system that could
+    not be retrieved. The agent could cite the tier A list, the tier B list and the vitals
+    bounds, and not the two sentences a person actually reads at the end.
+    """
+    from wha.retrieve.knowledge_docs import generate_layer_3_escalation_docs
+
+    docs = {d.doc_id: d for d in generate_layer_3_escalation_docs()}
+    assert "escalation_outcome_guidance" in docs, (
+        "the outcome guidance is still absent from the corpus: " + ", ".join(sorted(docs))
+    )
+
+    passage = docs["escalation_outcome_guidance"]
+    for line in default_escalation_criteria():
+        assert line in passage.text, f"missing from the retrievable passage: {line!r}"
+
+    assert not passage.title.startswith("rf_")
+    assert passage.metadata.get("topic") == "escalation"

@@ -79,6 +79,13 @@ def render_summary_tab(detail: EpisodeDetail) -> None:
                 # not contain, and are now DERIVED with "NO EVIDENCE FOUND" naming which
                 # of their numbers is which.
                 or meta.get("has_unevidenced_number") == "yes"
+                # And a row is only as sourced as the EVIDENCE that moved it. Item 17's
+                # first group was "the 64 answer likelihoods", every one of them ASSUMED,
+                # and a cause moved by one of them still read "from a study" because the
+                # mark was computed from causes.yaml alone. The provenance travels in the
+                # reason text, which is where it was left: visible only to somebody who
+                # opened a semicolon-joined cell and read to the end of it.
+                or _rests_on_an_assumed_answer(d)
             )
             if unsourced:
                 assumed.append(d.cause.value)
@@ -314,6 +321,21 @@ def render_evidence_tab(detail: EpisodeDetail) -> None:
     else:
         for claim in detail.stripped_claims:
             st.warning(f'⚠️ Stripped: "{claim}"')
+
+
+def _rests_on_an_assumed_answer(item: object) -> bool:
+    """True when a cause was moved by an answer whose likelihood nobody measured.
+
+    `_answer_reasons` writes the probe's provenance into the reason itself, ending
+    "(probes.yaml, probe_symptoms, provenance ASSUMED)". Every row in probes.yaml is
+    ASSUMED: no published study measures how accurately a person reports drinking, stress
+    or early symptoms to an app the next morning. So any cause an answer moved is resting
+    on a guess, whatever causes.yaml says about the cause itself.
+    """
+    reasons = list(getattr(item, "supporting", []) or []) + list(
+        getattr(item, "contradicting", []) or []
+    )
+    return any("provenance ASSUMED" in reason for reason in reasons)
 
 
 def render_episode_panel(detail: EpisodeDetail) -> None:
