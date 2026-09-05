@@ -24,7 +24,7 @@ from wha.models import (
     NightlyFeatures,
     SystemStatus,
 )
-from wha.service.checks import chronos_weights_cached, dataset_present, read_schema_version
+from wha.service.checks import dataset_present, read_schema_version
 
 
 def record_component_status(
@@ -551,19 +551,12 @@ def check_live_production_suite() -> dict[str, Any]:
             }
         )
 
-    # 7. Mandatory: Chronos Neural Forecaster
-    # This asked whether data/model_cache held any file. It holds a five-byte marker, so it
-    # passed on a machine with no model; the weights live in the HuggingFace cache.
-    chronos_ok, chronos_detail = chronos_weights_cached()
-    mandatory.append(
-        {
-            "component": "Chronos Neural Forecaster",
-            "ok": chronos_ok,
-            "detail": f"{chronos_detail} (Advisory Evidence Band)"
-            if chronos_ok
-            else chronos_detail,
-        }
-    )
+    # There is no seventh mandatory component. A "Chronos Neural Forecaster" row lived here
+    # after the forecaster itself was deleted, backed by a cache check for weights nothing
+    # loads. On any machine without the 182 MB of weights it set mandatory_ok False, printed
+    # NOT PRODUCTION READY, and told the operator to run `wha data fetch chronos`, which now
+    # answers "There is nothing to fetch". A diagnostic that reports a deleted subsystem as
+    # a required one is the same defect class the deletion was meant to end.
 
     # --- RESEARCH BENCHMARKS (EVALUATION ONLY) ---
 

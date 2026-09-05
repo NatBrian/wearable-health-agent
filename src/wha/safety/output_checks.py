@@ -19,6 +19,11 @@ FALSE_REASSURANCE_PHRASES = [
     "no need to worry",
     "completely fine",
     "all clear, no issue",
+    # Observed in a live chest pain conversation, written into the reply with no marker.
+    # Kept in step with `never_say` in red_flags.yaml; a test asserts the two agree.
+    "that's reassuring",
+    "that is reassuring",
+    "thats reassuring",
 ]
 
 DIAGNOSIS_PHRASES = [

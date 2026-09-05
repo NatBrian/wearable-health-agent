@@ -185,9 +185,19 @@ rules:
 #
 # What DOES exist is a threshold, from an authority, for action rather than for cause:
 #
-#   WHO guidance, as reported in the wearable SpO2 literature: a person with SpO2 above
-#   94 percent can be cared for at home, while below 93 percent warrants medical
-#   attention.
+#   NHS England's COVID Oximetry @home pathway: 92 percent or less means attend an
+#   emergency department within the hour or call 999; 93 or 94 percent means contact 111
+#   or a GP. The upper bound of 94 to 98 is the British Thoracic Society's target range
+#   for oxygen therapy in adults.
+#
+#   NOT WHO. This block said "WHO guidance, as reported in the wearable SpO2 literature"
+#   until 5 September 2026, and WHO does not publish these levels; its January 2021
+#   guidance recommends USING home pulse oximetry and stops there. Crediting a specific
+#   numeric threshold to the wrong body is the same class of error as inventing it,
+#   because a reader who goes to check will not find it. The correction is recorded 28
+#   lines below and in docs/KNOWLEDGE-CHANGELOG.md, and this sentence is the one a reader
+#   of this file actually reaches first, so it is corrected here too rather than left
+#   standing above its own retraction.
 #
 # And the case for using it at all is real. "Silent hypoxia" is documented in COVID: blood
 # oxygen can fall while the person still feels well, which is precisely the pre-symptomatic

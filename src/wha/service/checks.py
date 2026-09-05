@@ -14,11 +14,6 @@ nothing, so every claim in this module is answerable from what it actually inspe
 import sqlite3
 from pathlib import Path
 
-CHRONOS_MODEL_ID = "amazon/chronos-bolt-small"
-
-# Chronos-Bolt ships safetensors; the bin name is accepted for older snapshots.
-_CHRONOS_WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin")
-
 
 def read_schema_version(conn: sqlite3.Connection) -> str:
     """The migration version recorded in the database, or 'unknown' if absent."""
@@ -39,31 +34,3 @@ def dataset_present(data_dir: Path, name: str) -> bool:
     """
     target = data_dir / name
     return target.is_dir() and any(target.iterdir())
-
-
-def chronos_weights_cached() -> tuple[bool, str]:
-    """Whether the Chronos weights are genuinely on disk, and where.
-
-    The previous check asked whether `data/model_cache` contained any file. It contains a
-    five-byte marker written by `wha data fetch chronos`, so it answered yes on a machine
-    with no model. The weights are held in the HuggingFace cache, which is what this looks
-    at. Resolved from the cache only: no network call and no model load.
-    """
-    try:
-        from huggingface_hub import try_to_load_from_cache
-    except ImportError:
-        return False, "huggingface_hub is not installed, so the model cache cannot be read"
-
-    for filename in _CHRONOS_WEIGHT_FILES:
-        try:
-            path = try_to_load_from_cache(CHRONOS_MODEL_ID, filename)
-        except Exception:  # noqa: BLE001, S112
-            continue
-        if isinstance(path, str) and Path(path).is_file():
-            size_mb = Path(path).stat().st_size / (1024 * 1024)
-            return True, f"{CHRONOS_MODEL_ID} weights cached ({filename}, {size_mb:.0f} MB)"
-
-    return False, (
-        f"{CHRONOS_MODEL_ID} weights are not in the HuggingFace cache "
-        "(run 'uv run wha data fetch chronos')"
-    )

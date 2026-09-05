@@ -20,7 +20,7 @@ from wha.db import connect
 from wha.db.iso import to_iso
 from wha.db.migrations import apply_schema
 from wha.models import Detection, DetectionLevel, Forecast, ForecastStatus
-from wha.service.checks import chronos_weights_cached, dataset_present, read_schema_version
+from wha.service.checks import dataset_present, read_schema_version
 from wha.service.doctor import run_doctor
 from wha.service.episode_lifecycle import monitoring_since, open_episodes_for_flagged_nights
 
@@ -79,16 +79,33 @@ def test_both_diagnostics_report_the_same_schema_version(tmp_path: Path) -> None
     assert f"Schema v{expected} verified" in live_detail
 
 
-def test_chronos_check_does_not_pass_on_a_marker_file(tmp_path: Path) -> None:
-    """The old check accepted any file in data/model_cache, including a 5-byte marker."""
-    marker = tmp_path / "chronos-bolt-small.ready"
-    marker.write_text("ready", encoding="utf-8")
+def test_no_diagnostic_requires_the_deleted_forecaster() -> None:
+    """`wha doctor --live` reported a subsystem that had been deleted, as MANDATORY.
 
-    with patch("huggingface_hub.try_to_load_from_cache", return_value=None):
-        ok, detail = chronos_weights_cached()
+    The forecaster went in item 22, and the diagnostic row did not. On any machine without
+    the 182 MB of weights the row set mandatory_ok False, so `--live` printed NOT
+    PRODUCTION READY and told the operator to run `wha data fetch chronos`, a command that
+    now answers "There is nothing to fetch". The item's own success check was "`wha doctor`
+    no longer lists Chronos"; it was verified against plain `wha doctor`, which has no such
+    row, and not against `--live`, which did.
 
-    assert ok is False
-    assert "not in the HuggingFace cache" in detail
+    This replaces the test that guarded the dead check, which is why the check survived
+    deletion: it had a passing test, so it looked load-bearing.
+    """
+    from wha.service import checks as checks_module
+    from wha.service import status as status_module
+
+    assert not hasattr(checks_module, "chronos_weights_cached")
+    assert not hasattr(checks_module, "CHRONOS_MODEL_ID")
+
+    for module, label in ((status_module, "status"), (checks_module, "checks")):
+        source = Path(module.__file__).read_text(encoding="utf-8")
+        rows = [
+            line
+            for line in source.splitlines()
+            if '"component"' in line and "chronos" in line.lower()
+        ]
+        assert not rows, f"{label}.py still declares a Chronos diagnostic row: {rows}"
 
 
 # -- 4: history is scored but never alerts -------------------------------------------

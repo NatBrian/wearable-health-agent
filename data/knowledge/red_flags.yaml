@@ -166,8 +166,14 @@ negation_guards:
 
 always:
   # Applied to every outcome regardless of disposition, including LIKELY_BENIGN.
+  # "that's reassuring" was written straight into a live reply about chest pain, with no
+  # amber marker, and passed every check. It is not an all-clear in form, which is why a
+  # list built from all-clear phrasings missed it, and why a person reads it as one anyway.
+  # Recorded in the review as one of the phrases that must not survive; added 5 September
+  # 2026 after an audit found it still passing.
   never_say: ["you are fine", "you're fine", "nothing to worry about", "definitely not",
-              "it's nothing", "no need to worry"]
+              "it's nothing", "no need to worry", "that's reassuring",
+              "that is reassuring", "thats reassuring"]
   always_include_escalation_criteria: true
   note: >
     THE SYSTEM NEVER OUTPUTS "YOU ARE FINE". Its disposition set includes UNRESOLVED and

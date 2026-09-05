@@ -105,3 +105,61 @@ def test_the_default_lines_live_in_the_knowledge_file_not_in_python() -> None:
     from_yaml = load_red_flags().outcome_guidance.default
     assert from_yaml, "red_flags.yaml has no outcome_guidance.default"
     assert default_escalation_criteria() == list(from_yaml)
+
+
+def test_the_two_reassurance_lists_do_not_drift_apart() -> None:
+    """`never_say` in the YAML and FALSE_REASSURANCE_PHRASES in code must agree.
+
+    Item 17 asked for "that's reassuring" to be added, because the model wrote it straight
+    into a live chest pain reply with no amber marker. It was added to neither list, so the
+    exact phrase the item quotes went on passing the deterministic filter. It is not an
+    all-clear in form, which is why a list built from all-clear phrasings missed it, and
+    why a person reads it as one anyway.
+    """
+    from wha.safety.output_checks import FALSE_REASSURANCE_PHRASES
+    from wha.safety.rules import load_red_flags
+
+    never_say = {p.lower() for p in load_red_flags().always["never_say"]}
+    in_code = {p.lower() for p in FALSE_REASSURANCE_PHRASES}
+
+    assert "that's reassuring" in never_say
+    assert "that's reassuring" in in_code
+    assert not (never_say - in_code), (
+        "phrases the knowledge file forbids that the code filter does not catch: "
+        f"{sorted(never_say - in_code)}"
+    )
+
+
+def test_the_oxygen_thresholds_are_not_credited_to_who() -> None:
+    """A specific numeric threshold credited to the wrong body is as bad as inventing it.
+
+    92 and 94 percent are NHS England's COVID Oximetry @home levels, with the upper bound
+    from the British Thoracic Society. WHO's January 2021 guidance recommends USING home
+    pulse oximetry and publishes no such numbers, so a reader who followed the old citation
+    would have found nothing.
+
+    docs/KNOWLEDGE-CHANGELOG.md recorded the correction on 5 September 2026 while the
+    original sentence was still standing, in the present tense, 28 lines above its own
+    retraction in the same YAML file, and in the docstring of the rule that applies it.
+    """
+    import re
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    targets = [
+        repo / "data" / "knowledge" / "triage_rules.yaml",
+        repo / "src" / "wha" / "safety" / "rules.py",
+        repo / "src" / "wha" / "safety" / "triage.py",
+    ]
+
+    offenders = []
+    for path in targets:
+        if not path.exists():
+            continue
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            # "NOT WHO" and similar corrections are the point, so only flag lines that
+            # present WHO as the source of the levels.
+            if re.search(r"WHO guidance[, ]", line) and "NOT WHO" not in line:
+                offenders.append(f"{path.relative_to(repo)}:{i}: {line.strip()[:80]}")
+
+    assert not offenders, "the levels are still credited to WHO:\n  " + "\n  ".join(offenders)

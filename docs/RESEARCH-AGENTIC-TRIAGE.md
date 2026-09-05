@@ -274,9 +274,22 @@ Two findings pull in opposite directions and both are load-bearing.
 
 **For using it.** "Silent hypoxia" is documented in COVID: oxygen saturation falls while
 the person still feels well. That is exactly the pre-symptomatic window this system exists
-to catch, and resting heart rate alone cannot see it. WHO guidance, as reported across the
-wearable SpO2 literature, gives an actionable threshold: above 94 percent can be managed at
-home, below 93 percent warrants medical attention.
+to catch, and resting heart rate alone cannot see it. An actionable threshold exists:
+**NHS England's COVID Oximetry @home pathway**, where 92 percent or less means attend an
+emergency department within the hour or call 999, and 93 or 94 percent means contact 111 or
+a GP. The upper bound of 94 to 98 percent is the British Thoracic Society's target range for
+oxygen therapy in adults.
+
+> **CORRECTED 5 September 2026.** This paragraph credited these levels to "WHO guidance, as
+> reported across the wearable SpO2 literature". They are not WHO's. WHO's January 2021
+> guidance recommends *using* home pulse oximetry and publishes no such numbers. A reader
+> who followed the citation would have found nothing, which in a document whose header
+> promises every decision is traceable to a published source is the worst kind of error.
+> **And the population matters more than the attribution:** that pathway is written for
+> people *already diagnosed with COVID-19* and being monitored at home. This system applies
+> it to somebody who is well, which is using a rule outside the population it was written
+> for. That is why the rule may only ever raise urgency, and why it says "get a proper
+> reading taken" rather than naming a condition.
 
 **Against trusting it.** A systematic review and meta-analysis (*J Med Internet Res*
 2024;26:e62769) reports accuracy root-mean-square error of 3.96 to 4.71 percent, with

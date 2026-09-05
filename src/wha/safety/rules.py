@@ -245,7 +245,9 @@ def check_overnight_oxygen(
     This is a threshold rule for ACTION, not evidence about cause. No published study
     relates a wearable blood oxygen reading to any of the twelve causes in causes.yaml, so
     it gets no likelihood there; writing one would be inventing clinical content. What does
-    exist is WHO guidance on when a level warrants care rather than home management, and
+    exist is NHS England's COVID Oximetry @home pathway on when a level warrants care
+    rather than home management (corrected 5 September 2026 from an earlier attribution to
+    WHO, which recommends using home oximetry but publishes no such levels), and
     documented "silent hypoxia" in COVID, where oxygen falls while the person still feels
     well. That is the pre-symptomatic window this system exists for, and heart rate alone
     cannot see it.
