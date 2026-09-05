@@ -1,19 +1,29 @@
 # Contracts
 
-> **FROZEN AND STILL BINDING.** This was `plan/02-contracts.md` and moved here on 4 September
+> **BINDING, AND NOW CHECKED.** This was `plan/02-contracts.md` and moved here on 4 September
 > 2026, when the rest of the build plan was retired to `history/`. It moved rather than being
 > retired because the source code cites it by name in `constants.py`, `models.py`,
 > `agent/nodes.py`, `eval/policy_oracle.py` and `service/episode_lifecycle.py`.
 >
-> **Never edit it to match the code.** If the code and this file disagree, that is a defect in
-> the code or a blocker, not a documentation update. It has been amended twice, both times
-> deliberately and with the reasoning written inline.
+> **RECONCILED 5 September 2026, on the owner's instruction.** Until then this file said "never
+> edit it to match the code", and the result was that it silently fell **24 disagreements**
+> behind: 6 constants, 7 models and 11 schema items. Only 4 had ever been recorded as blockers.
+> Seven whole tables existed and were undescribed, including `subject_profile` and
+> `conversation_turns`, which hold the most sensitive rows in the database.
+>
+> That is not a documentation problem on its own. It is how `delete_all_subject_data` came to
+> miss four tables and therefore delete nothing: the hand-written list it used was checked
+> against this file, and this file did not know those tables existed.
+>
+> **The rule has changed, because the old one did not work.** A frozen document that nobody
+> compares to the code does not constrain the code; it just goes quietly wrong. Three tests in
+> `tests/unit/test_contracts.py` now compare this file to `wha.models`, `schema.sql` and
+> `constants.py` on every run, so the two can no longer drift in silence.
 
-
-**Loaded by every task. Never contradict it. Never change it without being told to.**
-
-If a task appears to require a change here, that is a blocker. Write to `BLOCKERS.md` and stop
-that task. Do not invent a field, rename a column, or widen a type on your own initiative.
+**What is still true.** Do not invent a field, rename a column or widen a type to make a task
+easier. If a change here is genuinely needed, it needs a reason written inline beside it, the
+same way the amendments below are written. The difference is that a disagreement is now a **test
+failure** rather than a thing somebody has to notice.
 
 ---
 
@@ -235,20 +245,26 @@ EXERCISE_EFFECT_BPM           = {"0-2h": 4.14, "2-4h": 2.91, "4-6h": 1.58}
 EXERCISE_LOOKBACK_HOURS       = 6
 SHORT_SLEEP_HOURS             = 5.5     # covariate only, never subtracted
 
-# --- forecast (advisory, never sets level or flagged) ----------------------
-FORECAST_MODEL                = "amazon/chronos-bolt-small"   # swept in the ablation
-FORECAST_MIN_NIGHTS           = 5       # below this: status TOO_FEW_NIGHTS
-FORECAST_Q_LO                 = 0.10
-FORECAST_Q_HI                 = 0.90
-FORECAST_HALF_WIDTH_FLOOR_BPM = 1.0     # a confident model can return a zero-width band
-# AMENDED 4 September 2026. FORECAST_AS_EVIDENCE and FORECAST_EVIDENCE_SD_BPM are
-# removed. The belief contribution they describe was specified here and never built:
-# no forecast log-factor exists in wha.belief and both constants were read by nothing.
-# It is now deliberately not built. No study was found showing a forecast residual
-# identifies which cause is present, and Alavi et al. 2022, the source of the detection
-# thresholds above, measured plain baseline deviation at 78 percent sensitivity against
-# 54 (CuSum) and 44 (RHRAD) at the same false-signal rate. The forecast runs and is
-# advisory, as the heading of this block has always said.
+# --- forecast: REMOVED IN FULL, 5 September 2026 ---------------------------
+# FORECAST_MODEL, FORECAST_MIN_NIGHTS, FORECAST_Q_LO, FORECAST_Q_HI and
+# FORECAST_HALF_WIDTH_FLOOR_BPM are gone, with src/wha/detect/forecast.py and the
+# chronos-forecasting dependency. The 4 September amendment above removed two of these
+# constants for being unbuilt; this removes the rest for being measured and losing.
+#
+# Over 7,295 nights of the Mishra 2020 cohort the forecast residual separated illness
+# WORSE than the plain baseline residual the detector already computes, AUC 0.586 against
+# 0.629, where 0.5 is no separation. Across 30 labelled infections it caught one the
+# detector missed at the most generous threshold and none at tighter ones. Reproduce with
+# `uv run python tools/cohort/chronos.py`.
+#
+# That agrees with Alavi et al. 2022, the source of the detection thresholds above, which
+# measured plain baseline deviation at 78 percent sensitivity against 54 (CuSum) and 44
+# (RHRAD) at the same false-signal rate. The simplest method beat both cleverer ones there
+# too.
+#
+# The `forecast_status` COLUMN and the `Forecast` model are deliberately KEPT, set to
+# NOT_RUN, so databases written before this still open and old rows still read.
+# tests/unit/test_contracts.py::REMOVED_FROM_THE_CODE asserts the five constants stay gone.
 
 # --- belief model ---------------------------------------------------------
 N_CAUSES                      = 12
@@ -264,7 +280,11 @@ LEAK_EFFECT_SD_BPM            = 3.0     # width of the `unexplained` effect prio
 UTILITY_MISS_ILLNESS          = -9.0    # concluded benign, was illness
 UTILITY_FALSE_ALARM           = -1.0    # concluded illness, was benign
 UTILITY_CORRECT               =  0.0
-POLICY_COST_PER_INTERRUPT     =  0.30   # same utility units. Swept
+POLICY_COST_PER_INTERRUPT     =  0.15   # same utility units. Genuinely swept; the
+                                        # sweep is in constants.py beside it. AMENDED
+                                        # from 0.30 on 5 September 2026: the code has
+                                        # said 0.15 since the frontier was measured and
+                                        # this file was never updated to match.
 INTERRUPTION_BUDGET_PER_WEEK  = 2
 DEPTH_BUDGET_PER_EPISODE      = 5
 
@@ -364,6 +384,9 @@ CREATE TABLE nightly_features (
   coverage_minutes      INTEGER NOT NULL,
   implausible_dropped   INTEGER NOT NULL DEFAULT 0,
   usable                INTEGER NOT NULL,
+  -- 'sleep' or 'clock': which window this night was measured over. Two screens state
+  -- it in words, so it has to travel to them. Added in schema v4.
+  rhr_window_source     TEXT NOT NULL DEFAULT 'clock',
   steps_prev_day        INTEGER,
   sleep_hours           REAL,
   exercise_end_offset_h REAL,
@@ -407,6 +430,7 @@ CREATE TABLE episodes (
   subject_id       TEXT NOT NULL,
   thread_id        TEXT NOT NULL,
   opened_on        TEXT NOT NULL,
+  last_evidence_night TEXT,  -- newest night already folded into the belief
   closed_on        TEXT,
   state            TEXT NOT NULL CHECK (state IN
                      ('OPEN','AWAITING_USER','AWAITING_MEASUREMENT',
@@ -422,6 +446,7 @@ CREATE INDEX idx_episodes_subject_state ON episodes(subject_id, state);
 
 CREATE TABLE beliefs (
   episode_id     TEXT NOT NULL,
+  state_logprob_json TEXT,   -- the full 4096-state posterior, in log space
   seq            INTEGER NOT NULL,
   ts_utc         TEXT NOT NULL,
   trigger        TEXT NOT NULL,   -- what caused this update
@@ -434,6 +459,7 @@ CREATE TABLE interactions (
   id                TEXT PRIMARY KEY,
   episode_id        TEXT NOT NULL,
   probe_id          TEXT NOT NULL,
+  initiation        TEXT,    -- 'system' or 'user': who started this exchange
   question_text     TEXT NOT NULL,
   text_source       TEXT NOT NULL CHECK (text_source IN ('llm','fallback')),
   options_json      TEXT NOT NULL,
@@ -537,6 +563,96 @@ CREATE TABLE notifications (
   status         TEXT NOT NULL CHECK (status IN ('QUEUED','SENT','FAILED'))
 );
 
+-- ADDED TO THIS CONTRACT ON 5 SEPTEMBER 2026. All seven of these tables existed in
+-- src/wha/db/schema.sql and none was described here. Transcribed verbatim from it.
+
+CREATE TABLE oxygen_saturation_samples (
+  subject_id TEXT NOT NULL,
+  ts_utc     TEXT NOT NULL,
+  percentage REAL NOT NULL,
+  origin     TEXT,
+  PRIMARY KEY (subject_id, ts_utc)
+);
+
+CREATE TABLE distance_buckets (
+  subject_id TEXT NOT NULL,
+  start_utc  TEXT NOT NULL,
+  end_utc    TEXT NOT NULL,
+  meters     REAL NOT NULL,
+  PRIMARY KEY (subject_id, start_utc)
+);
+
+CREATE TABLE calorie_buckets (
+  subject_id    TEXT NOT NULL,
+  start_utc     TEXT NOT NULL,
+  end_utc       TEXT NOT NULL,
+  calories_kcal REAL NOT NULL,
+  PRIMARY KEY (subject_id, start_utc)
+);
+
+CREATE TABLE conversation_turns (
+  id                TEXT PRIMARY KEY,
+  episode_id        TEXT,
+  subject_id        TEXT NOT NULL,
+  seq               INTEGER NOT NULL,
+  role              TEXT NOT NULL CHECK (role IN ('user','agent')),
+  text              TEXT NOT NULL,
+  -- Grounded claims and the passages behind them, and separately the sentences the model
+  -- produced from its own knowledge with no citation. Kept apart on purpose: a reader is
+  -- entitled to know which is which, and Draelos et al. 2025 measured 5 to 13 percent of
+  -- unguarded model answers to patient questions as outright unsafe.
+  citations_json    TEXT NOT NULL DEFAULT '[]',
+  uncited_json      TEXT NOT NULL DEFAULT '[]',
+  -- What the deterministic floor made of this turn, never what the model thought.
+  urgency           TEXT,
+  triggered_flags_json TEXT NOT NULL DEFAULT '[]',
+  asked_item_id     TEXT,
+  -- Which discriminator conversation is open. Held here rather than inferred from the
+  -- answers gathered so far, because the answers can legitimately be empty for several
+  -- turns and the presentation must not be forgotten in between.
+  presentation      TEXT,
+  created_at_utc    TEXT NOT NULL
+);
+
+CREATE TABLE triage_answers (
+  subject_id     TEXT NOT NULL,
+  episode_id     TEXT,
+  presentation   TEXT NOT NULL,
+  item_id        TEXT NOT NULL,
+  answer         INTEGER,
+  source_text    TEXT,
+  recorded_at_utc TEXT NOT NULL,
+  PRIMARY KEY (subject_id, presentation, item_id)
+);
+
+CREATE TABLE subject_profile (
+  subject_id       TEXT PRIMARY KEY REFERENCES subjects(subject_id),
+  -- Marburg age gate (minimum_age_years) and Marburg item 1.
+  age_years        INTEGER,
+  -- 'female', 'male' or NULL. Marburg item 1 is "woman 65 or over, or man 55 or over".
+  sex              TEXT CHECK (sex IN ('female','male') OR sex IS NULL),
+  -- Marburg item 2, pre-filled so the conversation asks the three that genuinely vary.
+  -- The item most likely to be misremembered under stress, and the one that never changes.
+  known_vascular_disease INTEGER,
+  -- The luteal cause in causes.yaml. A standing fact, not worth an interruption.
+  menstruates      INTEGER,
+  -- Read by nothing, deliberately. It becomes a DISCLOSURE: beta blockers blunt the heart
+  -- rate response to infection, so the system says "I am less able to see an infection in
+  -- you" rather than silently being worse at its job.
+  rate_lowering_medicine INTEGER,
+  -- For the doctor, never for the model. Rendered into the SBAR handover and excluded from
+  -- every prompt. This is the one place free text is allowed, precisely because it does
+  -- not enter the reasoning path.
+  notes_for_doctor TEXT,
+  updated_at_utc   TEXT NOT NULL
+);
+
+CREATE TABLE episode_traces (
+  episode_id     TEXT PRIMARY KEY REFERENCES episodes(episode_id),
+  payload_json   TEXT NOT NULL,
+  updated_at_utc TEXT NOT NULL
+);
+
 CREATE TABLE telegram_offset (
   id         INTEGER PRIMARY KEY CHECK (id = 1),
   update_id  INTEGER NOT NULL       -- last processed getUpdates offset
@@ -602,6 +718,9 @@ class NightlyFeatures(BaseModel):
     rhr_bpm: float | None; coverage_minutes: int; implausible_dropped: int
     usable: bool; steps_prev_day: int | None; sleep_hours: float | None
     exercise_end_offset_h: float | None
+    # "sleep" or "clock". Which window the night was measured over. Two screens state
+    # this in words, so it has to reach them.
+    rhr_window_source: str = "clock"
 
 class Baseline(BaseModel):
     centre_bpm: float; scale_bpm: float
@@ -752,6 +871,10 @@ class GeneratedClaim(BaseModel):
 class DifferentialItem(BaseModel):
     cause: CauseId; probability: float
     supporting: list[str]; contradicting: list[str]
+    # Signed movement: probability now minus probability under the prior alone. The panel
+    # is ORDERED by this, and drew bars of `probability` until 5 September 2026, so bar
+    # length meant something different from the ordering.
+    moved: float = 0.0
 
 class Action(BaseModel):
     kind: ActionKind
@@ -805,6 +928,9 @@ class SystemStatus(BaseModel):
     usable_nights: int; rung: BaselineRung
     errors_24h: int
     quiet_nights_streak: int
+    # Nights in the recent window with no reading at all. A quiet-night streak that counts
+    # unmeasured nights reports reassurance the system is not in a position to give.
+    unmeasured_recent_nights: int = 0
 
 class ConnectionCheck(BaseModel):
     ok: bool; detail: str; latency_ms: int | None
@@ -815,6 +941,13 @@ class NightRow(BaseModel):
     deviation_bpm: float | None; explained_bpm: float; residual_bpm: float | None
     coverage_minutes: int; usable: bool
     level: DetectionLevel; episode_id: str | None
+    rhr_window_source: str = "clock"          # as NightlyFeatures, carried to the screens
+    # The forecast is deleted. These four are KEPT so databases and rows written before
+    # the deletion still read; forecast_status is always "NOT_RUN" on anything new.
+    forecast_bpm: float | None = None
+    forecast_lo_bpm: float | None = None
+    forecast_hi_bpm: float | None = None
+    forecast_status: str | None = None
 
 class NightDetail(BaseModel):
     row: NightRow
@@ -903,6 +1036,7 @@ class Settings(BaseModel):
     notify_channel: Literal["none","telegram"]
     llm_provider: Literal["cassette","ollama_native","openai_compatible"]
     llm_model: str
+    llm_base_url: str | None                # needed for openai_compatible and ollama
     bridge_host: str | None
     # secrets are NEVER present on this model
 
@@ -914,6 +1048,7 @@ class SettingsPatch(BaseModel):
     notify_channel: Literal["none","telegram"] | None = None
     llm_provider: Literal["cassette","ollama_native","openai_compatible"] | None = None
     llm_model: str | None = None
+    llm_base_url: str | None = None
     bridge_host: str | None = None
     bridge_token: SecretStr | None = None
     llm_api_key: SecretStr | None = None
@@ -983,6 +1118,9 @@ class EpisodeContext(BaseModel):
     prior_illness_episodes: list[PastEpisodeSummary] = []
     cycle_applicable: bool | None = None    # None means not yet asked
     cycle_last_period_start: date | None = None
+    # Whether a closed LIKELY_ILLNESS episode exists inside the published recovery window.
+    # The belief model reads it; nothing supplied it until 5 September 2026.
+    has_recent_illness: bool = False
 
 # --- safety -----------------------------------------------------------------
 class InjectionVerdict(BaseModel):
@@ -1095,7 +1233,10 @@ def submit_answer(interaction_id: str, answer: Answer) -> None: ...
 def submit_measurement_done(measurement_id: str) -> None: ...
 def submit_human_decision(episode_id: str, decision: str,
                           rationale: str | None) -> None: ...
-def ask_about_episode(episode_id: str, question: str) -> GroundedAnswer: ...
+# ask_about_episode was specified here and never built. What replaced it is a full
+# multi-turn conversation in service/conversation.py, which does more than this signature
+# allowed and is checked on every turn: send_message, get_transcript, latest_urgency,
+# urgency_banner, acknowledge_urgency, converse_over_telegram.
 
 # service/audit.py
 def query_audit(f: AuditFilter, limit: int, offset: int) -> list[AuditEventView]: ...
@@ -1106,13 +1247,24 @@ def export_audit(f: AuditFilter, path: Path) -> Path: ...
 def get_evaluation_results(suite: str) -> EvaluationResult: ...
 
 # service/settings.py
-def get_settings() -> Settings: ...
+# NAMED get_service_settings, not get_settings: `wha.config.get_settings` already exists
+# and returns the environment-backed settings object, which is a different thing.
+def get_service_settings() -> Settings: ...
 def update_settings(patch: SettingsPatch) -> Settings: ...
 def delete_all_subject_data(subject_id: str) -> None: ...
 ```
 
-`ask_about_episode` may retrieve only from that episode's own stored evidence and citations. It has
-no tool access and cannot open an episode, send a notification, or change any state.
+**This list is the stable core, not the whole surface.** `wha.service` exports 41 further
+callables that are not named here, and a signature list in a hand-maintained document will always
+lag the code. What this section is FOR is the shape of the boundary: a screen calls the service
+layer through `wha.api`, never the other way round, and `tests/unit/test_boundaries.py` enforces
+that. For the current surface, read `src/wha/service/__init__.py`.
+
+The conversation that replaced `ask_about_episode` is bounded differently and more strictly than
+that signature was: the deterministic safety floor runs on the person's words BEFORE the model
+sees them and again on what it produced, urgency can rise and can never fall, and every clinical
+sentence must quote a span that is verbatim in a retrieved passage or be labelled on screen as
+uncited.
 
 ---
 

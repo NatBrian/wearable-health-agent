@@ -1048,3 +1048,48 @@ Two tests hold it there: `test_medlineplus_is_named_not_just_its_topic_title` an
 which `wha.service.conversation` correctly refuses to import, so the phone had no way to reach
 them. They are constants now and both surfaces read the same ones, which is why the dashboard and
 the phone cannot drift apart on who wrote a passage.
+
+## contract - RESOLVED 5 September 2026. All four disagreements closed, and twenty more found
+
+**What changed:** the owner lifted the read-only rule on `docs/CONTRACTS.md`, on the grounds
+that it was written by a language model rather than by them, so "only a human may amend it" was
+protecting nothing.
+
+**What the four recorded blockers were:** five `FORECAST_*` constants the contract listed and the
+code did not have; a baseline scale line the code no longer computes; and two model fields the
+code carried and the contract did not, `NightRow.rhr_window_source` and `DifferentialItem.moved`.
+All four are now reconciled with the reasoning written inline.
+
+**What checking the whole file found: twenty MORE, none of them recorded anywhere.**
+
+| Area | Disagreements | Recorded before |
+|---|---|---|
+| Constants | 6 | 5 |
+| Models | 7 | 2 |
+| Schema | 11 | 0 |
+
+The ones that matter:
+
+- **`POLICY_COST_PER_INTERRUPT` read 0.30 here and 0.15 in the code.** It is the price of
+  interrupting a person, it was moved on a measured frontier, and the document the source cites
+  by name kept quoting the old figure.
+- **Seven whole tables existed and were undescribed**, including `subject_profile`,
+  `conversation_turns` and `triage_answers`, which hold the most sensitive rows in the database.
+- `NightRow` carried four `forecast_*` fields for a subsystem that had been deleted.
+- `Settings` and `SettingsPatch` were missing `llm_base_url`, which is required for two of the
+  three providers.
+- `EpisodeContext` was missing `has_recent_illness`, which the belief model reads.
+
+**The connection worth writing down.** `delete_all_subject_data` held a hand-written list of
+tables that was checked against this file. This file did not know `subject_profile` or
+`episode_traces` existed, so the list missed them, so the delete hit a foreign key and rolled
+back, so **"Delete everything" deleted nothing**. A stale contract was not a documentation
+problem there; it was the direct cause of a data-rights failure.
+
+**Why this cannot recur.** The old header said "never edit it to match the code", which sounds
+strict and is in practice unenforceable: nobody was comparing the two, so the file just went
+quietly wrong. Three tests in `tests/unit/test_contracts.py` now compare it to `wha.models`,
+`schema.sql` and `constants.py` on every run. Checked against injected drift: removing a field,
+a column and changing a constant each fail with the specific name.
+
+**Nothing further needed from the user on this.**

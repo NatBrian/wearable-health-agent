@@ -204,3 +204,169 @@ def test_every_cli_command_the_readme_shows_actually_exists() -> None:
         f"README documents commands the CLI does not have: {sorted(set(unknown))}. "
         f"Registered: {sorted(registered)}"
     )
+
+
+# --------------------------------------------------------------- the contract, checked
+
+
+def _contract() -> str:
+    from pathlib import Path
+
+    return (Path(__file__).resolve().parents[2] / "docs" / "CONTRACTS.md").read_text(
+        encoding="utf-8"
+    )
+
+
+def _declared_models() -> dict[str, set[str]]:
+    """Every `class X(BaseModel):` block in the contract, and the field names in it."""
+    import re
+
+    out: dict[str, set[str]] = {}
+    current: str | None = None
+    fields: set[str] = set()
+    for line in _contract().splitlines():
+        header = re.match(r"class (\w+)\(BaseModel\):", line)
+        if header:
+            if current:
+                out[current] = fields
+            current, fields = header.group(1), set()
+            continue
+        if current is None:
+            continue
+        if line and not line.startswith((" ", "\t")):
+            out[current] = fields
+            current, fields = None, set()
+            continue
+        for part in line.split("#")[0].split(";"):
+            field = re.match(r"([a-z_][a-z0-9_]*)\s*:", part.strip())
+            if field:
+                fields.add(field.group(1))
+    if current:
+        out[current] = fields
+    return out
+
+
+def test_the_contract_lists_the_fields_the_models_actually_have() -> None:
+    """docs/CONTRACTS.md drifted seven models behind the code before anyone checked.
+
+    It is the file the source cites by name for "every schema, model, field name, enum
+    value and constant", and nothing compared it to the code. Two of the seven gaps were
+    recorded as blockers; five were not, including NightRow carrying four forecast fields
+    for a subsystem that had been deleted and Settings missing llm_base_url.
+
+    A contract nobody checks is a description, not a contract.
+    """
+    from pydantic import BaseModel
+
+    from wha import models as domain
+
+    problems: list[str] = []
+    for name, declared in _declared_models().items():
+        model = getattr(domain, name, None)
+        if not (isinstance(model, type) and issubclass(model, BaseModel)):
+            continue
+        actual = set(model.model_fields)
+        if declared - actual:
+            problems.append(
+                f"{name}: contract lists fields the code lacks {sorted(declared - actual)}"
+            )
+        if actual - declared:
+            problems.append(
+                f"{name}: code has fields the contract lacks {sorted(actual - declared)}"
+            )
+
+    assert not problems, "docs/CONTRACTS.md and wha.models disagree:\n  " + "\n  ".join(problems)
+
+
+def test_the_contract_lists_the_tables_and_columns_the_schema_actually_has() -> None:
+    """Eleven schema disagreements, none of them recorded anywhere.
+
+    Seven whole tables existed and were undescribed, including `subject_profile` and
+    `conversation_turns`, which hold the most sensitive rows in the database. That is not
+    a documentation problem on its own; it is how `delete_all_subject_data` came to miss
+    them, because the hand-written list it used was checked against this file.
+    """
+    import re
+    import sqlite3
+
+    from wha.db.migrations import apply_schema
+
+    conn = sqlite3.connect(":memory:")
+    apply_schema(conn)
+    real = {
+        name: {r[1] for r in conn.execute(f"PRAGMA table_info({name})")}
+        for (name,) in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+    }
+
+    declared: dict[str, set[str]] = {}
+    current: str | None = None
+    columns: set[str] = set()
+    for line in _contract().splitlines():
+        header = re.search(r"CREATE TABLE (?:IF NOT EXISTS )?(\w+)", line)
+        if header:
+            if current:
+                declared[current] = columns
+            current, columns = header.group(1), set()
+            continue
+        if current is None:
+            continue
+        if line.strip().startswith(")"):
+            declared[current] = columns
+            current, columns = None, set()
+            continue
+        column = re.match(r"\s*([a-z_][a-z0-9_]*)\s+[A-Z]", line)
+        if column:
+            columns.add(column.group(1))
+    if current:
+        declared[current] = columns
+
+    # Created by the LangGraph SQLite saver rather than by this project's schema.
+    NOT_OURS = {"schema_version", "checkpoints", "writes"}
+
+    problems: list[str] = []
+    for table, cols in declared.items():
+        if table not in real:
+            problems.append(f"{table}: in the contract, not in the schema")
+            continue
+        if cols - real[table]:
+            problems.append(f"{table}: contract-only columns {sorted(cols - real[table])}")
+        if real[table] - cols:
+            problems.append(f"{table}: schema-only columns {sorted(real[table] - cols)}")
+    for table in real:
+        if table not in declared and table not in NOT_OURS:
+            problems.append(f"{table}: in the schema, not in the contract")
+
+    assert not problems, "docs/CONTRACTS.md and schema.sql disagree:\n  " + "\n  ".join(problems)
+
+
+def test_the_contract_quotes_the_constant_values_the_code_holds() -> None:
+    """POLICY_COST_PER_INTERRUPT read 0.30 here and 0.15 in the code for days.
+
+    It is the price of interrupting a person, it was moved on a measured frontier, and the
+    document the source cites by name went on quoting the old figure.
+    """
+    import re
+
+    from wha import constants
+
+    block = _contract()
+    block = block[block.index("## 4. Constants") : block.index("## 5. Storage schema")]
+
+    problems: list[str] = []
+    for match in re.finditer(r"^([A-Z][A-Z0-9_]+)\s*=\s*([^#\n]+)", block, re.MULTILINE):
+        name, raw = match.group(1), match.group(2).strip().rstrip(",")
+        if not hasattr(constants, name):
+            problems.append(f"{name}: in the contract, not in constants.py")
+            continue
+        try:
+            declared = eval(raw, {"__builtins__": {}}, {})
+        except Exception:  # noqa: BLE001
+            continue
+        actual = getattr(constants, name)
+        if isinstance(declared, (int, float)) and isinstance(actual, (int, float)):
+            if abs(float(declared) - float(actual)) > 1e-9:
+                problems.append(f"{name}: contract={declared} code={actual}")
+
+    assert not problems, "docs/CONTRACTS.md and constants.py disagree:\n  " + "\n  ".join(problems)
