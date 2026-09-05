@@ -1093,3 +1093,26 @@ quietly wrong. Three tests in `tests/unit/test_contracts.py` now compare it to `
 a column and changing a constant each fail with the specific name.
 
 **Nothing further needed from the user on this.**
+
+## cohort - RESOLVED. The delegated decision was made, and the data answered it
+
+**Supersedes the "cohort — the decision on public wearable datasets is mine to make" entry
+above**, which still reads "detection accuracy is honestly reported as not evaluated". That has
+not been true since 5 September 2026.
+
+**The decision:** fetch them. The Mishra et al. 2020 cohort is a 378 MB public download with no
+registration, and the symptom-onset labels are in the same paper's supplementary workbook on the
+same date shift as the public files, so they join directly. `cohort_labels.yaml` never needed
+authoring.
+
+**What it produced**, on 120 people and 8,508 nights, replaying this system's own detector:
+46.7 percent sensitivity at a three day pre-symptomatic window against a 16.5 percent
+rate-matched chance floor, 66.7 against 34.2 at seven days, and one investigation per healthy
+person every 4.9 weeks. Published in `EVALUATION.md` and `docs/detection-results.json`.
+
+It also answered three questions that were being argued from theory: the step filter does
+nothing here, a personal threshold is worse than a fixed one at every matched alert rate, and the
+neural forecaster separated illness worse than the plain residual and was deleted.
+
+`data/datasets/stanford` and `pmdata` remain empty and nothing reads them. `wha data fetch
+stanford` no longer pretends to fetch anything; it names `tools/cohort/fetch.py`, which does.
