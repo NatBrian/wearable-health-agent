@@ -71,7 +71,15 @@ def render_summary_tab(detail: EpisodeDetail) -> None:
             # A row is only as sourced as its weakest load-bearing number. The temporal
             # profile is what tells the causes apart across nights, and 45 of the 57
             # weights have no source at all.
-            unsourced = meta.get("provenance") == "ASSUMED" or meta.get("profile_sourced") == "no"
+            unsourced = (
+                meta.get("provenance") == "ASSUMED"
+                or meta.get("profile_sourced") == "no"
+                # A DERIVED row can still hold a number nobody measured. All three rows
+                # that were CITED here turned out to be CITED for figures their papers do
+                # not contain, and are now DERIVED with "NO EVIDENCE FOUND" naming which
+                # of their numbers is which.
+                or meta.get("has_unevidenced_number") == "yes"
+            )
             if unsourced:
                 assumed.append(d.cause.value)
             diff_data.append(

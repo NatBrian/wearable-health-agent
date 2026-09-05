@@ -125,3 +125,63 @@ def test_every_probe_likelihood_carries_a_provenance() -> None:
             assert row.get("assumption"), f"{probe}: ASSUMED with no statement of the assumption"
         elif provenance == "CITED":
             assert row.get("citation"), f"{probe}: CITED with no citation"
+
+
+def _causes() -> list[dict]:
+    """Every cause row, straight from the YAML the product loads."""
+    return yaml.safe_load((KNOWLEDGE / "causes.yaml").read_text(encoding="utf-8"))["causes"]
+
+
+def test_no_cause_is_labelled_cited_for_a_number_its_paper_does_not_contain() -> None:
+    """CITED must mean the number is IN the source, not near it.
+
+    Three rows were CITED on 5 September 2026 and none of them should have been.
+
+    - alcohol: the citation's own text said "it is not what the paper measured". 2.60 is
+      the midpoint of a two-drink span the paper reports as a contrast, not a per-drink
+      effect.
+    - luteal: 3.91 bpm really is Goodale's, but the base rate is derived from "12 to 14
+      luteal days per 28-day cycle" and the spread is in no paper at all.
+    - recovery_tail: Radin supports the 79-day window and none of the row's three numbers.
+
+    A row carries ONE provenance for four numbers, so the label has to describe the
+    weakest of them. That is the rule the episode panel already applies when it marks a
+    cause "not measured"; this asserts the YAML obeys it too.
+    """
+    for row in _causes():
+        provenance = row.get("provenance")
+        if provenance != "CITED":
+            continue
+        backing = str(row.get("citation") or "")
+        assert "not what the paper measured" not in backing.lower(), (
+            f"{row['cause']} is CITED and its own citation says the paper did not measure it"
+        )
+        assert "NO EVIDENCE FOUND" not in backing.upper(), (
+            f"{row['cause']} is CITED and its own backing says no evidence was found"
+        )
+
+
+def test_a_derived_row_holding_an_unevidenced_number_is_marked_on_screen() -> None:
+    """ "From a study" must not appear over a row containing a figure nobody measured.
+
+    The screen marked a cause unsourced only when its provenance was ASSUMED or its
+    temporal profile had no source. Every DERIVED row therefore read "from a study",
+    including the three relabelled from CITED, each of which names at least one number as
+    NO EVIDENCE FOUND inside its own derivation.
+    """
+    from wha.service.belief import get_knowledge_provenance
+
+    provenance = get_knowledge_provenance()
+
+    for row in _causes():
+        backing = str(row.get("derivation") or row.get("assumption") or "")
+        if "NO EVIDENCE FOUND" not in backing.upper():
+            continue
+        meta = provenance[str(row["cause"])]
+        assert meta.get("has_unevidenced_number") == "yes", (
+            f"{row['cause']} names an unevidenced number and the screen is not told"
+        )
+
+    # And the three that were mislabelled are all caught by it.
+    for cause in ("alcohol", "luteal", "recovery_tail"):
+        assert provenance[cause]["has_unevidenced_number"] == "yes", cause

@@ -408,3 +408,46 @@ numbers lacks a provenance, so the labels cannot quietly fall off, and the Audit
 renders the table with a warning naming how many of them have no published source. A test
 strips one label and asserts loading fails, because a guard that has never fired proves
 nothing.
+
+## 2026-09-05 — `causes.yaml`, the last three CITED rows were not cited
+
+**Changed:** `provenance` on alcohol, luteal and recovery_tail, from CITED to DERIVED, each
+with a `derivation` naming which of its numbers comes from the paper and which does not.
+**No number moved.**
+
+**Why.** An audit checked every CITED row against its source. All three failed, and one of
+them said so in its own text.
+
+**alcohol.** The citation already read: "That is a defensible figure for 'drank last night'
+only because the span brackets it; **it is not what the paper measured**." The row was
+labelled CITED anyway. Grosicki reports +2.8 bpm in females and +2.4 in males for the
+contrast between one drink *above* a person's own average and one drink *below* it, a
+two-drink span. 2.60 is the midpoint. The base rate of 0.299 **is** the paper's, directly.
+`effect_sd_bpm` 1.10 is in no paper: NO EVIDENCE FOUND.
+
+**luteal.** `effect_mean_bpm` 3.91 **is** Goodale's, read off the paper's own phase means.
+`base_rate` 0.450 is derived from "roughly 12 to 14 luteal days per 28-day cycle", which the
+paper states; 13/28 = 0.464, rounded down. `effect_sd_bpm` 1.20 is in no paper: NO EVIDENCE
+FOUND.
+
+**recovery_tail.** The weakest of the three. Radin supports the recovery *window*, roughly
+79 days, and nothing else in the row. `base_rate` 0.020, `effect_mean_bpm` 1.50 and
+`effect_sd_bpm` 1.50 are all NO EVIDENCE FOUND. Radin's "13.7 percent remained more than 5
+bpm above baseline beyond 133 days" bounds the tail but gives no mean for the population
+inside the window.
+
+**The structural cause, which is the part worth keeping.** A row carries ONE `provenance`
+for four or more numbers of different standing. The rule that resolves it already existed
+in this repository, in a comment on the episode panel: *a row is only as sourced as its
+weakest load-bearing number*. It was applied to the temporal profile and to nothing else.
+It now applies to the label as well, which is why `causes.yaml` has no CITED rows left: not
+because the evidence got worse, but because the labels stopped rounding up.
+
+**On screen too.** The panel marked a cause unsourced only when its provenance was ASSUMED
+or its profile had no source, so every DERIVED row read "from a study". Alcohol is one of
+the largest confounders in the table and read as sourced while holding an unevidenced
+spread. `get_knowledge_provenance` now reports `has_unevidenced_number` when a derivation
+contains the words NO EVIDENCE FOUND, and the panel marks those rows "not measured". Two
+tests: one asserts no CITED row's own backing contradicts its label, the other asserts every
+row naming an unevidenced number is marked on screen. Putting alcohol back to CITED fails
+the first with "its own citation says the paper did not measure it".

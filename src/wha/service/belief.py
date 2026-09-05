@@ -135,9 +135,17 @@ def get_knowledge_provenance() -> dict[str, dict[str, str]]:
         # A row is only as sourced as its weakest load-bearing number. `profile_source` is
         # what tells the causes apart across nights, and 45 of 57 weights have none.
         has_profile_source = bool(str(row.get("profile_source", "")).strip())
+        # A DERIVED row whose derivation contains "NO EVIDENCE FOUND" has at least one
+        # number nobody measured, and the screen must not call that "from a study". Every
+        # remaining CITED row in causes.yaml was relabelled DERIVED on 5 September 2026
+        # after an audit found all three were CITED for numbers their own papers do not
+        # contain, so without this the whole table would have gone on reading as sourced.
+        backing = str(row.get("derivation") or row.get("assumption") or "")
+        holds_an_unevidenced_number = "NO EVIDENCE FOUND" in backing.upper()
         out[cause_id] = {
             "provenance": str(row.get("provenance", "unstated")),
             "profile_sourced": "yes" if has_profile_source else "no",
+            "has_unevidenced_number": "yes" if holds_an_unevidenced_number else "no",
             "note": (
                 str(row.get("assumption") or row.get("derivation") or row.get("citation") or "")
                 .strip()

@@ -103,7 +103,24 @@ causes:
     effect_sd_bpm: 1.10
     profile: [1.0, 0.15, 0.0]
     evidence_grade: B
-    provenance: CITED
+    # RELABELLED CITED -> DERIVED, 5 September 2026. The citation below already said in
+    # its own words that 2.60 "is not what the paper measured", and the row was labelled
+    # CITED anyway. A row is only as sourced as its weakest load-bearing number, which is
+    # the rule the episode panel already applies when it marks a cause "not measured", and
+    # applying it here moves this row down a grade.
+    provenance: DERIVED
+    derivation: >
+      WHAT COMES STRAIGHT FROM THE PAPER: the base rate. Alcohol was consumed on 29.9
+      percent of person-days in the same cohort, which is base_rate 0.299 unchanged.
+      WHAT IS DERIVED: effect_mean_bpm 2.60. The paper reports +2.8 bpm in females and
+      +2.4 in males for the contrast between one drink ABOVE a person's own average and
+      one drink BELOW it, a two-drink span. The midpoint of 2.8 and 2.4 is 2.60, used here
+      for "drank last night" because the span brackets it. It is not a per-drink effect
+      and the paper does not report one.
+      WHAT IS NEITHER: effect_sd_bpm 1.10. No between-person spread for this contrast is
+      published. NO EVIDENCE FOUND; assumed, and set narrow, which understates how much
+      alcohol can explain and so makes the system MORE likely to investigate rather than
+      less.
     citation: >
       Grosicki et al., PLOS Digit Health 2026;5(3):e0001284. n=20,968, 5,109,185
       person-days, within-person. Base rate: alcohol consumed on 29.9 percent of
@@ -201,7 +218,20 @@ causes:
     effect_sd_bpm: 1.20
     profile: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]
     evidence_grade: B
-    provenance: CITED
+    # RELABELLED CITED -> DERIVED, 5 September 2026. The effect size genuinely is the
+    # paper's, but two of the four numbers in this row are not, and the row carries one
+    # label for all of them.
+    provenance: DERIVED
+    derivation: >
+      WHAT COMES STRAIGHT FROM THE PAPER: effect_mean_bpm 3.91. Goodale reports late
+      luteal against follicular at +3.91 bpm, P<.001, read off the paper's own phase means.
+      WHAT IS DERIVED: base_rate 0.450. The paper gives roughly 12 to 14 luteal days per
+      28-day cycle; 13/28 is 0.464, rounded down to 0.45. The paper does not state a base
+      rate.
+      WHAT IS NEITHER: effect_sd_bpm 1.20. NO EVIDENCE FOUND. Goodale reports the mean
+      contrast, not a between-person spread of it. Assumed, and set narrow for the same
+      reason as alcohol: a narrow spread understates how much this explains away, and the
+      luteal phase is the largest benign effect in this table.
     citation: >
       Goodale et al., J Med Internet Res 2019;21(4):e13404. n=193 participants, 708
       analysed cycles, wrist-worn overnight. Late luteal versus follicular: heart rate
@@ -288,7 +318,21 @@ causes:
     effect_sd_bpm: 1.50
     profile: [1.0]
     evidence_grade: B
-    provenance: CITED
+    # RELABELLED CITED -> DERIVED, 5 September 2026, and this row was the weakest of the
+    # three. Radin supports the DURATION and nothing else in it: not the base rate, not
+    # the effect size, not the spread.
+    provenance: DERIVED
+    derivation: >
+      WHAT COMES STRAIGHT FROM THE PAPER: the recovery window only. Radin reports resting
+      heart rate not returning to baseline until roughly 79 days after symptom onset,
+      which is RECOVERY_TAIL_DAYS in constants.py and is what decides whether this cause
+      applies at all.
+      WHAT IS NEITHER CITED NOR DERIVED: all three numbers in this row.
+      base_rate 0.020, effect_mean_bpm 1.50 and effect_sd_bpm 1.50 are NO EVIDENCE FOUND.
+      Radin reports that 13.7 percent remained more than 5 bpm above baseline beyond 133
+      days, which bounds the tail but gives no mean for the population inside the window.
+      All three are assumed and set small, so this cause explains away as little as
+      possible and the system investigates rather than attributing a rise to convalescence.
     citation: >
       Radin et al., JAMA Netw Open 2021;4(7):e2115959. n=234 COVID-positive versus 641
       symptomatic negative. Resting heart rate did not return to baseline until roughly
