@@ -1,6 +1,6 @@
 """Unit tests for ablation evaluation suite."""
 
-from pathlib import Path
+import pytest
 
 from wha.eval.ablation import (
     paired_bootstrap_difference,
@@ -8,23 +8,34 @@ from wha.eval.ablation import (
 )
 
 
-def test_each_ablation_toggles_one_thing(tmp_path: Path) -> None:
-    """The ablation suite includes all six distinct component ablations."""
-    res = run_ablation_eval(eval_dir=tmp_path)
-    assert res.suite == "ablation"
-    assert "ablation_table" in res.tables
-    table = res.tables["ablation_table"]
-    assert len(table) == 6
-    tested_components = {row["component_removed"] for row in table}
-    expected_components = {
-        "explained_variance",
-        "persistence_rule",
-        "chronos_evidence",
-        "temporal_profiles",
-        "shrinkage_ladder",
-        "policy_asking",
-    }
-    assert tested_components == expected_components
+def test_the_ablation_suite_refuses_rather_than_inventing_effect_sizes() -> None:
+    """This asserted six rows from an experiment that was never run.
+
+    Measured before changing it: the suite's participants were `p_01` to `p_32`, made up.
+    Their baseline scores were `random.Random(42).uniform(0.75, 0.95)`. The effect of
+    removing each component was a hardcoded dict, so `wha eval ablation` printed
+    "diff_persistence_rule: -0.1182" with a paired bootstrap interval around a constant,
+    and went on reporting a contribution for the Chronos forecast three days after the
+    forecast was deleted from the codebase.
+
+    This is the identical defect `run_policy_eval` had, which STATUS records as one of the
+    original catastrophic findings: hardcoded accuracy constants no policy had produced.
+    That one was fixed by running the real policies through the real belief model. This one
+    is disabled until somebody writes the real experiment, because a suite that reports
+    invented effect sizes is worse than no suite: a reader cannot tell.
+
+    The old expectation is not weakened here, it is inverted, because the behaviour it
+    asserted should never have existed.
+    """
+    from wha.errors import ConfigError
+
+    with pytest.raises(ConfigError) as excinfo:
+        run_ablation_eval()
+
+    message = str(excinfo.value)
+    assert "No ablation has ever been run" in message
+    assert "random.Random(42)" in message, "the message must say why, not just refuse"
+    assert "wha eval policy" in message, "it must point at the measurements that are real"
 
 
 def test_paired_bootstrap_over_participants() -> None:
@@ -48,8 +59,22 @@ def test_paired_bootstrap_over_participants() -> None:
     assert abs(ci_high - (-0.1)) < 1e-2
 
 
-def test_caveats_non_empty_when_underpowered(tmp_path: Path) -> None:
-    """Ablation EvaluationResult populates explicit caveats describing statistical power."""
-    res = run_ablation_eval(eval_dir=tmp_path)
-    assert len(res.caveats) > 0
-    assert any("N=" in c for c in res.caveats)
+def test_the_paired_bootstrap_itself_is_kept_and_still_correct() -> None:
+    """The statistics were never the problem; the data fed to them was.
+
+    `paired_bootstrap_difference` is a real implementation over participant clusters and is
+    exercised on known inputs by the test above. It stays, so whoever writes the real
+    ablation has it. What was removed is the fabricated input: 32 invented participants,
+    scores from a seeded uniform, and a hardcoded dict of effect sizes reported as
+    measurements.
+    """
+    from wha.errors import ConfigError
+    from wha.eval import ablation
+
+    assert callable(ablation.paired_bootstrap_difference)
+
+    # The property is that the suite cannot return a result at all. Anything narrower is a
+    # search for a string, and those strings appear legitimately in the docstring and the
+    # refusal message that explain what was removed.
+    with pytest.raises(ConfigError):
+        ablation.run_ablation_eval()

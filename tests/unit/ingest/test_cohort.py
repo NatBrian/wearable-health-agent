@@ -9,10 +9,21 @@ from wha.errors import ConfigError
 from wha.ingest.cohort import CohortReplay, load_cohort_labels
 
 
-def test_cohort_missing_labels_is_hard_error(tmp_path: Path) -> None:
-    """Missing cohort_labels.yaml raises ConfigError because labels are not in archives."""
-    missing_file = tmp_path / "nonexistent_labels.yaml"
-    with pytest.raises(ConfigError, match="Cohort labels file missing"):
+def test_cohort_missing_labels_is_a_hard_error_that_says_how_to_get_them(tmp_path: Path) -> None:
+    """Still a hard error. The message changed because the file it named never existed.
+
+    It pointed at `data/knowledge/cohort_labels.yaml`, to be authored by hand from
+    supplementary information, and blocker A-25 recorded that as the reason detection
+    accuracy could not be measured. That was wrong: the labels are in the Mishra et al.
+    2020 supplementary workbook and `tools/cohort/labels.py` extracts them. So the old
+    message told every reader to produce a file nobody was ever going to produce, and
+    `uv run wha eval detection` failed on every machine.
+    """
+    missing_file = tmp_path / "nonexistent_labels.json"
+    with pytest.raises(ConfigError, match="Cohort labels not found"):
+        load_cohort_labels(missing_file)
+
+    with pytest.raises(ConfigError, match="tools/cohort/labels.py"):
         load_cohort_labels(missing_file)
 
 
