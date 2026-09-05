@@ -847,7 +847,7 @@ and recorded in `STATUS.md`.
 
 ## contract - `docs/CONTRACTS.md` describes a baseline scale the code no longer computes
 
-**What I tried:** item 7 of `docs/REFINEMENT-PLAN.md`, correcting what the band's width
+**What I tried:** item 7 of `history/review-2026-09/REFINEMENT-PLAN.md`, correcting what the band's width
 shrinks toward.
 
 **What happened:** `compute_baseline` now shrinks `scale_bpm` toward a new
@@ -874,7 +874,7 @@ code disagree on one line, and the code is the one with the measurement behind i
 
 ## contract - `docs/CONTRACTS.md` lists five constants for a subsystem that was removed
 
-**What I tried:** item 22 of `docs/REFINEMENT-PLAN.md`, deleting the Chronos forecast.
+**What I tried:** item 22 of `history/review-2026-09/REFINEMENT-PLAN.md`, deleting the Chronos forecast.
 
 **What happened:** `FORECAST_MODEL`, `FORECAST_MIN_NIGHTS`, `FORECAST_Q_LO`,
 `FORECAST_Q_HI` and `FORECAST_HALF_WIDTH_FLOOR_BPM` are gone from `src/wha/constants.py`
@@ -943,7 +943,7 @@ paraphrased at all, since those are the questions where the paraphrase has no up
 
 ## contract - two models carry fields `docs/CONTRACTS.md` does not list
 
-**What I tried:** items 13 and 33 of `docs/REFINEMENT-PLAN.md`, both of which require a
+**What I tried:** items 13 and 33 of `history/review-2026-09/REFINEMENT-PLAN.md`, both of which require a
 number to reach the screen that the contract's version of the model cannot carry.
 
 **What happened:** two frozen models gained a field.
@@ -975,7 +975,7 @@ looking at.
 
 ## policy - a night the watch cannot vouch for still concludes LIKELY_ILLNESS
 
-**What I tried:** item 24 of `docs/REFINEMENT-PLAN.md`, whose check is "run the simulation
+**What I tried:** item 24 of `history/review-2026-09/REFINEMENT-PLAN.md`, whose check is "run the simulation
 with a poor coverage night, the outcome says the night could not be judged".
 
 **What happened:** it cannot pass, and the gate written to make it pass could never fire.

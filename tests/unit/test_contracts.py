@@ -164,3 +164,43 @@ def test_investigate_step_validates_mutual_exclusivity() -> None:
             ),
             done=models.Done(reason="all done"),
         )
+
+
+def test_every_cli_command_the_readme_shows_actually_exists() -> None:
+    """The README's command reference drifted from the CLI in both directions.
+
+    It advertised `wha data fetch stanford` and `wha data fetch chronos` for things that no
+    longer fetch anything, and omitted `tell`, `corpus` and `llm` entirely. A reader
+    following it hit commands that did nothing and never learned about the ones that work.
+
+    This reads the top-level command names out of the Typer app and checks every
+    `uv run wha <x>` in the README against them, so adding a command without documenting it
+    is fine, but documenting one that does not exist is not.
+    """
+    import re
+    from pathlib import Path
+
+    from wha.cli import app
+
+    registered = {
+        info.name or (info.callback.__name__ if info.callback else "")
+        for info in list(app.registered_commands)
+    }
+    for group in app.registered_groups:
+        if group.name:
+            registered.add(group.name)
+    registered = {name for name in registered if name}
+    assert len(registered) > 5, f"only found {registered}, this test would prove nothing"
+
+    readme = (Path(__file__).resolve().parents[2] / "README.md").read_text(encoding="utf-8")
+
+    unknown: list[str] = []
+    for match in re.finditer(r"^uv run wha ([a-z-]+)", readme, re.MULTILINE):
+        name = match.group(1)
+        if name not in registered:
+            unknown.append(name)
+
+    assert not unknown, (
+        f"README documents commands the CLI does not have: {sorted(set(unknown))}. "
+        f"Registered: {sorted(registered)}"
+    )

@@ -10,7 +10,7 @@ Consumer smartwatches detect that something in your body changed--a raised overn
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │ DAILY PASSIVE MONITOR (Tier 0)                                                  │
 │ Local CPU • Plain Python • Closed-Form Statistics • Zero LLM Calls • $0 Cost    │
-│ 00:00–07:00 Sleep Extraction ──> Coverage Gate ──> Shrinkage Baseline ──> Test  │
+│ Recorded-Sleep Extraction ──> Coverage Gate ──> Shrinkage Baseline ──> Test    │
 └──────────────────────────────────────┬──────────────────────────────────────────┘
                                        │
                       ┌────────────────┴────────────────┐
@@ -258,7 +258,22 @@ uv run wha belief explain        # Output exact mathematical marginals over 12 c
 
 # Evaluation
 uv run wha eval-report           # Run the offline suites and write EVALUATION.md
-uv run wha eval policy           # One suite, as JSON
+uv run wha eval policy           # Real policies through the real belief model
+uv run wha eval adversarial      # Prompt-injection containment over 15 cases
+uv run wha eval baseline-age     # How the baseline behaves as nights accumulate
+
+# Two suites REFUSE rather than report, and say why when you run them:
+#   eval detection  scores detections a caller replays, and nothing in the app replays
+#                   them, so it used to print zeros as a benchmark. Detection accuracy
+#                   comes from tools/cohort/ and is published in docs/detection-results.json
+#   eval ablation   was entirely synthetic: 32 invented participants, scores from
+#                   random.Random(42) and a hardcoded table of "effect sizes"
+
+# Conversation, corpus, and the model provider
+uv run wha tell "I have a sore throat"   # Say how you feel without waiting to be asked
+uv run wha corpus search fever           # What the agent would retrieve for a query
+uv run wha corpus build                  # Rebuild the retrievable corpus from the tables
+uv run wha llm record illness-onset      # Re-record the offline cassettes for a scenario
 ```
 
 ---
@@ -310,12 +325,22 @@ the system rather than something a person checking their own health acts on.
 
 ## Corpus & Knowledge Sources
 
-In this repository. Every number carries its own `provenance`, which is either a citation
-you can open or an `ASSUMED` label meaning no published value exists:
+In this repository. Every number carries its own `provenance`, one of three labels:
+`CITED` (the number is in the paper), `DERIVED` (worked out from published numbers, with
+the working shown) or `ASSUMED` (no published value exists, and the assumption is stated).
 
-* **`data/knowledge/causes.yaml`**: 12 cited clinical causes with peer-reviewed effect sizes, population base rates, and temporal dynamics.
-* **`data/knowledge/probes.yaml`**: 8 structured clinical questions over discrete answer slots. **Every likelihood row in it is marked ASSUMED, not cited**: no published study measures how accurately a person reports drinking, stress or early symptoms to an app the next morning. This line said 9 questions with "cited likelihood rows" and both halves were wrong; `probe_cycle` was retired on 5 September 2026 and nothing here was ever cited.
-* **`data/knowledge/red_flags.yaml`**: Emergency clinical symptoms requiring immediate escalation.
+**There are no `CITED` rows left in `causes.yaml`, and that is a labelling correction
+rather than a loss of evidence.** An audit on 5 September 2026 checked all three against
+their sources and none survived: alcohol's own citation text said "it is not what the paper
+measured", luteal's effect size is Goodale's but its spread and base rate are not, and
+Radin supports recovery_tail's 79 day window and none of its three numbers. A row carries
+one label for four numbers, so the label has to describe the weakest of them.
+
+* **`data/knowledge/causes.yaml`**: 12 clinical causes with effect sizes, base rates and
+  temporal dynamics. Each row's `derivation` names which of its figures comes from the
+  paper, which is worked out from it, and which is `NO EVIDENCE FOUND`.
+* **`data/knowledge/probes.yaml`**: 8 structured clinical questions over discrete answer slots. **Every likelihood row is `ASSUMED`.** No published study measures how accurately a person reports drinking, stress or early symptoms to an app the next morning, so the numbers are set flat, which understates how informative a question is and makes the system interrupt less rather than more.
+* **`data/knowledge/red_flags.yaml`**: The deterministic safety floor: the urgent list, the same-day list, the two extreme heart-rate bounds and the care-pathway sentences every outcome carries. **Eight of its ten numbers are `ASSUMED` and say so on the Audit page**, because no study was found measuring how many nights a symptom should persist before it is worth an appointment. Loading fails if any of them loses its label.
 * **`data/knowledge/sources.yaml`**: The allow-list of external sources, and complete bibliographic citations for all clinical numbers.
 
 Fetched from outside, and not redistributed here:

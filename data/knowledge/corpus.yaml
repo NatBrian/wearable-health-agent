@@ -386,26 +386,23 @@ documents:
     number of nights, is worth being seen the same day.
 
 
-    - **Fever**, if it has not settled within 3 nights. People describe this as people describe
-    this as fever, feverish, temperature, burning up, chills, or shivering.
+    - **Fever**, if it has not settled within 3 nights. People describe this as fever, feverish,
+    temperature, burning up, chills, or shivering.
 
-    - **Body aches**, if it has not settled within 4 nights. People describe this as people
-    describe this as aching all over, body aches, muscle aches, or everything hurts.
+    - **Body aches**, if it has not settled within 4 nights. People describe this as aching
+    all over, body aches, muscle aches, or everything hurts.
 
-    - **Severe fatigue**, if it has not settled within 4 nights. People describe this as people
-    describe this as exhausted, can''t get out of bed, no energy at all, wiped out, or completely
-    drained.
+    - **Severe fatigue**, if it has not settled within 4 nights. People describe this as exhausted,
+    can''t get out of bed, no energy at all, wiped out, or completely drained.
 
     - **Not eating or drinking**, if it has not settled within 2 nights. People describe this
-    as people describe this as can''t eat, not eating, can''t keep fluids down, or no appetite
-    at all.
+    as can''t eat, not eating, can''t keep fluids down, or no appetite at all.
 
     - **Breathlessness on exertion**, if it has not settled within 2 nights. People describe
-    this as people describe this as out of breath on the stairs, breathless walking, or short
-    of breath when I move.
+    this as out of breath on the stairs, breathless walking, or short of breath when I move.
 
     - **Repeated vomiting**, if it has not settled within 2 nights. People describe this as
-    people describe this as vomiting, throwing up, or being sick repeatedly.
+    vomiting, throwing up, or being sick repeatedly.
 
 
     ## What to do
@@ -417,6 +414,27 @@ documents:
   metadata:
     topic: escalation
     tier: B
+- doc_id: escalation_outcome_guidance
+  title: When to seek care, whatever this system concluded
+  layer: 3
+  source_url: data/knowledge/red_flags.yaml
+  licence: Ours
+  text: '# When to seek care, whatever this system concluded
+
+
+    These two sentences are attached to every investigation this system closes, including
+    the ones it concludes are probably nothing. They are selected from a fixed list and never
+    written fresh, so no wording here was composed by a language model.
+
+
+    - Seek urgent medical attention (call 995 or go to an A&E) if you develop chest pain,
+    shortness of breath at rest, fainting, or sudden confusion.
+
+    - See a doctor today if you have a high fever that does not settle or co-occurring severe
+    body aches.'
+  metadata:
+    topic: escalation
+    tier: outcome_guidance
 - doc_id: escalation_vitals
   title: When the reading itself is far outside the person's range
   layer: 3
@@ -429,7 +447,7 @@ documents:
     heart rates, because a given number means different things for different people.
 
 
-    ## rf_rhr_extreme_high
+    ## An overnight heart rate far above your own usual
 
 
     Fires at 6.0 robust standard deviations above the person''s usual.
@@ -445,7 +463,7 @@ documents:
     Before a personal range exists, a wide absolute bound of 100 bpm is used instead.
 
 
-    ## rf_rhr_extreme_low
+    ## An overnight heart rate far below your own usual
 
 
     Fires at -6.0 robust standard deviations below the person''s usual.
@@ -476,7 +494,8 @@ documents:
     Regardless of what it concluded, including when it concludes that an elevation was most
     likely benign, this system never tells anyone they are fine. The following phrasings are
     refused outright: "you are fine", "you''re fine", "nothing to worry about", "definitely
-    not", "it''s nothing", "no need to worry".
+    not", "it''s nothing", "no need to worry", "that''s reassuring", "that is reassuring",
+    "thats reassuring".
 
 
     Its set of conclusions includes ''unresolved'' and ''not enough data'', and every conclusion
@@ -600,7 +619,7 @@ documents:
     a between-person spread of 1.10 bpm. It is present on roughly 29.9 percent of nights.
 
 
-    Evidence grade B. Provenance: CITED.
+    Evidence grade B. Provenance: DERIVED.
 
 
     Source: Grosicki et al., PLOS Digit Health 2026;5(3):e0001284. n=20,968, 5,109,185 person-days,
@@ -611,6 +630,20 @@ documents:
     and taking the midpoint gives 2.60, which this row uses. That is a defensible figure for
     "drank last night" only because the span brackets it; it is not what the paper measured,
     and it is stated here rather than left to be inferred.
+
+
+    ## How the number was derived
+
+
+    WHAT COMES STRAIGHT FROM THE PAPER: the base rate. Alcohol was consumed on 29.9 percent
+    of person-days in the same cohort, which is base_rate 0.299 unchanged. WHAT IS DERIVED:
+    effect_mean_bpm 2.60. The paper reports +2.8 bpm in females and +2.4 in males for the
+    contrast between one drink ABOVE a person''s own average and one drink BELOW it, a two-drink
+    span. The midpoint of 2.8 and 2.4 is 2.60, used here for "drank last night" because the
+    span brackets it. It is not a per-drink effect and the paper does not report one. WHAT
+    IS NEITHER: effect_sd_bpm 1.10. No between-person spread for this contrast is published.
+    NO EVIDENCE FOUND; assumed, and set narrow, which understates how much alcohol can explain
+    and so makes the system MORE likely to investigate rather than less.
 
 
     ## How it behaves over successive nights
@@ -822,7 +855,7 @@ documents:
     a between-person spread of 1.20 bpm. It is present on roughly 45.0 percent of nights.
 
 
-    Evidence grade B. Provenance: CITED.
+    Evidence grade B. Provenance: DERIVED.
 
 
     Source: Goodale et al., J Med Internet Res 2019;21(4):e13404. n=193 participants, 708
@@ -834,6 +867,19 @@ documents:
     rate figure of +3.91, which is the only one this system computes with, was and is exactly
     right (60.47 - 56.56). Neither corrected channel is ingested by this build, so this was
     a citation defect and not a clinical one. See docs/KNOWLEDGE-CHANGELOG.md.
+
+
+    ## How the number was derived
+
+
+    WHAT COMES STRAIGHT FROM THE PAPER: effect_mean_bpm 3.91. Goodale reports late luteal
+    against follicular at +3.91 bpm, P<.001, read off the paper''s own phase means. WHAT IS
+    DERIVED: base_rate 0.450. The paper gives roughly 12 to 14 luteal days per 28-day cycle;
+    13/28 is 0.464, rounded down to 0.45. The paper does not state a base rate. WHAT IS NEITHER:
+    effect_sd_bpm 1.20. NO EVIDENCE FOUND. Goodale reports the mean contrast, not a between-person
+    spread of it. Assumed, and set narrow for the same reason as alcohol: a narrow spread
+    understates how much this explains away, and the luteal phase is the largest benign effect
+    in this table.
 
 
     ## How it behaves over successive nights
@@ -1036,13 +1082,27 @@ documents:
     a between-person spread of 1.50 bpm. It is present on roughly 2.0 percent of nights.
 
 
-    Evidence grade B. Provenance: CITED.
+    Evidence grade B. Provenance: DERIVED.
 
 
     Source: Radin et al., JAMA Netw Open 2021;4(7):e2115959. n=234 COVID-positive versus 641
     symptomatic negative. Resting heart rate did not return to baseline until roughly 79 days
     after symptom onset; 13.7 percent remained more than 5 bpm above baseline for over 133
     days. Sleep recovered at day 24, steps at day 32.
+
+
+    ## How the number was derived
+
+
+    WHAT COMES STRAIGHT FROM THE PAPER: the recovery window only. Radin reports resting heart
+    rate not returning to baseline until roughly 79 days after symptom onset, which is RECOVERY_TAIL_DAYS
+    in constants.py and is what decides whether this cause applies at all. WHAT IS NEITHER
+    CITED NOR DERIVED: all three numbers in this row. base_rate 0.020, effect_mean_bpm 1.50
+    and effect_sd_bpm 1.50 are NO EVIDENCE FOUND. Radin reports that 13.7 percent remained
+    more than 5 bpm above baseline beyond 133 days, which bounds the tail but gives no mean
+    for the population inside the window. All three are assumed and set small, so this cause
+    explains away as little as possible and the system investigates rather than attributing
+    a rise to convalescence.
 
 
     ## How it behaves over successive nights
@@ -1167,37 +1227,34 @@ documents:
     citation: A leak term by construction. Wide and unbiased so that it absorbs residuals
       no named cause explains, rather than forcing the mass onto a cause that does not fit.
 - doc_id: evidence_probe_symptoms
-  title: What an answer to probe_symptoms tells us about infection
+  title: Why this system asks about Infection-like immune activation
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_symptoms tells us about infection
+  text: '# Why this system asks about Infection-like immune activation
 
 
-    This question exists to resolve one thing: whether infection is contributing to the elevation.
-    The question wording is written fresh each time; only the answer slots are fixed, because
-    the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether infection-like immune activation is
+    contributing to the raised reading. The wording is written fresh each time, so it will
+    not arrive in the same words twice, but the choices offered are fixed because the numbers
+    below are defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **none**: "Nothing unusual"
+    The question is along the lines of: How are you feeling?
 
-    - **throat**: "Throat or nose"
 
-    - **fever**: "Feverish or chills"
-
-    - **aches**: "Aches or heavy limbs"
-
-    - **other**: "Something else"
+    The answers offered are: Nothing unusual, Throat or nose, Feverish or chills, Aches or
+    heavy limbs, or Something else.
 
 
     ## How much each answer moves the belief
 
 
-    Probability of each answer if infection IS contributing, against the probability of the
-    same answer if it is not:
+    Probability of each answer if infection-like immune activation IS contributing, against
+    the probability of the same answer if it is not:
 
 
     - "Nothing unusual": 0.15 if present, 0.80 if absent.
@@ -1231,24 +1288,25 @@ documents:
     cause_id: infection
     provenance: ASSUMED
 - doc_id: evidence_probe_alcohol
-  title: What an answer to probe_alcohol tells us about alcohol
+  title: Why this system asks about Alcohol
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_alcohol tells us about alcohol
+  text: '# Why this system asks about Alcohol
 
 
-    This question exists to resolve one thing: whether alcohol is contributing to the elevation.
-    The question wording is written fresh each time; only the answer slots are fixed, because
-    the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether alcohol is contributing to the raised
+    reading. The wording is written fresh each time, so it will not arrive in the same words
+    twice, but the choices offered are fixed because the numbers below are defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **none**: "None"
+    The question is along the lines of: Did you have any alcohol last night?
 
-    - **yes**: "Yes"
+
+    The answers offered are: None, or Yes.
 
 
     ## How much each answer moves the belief
@@ -1284,35 +1342,34 @@ documents:
     cause_id: alcohol
     provenance: ASSUMED
 - doc_id: evidence_probe_exertion
-  title: What an answer to probe_exertion tells us about exertion
+  title: Why this system asks about Unrecorded or under-recorded exertion
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_exertion tells us about exertion
+  text: '# Why this system asks about Unrecorded or under-recorded exertion
 
 
-    This question exists to resolve one thing: whether exertion is contributing to the elevation.
-    The question wording is written fresh each time; only the answer slots are fixed, because
-    the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether unrecorded or under-recorded exertion
+    is contributing to the raised reading. The wording is written fresh each time, so it will
+    not arrive in the same words twice, but the choices offered are fixed because the numbers
+    below are defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **none**: "No"
+    The question is along the lines of: Did you do anything physically hard yesterday that
+    your watch might have missed?
 
-    - **light**: "Something light"
 
-    - **hard**: "Yes, hard"
-
-    - **late**: "Yes, and late in the evening"
+    The answers offered are: No, Something light, Yes, hard, or Yes, and late in the evening.
 
 
     ## How much each answer moves the belief
 
 
-    Probability of each answer if exertion IS contributing, against the probability of the
-    same answer if it is not:
+    Probability of each answer if unrecorded or under-recorded exertion IS contributing, against
+    the probability of the same answer if it is not:
 
 
     - "No": 0.08 if present, 0.85 if absent.
@@ -1343,34 +1400,33 @@ documents:
     cause_id: exertion
     provenance: ASSUMED
 - doc_id: evidence_probe_sleep_quality
-  title: What an answer to probe_sleep_quality tells us about sleep_restriction
+  title: Why this system asks about Short or fragmented sleep
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_sleep_quality tells us about sleep_restriction
+  text: '# Why this system asks about Short or fragmented sleep
 
 
-    This question exists to resolve one thing: whether sleep_restriction is contributing to
-    the elevation. The question wording is written fresh each time; only the answer slots
-    are fixed, because the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether short or fragmented sleep is contributing
+    to the raised reading. The wording is written fresh each time, so it will not arrive in
+    the same words twice, but the choices offered are fixed because the numbers below are
+    defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **normal**: "Normal"
+    The question is along the lines of: How was your sleep last night?
 
-    - **short**: "Short, by choice"
 
-    - **broken**: "Broken or restless"
-
-    - **unwell**: "Poor because I felt unwell"
+    The answers offered are: Normal, Short, by choice, Broken or restless, or Poor because
+    I felt unwell.
 
 
     ## How much each answer moves the belief
 
 
-    Probability of each answer if sleep_restriction IS contributing, against the probability
+    Probability of each answer if short or fragmented sleep IS contributing, against the probability
     of the same answer if it is not:
 
 
@@ -1401,33 +1457,33 @@ documents:
     cause_id: sleep_restriction
     provenance: ASSUMED
 - doc_id: evidence_probe_stress
-  title: What an answer to probe_stress tells us about stress
+  title: Why this system asks about Acute psychological stress
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_stress tells us about stress
+  text: '# Why this system asks about Acute psychological stress
 
 
-    This question exists to resolve one thing: whether stress is contributing to the elevation.
-    The question wording is written fresh each time; only the answer slots are fixed, because
-    the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether acute psychological stress is contributing
+    to the raised reading. The wording is written fresh each time, so it will not arrive in
+    the same words twice, but the choices offered are fixed because the numbers below are
+    defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **none**: "Not really"
+    The question is along the lines of: Anything unusually stressful going on at the moment?
 
-    - **some**: "Somewhat"
 
-    - **lots**: "Yes, a lot"
+    The answers offered are: Not really, Somewhat, or Yes, a lot.
 
 
     ## How much each answer moves the belief
 
 
-    Probability of each answer if stress IS contributing, against the probability of the same
-    answer if it is not:
+    Probability of each answer if acute psychological stress IS contributing, against the
+    probability of the same answer if it is not:
 
 
     - "Not really": 0.15 if present, 0.78 if absent.
@@ -1456,31 +1512,33 @@ documents:
     cause_id: stress
     provenance: ASSUMED
 - doc_id: evidence_probe_vaccination
-  title: What an answer to probe_vaccination tells us about vaccination
+  title: Why this system asks about Vaccine reactogenicity
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_vaccination tells us about vaccination
+  text: '# Why this system asks about Vaccine reactogenicity
 
 
-    This question exists to resolve one thing: whether vaccination is contributing to the
-    elevation. The question wording is written fresh each time; only the answer slots are
-    fixed, because the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether vaccine reactogenicity is contributing
+    to the raised reading. The wording is written fresh each time, so it will not arrive in
+    the same words twice, but the choices offered are fixed because the numbers below are
+    defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **no**: "No"
+    The question is along the lines of: Have you had a vaccination in the last few days?
 
-    - **yes**: "Yes"
+
+    The answers offered are: No, or Yes.
 
 
     ## How much each answer moves the belief
 
 
-    Probability of each answer if vaccination IS contributing, against the probability of
-    the same answer if it is not:
+    Probability of each answer if vaccine reactogenicity IS contributing, against the probability
+    of the same answer if it is not:
 
 
     - "No": 0.03 if present, 0.99 if absent.
@@ -1507,33 +1565,33 @@ documents:
     cause_id: vaccination
     provenance: ASSUMED
 - doc_id: evidence_probe_travel
-  title: What an answer to probe_travel tells us about travel
+  title: Why this system asks about Travel, time-zone change or altitude
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_travel tells us about travel
+  text: '# Why this system asks about Travel, time-zone change or altitude
 
 
-    This question exists to resolve one thing: whether travel is contributing to the elevation.
-    The question wording is written fresh each time; only the answer slots are fixed, because
-    the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether travel, time-zone change or altitude
+    is contributing to the raised reading. The wording is written fresh each time, so it will
+    not arrive in the same words twice, but the choices offered are fixed because the numbers
+    below are defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **no**: "No"
+    The question is along the lines of: Have you flown or changed time zone in the last week?
 
-    - **short**: "Yes, a short trip"
 
-    - **tz**: "Yes, and a time-zone change"
+    The answers offered are: No, Yes, a short trip, or Yes, and a time-zone change.
 
 
     ## How much each answer moves the belief
 
 
-    Probability of each answer if travel IS contributing, against the probability of the same
-    answer if it is not:
+    Probability of each answer if travel, time-zone change or altitude IS contributing, against
+    the probability of the same answer if it is not:
 
 
     - "No": 0.04 if present, 0.97 if absent.
@@ -1562,33 +1620,34 @@ documents:
     cause_id: travel
     provenance: ASSUMED
 - doc_id: evidence_probe_medication
-  title: What an answer to probe_medication tells us about medication
+  title: Why this system asks about Medication started, stopped or missed
   layer: 4
   source_url: data/knowledge/probes.yaml
   licence: Ours
-  text: '# What an answer to probe_medication tells us about medication
+  text: '# Why this system asks about Medication started, stopped or missed
 
 
-    This question exists to resolve one thing: whether medication is contributing to the elevation.
-    The question wording is written fresh each time; only the answer slots are fixed, because
-    the numbers below are defined over those slots.
+    This question exists to resolve one thing: whether medication started, stopped or missed
+    is contributing to the raised reading. The wording is written fresh each time, so it will
+    not arrive in the same words twice, but the choices offered are fixed because the numbers
+    below are defined over them.
 
 
-    ## The answers offered
+    ## What you are asked, and what you can answer
 
 
-    - **no**: "No"
+    The question is along the lines of: Have you started, stopped or missed any regular medication
+    recently?
 
-    - **started**: "Started something new"
 
-    - **stopped**: "Stopped or missed a dose"
+    The answers offered are: No, Started something new, or Stopped or missed a dose.
 
 
     ## How much each answer moves the belief
 
 
-    Probability of each answer if medication IS contributing, against the probability of the
-    same answer if it is not:
+    Probability of each answer if medication started, stopped or missed IS contributing, against
+    the probability of the same answer if it is not:
 
 
     - "No": 0.05 if present, 0.96 if absent.

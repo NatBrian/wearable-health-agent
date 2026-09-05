@@ -1,4 +1,4 @@
-Reranker sweep, 5 September 2026. Item 30 of docs/REFINEMENT-PLAN.md.
+Reranker sweep, 5 September 2026. Item 30 of history/review-2026-09/REFINEMENT-PLAN.md.
 
 Precision at 8 over the twelve judged queries in tools/retrieval_check.py, measured on the
 corpus as it stood that morning. Reproduce with tools/rerank_sweep.py.

@@ -115,10 +115,12 @@ def test_the_documented_endpoint_count_matches_the_app() -> None:
     assert actual > 20, "route table looks wrong, this test would prove nothing"
 
     repo = Path(__file__).resolve().parents[3]
+    # LIVE documents only. history/ is finished work and is deliberately not checked:
+    # a record written in September 2026 was accurate then, and rewriting it so a test
+    # passes would turn the history into fiction.
     documents = [
         repo / "STATUS.md",
         repo / "docs" / "ARCHITECTURE.md",
-        repo / "docs" / "DESIGN-REVIEW.md",
     ]
 
     wrong: list[str] = []
@@ -158,7 +160,7 @@ def test_no_document_quotes_a_policy_accuracy_the_eval_did_not_produce() -> None
     superseded = "0.925"
 
     # Records that quote the wrong number ON PURPOSE are excluded by name.
-    # docs/AUDIT-2026-09-05.md is the independent audit that FOUND this mismatch; it
+    # history/review-2026-09/AUDIT-2026-09-05.md is the independent audit that FOUND this mismatch; it
     # quotes 0.925 as the finding, and rewriting it to say 0.825 would erase the thing it
     # exists to record. Its own header says it is kept unedited. The changelog and the
     # blocker file are the same shape: a correction has to be able to name what it

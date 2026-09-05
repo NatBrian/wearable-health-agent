@@ -1521,7 +1521,7 @@ That last number also settles something. The weekly interruption budget of two, 
 machinery around it, is guarding against an alert rate the detector does not produce.
 
 The full results, the caveats, and what this does **not** show are in
-`docs/DESIGN-REVIEW.md` and `docs/EVIDENCE-LOG.md`.
+`history/review-2026-09/DESIGN-REVIEW.md` and `history/review-2026-09/EVIDENCE-LOG.md`.
 
 ---
 

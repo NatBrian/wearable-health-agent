@@ -104,7 +104,7 @@ what the source says; see `docs/ARCHITECTURE.md` Part 14. The dashboard is a
 | `STATUS.md` | **Where the project actually stands. Read first** | Yes, keep current |
 | `BLOCKERS.md` | What is open, and why. **Live, at the root** | Yes, keep current |
 | `docs/CONTRACTS.md` | Schemas, models, constants, service signatures. **Still binding**, cited from the source code, and never edited | No |
-| `history/` | **Finished work. Describes nothing about the present.** The old build brief and proposal, the 67-task plan, and the frozen build log that stops partway through the agentic work. See `history/README.md` | No |
+| `history/` | **Finished work. Describes nothing about the present.** The old build brief and proposal, the 67-task plan, the frozen build log, and `review-2026-09/`: the September review, its completed 34 item queue, and the audit that found seventeen of those items were not actually done. See `history/README.md` | No |
 | `docs/` | The living design and disclosure documents | Yes, keep true |
 | `data/knowledge/` | The clinical tables. Every number carries its own provenance | **See rule 3** |
 | `data/corpus/` | Fetched external text, gitignored. Not authored here | Fetch only |

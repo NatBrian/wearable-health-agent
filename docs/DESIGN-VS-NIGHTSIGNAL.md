@@ -63,8 +63,14 @@ system flagged **two consecutive raised nights with at least one at +4**, so a r
 followed by a yellow one fired as well.
 
 Measured on 30 labelled COVID-19 cases and 76 people with no illness label, over 738
-person-weeks, at a seven day pre-symptomatic window
-(`uv run python tools/cohort/sweep.py`):
+person-weeks, in a window of **7 days before symptom onset to 1 day after**
+(`uv run python tools/cohort/sweep.py`).
+
+That is a NARROWER window than the "7 days before, 3 after" row in the results table below,
+which is why the same rule reads 53.3 percent here and 66.7 percent there. Both were called
+"the seven day window" in an earlier draft of this file, which made one rule look like two
+results. The sweep is deliberately the tighter of the two: a threshold that only wins on a
+wide window has not shown pre-symptomatic detection.
 
 | Yellow | Red | Rule | Sensitivity | Investigations per person-week |
 |---|---|---|---|---|

@@ -10,6 +10,17 @@ retrievable, citable passage and the citation would make it look more trustworth
 less.
 
 So every figure that reaches a corpus passage was checked against the published source.
+
+> **AMENDED 5 September 2026, and the amendment is the interesting part.** This check asked
+> "does the paper support this row" and answered yes for rows where the paper supports SOME
+> of it. A later audit asked the narrower question, "is this exact number in that paper", and
+> three rows failed: `alcohol`, `luteal` and `recovery_tail`. None of their numbers moved,
+> because the derivations behind them are sound; what moved is the label. **`causes.yaml` now
+> has no `CITED` rows at all**, and each carries a `derivation` naming which of its figures
+> comes from the paper, which is worked out from it, and which is `NO EVIDENCE FOUND`. The
+> rows below are marked accordingly. A verification that checks the source and not the label
+> lets a strong citation carry a weak number, which is precisely how a wrong figure comes to
+> look more trustworthy rather than less.
 What follows is what was checked, how, and what did not hold up. Each row was verified by
 fetching the paper or its PubMed Central copy in September 2026 and reading the sentence
 that carries the number.
@@ -29,10 +40,10 @@ that carries the number.
 | Naps excluded from the night window | Whitehurst, Naji, Mednick 2018, Neurobiol Sleep Circadian Rhythms 5:52-57 | "longer RR intervals and decreased heart rate during the night for both Stage 2 and SWS" compared with the nap. n=32, within-subjects, polysomnography with ECG. Direction is as the code states. |
 | Sleep rather than daytime as the measurement window | Mishica et al. 2022, PLoS One 17(1):e0262333 | "During sleep, individuals are no longer affected by external stimuli and therefore, enhanced reliability may exist for recordings that occur during sleep." |
 | luteal `effect_mean_bpm = 3.91` | Goodale et al. 2019, JMIR 21(4):e13404 | Late luteal mean 60.47 bpm (SD 6.45) against follicular mean 56.56 bpm (SD 6.29). The difference is 3.91 bpm exactly. n=193 participants, 708 cycles, both confirmed. |
-| alcohol `effect_mean_bpm = 2.60` | Grosicki et al. 2026, PLOS Digit Health 5(3):e0001284 | One drink above personal average against one below: RHR +2.8 bpm in females, +2.4 bpm in males. n=20,968, 5,109,185 person-days, within-person. The 2.60 in `causes.yaml` is the midpoint. |
+| alcohol `effect_mean_bpm = 2.60`, **derived not cited** | Grosicki et al. 2026, PLOS Digit Health 5(3):e0001284 | One drink above personal average against one below: RHR +2.8 bpm in females, +2.4 bpm in males. n=20,968, 5,109,185 person-days, within-person. The 2.60 in `causes.yaml` is the midpoint of a TWO-DRINK SPAN and is not a per-drink effect the paper reports. The row was labelled CITED until 5 September 2026 and is now DERIVED; the base rate of 0.299 IS the paper's, and `effect_sd_bpm` 1.10 is in no paper. |
 | vaccination `effect_mean_bpm = 1.52` | Quer et al. 2022, npj Digit Med 5:49 | "+1.52 beats per minute with respect to baseline following the second dose", +0.56 after the first, peak on day 2, back to baseline on day 6 after dose two. Every element of the profile checks out. |
 | infection `effect_mean_bpm = 1.60`, DERIVED | **Corrected 5 September 2026.** Natarajan, Su and Heneghan 2022, Front Physiol 13:898251, n=7,200 | "elevated during symptom onset, with average peak increases relative to the baseline of 1.8% (3.4%) for females (males)". **This was credited to Mishra et al. 2020, which does not contain those figures.** The arithmetic on the 62.75 bpm population mean gives +1.13 and +2.13 bpm, but it multiplies a percentage from 7,200 Fitbit users by an average from 525 students, which is two different groups of people. The stored 1.60 is now backed by a direct measurement instead: +2.18 bpm against matched controls, standard error about 0.85, on the Mishra cohort. See `docs/KNOWLEDGE-CHANGELOG.md` and `tools/cohort/infection.py`. |
-| recovery_tail, every figure | Radin et al. 2021, JAMA Netw Open 4(7):e2115959 | 234 positive against 641 symptomatic negative. RHR "did not return to baseline, on average, until 79 days after symptom onset". "32 participants [13.7%]" stayed more than 5 bpm above baseline for more than 133 days. Sleep at 24 days, steps at 32. |
+| recovery_tail, **the 79 day window ONLY** | Radin et al. 2021, JAMA Netw Open 4(7):e2115959 | 234 positive against 641 symptomatic negative. RHR "did not return to baseline, on average, until 79 days after symptom onset". "32 participants [13.7%]" stayed more than 5 bpm above baseline for more than 133 days. Sleep at 24 days, steps at 32. **This row said "every figure" and it verifies one.** An audit on 5 September 2026 found the paper supports the recovery WINDOW and none of the row's three numbers: `base_rate` 0.020, `effect_mean_bpm` 1.50 and `effect_sd_bpm` 1.50 are NO EVIDENCE FOUND. The row is now DERIVED and says so. |
 | sleep_restriction base rate 0.348 | Liu et al. 2016, MMWR 65(6):137-41 | 65.2 percent of 444,306 respondents reported a healthy duration of seven hours or more, so 34.8 percent did not. |
 | The 0.10 testing threshold | Pauker and Kassirer 1980, NEJM 302(20):1109-17 | The threshold approach, and the derivation of a testing threshold from the utilities of the competing errors, is the paper's subject. The repo derives P* from its own utilities and notes the coincidence rather than borrowing the number. |
 | Exercise study identity and direction | Leota et al. 2025, Nat Commun 16:3297 | n=14,689 and 4,084,354 person-nights both confirmed exactly. Later timing and higher strain are associated with higher nocturnal resting heart rate. |

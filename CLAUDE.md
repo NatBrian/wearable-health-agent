@@ -6,9 +6,15 @@ present. Then `BLOCKERS.md` for what is open, and `AGENTS.md` for the full rules
 Three files at the repository root are live: **`STATUS.md`**, **`BLOCKERS.md`**, **`AGENTS.md`**.
 
 **Everything in `history/` is finished work and describes nothing about the present.** That is
-the old build brief, the old proposal, and the 67-task plan, all superseded. Read
+the old build brief, the old proposal, the 67-task plan, and `history/review-2026-09/`: the
+September review, its 34 item queue (all done) and the audit of that queue. Read
 `history/HANDOFF.md` for the traps it records if you like, never as a list of things to do. If
 anything in `history/` disagrees with `STATUS.md`, `STATUS.md` is right.
+
+**One exception worth your time.** `history/review-2026-09/AUDIT-2026-09-05.md` is fifteen
+independent agents checking work that had been reported complete with a green suite behind it.
+Seventeen of thirty-four items came back partial and two were production-breaking. It is the
+clearest evidence in this repository for rule 3 below.
 
 Schemas, models, constants and service signatures are in **`docs/CONTRACTS.md`**, which the source
 code cites by name. It is still binding and it is never edited.

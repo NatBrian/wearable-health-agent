@@ -9,23 +9,30 @@ This file describes where things actually stand.
 
 ---
 
-## THE JOB THAT WAS JUST DONE: `docs/REFINEMENT-PLAN.md`, items 1 to 34
+## There is no open work queue. Here is where to look for what.
 
-The system was reviewed end to end on 4 and 5 September 2026, producing a 34 item plan.
-**That plan has now been executed in full.** Each item was finished with its own "how you
-will know it worked" check, which is always something to look at rather than a passing test.
+The system was reviewed end to end on 4 and 5 September 2026, producing a 34 item plan. That
+plan was executed, **audited, found to be seventeen items short of done, and finished.** All
+of it is now finished work and lives in `history/review-2026-09/`.
+
+**Live documents, which describe the present:**
 
 | Document | What it is |
 |---|---|
-| `docs/REFINEMENT-PLAN.md` | The 34 item queue. Done. Read it for why each change was made |
-| `docs/DESIGN-REVIEW.md` | A verdict on every component, and why |
-| `docs/EVIDENCE-LOG.md` | Every citation, fetched, with the load-bearing sentence quoted |
+| `STATUS.md` | This file. Where things stand |
+| `BLOCKERS.md` | What is open and why. Append, never rewrite |
+| `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` | The rules you work under |
 | `docs/ARCHITECTURE.md` | How the whole system works, for someone who has never seen it |
-| `docs/DESIGN-VS-NIGHTSIGNAL.md` | Written during this work: what differs from the cited algorithm |
+| `docs/CONTRACTS.md` | Schemas, models, constants. Binding, and never edited |
+| `docs/DISCLOSURES.md` | Every limitation, its evidence, and the screen it appears on |
 | `docs/KNOWLEDGE-CHANGELOG.md` | Every clinical figure changed, with the quoted source or the command |
+| `docs/DESIGN-*.md` | Why four specific design choices are what they are, each with its measurement |
+| `docs/detection-results.json`, `EVALUATION.md` | The published accuracy figures |
+| `docs/RUNBOOK-SIMULATION.md` | Taking it from a clean checkout to a live watch |
 
-Its "What I would not do" section is as binding as the items. Four of those entries exist
-because a measurement reversed an earlier recommendation, so do not re-open them from theory.
+**Finished work, in `history/review-2026-09/`:** the 34 item queue, the component-by-component
+review, the citation log, and the audit. Read them for why a change was made, never as a list
+of things to do. The review's detection figures are superseded and say so.
 
 ### READ THIS FIRST: the plan was reported done, and 17 items were not
 
@@ -57,7 +64,7 @@ The four that mattered most, all confirmed by running the code rather than readi
    was still reporting a Chronos contribution days after Chronos was deleted.
 
 All are fixed, each with a test checked against the defect by reintroducing it. The full
-audit, item by item with file and line, is in `docs/AUDIT-2026-09-05.md`.
+audit, item by item with file and line, is in `history/review-2026-09/AUDIT-2026-09-05.md`.
 
 **The lesson is the one this file already stated and I did not follow.** A green suite is not
 evidence. It was green for every one of these.
@@ -755,7 +762,7 @@ writer to confirm it fails.
 `BLOCKERS.md`. The ones that matter:
 
 **Almost everything that used to be listed here is now an item in
-`docs/REFINEMENT-PLAN.md`, and all 34 are done.** What remains below is only what the plan
+`history/review-2026-09/REFINEMENT-PLAN.md`, and all 34 are done.** What remains below is only what the plan
 does not cover.
 
 1. **`.env` is pointed at the simulation.** Everything verified in the review ran on
@@ -775,7 +782,7 @@ does not cover.
    twelve causes, and inventing one is exactly what item 1 is about. What plan item 4 fixes
    is that the oxygen *threshold rule*, which is cited and does exist, has never been called.
 
-**Closed by the review, with the evidence in `docs/EVIDENCE-LOG.md`:**
+**Closed by the review, with the evidence in `history/review-2026-09/EVIDENCE-LOG.md`:**
 
 - **The cohort datasets and `cohort_labels.yaml`.** The delegated decision is made: fetch
   them. They were never unavailable. The Stanford set is a public 378 MB download and the

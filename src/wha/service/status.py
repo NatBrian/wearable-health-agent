@@ -471,7 +471,15 @@ def check_live_production_suite() -> dict[str, Any]:
             {
                 "component": "Clinical Knowledge Tables",
                 "ok": True,
-                "detail": f"Loaded {len(causes)} cited causes, {len(probes)} clinical probes",
+                # NOT "cited". After an audit on 5 September 2026 checked every CITED row
+                # against its source, all three failed and were relabelled DERIVED, so
+                # causes.yaml has no CITED rows left. Every probe likelihood has always
+                # been ASSUMED. A diagnostic that calls them cited is the same overstatement
+                # the audit was about.
+                "detail": (
+                    f"Loaded {len(causes)} causes and {len(probes)} probes, each carrying "
+                    "its own provenance (DERIVED or ASSUMED; none is CITED)"
+                ),
             }
         )
     except Exception as exc:  # noqa: BLE001
@@ -571,7 +579,9 @@ def check_live_production_suite() -> dict[str, Any]:
             "ok": benchmarks_ok,
             "detail": "Stanford & PMData benchmark targets present (for 'wha eval')"
             if benchmarks_ok
-            else "Absent (run 'uv run wha data fetch <name>')",
+            # `wha data fetch stanford` no longer pretends to fetch anything: it made an
+            # empty directory and reported success, which is why this check had to exist.
+            else "Absent (run 'uv run python tools/cohort/fetch.py')",
         }
     )
 

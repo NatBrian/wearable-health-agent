@@ -10,9 +10,12 @@ the full rules.
    thing guaranteed to be current. Then `BLOCKERS.md` for what is open and why.
 2. **`AGENTS.md`** at the repository root. The hard rules, always in context.
 
-**You do not work from `history/`.** It holds the old build brief, the old proposal and the
-67-task plan: all finished, all describing nothing about the present. Read `history/HANDOFF.md`
-for the traps it records, never as a list of things to do. Schemas, models and constants are in
+**You do not work from `history/`.** It holds the old build brief, the old proposal, the
+67-task plan and `history/review-2026-09/`, the September review with its finished 34 item
+queue and the audit of that queue: all describing nothing about the present. Read
+`history/HANDOFF.md` for the traps it records, and `review-2026-09/AUDIT-2026-09-05.md` for
+what happened the last time work was reported done without being checked, never as a list of
+things to do. Schemas, models and constants are in
 `docs/CONTRACTS.md`, which the source code cites by name and which is never edited.
 
 ## The four rules that matter most, in case nothing else loads

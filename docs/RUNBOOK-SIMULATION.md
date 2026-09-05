@@ -5,7 +5,7 @@ and then past the nights the watch actually recorded using a mock Health Connect
 
 The mock bridge is not a shortcut around the system. It speaks the same HTTP protocol the
 phone speaks, so `run_ingest` takes the **live** path, rows land with `source_kind="live"`,
-and normalisation, nightly features, the baseline, Chronos, detection, the belief model,
+and normalisation, nightly features, the baseline, detection, the belief model,
 the policy, the agent graph and Telegram all run exactly as they do with the real device.
 
 ---
@@ -18,9 +18,9 @@ cp .env.example .env          # then fill it in; see the table below
 uv run wha doctor
 ```
 
-`doctor` creates `data/wha.sqlite` if it is missing. Expect `datasets miss` (the cohort
-datasets are absent and detection accuracy is honestly reported as not evaluated). No row
-should say `fail`.
+`doctor` creates `data/wha.sqlite` if it is missing. Expect `cohort miss` until you run
+`tools/cohort/fetch.py`; detection accuracy is measured from that cohort and the figures are
+published in `docs/detection-results.json`. No row should say `fail`.
 
 `wha doctor --live` is the same check plus the probes that need the network and the phone,
 in one report with one verdict. `wha check-live` is an alias for it.
@@ -51,9 +51,11 @@ Readings are taken over the sleep your watch recorded, not over a fixed clock wi
 `docs/DESIGN-SLEEP-WINDOW.md` for the evidence and the stated limitations, including naps
 and sleep apnoea.
 
-With only three nights the baseline sits at `COLD` or `PRIOR_DOMINATED` and Chronos
-correctly declines to forecast: `FORECAST_MIN_NIGHTS` is 5. That refusal is right, and it
-is worth seeing once before there is enough history to hide it.
+With only three nights the baseline sits at `COLD` or `PRIOR_DOMINATED`, and NOTHING CAN
+BE FLAGGED at all: seven usable nights are needed before a night is compared against the
+person's own median. That refusal is right, and it is worth seeing once before there is
+enough history to hide it. A neural forecaster used to decline here too; it was deleted on
+5 September 2026 after it scored worse than the plain residual it was meant to improve on.
 
 `nightly` marks each night `history` or `watched`. Nights recorded before your first sync
 are history: they build your baseline and can never raise an alert, so a first sync cannot
@@ -100,7 +102,7 @@ uv run python tools/mock_watch.py backfill
 `init` sets the last night the watch has recorded. `backfill` processes the whole
 on-device window at once, the way a first sync would; without it every night would be
 scored against the population prior rather than a personal baseline. After it, the subject
-has 35 nights, the baseline is `MATURE`, and Chronos is forecasting.
+has 35 nights and the baseline is `MATURE`.
 
 Then advance one day at a time:
 
