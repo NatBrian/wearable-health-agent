@@ -1,6 +1,7 @@
 # STATUS: read this first
 
-**Last updated:** 5 September 2026 (the refinement plan executed, 1 to 34)
+**Last updated:** 5 September 2026 (the refinement plan executed, then independently audited
+and 17 of its items reopened)
 **Branch:** `feat/agentic-early-warning-system` (nothing pushed)
 
 `history/HANDOFF.md` describes the job of writing this system from nothing. That job is done.
@@ -25,6 +26,41 @@ will know it worked" check, which is always something to look at rather than a p
 
 Its "What I would not do" section is as binding as the items. Four of those entries exist
 because a measurement reversed an earlier recommendation, so do not re-open them from theory.
+
+### READ THIS FIRST: the plan was reported done, and 17 items were not
+
+On 5 September 2026, after all 34 items were marked complete and a green suite was offered
+as evidence, the work was audited by fifteen independent agents reading the code rather than
+the account of it. **Seventeen items came back partial.** Several were defects introduced by
+the plan's own work and then reported as finished.
+
+The four that mattered most, all confirmed by running the code rather than reading it:
+
+1. **The agent was broken outright.** Item 28 added a query selecting `subject_id` from
+   `interactions`, a table with no such column, called from `node_decide` behind a `hasattr`
+   guard that is True. Every production episode raised `OperationalError` at the decision
+   node. `wha demo run` could not complete. Every test of `node_decide` passes `db=None`,
+   which makes the guard False, and the eleven scenario tests asserted the contents of the
+   JSON fixtures they had just loaded, so nothing reached it.
+2. **"Delete everything" deleted nothing.** `delete_all_subject_data` held a hand-written
+   list of fifteen tables against a schema of twenty-seven, missing `subject_profile` and
+   `episode_traces` from that same week and, for far longer, `conversation_turns` and
+   `triage_answers`. The two new ones carry foreign keys, so the transaction rolled back
+   entirely. Measured on a copy of the real database: 58,730 heart rate samples before,
+   58,730 after.
+3. **The human review checkpoint could not be reached.** No draft was stored while an
+   episode waited, and `render_inbox` sat in the `else` of `if urgency`. Urgency is monotone,
+   so once a person had escalated once they could never see a question or a review again.
+4. **Two evaluation suites reported numbers nobody measured.** `wha eval detection` printed
+   zeros as a benchmark; `wha eval ablation` was entirely synthetic, with 32 invented
+   participants, scores from `random.Random(42)` and a hardcoded dict of effect sizes, and
+   was still reporting a Chronos contribution days after Chronos was deleted.
+
+All are fixed, each with a test checked against the defect by reintroducing it. The full
+audit, item by item with file and line, is in `docs/AUDIT-2026-09-05.md`.
+
+**The lesson is the one this file already stated and I did not follow.** A green suite is not
+evidence. It was green for every one of these.
 
 ### The three findings from executing it that change how you read everything else
 
@@ -90,7 +126,7 @@ Start with `tools/cohort/README.md`. The published figures are in `docs/detectio
 ## Verify in one minute
 
 ```bash
-uv run pytest                       # 600 passed, 1 skipped, about 5 minutes
+uv run pytest                       # 622 passed, 1 skipped, about 14 minutes
 uv run ruff check src tests         # clean
 uv run ruff format --check src tests
 uv run wha doctor                   # no fail rows
@@ -135,7 +171,7 @@ All of the above is fixed. The detail is in `history/plan/PROGRESS.md`.
 
 | Check | Result | When |
 |---|---|---|
-| Tests | **600 passed, 1 skipped**, no ignore list | 5 September |
+| Tests | **622 passed, 1 skipped**, no ignore list | 5 September |
 | Lint and format | clean, `ruff check src tests` | 5 September |
 | `wha doctor` | no fail rows | 5 September |
 | Dashboard driven end to end with Playwright | all five pages, three defects found | 5 September |
@@ -143,7 +179,7 @@ All of the above is fixed. The detail is in `history/plan/PROGRESS.md`.
 | Detection accuracy | 46.7% at 3 days against a 16.5% chance floor, `docs/detection-results.json` | 5 September |
 | Retrieval precision | 77.1% at 8 over twelve judged queries, `tools/retrieval_check.py` | 5 September |
 | Corpus | **1,849 chunks**, four layers, one of them fetched | 5 September |
-| Frozen scenarios | **11 of 11** live against the real provider | 4 September, NOT re-run since |
+| Frozen scenarios | **11 of 11** live against the real provider, 30 expectations, no failures | 5 September, re-run |
 
 `tools/` now holds the scripts behind three of those rows, so the numbers survive a clean
 checkout: `cohort/` for detection, `retrieval_check.py` for retrieval, and `rerank_sweep.py`
@@ -418,8 +454,10 @@ reported 5 of 11; individually, 10 of 11. Fixed by resetting the demo database p
 believed the wrong number twice before checking, once because my own grep for `[FAIL]` was
 anchored while the lines are indented. Recorded in `BLOCKERS.md`.
 
-Frozen scenarios remain **10 of 11**, with `no-response-timeout` failing for the reason
-already recorded: a timed-out question closes `LIKELY_BENIGN` where `UNRESOLVED` is honest.
+Frozen scenarios were **10 of 11** at the time of writing, with `no-response-timeout`
+failing because a timed-out question closed `LIKELY_BENIGN` where `UNRESOLVED` is honest.
+**That was fixed, and all eleven now pass live: 30 expectations, no failures, re-run
+against the real provider on 5 September 2026.**
 
 
 ---
