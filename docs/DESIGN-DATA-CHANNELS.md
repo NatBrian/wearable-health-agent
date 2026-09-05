@@ -109,7 +109,7 @@ would not tell you what changed.
 
 This is measurable, and it was measured. In `EVALUATION.md`, a policy that decides on
 sensors alone scores **0.500, exactly chance**, at identifying the cause. A policy that
-asks one well-chosen question scores **0.925**. More sensors do not move the first number.
+asks one well-chosen question scores **0.825**. More sensors do not move the first number.
 A question does.
 
 ---

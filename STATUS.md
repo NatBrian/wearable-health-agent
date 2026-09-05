@@ -253,7 +253,7 @@ The nightly job no longer runs at 09:00. A clock trigger assumed the subject was
 synced by then; this one wakes around 11:00. Nights are re-scored on an interval and settle
 when their sleep arrives.
 
-`docs/CONTRACTS.md` is amended, schema is v4 (`nightly_features.rhr_window_source`).
+`docs/CONTRACTS.md` is amended, and the column arrived in schema v4. The database is now at v8; `DB_VERSION` in `src/wha/db/migrations.py` is the only figure to trust for this.
 
 ---
 
@@ -516,7 +516,7 @@ down. It is now, under the `chat` operation the contract had reserved and nothin
 
 Screens called service functions as Python imports. Clean layering, with no SQL in any
 view, but only Python could cross it. There is now a FastAPI boundary on `127.0.0.1:8500`
-with 28 endpoints and generated OpenAPI docs at `/docs`, and Streamlit is one of its
+with 31 endpoints and generated OpenAPI docs at `/docs`, and Streamlit is one of its
 clients. A React front end can replace it without a line of backend work.
 
 `/config` enumerates every public constant from the module rather than listing them by

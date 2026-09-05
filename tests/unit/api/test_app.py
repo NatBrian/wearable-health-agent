@@ -1,5 +1,6 @@
 """The HTTP boundary, which is what makes the dashboard replaceable."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from wha.api.app import app
@@ -98,3 +99,71 @@ def test_localise_returns_a_datetime_callers_can_format() -> None:
 
     assert isinstance(result, datetime)
     assert result.strftime("%H:%M")
+
+
+def test_the_documented_endpoint_count_matches_the_app() -> None:
+    """Four live documents published "28 endpoints" while the app served 31.
+
+    A number repeated across four files with no single source drifts the moment anyone adds
+    a route, and nothing notices. This reads the count from the app and from the documents,
+    so adding an endpoint fails here rather than quietly making the docs wrong.
+    """
+    import re
+    from pathlib import Path
+
+    actual = len({(r.path, tuple(sorted(r.methods))) for r in app.routes if hasattr(r, "methods")})
+    assert actual > 20, "route table looks wrong, this test would prove nothing"
+
+    repo = Path(__file__).resolve().parents[3]
+    documents = [
+        repo / "STATUS.md",
+        repo / "docs" / "ARCHITECTURE.md",
+        repo / "docs" / "DESIGN-REVIEW.md",
+    ]
+
+    wrong: list[str] = []
+    for path in documents:
+        if not path.exists():
+            continue
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for match in re.finditer(r"(\d+) endpoints", line):
+                if int(match.group(1)) != actual:
+                    wrong.append(
+                        f"{path.relative_to(repo)}:{i}: says {match.group(1)}, app has {actual}"
+                    )
+
+    assert not wrong, "the documented endpoint count is stale:\n  " + "\n  ".join(wrong)
+
+
+def test_no_document_quotes_a_policy_accuracy_the_eval_did_not_produce() -> None:
+    """Three live documents published an "Always ask" accuracy of 0.925. It is 0.825.
+
+    `run_policy_eval` was fixed in an earlier session to run the real policies through the
+    real belief model, and it wrote 0.825 to data/eval/policy.json. The documents kept the
+    old constant, which is the figure from when the suite returned hardcoded numbers no
+    policy had produced.
+    """
+    import json
+    import re
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    results = repo / "data" / "eval" / "policy.json"
+    if not results.exists():
+        pytest.skip("policy.json not generated on this machine")
+
+    metrics = json.loads(results.read_text(encoding="utf-8")).get("metrics", {})
+    always_ask = metrics.get("always_ask_mean_accuracy")
+    assert always_ask is not None, "policy.json has no always-ask accuracy"
+
+    superseded = "0.925"
+    wrong: list[str] = []
+    for path in repo.glob("docs/*.md"):
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if superseded in line and re.search(r"always[ _]ask", line, re.IGNORECASE):
+                wrong.append(f"{path.relative_to(repo)}:{i}: {line.strip()[:80]}")
+
+    assert not wrong, (
+        f"the measured always-ask accuracy is {always_ask}, and these still say {superseded}:\n  "
+        + "\n  ".join(wrong)
+    )

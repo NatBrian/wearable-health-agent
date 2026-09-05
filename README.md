@@ -63,10 +63,10 @@ The reasoning, the measurements behind it and the sources are in
 
 ## Key Clinical & Architectural Invariants
 
-1. **Zero-LLM Passive Monitoring**: Every morning at 09:00 AM, the nightly batch processes the 00:00–07:00 sleep window using robust statistics (MAD scaling, empirical Bayes shrinkage towards population prior $\mu_0=62.75\text{ bpm}, \sigma_0=8.64\text{ bpm}$, and explained-variance subtraction). On normal nights, **execution cost is zero and no language model is invoked**.
-2. **Deterministic Emergency Safety Floor**: If critical symptoms are reported (e.g., acute chest pain, severe dyspnea, confusion from `data/knowledge/red_flags.yaml`), the system **immediately executes `ESCALATE` and completely bypasses generative models**.
+1. **Zero-LLM Passive Monitoring**: Nights are scored on a repeating interval rather than at a fixed hour, over **the sleep the watch actually recorded**, falling back to 00:00-07:00 only when it recorded none. A cron at 09:00 assumed the person was awake and synced by then; the first real subject wakes around 11:00, so their night was scored before it had finished being recorded. Robust statistics throughout: MAD scaling, empirical Bayes shrinkage toward a population centre of 62.75 bpm with a **within-person** night-to-night scale of 3.71 bpm measured on 107 people, and explained-variance subtraction. The between-person SD of 8.64 is deliberately NOT used for the band; see `docs/DESIGN-BASELINE-CENTRE.md`. On normal nights, **execution cost is zero and no language model is invoked**.
+2. **Deterministic Emergency Safety Floor**: Phrase matching against `data/knowledge/red_flags.yaml` runs on the person's own words **before any model sees them**, and an LLM may only ever ADD a flag, never remove one. Two honest qualifications, because an earlier version of this line overstated both halves. **It does not always escalate immediately:** chest pain maps to a validated decision rule (Marburg Heart Score), so it opens that rule's questions instead of escalating on a phrase, which is the argument of Downie et al. 2013 about single red flags. Presentations with no validated history-only rule, and the unconditional gates such as collapse or crushing pain, do escalate on the spot. **And it does not bypass generative models:** tier C is an additive LLM check that runs on every free-text message. What no model can do is lower the urgency the fixed rules set.
 3. **Exact 12-Cause Bayesian Belief Engine**: Evaluates joint probabilities over all $2^{12} = 4,096$ discrete causal combinations in log-space, using peer-reviewed effect sizes and temporal onset/decay curves.
-4. **Arithmetic Value-of-Information Policy**: Decides whether to stay silent (`OBSERVE`), ask a targeted symptom question (`ASK`), order a spot check (`MEASURE`), or draft a differential (`CONCLUDE`) strictly via **Expected Value of Sample Information (EVSI) minus Interruption Cost**. The LLM cannot decide to interrupt or spam the patient on its own.
+4. **Arithmetic Value-of-Information Policy**: Decides whether to stay silent (`OBSERVE`), ask a targeted symptom question (`ASK`), or draft a differential (`CONCLUDE`) strictly via **Expected Value of Sample Information (EVSI) minus Interruption Cost**. The LLM cannot decide to interrupt or spam the patient on its own. The spot-check limb (`MEASURE`) was deleted on 5 September 2026: it rested on three numbers with no source and asked the noisier instrument to adjudicate the less noisy one.
 5. **Fail-Closed Data Quality Gates**: Requires $\ge 180\text{ minutes}$ (3 hours) of nocturnal sensor coverage and refuses biometrics older than 72 hours. The system never fabricates heart rates or invents missing data.
 6. **Strict Outbound Safety & Grounding**: Outbound messages pass 6 deterministic checks (length, control characters, URL whitelisting, slot matching, callback sizes). All clinical assertions are strictly grounded against cited medical literature in `data/knowledge/`.
 7. **Cryptographic Immutability**: Every tool call, Bayesian update, human interaction, and LLM reasoning step is logged with **SHA-256 cryptographic hash chaining** into SQLite for tamper-evident clinical auditability.
@@ -215,7 +215,7 @@ uv run wha serve --port 8501
 
 Access the dashboard at `http://localhost:8501`. The server runs the 24/7 background scheduler:
 * **Every 30 mins**: Ingests new wearable samples from the phone bridge.
-* **Daily at 09:00 AM**: Derives overnight baseline features, executes anomaly detection, and triggers causal episodes if flagged.
+* **On a repeating interval, not a fixed hour**: Derives overnight baseline features, executes anomaly detection, and opens an episode if a night is flagged. A night settles as soon as its sleep syncs, whatever time that is.
 * **Every 15 mins**: Ticks interaction timeouts and advances open episodes.
 
 ---
@@ -314,7 +314,7 @@ In this repository. Every number carries its own `provenance`, which is either a
 you can open or an `ASSUMED` label meaning no published value exists:
 
 * **`data/knowledge/causes.yaml`**: 12 cited clinical causes with peer-reviewed effect sizes, population base rates, and temporal dynamics.
-* **`data/knowledge/probes.yaml`**: 9 structured clinical questions with cited likelihood rows over discrete answer slots.
+* **`data/knowledge/probes.yaml`**: 8 structured clinical questions over discrete answer slots. **Every likelihood row in it is marked ASSUMED, not cited**: no published study measures how accurately a person reports drinking, stress or early symptoms to an app the next morning. This line said 9 questions with "cited likelihood rows" and both halves were wrong; `probe_cycle` was retired on 5 September 2026 and nothing here was ever cited.
 * **`data/knowledge/red_flags.yaml`**: Emergency clinical symptoms requiring immediate escalation.
 * **`data/knowledge/sources.yaml`**: The allow-list of external sources, and complete bibliographic citations for all clinical numbers.
 

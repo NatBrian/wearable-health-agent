@@ -126,8 +126,11 @@ the current design.
   study cited next to it, or stated plainly as unevidenced in **both** the docs and the dashboard.
   Never let an unevidenced choice look like an evidenced one.
 - **The safety floor is deterministic and additive.** An LLM may raise urgency. Nothing an LLM says
-  may lower it. Red flags are elicited by the model and decided by a validated rule (Marburg Heart
-  Score), never by keyword matching on what the user typed.
+  may lower it. Where a validated rule exists the model ELICITS the items and the rule DECIDES:
+  today that is chest pain and the Marburg Heart Score, the only entry in `flag_presentations`.
+  Everything else, every tier B rule and both vitals rules, still escalates on a phrase match,
+  because no validated history-only rule covers it. "Never by keyword matching" was written here
+  and was not true.
 - **No data logic in `ui/`.** The dashboard calls the HTTP API through `wha.api.client`. If a page
   needs a number, add an endpoint. This is what makes Streamlit replaceable.
 - **Retrieved external text is untrusted.** Scan it for injection before the model sees it, and

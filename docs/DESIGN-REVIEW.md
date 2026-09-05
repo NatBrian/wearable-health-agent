@@ -777,7 +777,7 @@ Genuinely swept, and the sweep is in the file. The project's own evaluation show
 | Policy | Accuracy | Questions per episode |
 |---|---|---|
 | EVSI at 0.15 | 0.675 | 0.40 |
-| Always ask | **0.925** | 2.00 |
+| Always ask | **0.825** | 2.00 |
 | Never ask | 0.500 | 0.00 |
 
 Always-ask beats EVSI by 25 accuracy points. The policy trades a quarter of the available
@@ -1058,7 +1058,7 @@ step count zero, all shown separately on History, came from this path.
 #### The HTTP boundary
 **KEEP** *(rubric: architecture)*
 
-28 endpoints, generated docs, a test asserting no screen imports the service layer, and
+31 endpoints, generated docs, a test asserting no screen imports the service layer, and
 `/config` enumerating every public constant from the module so the numbers on screen cannot
 drift from the code. Bound to localhost and unauthenticated on purpose, with the reasoning
 written down. Correct for a single-user tool, and it makes the front end genuinely
@@ -1232,7 +1232,7 @@ it can argue with a verdict.
 | Amber uncited label | UNEVIDENCED as a guarantee | 3 safety (hallucination) |
 | Offering a temperature reading it cannot take | FIX | 5 discussion (prompt fragility) |
 | `report_symptoms` second path | SIMPLIFY | 2 architecture and design |
-| HTTP boundary, 28 endpoints, `/config` | KEEP | 2 architecture and design |
+| HTTP boundary, 31 endpoints, `/config` | KEEP | 2 architecture and design |
 | Execution trace all SKIPPED | **FIX** | prototype: observable workflow |
 | Today page wording | FIX | 3 safety and governance |
 | Hash-chained audit and night narratives | KEEP | 3 safety (audit logs); prototype traceability |

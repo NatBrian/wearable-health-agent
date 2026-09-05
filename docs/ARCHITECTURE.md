@@ -77,7 +77,7 @@ flowchart TB
     end
 
     subgraph OUT["WHAT REACHES YOU"]
-        API["HTTP API on 127.0.0.1:8500<br/>28 endpoints"]
+        API["HTTP API on 127.0.0.1:8500<br/>31 endpoints"]
         DASH["Streamlit dashboard<br/>Home, Today, History, Audit, Settings"]
         TG["Telegram bot<br/>questions with buttons, and chat"]
         AUD["Audit log<br/>hash-chained, tamper evident"]
@@ -756,7 +756,7 @@ measured them. From its own evaluation over 40 simulated cases:
 | EVSI, this system | 0.675 | 0.40 |
 | Fixed probability threshold | 0.500 | 0.60 |
 | Never ask | 0.500 | 0.00 |
-| **Always ask** | **0.925** | **2.00** |
+| **Always ask** | **0.825** | **2.00** |
 | Ask at random | 0.525 | 0.35 |
 
 **Never ask scores at chance.** That is the finding the rest of the system rests on: the
