@@ -167,6 +167,39 @@ def load_transcript(
     return [dict(r) for r in reversed(rows)]
 
 
+def _episode_for_escalation(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    urgency: str | None,
+    episode_id: str | None,
+) -> str | None:
+    """Open or extend the investigation an escalation implies. Never raises.
+
+    EVERY path that can return an urgent or same-day reply must call this. It used to be
+    written inline on the main path only, so the two early returns above it, the turn-limit
+    reply and the model-unavailable reply, could hand somebody "urgent" with no
+    investigation opened at all. Measured: with the model raising LLMUnavailable and the
+    message "I am coughing up blood", `respond` returned urgency 'urgent' and the episodes
+    table stayed empty. That is the defect item 27 exists to remove, reintroduced on the
+    offline branch, and it is worse there because the offline branch is the one that runs
+    when nothing else is working.
+
+    `open_or_append_episode` appends to an open episode rather than opening a second, so
+    saying the same thing twice produces one investigation rather than two.
+    """
+    if urgency not in ("urgent", "same_day") or episode_id is not None:
+        return episode_id
+
+    from wha.service.episode_lifecycle import open_or_append_episode
+
+    try:
+        return open_or_append_episode(conn, subject_id, local_today())
+    except Exception:  # noqa: BLE001
+        # A failure to open the investigation must not cost the person the escalation
+        # itself, which is already in the reply and in the conversation record.
+        return None
+
+
 def established_urgency(conn: sqlite3.Connection, subject_id: str) -> str | None:
     """The most urgent level any rule has reached in this conversation.
 
@@ -512,11 +545,23 @@ def respond(
     # to chest pain does not quietly disarm the rest of the floor.
     outstanding = [i for i in (rule.items if rule else []) if known.get(i.id) is None]
     flags_without_rule = [f for f in triggered if presentation_for_flag(f, config) is None]
-    if safety.escalate and not flags_without_rule and rule is not None:
-        floor_urgency = None
 
     turn_index = len(load_transcript(conn, subject_id, limit=1000))
     at_limit = turn_index >= CONVERSATION_MAX_TURNS * 2
+
+    # THE SUPPRESSION IS ONLY VALID IF THE DISCRIMINATOR IS ACTUALLY GOING TO RUN.
+    #
+    # Holding the floor's urgency back is a trade: no escalation now, in exchange for the
+    # rule's questions being asked instead. `at_limit` is precisely the case where the
+    # second half of that trade cannot be honoured, because the conversation stops here.
+    #
+    # Without `and not at_limit`, somebody typing "I have chest pain" on turn twenty-one
+    # received urgency None and a message saying we had talked enough. Measured. The
+    # comment in the branch below asserted the opposite, and asserting it did not make it
+    # true. Refusing to converse must never be a way for urgency to come out lower than
+    # the deterministic floor put it.
+    if safety.escalate and not flags_without_rule and rule is not None and not at_limit:
+        floor_urgency = None
 
     if at_limit:
         # THE LIMIT NOW STOPS SOMETHING.
@@ -527,8 +572,10 @@ def respond(
         # `at_turn_limit`, and nothing read it. A stop condition that does not stop
         # anything is worse than none, because it appears in the report as a control.
         #
-        # The safety floor above has already run on this message, so somebody typing
-        # "chest pain" on turn twenty-one still escalates. What stops is the conversing.
+        # The safety floor above has already run on this message, and its urgency is NOT
+        # suppressed here (see the `and not at_limit` above), so somebody typing "chest
+        # pain" on turn twenty-one does escalate. What stops is the conversing, never the
+        # floor. This used to be a claim in a comment rather than a property of the code.
         text = (
             f"We have been going back and forth for {CONVERSATION_MAX_TURNS} exchanges, "
             "which is as far as this is useful. A study of conversational diagnosis found "
@@ -540,9 +587,11 @@ def respond(
             "If something changes or gets worse, say so and the safety rules will still "
             "read it. They have not stopped."
         )
+        limit_urgency = more_urgent(prior, floor_urgency)
+        episode_id = _episode_for_escalation(conn, subject_id, limit_urgency, episode_id)
         reply = ConversationReply(
             text=text,
-            urgency=more_urgent(prior, floor_urgency),
+            urgency=limit_urgency,
             urgency_reason=(
                 "The conversation reached its length limit. The urgency here is whatever "
                 "the rules had already established, unchanged."
@@ -591,9 +640,11 @@ def respond(
             "I cannot reach the language model right now, so I can only tell you what the "
             "fixed rules found. Nothing here is a judgement about you."
         )
+        offline_urgency = more_urgent(prior, floor_urgency)
+        episode_id = _episode_for_escalation(conn, subject_id, offline_urgency, episode_id)
         reply = ConversationReply(
             text=text,
-            urgency=more_urgent(prior, floor_urgency),
+            urgency=offline_urgency,
             urgency_reason=f"Model unavailable: {exc}",
             triggered_flags=triggered,
             guidance=list(safety.guidance),
@@ -703,15 +754,7 @@ def respond(
     # `open_or_append_episode` appends to an open episode rather than opening a second, so
     # saying the same thing twice produces one investigation. It is also where the
     # concurrency assertion lives.
-    if urgency in ("urgent", "same_day") and episode_id is None:
-        from wha.service.episode_lifecycle import open_or_append_episode
-
-        try:
-            episode_id = open_or_append_episode(conn, subject_id, local_today())
-        except Exception:  # noqa: BLE001
-            # A failure to open the investigation must not cost the person the escalation
-            # itself, which is already in the reply and in the conversation record.
-            episode_id = None
+    episode_id = _episode_for_escalation(conn, subject_id, urgency, episode_id)
 
     # 6. Grounding: verbatim containment, in code.
     searchable = [

@@ -305,3 +305,67 @@ def test_the_audit_chain_stays_verifiable_after_a_conversation(conn) -> None:
 
     intact, bad_event = verify_hash_chain("sub_test", conn=conn)
     assert intact, f"chain broken at {bad_event}"
+
+
+def test_refusing_to_converse_never_lowers_the_deterministic_floor(conn) -> None:
+    """The turn limit must stop the conversing, and nothing else.
+
+    Holding the floor's urgency back is a TRADE: no escalation now, in exchange for the
+    validated rule's questions being asked instead. `at_limit` is exactly the case where
+    the second half cannot be honoured, because the conversation stops there.
+
+    Measured before the fix: "I have chest pain" on turn twenty-one returned urgency None
+    and a message saying we had talked enough. The comment in that branch asserted the
+    opposite, which is why nobody looked.
+    """
+    from wha.agent.conversation import record_turn
+    from wha.constants import CONVERSATION_MAX_TURNS
+
+    conn.execute(
+        "INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("s", "L", "synthetic", "Asia/Singapore", "2026-09-05T00:00:00Z"),
+    )
+    for i in range(CONVERSATION_MAX_TURNS * 2):
+        record_turn(conn, "s", "user" if i % 2 == 0 else "agent", f"filler {i}")
+    conn.commit()
+
+    reply = respond(conn, subject_id="s", user_message="I have chest pain")
+
+    assert reply.at_turn_limit is True, "the limit should have been reached"
+    assert reply.urgency == "urgent", "the floor was silently lowered by refusing to talk"
+    assert "rf_chest_pain" in reply.triggered_flags
+
+    # And the escalation is a real investigation, not just a sentence.
+    assert conn.execute("SELECT COUNT(*) FROM episodes").fetchone()[0] == 1
+
+
+def test_every_path_that_can_escalate_opens_an_investigation(conn) -> None:
+    """An escalation that exists only as a message is the defect item 27 exists to remove.
+
+    The episode-opening block was written inline on the main path, below two early
+    returns. Measured before the fix: with the model raising LLMUnavailable and the
+    message "I am coughing up blood", `respond` returned urgency 'urgent' and the episodes
+    table stayed empty. The offline branch is the one that runs when nothing else is
+    working, so it is the worst place to lose an investigation.
+    """
+    from wha.errors import LLMUnavailable
+
+    conn.execute(
+        "INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("s", "L", "synthetic", "Asia/Singapore", "2026-09-05T00:00:00Z"),
+    )
+    conn.commit()
+
+    offline = MagicMock()
+    offline.complete.side_effect = LLMUnavailable("no model")
+
+    reply = respond(conn, subject_id="s", user_message="I am coughing up blood", llm_client=offline)
+    assert reply.refused is True
+    assert reply.urgency == "urgent"
+    assert conn.execute("SELECT COUNT(*) FROM episodes").fetchone()[0] == 1
+
+    # Saying it again appends to the open investigation rather than opening a second.
+    respond(conn, subject_id="s", user_message="I am coughing up blood", llm_client=offline)
+    assert conn.execute("SELECT COUNT(*) FROM episodes").fetchone()[0] == 1
