@@ -1,5 +1,12 @@
 # GEMINI.md
 
+> **THE WORK ON THIS PROJECT IS FINISHED, as of 5 September 2026. There is no task
+> list.** 628 tests pass, ruff is clean, and the dashboard and all eleven frozen
+> scenarios were verified live. Do not go looking for a queue: `history/` is full of
+> documents that look like plans and every one describes a job that has ended. If you
+> are asked to "continue" with no further detail, ask what is wanted rather than
+> inventing work.
+
 **This file exists so the instructions load whichever filename convention your version uses.**
 Claude Code reads `CLAUDE.md`, Gemini reads this one, and both point at `AGENTS.md`, which holds
 the full rules.

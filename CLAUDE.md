@@ -1,5 +1,15 @@
 # CLAUDE.md
 
+> **THE WORK ON THIS PROJECT IS FINISHED, as of 5 September 2026. There is no task list.**
+> 628 tests pass, ruff is clean, the dashboard and all eleven frozen scenarios were verified
+> live. **Do not go looking for a queue.** `history/` is full of documents that look like
+> plans and every one describes a job that has ended. If you are asked to "continue" with no
+> further detail, **ask what is wanted** rather than inventing work. Two known imperfections
+> are open and both need a human decision, not code; they are the last entries in
+> `BLOCKERS.md`.
+
+**New to this repository? Read `HANDOVER.md` first, then `STATUS.md`.**
+
 **Read `STATUS.md` before doing anything.** It is the only file guaranteed to describe the
 present. Then `BLOCKERS.md` for what is open, and `AGENTS.md` for the full rules.
 

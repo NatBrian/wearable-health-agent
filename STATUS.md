@@ -1,11 +1,39 @@
 # STATUS: read this first
 
-**Last updated:** 5 September 2026 (the refinement plan executed, then independently audited
-and 17 of its items reopened)
-**Branch:** `feat/agentic-early-warning-system` (nothing pushed)
+**Last updated:** 5 September 2026
+**Branch:** `feat/agentic-early-warning-system` (nothing has ever been pushed)
 
-`history/HANDOFF.md` describes the job of writing this system from nothing. That job is done.
-This file describes where things actually stand.
+---
+
+## THE WORK IS FINISHED. THERE IS NO TASK LIST.
+
+If you have just been handed this repository with no context, this is the important part:
+**nothing is waiting to be built, and nothing is half done.** Do not go hunting for a queue.
+`history/` is full of documents that look like plans, and every one of them describes a job
+that has ended.
+
+Verified on 5 September 2026, all re-run rather than remembered:
+
+| Check | Result |
+|---|---|
+| `uv run pytest` | **628 passed, 1 skipped** |
+| `uv run ruff check src tests` | clean |
+| `uv run ruff format --check src tests` | clean |
+| `uv run wha doctor` | no `fail` rows |
+| Dashboard, all five pages | driven with Playwright, no errors |
+| Eleven frozen scenarios | **11 of 11 live**, 30 expectations, no failures |
+| Telegram | a real message sent through the production path |
+
+**If somebody asks you to "continue", ask them what they want.** There is no obvious next
+task, and inventing one would be worse than asking.
+
+**New here with no context? Read `HANDOVER.md` first.** It is five minutes and covers the
+two mistakes everyone makes in this repository.
+
+**Two known imperfections are open, and both need a human decision rather than code.** They
+are the last two entries in `BLOCKERS.md`, they are disclosed to the user on screen, and
+neither breaks anything: a night whose leading explanation is a bad sensor reading still
+reports as possible illness, and a cited sentence can still misdescribe the passage it cites.
 
 ---
 

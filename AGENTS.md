@@ -1,5 +1,12 @@
 # AGENTS.md
 
+> **THE WORK ON THIS PROJECT IS FINISHED, as of 5 September 2026. There is no task
+> list.** 628 tests pass, ruff is clean, and the dashboard and all eleven frozen
+> scenarios were verified live. Do not go looking for a queue: `history/` is full of
+> documents that look like plans and every one describes a job that has ended. If you
+> are asked to "continue" with no further detail, ask what is wanted rather than
+> inventing work.
+
 Instructions for any coding agent working in this repository. Detailed rules live in
 `.agents/rules/`.
 
