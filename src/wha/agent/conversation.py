@@ -238,12 +238,21 @@ def urgency_state(conn: sqlite3.Connection, subject_id: str) -> dict[str, Any]:
     if level is None:
         return {"urgency": None, "set_on": None, "days_ago": None, "stale": False, "cleared": False}
 
+    # MOST RECENT, not first. This was MIN(created_at_utc), and MIN made an old
+    # acknowledgement clear a NEW urgency of the same level: raised on day 1, acknowledged
+    # on day 2, raised again on day 30, and because `set_on` was still day 1 the day-2
+    # acknowledgement compared as "after it" and the banner stayed cleared. A live red
+    # banner silently suppressed by a fortnight-old acknowledgement is exactly the silent
+    # drop item 32's own "what could go wrong" section forbids.
+    #
+    # MAX also makes the screen's "It has not been repeated since" true by construction:
+    # if it had been repeated, this would be that later time.
     row = conn.execute(
-        """SELECT MIN(created_at_utc) AS first_set FROM conversation_turns
+        """SELECT MAX(created_at_utc) AS last_set FROM conversation_turns
             WHERE subject_id = ? AND urgency = ?""",
         (subject_id, level),
     ).fetchone()
-    set_on = row["first_set"] if row is not None and row["first_set"] else None
+    set_on = row["last_set"] if row is not None and row["last_set"] else None
     days_ago = None
     if set_on:
         try:

@@ -285,6 +285,16 @@ class DifferentialItem(BaseModel):
     probability: float
     supporting: list[str] = Field(default_factory=list)
     contradicting: list[str] = Field(default_factory=list)
+    # How far THIS EPISODE moved the cause: probability now, minus probability under the
+    # prior alone. Signed, so a cause the evidence argued AGAINST reads negative.
+    #
+    # The panel is ordered by this and, until 5 September 2026, drew bars of `probability`
+    # instead, so the bar lengths meant something different from the ordering, and
+    # `st.bar_chart` re-sorted the categories alphabetically on top of that, discarding the
+    # ranking entirely. Carrying the number is what lets the chart show what the panel
+    # claims to show. `docs/CONTRACTS.md` is read-only and does not list this field; the
+    # disagreement is recorded in BLOCKERS.md, as it is for the other three.
+    moved: float = 0.0
 
 
 class Action(BaseModel):

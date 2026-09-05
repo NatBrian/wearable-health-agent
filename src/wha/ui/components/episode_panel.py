@@ -1,5 +1,6 @@
 """Episode panel component rendering Summary, Trace, Conversation, and Evidence tabs."""
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -49,8 +50,10 @@ def render_summary_tab(detail: EpisodeDetail) -> None:
         # a real episode that concluded LIKELY_ILLNESS this chart put stress at 0.92 first
         # with the reason "nothing gathered in this episode speaks to this cause".
         #
-        # `ground_differential` now returns them ordered by how much THIS EPISODE moved
-        # each one. Re-sorting by Probability here would undo that.
+        # `ground_differential` returns them ordered by how much THIS EPISODE moved each
+        # one, over ALL twelve causes rather than the five largest. This comment used to
+        # end "Re-sorting by Probability here would undo that", which was true and also
+        # not what the code did: st.bar_chart sorted alphabetically anyway. See below.
         st.markdown("### What this episode's evidence changed")
         st.caption(
             "Ordered by how far each explanation moved, not by which ended up largest. "
@@ -75,13 +78,71 @@ def render_summary_tab(detail: EpisodeDetail) -> None:
                 {
                     "Cause": d.cause.value,
                     "Evidence": "not measured" if unsourced else "from a study",
+                    "Moved by": d.moved,
                     "Probability": d.probability,
                     "Supporting Evidence": "; ".join(d.supporting) or "None",
                     "Contradicting Evidence": "; ".join(d.contradicting) or "None",
                 }
             )
         df_diff = pd.DataFrame(diff_data)
-        st.bar_chart(df_diff.set_index("Cause")["Probability"])
+
+        # DRAWN WITH ALTAIR, AND THE TWO REASONS ARE BOTH DEFECTS THIS REPLACES.
+        #
+        # It was `st.bar_chart(df_diff.set_index("Cause")["Probability"])`, which got the
+        # panel wrong twice over. The bar length was the FINAL PROBABILITY while the panel
+        # is titled and ordered by MOVEMENT, so the longest bar was routinely a cause the
+        # episode had not moved at all. And `st.bar_chart` sorts categories alphabetically
+        # by default, so it discarded the movement ranking that `ground_differential`
+        # exists to compute: the code comment above claimed "re-sorting by Probability here
+        # would undo that", and the component was quietly re-sorting anyway.
+        #
+        # `sort=None` on an ordinal axis is what preserves the order the list arrives in.
+        # An episode closed before the movement was recorded has 0.0 on every row. Drawing
+        # that as a flat chart would assert "this episode moved nothing", which is a claim
+        # about the person's data that the record does not support. Say it is missing.
+        has_movement = any(abs(row["Moved by"]) >= 0.0005 for row in diff_data)
+
+        if has_movement:
+            chart = (
+                alt.Chart(df_diff)
+                .mark_bar()
+                .encode(
+                    y=alt.Y("Cause:N", sort=None, title=None),
+                    x=alt.X("Moved by:Q", title="How far this episode moved it"),
+                    color=alt.condition(
+                        alt.datum["Moved by"] >= 0,
+                        alt.value("#d97706"),
+                        alt.value("#0284c7"),
+                    ),
+                    tooltip=["Cause", "Moved by", "Probability", "Evidence"],
+                )
+            )
+            st.altair_chart(chart, use_container_width=True)
+            st.caption(
+                "Bar length is how far this episode's evidence moved each explanation, "
+                "which is also what the order is. Amber moved up, blue moved down. The "
+                "final probability is in the table below: a cause can sit high and still "
+                "have moved very little, and on a raised night the common explanations "
+                "always sit high because something has to account for the rise."
+            )
+        else:
+            chart = (
+                alt.Chart(df_diff)
+                .mark_bar()
+                .encode(
+                    y=alt.Y("Cause:N", sort=None, title=None),
+                    x=alt.X("Probability:Q", title="Probability this cause was present"),
+                    tooltip=["Cause", "Probability", "Evidence"],
+                )
+            )
+            st.altair_chart(chart, use_container_width=True)
+            st.caption(
+                "This investigation closed before the system recorded how far each "
+                "explanation moved, so the bars show the final probability instead. That "
+                "is a weaker thing to look at: on a raised night the common explanations "
+                "are always large, because something has to account for the rise."
+            )
+
         st.dataframe(df_diff, use_container_width=True)
 
         if assumed:

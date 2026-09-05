@@ -269,3 +269,42 @@ def test_node_conclude_actually_writes_the_trace_the_screen_reads() -> None:
 
     # The tool calls travel with it, which is what the expander under 'investigate' renders.
     assert any(call["tool_name"] == "retrieve_clinical_evidence" for call in payload["tool_calls"])
+
+
+def test_the_differential_ranks_by_movement_over_every_cause_not_the_largest_five() -> None:
+    """Item 33's own check: answer "feverish" and infection must be at the top.
+
+    Two things stopped that. The candidate set was `belief.top(top_n)`, the five LARGEST,
+    which were then reordered by movement; a cause the evidence moved hard but left small
+    could never appear at all. And on a raised night the common-and-small causes are always
+    large, so "large" is the one criterion guaranteed not to be informative, which is the
+    whole argument of the item.
+    """
+    from wha.belief import update_belief
+
+    nights = [_night(4), _night(5)]
+    answers = [Answer(probe_id="probe_symptoms", option_id="fever", declined=False)]
+    belief = update_belief(episode_nights=nights, answers=answers, luteal_applicable=None)
+
+    items = ground_differential(belief, nights=nights, answers=answers, top_n=5)
+
+    assert items[0].cause is CauseId.INFECTION, (
+        "the cause the evidence moved should lead: "
+        + ", ".join(f"{i.cause.value}({i.moved:+.3f})" for i in items)
+    )
+
+    # Ordered by movement, and NOT by probability. Both matter: if it happened to be
+    # ordered by probability this would pass by accident, so assert the ordering property
+    # directly and assert that it differs from the probability ordering on this episode.
+    moved = [abs(i.moved) for i in items]
+    assert moved == sorted(moved, reverse=True), "not ordered by movement"
+
+    by_probability = sorted(items, key=lambda i: -i.probability)
+    assert [i.cause for i in items] != [i.cause for i in by_probability], (
+        "this episode should rank differently by movement than by size, or the test proves "
+        "nothing about which one is being used"
+    )
+
+    # The number the chart draws has to be on the item, not inferred from prose.
+    assert items[0].moved > 0.1
+    assert "moved it from" in items[0].supporting[0]

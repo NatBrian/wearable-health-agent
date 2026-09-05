@@ -205,8 +205,16 @@ def ground_differential(
 
     before = update_belief(episode_nights=[], luteal_applicable=cycle_applicable).marginals
 
+    # EVERY cause is a candidate, and the top_n cut happens AFTER ranking by movement.
+    #
+    # This iterated `belief.top(top_n)`, the five largest, and then sorted those five by
+    # movement. A cause the evidence moved hard but left small was therefore never a
+    # candidate at all, which is exactly the cause this panel exists to surface: on a
+    # raised night the common-and-small causes are always large, so "large" is the one
+    # criterion guaranteed not to be informative. Reproduced before the change: the true
+    # top five by movement included sensor_artifact, and the panel showed stress instead.
     items: list[tuple[float, DifferentialItem]] = []
-    for cause, probability in belief.top(top_n):
+    for cause, probability in belief.marginals.items():
         supporting: list[str] = []
         contradicting: list[str] = []
 
@@ -256,6 +264,7 @@ def ground_differential(
                 DifferentialItem(
                     cause=cause,
                     probability=round(probability, 4),
+                    moved=round(moved, 4),
                     supporting=[movement, *supporting],
                     contradicting=contradicting,
                 ),
@@ -265,4 +274,4 @@ def ground_differential(
     # Most-moved first. The list order IS the ranking the interface draws, so this is where
     # the correction lives; DifferentialItem is frozen by the contract and carries no rank.
     items.sort(key=lambda pair: (-pair[0], -pair[1].probability, pair[1].cause.value))
-    return [item for _, item in items]
+    return [item for _, item in items[:top_n]]

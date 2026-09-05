@@ -369,3 +369,41 @@ def test_every_path_that_can_escalate_opens_an_investigation(conn) -> None:
     # Saying it again appends to the open investigation rather than opening a second.
     respond(conn, subject_id="s", user_message="I am coughing up blood", llm_client=offline)
     assert conn.execute("SELECT COUNT(*) FROM episodes").fetchone()[0] == 1
+
+
+def test_an_old_acknowledgement_does_not_clear_a_new_urgency(conn) -> None:
+    """Item 32's own "what could go wrong" forbids exactly this silent drop.
+
+    `urgency_state` took MIN(created_at_utc) as when the urgency was set, so an
+    acknowledgement was compared against the FIRST time that level was ever reached.
+    Raised on day 1, acknowledged on day 2, raised again on day 30: the day-2
+    acknowledgement still compared as "after it", so a live red banner was suppressed by a
+    fortnight-old click and the page said "You said you have seen somebody about this".
+    """
+    import time
+
+    from wha.agent.conversation import record_turn, urgency_state
+    from wha.audit.monitor import record_urgency_acknowledged
+
+    conn.execute(
+        "INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("s", "U", "synthetic", "Asia/Singapore", "2026-09-01T00:00:00Z"),
+    )
+    conn.commit()
+
+    record_turn(conn, "s", "agent", "first escalation", urgency="urgent")
+    state = urgency_state(conn, "s")
+    assert state["cleared"] is False
+
+    record_urgency_acknowledged(conn, "s", "urgent", state["set_on"])
+    assert urgency_state(conn, "s")["cleared"] is True, "acknowledging should clear it"
+
+    # A second escalation, later. This must come back uncleared.
+    time.sleep(1.1)
+    record_turn(conn, "s", "agent", "a new escalation", urgency="urgent")
+    after = urgency_state(conn, "s")
+
+    assert after["urgency"] == "urgent"
+    assert after["cleared"] is False, "an old acknowledgement silently cleared a new urgency"
+    assert after["set_on"] > state["set_on"], "set_on must track the most recent, not the first"
