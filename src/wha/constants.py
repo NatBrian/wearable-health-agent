@@ -374,6 +374,24 @@ INTERRUPTION_BUDGET_NOTE = (
 # where the information was in hand; beyond it that study measured no gain.
 CONVERSATION_MAX_TURNS = 10
 
+# The gap after which the next message starts a new consultation, and the turn counter
+# begins again.
+#
+# THE LIMIT IS PER CONSULTATION, NOT PER LIFETIME. Tu et al. measured ten turns within one
+# consultation with one patient; nothing in that paper says a person gets ten turns and
+# then silence. The counter was computed over `load_transcript(limit=1000)`, which selects
+# every row this subject has ever produced with no episode, session or date filter, and
+# nothing anywhere deletes or resets conversation_turns. So after twenty stored rows the
+# agent stopped conversing permanently, for the life of the database, and the only reply
+# any future message could get was "we have been going back and forth".
+#
+# UNEVIDENCED. No study was found stating how long a gap ends a consultation. Six hours is
+# chosen so that a morning exchange and an evening one are separate, which is the shortest
+# span that clearly separates two occasions of somebody picking up their phone. The
+# direction it errs in is more conversation rather than less, and the deterministic safety
+# floor runs on every message regardless of which session it belongs to.
+CONVERSATION_SESSION_GAP_HOURS = 6
+
 # How many agent turns a validated rule may stay incomplete before the presentation is
 # resolved conservatively.
 #

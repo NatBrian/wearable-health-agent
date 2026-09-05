@@ -27,14 +27,18 @@ validated rule are put in front of the model as the most useful thing it can ask
 import json
 import sqlite3
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from wha.audit.monitor import record_conversation_turn
 from wha.clock import local_today
-from wha.constants import CONVERSATION_MAX_TURNS, TRIAGE_MAX_TURNS_BEFORE_ESCALATE
+from wha.constants import (
+    CONVERSATION_MAX_TURNS,
+    CONVERSATION_SESSION_GAP_HOURS,
+    TRIAGE_MAX_TURNS_BEFORE_ESCALATE,
+)
 from wha.db.iso import from_iso, to_iso
 from wha.errors import LLMUnavailable, ValidationFailed
 from wha.llm.client import LLMClient, get_llm_client
@@ -165,6 +169,46 @@ def load_transcript(
         (subject_id, limit),
     ).fetchall()
     return [dict(r) for r in reversed(rows)]
+
+
+def _turns_this_session(conn: sqlite3.Connection, subject_id: str) -> int:
+    """How many turns are in the CONSULTATION the person is currently in.
+
+    This was `len(load_transcript(conn, subject_id, limit=1000))`, every row the subject
+    had ever produced, with no episode, session or date filter, and nothing anywhere resets
+    or deletes conversation_turns. So after twenty stored rows the agent stopped conversing
+    permanently and every future message got "we have been going back and forth for 10
+    exchanges" forever.
+
+    Tu et al. measured ten turns within one consultation. A limit derived from that paper
+    and applied to a lifetime is not that paper's finding.
+
+    A gap of CONVERSATION_SESSION_GAP_HOURS ends a session, so picking the phone up the
+    next morning starts a new one. The rows are kept either way: nothing here deletes
+    history, and `established_urgency` still reads the whole transcript, so an escalation
+    from a previous session is still in force.
+    """
+    rows = conn.execute(
+        """SELECT created_at_utc FROM conversation_turns
+            WHERE subject_id = ? ORDER BY seq DESC LIMIT 1000""",
+        (subject_id,),
+    ).fetchall()
+    if not rows:
+        return 0
+
+    gap = timedelta(hours=CONVERSATION_SESSION_GAP_HOURS)
+    counted = 0
+    previous: datetime | None = None
+    for row in rows:  # newest first
+        try:
+            stamp = from_iso(row["created_at_utc"])
+        except (TypeError, ValueError):
+            break
+        if previous is not None and (previous - stamp) > gap:
+            break
+        counted += 1
+        previous = stamp
+    return counted
 
 
 def _episode_for_escalation(
@@ -555,7 +599,7 @@ def respond(
     outstanding = [i for i in (rule.items if rule else []) if known.get(i.id) is None]
     flags_without_rule = [f for f in triggered if presentation_for_flag(f, config) is None]
 
-    turn_index = len(load_transcript(conn, subject_id, limit=1000))
+    turn_index = _turns_this_session(conn, subject_id)
     at_limit = turn_index >= CONVERSATION_MAX_TURNS * 2
 
     # THE SUPPRESSION IS ONLY VALID IF THE DISCRIMINATOR IS ACTUALLY GOING TO RUN.

@@ -136,3 +136,38 @@ def test_the_repository_supplies_an_index_to_the_retrieval_tool() -> None:
     assert result.value, "the retrieval tool returned no passages"
     assert result.freshness == "fresh"
     assert result.source_ids != ["local_corpus"]
+
+
+def test_no_layer_three_passage_reads_like_a_configuration_file() -> None:
+    """Item 31's own check, applied to every generated passage rather than to three of them.
+
+    Two survived the original pass. The tier B bullets read "People describe this as people
+    describe this as fever, feverish, ...", because `_describe_phrases` returns the whole
+    sentence and the caller prepended the same words again. And the vitals document used
+    the raw rule id as a section heading: "## rf_rhr_extreme_high", shown to a lay reader as
+    clinical evidence, which is the plainest possible failure of "reads like health
+    information, not a configuration file".
+
+    The ids stay in metadata, which is where the audit trail reads them.
+    """
+    from wha.retrieve.knowledge_docs import generate_layer_3_escalation_docs
+
+    docs = generate_layer_3_escalation_docs()
+    assert docs, "no layer 3 documents generated"
+
+    for doc in docs:
+        lowered = doc.text.lower()
+        assert "rf_" not in lowered, f"{doc.doc_id} prints a rule id: {doc.text[:120]}"
+        assert "people describe this as people describe" not in lowered, (
+            f"{doc.doc_id} doubles the phrase-list opener"
+        )
+        assert "any of:" not in lowered, f"{doc.doc_id} still prints a raw match list"
+        assert "tier_b:" not in lowered and "tier_a:" not in lowered, doc.doc_id
+        assert doc.title and not doc.title.startswith("rf_"), (
+            f"{doc.doc_id} has an identifier as its title: {doc.title!r}"
+        )
+
+    # And the id really is still reachable for the audit trail.
+    assert any(d.metadata.get("rule_id") for d in docs), (
+        "no document carries its rule id in metadata, so the audit trail cannot link back"
+    )

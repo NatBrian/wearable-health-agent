@@ -407,3 +407,55 @@ def test_an_old_acknowledgement_does_not_clear_a_new_urgency(conn) -> None:
     assert after["urgency"] == "urgent"
     assert after["cleared"] is False, "an old acknowledgement silently cleared a new urgency"
     assert after["set_on"] > state["set_on"], "set_on must track the most recent, not the first"
+
+
+def test_the_turn_limit_is_per_consultation_not_per_lifetime(conn) -> None:
+    """A limit derived from Tu et al. and applied to a lifetime is not that paper's finding.
+
+    The counter was `len(load_transcript(conn, subject_id, limit=1000))`, every row the
+    subject had ever produced, with no episode, session or date filter, and nothing
+    anywhere resets or deletes conversation_turns. So after twenty stored rows the agent
+    stopped conversing permanently: every future message, forever, got "we have been going
+    back and forth for 10 exchanges".
+
+    Tu et al. measured ten turns within ONE consultation with one patient.
+    """
+    import uuid
+    from datetime import UTC, datetime, timedelta
+
+    from wha.agent.conversation import _turns_this_session
+    from wha.constants import CONVERSATION_MAX_TURNS
+    from wha.db.iso import to_iso
+
+    conn.execute(
+        "INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("s", "S", "synthetic", "Asia/Singapore", "2026-09-01T00:00:00Z"),
+    )
+
+    def turn(seq: int, when: datetime) -> None:
+        conn.execute(
+            """INSERT INTO conversation_turns
+                 (id, subject_id, seq, role, text, citations_json, uncited_json,
+                  triggered_flags_json, created_at_utc)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (f"t{uuid.uuid4().hex[:8]}", "s", seq, "user", "x", "[]", "[]", "[]", to_iso(when)),
+        )
+
+    now = datetime.now(UTC)
+    exhausted = CONVERSATION_MAX_TURNS * 2 + 2
+    for i in range(exhausted):
+        turn(i + 1, now - timedelta(days=1) - timedelta(minutes=exhausted - i))
+    conn.commit()
+
+    assert _turns_this_session(conn, "s") == exhausted, "yesterday's session is one session"
+
+    # The next day, the person picks the phone up again. That is a new consultation.
+    turn(1000, now - timedelta(minutes=2))
+    conn.commit()
+    assert _turns_this_session(conn, "s") == 1, (
+        "the counter did not reset, so the agent is silenced for the life of the database"
+    )
+
+    # The history is NOT deleted, and an escalation from the earlier session still stands.
+    assert len(load_transcript(conn, "s", limit=1000)) == exhausted + 1

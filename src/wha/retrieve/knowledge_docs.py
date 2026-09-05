@@ -222,6 +222,10 @@ _SIGN_TITLES: dict[str, str] = {
     "rf_poor_intake": "Not eating or drinking",
     "rf_exertional_breathlessness": "Breathlessness on exertion",
     "rf_persistent_vomiting": "Repeated vomiting",
+    # The two vitals rules. Missing, so the corpus printed "## rf_rhr_extreme_high" as a
+    # section heading to a lay reader.
+    "rf_rhr_extreme_high": "An overnight heart rate far above your own usual",
+    "rf_rhr_extreme_low": "An overnight heart rate far below your own usual",
 }
 
 
@@ -321,11 +325,11 @@ def generate_layer_3_escalation_docs(
             lines.append(
                 f"- **{_sign_title(rule.get('id', 'rf_unknown'))}**"
                 + (f", if it has not settled within {persist} nights." if persist else ".")
-                + (
-                    f" People describe this as {described[0].lower() + described[1:]}"
-                    if described
-                    else ""
-                )
+                # `_describe_phrases` already returns the whole sentence. This prepended
+                # "People describe this as " to it and lowercased the first letter of what
+                # it got, producing "People describe this as people describe this as fever,
+                # feverish, ..." on every tier B bullet.
+                + (f" {described}" if described else "")
             )
         guidance = str(data.get("tier_b_guidance", "")).strip()
         if guidance:
@@ -363,7 +367,12 @@ def generate_layer_3_escalation_docs(
                 else f"{below} robust standard deviations below the person's usual"
             )
             lines += [
-                f"## {rule.get('id', 'rf_unknown')}",
+                # The rule id was the heading: "## rf_rhr_extreme_high", shown to a
+                # person as clinical evidence. Item 31's check is that the Evidence tab
+                # reads like health information rather than a configuration file, and an
+                # identifier as a section heading is the plainest possible failure of it.
+                # The id stays in metadata, where the audit trail reads it.
+                f"## {_sign_title(rule.get('id', 'rf_unknown'))}",
                 "",
                 f"Fires at {bound}.",
                 "",
