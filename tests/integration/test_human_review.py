@@ -317,3 +317,76 @@ def test_reworded_prose_survives_the_approve_button(tmp_path: Path) -> None:
     assert resumed == [
         {"decision": "edit", "edited_observation": "I had a late night, not an illness."}
     ]
+
+
+def test_a_parked_episode_gives_the_review_screen_something_to_show(tmp_path: Path) -> None:
+    """Item 3's own check: "the dashboard shows a draft with approve, edit, reject".
+
+    It showed nothing. `_close_if_concluded` wrote the `outcomes` row only when the graph
+    returned status "closed" or "unresolved". node_review is the only node that returns
+    either, and it returns them AFTER the interrupt, so an episode WAITING for a human had
+    no outcome row at all.
+
+    `get_pending_interaction` therefore returned `PendingInteraction(kind="review",
+    draft_outcome=None)`, and the Today page's branch is
+    `elif pending.kind == "review" and pending.draft_outcome:` - False. Because `pending`
+    was not None, the "nothing needs you right now" branch was skipped as well, so the
+    inbox rendered NOTHING AT ALL: no draft, no buttons, no message. Thirty-six hours later
+    the scheduler released it as closed_unreviewed.
+
+    Item 3 removed the auto-approval, which was the defect it named, and left the
+    checkpoint unusable, which is its title. The existing test here asserts only that the
+    episode state is AWAITING_HUMAN_REVIEW and never looks for the draft, and it goes
+    through the graph directly rather than through `step_episode`, which is where the
+    outcome is written. That combination is why this survived.
+    """
+    from unittest.mock import patch
+
+    from wha.service.episodes import get_pending_interaction, step_episode
+
+    db_file = _make_db(tmp_path)
+
+    # The graph parks: it sets the state and returns a draft with no closing status, which
+    # is exactly what node_review does on the way into `interrupt()`.
+    def fake_step(*_args, **_kwargs):
+        conn = connect(db_file)
+        try:
+            conn.execute(
+                "UPDATE episodes SET state = 'AWAITING_HUMAN_REVIEW' WHERE episode_id = ?",
+                (EPISODE,),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        return {"draft": _draft(), "status": "parked", "step": 1}
+
+    with (
+        patch("wha.agent.graph.get_agent_graph", return_value=object()),
+        patch("wha.agent.graph.run_episode_step", side_effect=fake_step),
+    ):
+        result = step_episode(EPISODE, db_path=db_file)
+
+    assert result["state"] == "AWAITING_HUMAN_REVIEW", "the episode should be parked"
+
+    conn = connect(db_file)
+    try:
+        # The episode must NOT have been closed or given a disposition by parking.
+        row = conn.execute(
+            "SELECT state, disposition, closed_on FROM episodes WHERE episode_id = ?",
+            (EPISODE,),
+        ).fetchone()
+        assert row["state"] == "AWAITING_HUMAN_REVIEW"
+        assert row["disposition"] is None, "parking must not decide the episode"
+        assert row["closed_on"] is None
+
+        pending = get_pending_interaction("me", conn=conn)
+    finally:
+        conn.close()
+
+    assert pending is not None
+    assert pending.kind == "review"
+    assert pending.draft_outcome is not None, (
+        "the review screen has no draft to show, so the person sees an empty inbox"
+    )
+    assert pending.draft_outcome.observation
+    assert pending.draft_outcome.disposition is Disposition.LIKELY_BENIGN

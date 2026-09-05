@@ -712,7 +712,26 @@ def _close_if_concluded(
         row = conn.execute(
             "SELECT state FROM episodes WHERE episode_id = ?", (episode_id,)
         ).fetchone()
-        return str(row["state"]) if row else "OPEN"
+        state = str(row["state"]) if row else "OPEN"
+
+        # A PARKED EPISODE STILL HAS A DRAFT, AND THE REVIEW SCREEN NEEDS IT.
+        #
+        # The outcome was written only on "closed" or "unresolved", and node_review is the
+        # only node that returns either, and it returns them AFTER the interrupt. So an
+        # episode waiting for a human had no row in `outcomes`, `get_pending_interaction`
+        # returned draft_outcome=None, and the Today page's review branch is
+        # `elif pending.kind == "review" and pending.draft_outcome:` - False. Because
+        # `pending` was not None the "nothing needs you right now" branch was skipped too,
+        # so the inbox rendered NOTHING AT ALL and the person could not approve, edit,
+        # reject or escalate. Thirty-six hours later the scheduler released it as
+        # closed_unreviewed. Item 3 removed the auto-approval and left the checkpoint
+        # unreachable, which is the item's own title unmet.
+        #
+        # Nothing is closed here and no disposition is written to the episode row. This
+        # stores the draft so it can be looked at, which is the whole point of a review.
+        if state == "AWAITING_HUMAN_REVIEW" and draft is not None:
+            _persist_outcome(conn, episode_id, draft)
+        return state
 
     value = disposition.value if hasattr(disposition, "value") else str(disposition)
     conn.execute(

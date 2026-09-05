@@ -431,9 +431,21 @@ def render_today_page(subject_id: str) -> None:
     render_handover(subject_id)
 
     with inbox_slot:
+        # The banner and the inbox are not alternatives, and treating them as one hid the
+        # review checkpoint permanently.
+        #
+        # `established_urgency` is monotone by design: it can rise and never falls. So once
+        # a person had escalated even once, `urgency` was truthy forever, `render_inbox`
+        # was never called again, and no question and no review draft could ever be shown
+        # to them. A parked episode waiting for their approval was invisible on the one
+        # screen that exists to surface it, and it timed out unreviewed 36 hours later.
+        #
+        # What the original `else` was protecting is real and is kept: the "Nothing needs
+        # you right now" reassurance must never be drawn under a live escalation. That is
+        # the `pending is None` case inside `render_inbox`, not the whole function.
         if urgency:
             render_urgency_banner(urgency, subject_id)
-        else:
+        if pending is not None or not urgency:
             render_inbox(subject_id, pending, status)
     st.write("---")
     render_last_night_summary(subject_id, status)
