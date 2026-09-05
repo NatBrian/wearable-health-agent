@@ -127,16 +127,70 @@ def test_a_recorded_event_still_explains_a_night_despite_an_unanswered_question(
     )
 
 
-def test_a_sensor_doubt_means_the_night_could_not_be_judged() -> None:
-    """What replaces the spot reading, and it is the honest answer rather than a weaker one.
+def test_the_real_belief_model_cannot_produce_the_state_the_sensor_gate_needed() -> None:
+    """This test used to assert the gate worked, from a state production never reaches.
 
-    The system used to respond to a leading sensor artifact by asking the person to count
-    their own pulse. INSUFFICIENT_DATA already means "this night cannot be judged", it is
-    already in the disposition set, and a COLD baseline already returns it for the same
-    reason.
+    It called `_sensor_artifact_belief(p=0.9)`, a hand-built BeliefState with
+    sensor_artifact at 0.9 and p_illness pinned at 0.05. `update_belief` does not produce
+    that pair: the same large residual that pushes sensor_artifact up also pushes p_illness
+    up, so by the time sensor_artifact clears 0.50 the illness probability has cleared the
+    0.10 treatment threshold and the gate's second condition is false.
+
+    Measured over 20 combinations of coverage 30 to 239 minutes and residual 3.2 to 10.0
+    bpm, the gate fired in NONE of them, so it was deleted rather than retuned. Moving 0.50
+    or 0.10 to make it fire would be choosing a clinical threshold to satisfy a feature.
+
+    This is the seeded-fixture pattern that this repository keeps repeating: a test builds
+    the state the code needs, the code passes, and production never gets there. So this
+    test now drives the REAL belief model and asserts the property that actually holds.
     """
+    from datetime import date
+
+    from wha.belief import update_belief
+    from wha.models import Detection, DetectionLevel, Forecast, NightlyFeatures
+
+    def night(day: int, residual: float) -> Detection:
+        return Detection(
+            subject_id="s",
+            night_date=date(2026, 9, day),
+            level=DetectionLevel.RED,
+            flagged=True,
+            residual_bpm=residual,
+            robust_z=residual / 3.7,
+            forecast=Forecast(),
+        )
+
+    def feature(day: int, coverage: int) -> NightlyFeatures:
+        return NightlyFeatures(
+            subject_id="s",
+            night_date=date(2026, 9, day),
+            rhr_bpm=70.0,
+            coverage_minutes=coverage,
+            usable=coverage >= 180,
+        )
+
+    seen_both = []
+    for coverage in (30, 60, 120, 200, 239):
+        for residual in (3.2, 4.0, 6.0, 10.0):
+            nights = [night(4, residual), night(5, residual)]
+            features = [feature(4, coverage), feature(5, coverage)]
+            belief = update_belief(episode_nights=nights, features=features, luteal_applicable=None)
+            top_cause, top_prob = belief.top(1)[0]
+            if (
+                top_cause is CauseId.SENSOR_ARTIFACT
+                and top_prob >= 0.50
+                and belief.p_illness < 0.10
+            ):
+                seen_both.append((coverage, residual, top_prob, belief.p_illness))
+
+    assert not seen_both, (
+        "the belief model now reaches the state the deleted gate needed, so the decision "
+        f"to delete it should be revisited: {seen_both}"
+    )
+
+    # And INSUFFICIENT_DATA is still reachable, from the one branch that does work.
     assert (
-        determine_disposition(_sensor_artifact_belief(p=0.9), rung=BaselineRung.MATURE)
+        determine_disposition(_sensor_artifact_belief(p=0.9), rung=BaselineRung.COLD)
         == Disposition.INSUFFICIENT_DATA
     )
 

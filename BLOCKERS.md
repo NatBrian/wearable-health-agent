@@ -972,3 +972,43 @@ stating wrongly.
 `rhr_window_source: str` on `NightRow` and `moved: float` on `DifferentialItem`. Until then
 the contract and the code disagree on two lines, and the code is the side a person is
 looking at.
+
+## policy - a night the watch cannot vouch for still concludes LIKELY_ILLNESS
+
+**What I tried:** item 24 of `docs/REFINEMENT-PLAN.md`, whose check is "run the simulation
+with a poor coverage night, the outcome says the night could not be judged".
+
+**What happened:** it cannot pass, and the gate written to make it pass could never fire.
+
+`determine_disposition` required `sensor_artifact` to be the top cause at 0.50 or more AND
+`p_illness` below the 0.10 treatment threshold. Those are mutually exclusive under this
+belief model: the same large residual that pushes sensor_artifact up also pushes p_illness
+up. Measured over 20 combinations of coverage 30 to 239 minutes and residual 3.2 to 10.0
+bpm, it fired in none of them.
+
+```
+coverage 30, residual  4.0 -> sensor 0.259, p_illness 0.083 -> LIKELY_BENIGN
+coverage 30, residual  6.0 -> sensor 0.512, p_illness 0.118 -> LIKELY_ILLNESS
+coverage 30, residual 10.0 -> sensor 0.817, p_illness 0.138 -> LIKELY_ILLNESS
+```
+
+**What I think is wrong:** not the code, and not the belief model. The gate asked a belief
+question that the belief model answers in the opposite direction to the one it needed. It is
+deleted rather than retuned, because moving 0.50 or 0.10 to make a feature fire is choosing
+a clinical threshold to satisfy a feature.
+
+**What is left unfixed, and it is real.** At coverage 30 and residual 10.0 the system
+concludes LIKELY_ILLNESS on a night whose own leading explanation, at 0.817, is that the
+watch misread it. The differential shows sensor_artifact at the top and the episode panel
+marks it, so the information is on screen, but the headline says "possibly coming down with
+something" about a reading the model does not trust.
+
+**What I need:** a decision I do not think I can make from evidence. Either
+
+- a stated coverage figure below which a night is reported as unjudgeable regardless of
+  belief, which is a data-quality threshold and would need a source or an explicit
+  UNEVIDENCED label; or
+- a change to the outcome TEXT rather than the disposition, so a sensor-dominated night
+  keeps its urgency and gains a sentence saying the reading is doubtful. This is the one I
+  would choose, because it cannot talk an escalation down, but the disposition set and the
+  outcome model are both frozen by `docs/CONTRACTS.md`.

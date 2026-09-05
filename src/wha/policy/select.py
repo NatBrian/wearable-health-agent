@@ -216,23 +216,37 @@ def determine_disposition(
     if top_cause in EVENT_CAUSES and top_prob >= 0.50 and p_inf < DERIVED_TREATMENT_THRESHOLD:
         return Disposition.EXPLAINED_BY_EVENT
 
-    # When the watch itself is the leading explanation, say the night could not be judged.
+    # THE SENSOR-ARTIFACT GATE THAT WAS HERE IS DELETED, BECAUSE IT COULD NEVER FIRE.
     #
-    # The system used to ask for a hand-taken pulse here instead. That limb was removed on
-    # 5 September 2026: it rested on three numbers with no source, and it asked the
-    # noisier instrument to adjudicate the less noisy one. This is what replaces it, and
-    # it is the honest answer rather than a weaker one. INSUFFICIENT_DATA already means
-    # "this night cannot be judged", it is already in the disposition set, and it is
-    # already what a COLD baseline returns for the same reason.
+    # Item 24 removed the MEASURE limb, which used to ask for a hand-taken pulse, and put
+    # this in its place: when the watch itself is the leading explanation, say the night
+    # could not be judged. It required sensor_artifact to be the top cause at 0.50 or more
+    # AND p_illness below the 0.10 treatment threshold. Those two are mutually exclusive
+    # under this belief model, because the same large residual that pushes sensor_artifact
+    # up also pushes p_illness up. Measured over 20 combinations of coverage from 30 to 239
+    # minutes and residual from 3.2 to 10.0 bpm, it fired in NONE:
     #
-    # Placed after the illness check for the same reason silence is: a sensor doubt must
-    # never be able to talk an escalation down, only to prevent a confident conclusion.
-    if (
-        top_cause is CauseId.SENSOR_ARTIFACT
-        and top_prob >= 0.50
-        and p_inf < DERIVED_TREATMENT_THRESHOLD
-    ):
-        return Disposition.INSUFFICIENT_DATA
+    #   coverage 30, residual  4.0 -> sensor 0.259, p_illness 0.083 -> LIKELY_BENIGN
+    #   coverage 30, residual  6.0 -> sensor 0.512, p_illness 0.118 -> LIKELY_ILLNESS
+    #   coverage 30, residual 10.0 -> sensor 0.817, p_illness 0.138 -> LIKELY_ILLNESS
+    #
+    # Where sensor_artifact clears 0.50, p_illness has already cleared 0.10. The item's own
+    # check, "run the simulation with a poor coverage night, the outcome says the night
+    # could not be judged", could not pass. A night below MIN_NOCTURNAL_MINUTES cannot even
+    # reach here: `compute_detection` returns DetectionLevel.NA for it and nothing unusable
+    # ever opens an episode.
+    #
+    # Deleted rather than retuned. Moving 0.50 or 0.10 to make it fire would be choosing a
+    # clinical threshold to satisfy a feature, which is the one thing this project must not
+    # do. The doubt is not lost: sensor_artifact still appears in the differential with its
+    # probability, and the episode panel marks it, so a night the watch cannot vouch for
+    # still shows the watch at the top of the list.
+    #
+    # What remains unfixed is recorded in BLOCKERS.md: a sensor-dominated night concludes
+    # LIKELY_ILLNESS with no headline saying the reading is doubtful.
+    #
+    # INSUFFICIENT_DATA is therefore reachable from the COLD rung only, which is the branch
+    # at the top of this function, and the interface wording for it says exactly that.
 
     # Check budget/caps exhaustion inside the band
     if (
