@@ -388,6 +388,15 @@ class NightRow(BaseModel):
     usable: bool
     level: DetectionLevel
     episode_id: str | None = None
+    # Whether the night was measured over the sleep the watch recorded, or over the
+    # midnight-to-07:00 clock fallback because it recorded none. The Today and History
+    # pages state which, in those words, so the field has to reach them. It did not:
+    # `NightlyFeatures` carried it and `NightRow` did not, and the pages read it with
+    # `getattr(n, "rhr_window_source", "clock")`, so the default always won and both
+    # asserted "because no sleep was recorded" on every night including the 44 of 72
+    # where sleep WAS recorded. A dead branch that makes a false statement about the
+    # person's own watch is worse than the vaguer wording it replaced.
+    rhr_window_source: str = "clock"
     # What the forecasting model expected for this night, and how far the reading fell
     # from it. Advisory only: it never sets the level or opens an investigation. Carried
     # on the row so an interface can show it without reaching past the service layer.

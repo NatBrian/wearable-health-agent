@@ -163,3 +163,75 @@ def test_band_is_none_without_baseline() -> None:
     assert n.centre_bpm is None
     assert n.band_lo is None
     assert n.band_hi is None
+
+
+def test_the_night_row_says_which_window_it_was_measured_over() -> None:
+    """Both screens state this in words, so a dead branch here states a falsehood.
+
+    Today and History both say either "over the sleep your watch recorded" or "between
+    midnight and 7am, because no sleep was recorded". The flag that chooses between them
+    lived on NightlyFeatures and NOT on NightRow, and both pages read it with
+    `getattr(n, "rhr_window_source", "clock")`, so the default always won. Every night was
+    described as having no recorded sleep, including the 44 of 72 in the real database
+    where sleep was recorded. That is a stronger false claim than the vague wording it
+    replaced: it asserts something untrue about the person's own watch.
+
+    The `getattr` defaults are gone with it. A field that must reach the screen should
+    break loudly when renamed, not fall back to the wrong sentence.
+    """
+    from datetime import date
+
+    from wha.db.connection import connect
+    from wha.db.migrations import apply_schema
+    from wha.service.nights import get_night_detail, list_nights
+
+    conn = connect(":memory:")
+    apply_schema(conn)
+    conn.execute(
+        "INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc) "
+        "VALUES (?, ?, ?, ?, ?)",
+        ("s_win", "W", "synthetic", "Asia/Singapore", "2026-09-01T00:00:00Z"),
+    )
+    for day, source in (("2026-09-01", "sleep"), ("2026-09-02", "clock")):
+        conn.execute(
+            """INSERT INTO nightly_features
+                 (subject_id, night_date, rhr_bpm, coverage_minutes, usable,
+                  computed_at_utc, rhr_window_source)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            ("s_win", day, 60.0, 400, 1, f"{day}T08:00:00Z", source),
+        )
+    conn.commit()
+
+    rows = {
+        r.night_date.isoformat(): r
+        for r in list_nights("s_win", start=date(2026, 9, 1), end=date(2026, 9, 2), conn=conn)
+    }
+
+    # Both values must survive onto the row the screens actually read.
+    assert rows["2026-09-01"].rhr_window_source == "sleep"
+    assert rows["2026-09-02"].rhr_window_source == "clock"
+
+    # And onto the features object the History detail panel reads.
+    assert (
+        get_night_detail("s_win", date(2026, 9, 1), conn=conn).features.rhr_window_source == "sleep"
+    )
+    assert (
+        get_night_detail("s_win", date(2026, 9, 2), conn=conn).features.rhr_window_source == "clock"
+    )
+
+
+def test_no_screen_reads_the_window_source_through_a_defaulting_getattr() -> None:
+    """`getattr(x, "rhr_window_source", "clock")` is what hid the dead branch for a week."""
+    import re
+    from pathlib import Path
+
+    ui = Path(__file__).resolve().parents[3] / "src" / "wha" / "ui"
+    offenders = [
+        f"{p.relative_to(ui.parents[2])}:{i}"
+        for p in ui.rglob("*.py")
+        for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+        if re.search(r"getattr\([^,]+,\s*[\"']rhr_window_source[\"']", line)
+    ]
+    assert not offenders, "read the field directly so a rename breaks loudly: " + ", ".join(
+        offenders
+    )

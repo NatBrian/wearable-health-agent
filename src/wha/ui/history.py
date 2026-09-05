@@ -129,7 +129,7 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
                     )
                     st.caption(
                         "Measured over the sleep your watch recorded."
-                        if getattr(feat, "rhr_window_source", "clock") == "sleep"
+                        if feat.rhr_window_source == "sleep"
                         else "Measured between midnight and 7am, because no sleep was recorded."
                     )
                     st.metric(
@@ -139,7 +139,7 @@ def render_night_table(subject_id: str, nights: list[NightRow]) -> None:
                     st.caption("The middle of your recent nights, not an average.")
                 with col_b:
                     st.metric("Measured over", f"{feat.coverage_minutes} min")
-                    if getattr(feat, "rhr_window_source", "clock") == "sleep":
+                    if feat.rhr_window_source == "sleep":
                         st.caption("Minutes of recorded sleep this reading was taken from.")
                     else:
                         st.caption(

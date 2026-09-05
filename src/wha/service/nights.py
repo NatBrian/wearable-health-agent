@@ -135,6 +135,9 @@ def list_nights(
                     usable=usable,
                     level=lvl,
                     episode_id=ep_id,
+                    rhr_window_source=(
+                        (feat["rhr_window_source"] or "clock") if feat is not None else "clock"
+                    ),
                     forecast_bpm=det["forecast_bpm"] if det is not None else None,
                     forecast_lo_bpm=det["forecast_lo_bpm"] if det is not None else None,
                     forecast_hi_bpm=det["forecast_hi_bpm"] if det is not None else None,
@@ -182,6 +185,7 @@ def get_night_detail(
                 steps_prev_day=feat_r["steps_prev_day"],
                 sleep_hours=feat_r["sleep_hours"],
                 exercise_end_offset_h=feat_r["exercise_end_offset_h"],
+                rhr_window_source=feat_r["rhr_window_source"] or "clock",
             )
         else:
             features = NightlyFeatures(

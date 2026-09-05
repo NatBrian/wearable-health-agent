@@ -186,7 +186,7 @@ def render_last_night_summary(subject_id: str, status: SystemStatus | None = Non
     # and 7am" on every night, including the ones measured over the sleep the watch
     # recorded, which is the design decision this project is proudest of. The History page
     # described it correctly and the main screen did not.
-    over_sleep = getattr(n, "rhr_window_source", "clock") == "sleep"
+    over_sleep = n.rhr_window_source == "sleep"
     window_words = (
         "over the sleep your watch recorded"
         if over_sleep

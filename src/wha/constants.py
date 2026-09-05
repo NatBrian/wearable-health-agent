@@ -346,7 +346,7 @@ INTERRUPTION_BUDGET_CITATION = (
 # WHAT ACTUALLY KEEPS THIS SYSTEM QUIET, measured rather than assumed.
 #
 # It is not this counter. Across 76 healthy people and 738 person-weeks of the Mishra 2020
-# cohort the system opens an investigation once every 3.6 weeks and asks at most one
+# cohort the system opens an investigation once every 4.9 weeks and asks at most one
 # question per investigation, so two a week is never approached. In a live run with the
 # whole allowance unspent the agent asked one question and stopped, because after the
 # answer the EVSI of every remaining probe had fallen below its interruption cost.
@@ -360,7 +360,7 @@ INTERRUPTION_BUDGET_CITATION = (
 # nothing is not a trade worth making.
 INTERRUPTION_BUDGET_NOTE = (
     "This counter has never bound in measurement. Over 738 person-weeks the system opened "
-    "an investigation once every 3.6 weeks and asked at most one question in each, so the "
+    "an investigation once every 4.9 weeks and asked at most one question in each, so the "
     "weekly allowance of 2 was never reached. What keeps it quiet is the EVSI arithmetic "
     "deciding a question is worth less than the cost of asking it."
 )

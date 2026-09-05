@@ -12,6 +12,7 @@ other is a rule that reads as universal and is not.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -93,3 +94,44 @@ def test_the_record_does_not_say_from_the_your_watch_source() -> None:
         assert "the simulated data source" not in summary, summary
         assert summary.startswith("9785 heart rate samples arrived from "), summary
         assert summary.endswith("."), summary
+
+
+def test_no_screen_or_constant_quotes_a_superseded_alert_rate() -> None:
+    """The Audit page told the user a number the repository had already retracted.
+
+    "once every 3.6 weeks" is 1/0.272, the alert rate under the LOOSER persistence rule
+    that item 8 removed. The measured rate under the published two-consecutive-RED rule is
+    0.203 per person-week, one investigation every 4.9 weeks, and that is what
+    docs/detection-results.json and data/cohort/report.txt say. The figure survived in
+    constants.py twice and in the Audit page's own prose, so a person reading "how often
+    will this interrupt me" was given a retracted number.
+
+    Asserted against the published JSON rather than a literal, so this fails if either
+    side moves.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    repo = _Path(__file__).resolve().parents[3]
+    results = _json.loads((repo / "docs" / "detection-results.json").read_text(encoding="utf-8"))
+    weeks = results["alert_burden"]["wha_clock"]["one_every_weeks"]
+    current = f"{weeks:.1f} weeks"
+    superseded = f"{results['alert_burden']['nightsignal']['one_every_weeks']:.1f} weeks"
+
+    searched = list((repo / "src" / "wha").rglob("*.py"))
+    assert searched, "found no source to search"
+
+    hits = []
+    for path in searched:
+        text = path.read_text(encoding="utf-8")
+        for i, line in enumerate(text.splitlines(), 1):
+            if "weeks" not in line:
+                continue
+            for m in re.finditer(r"every (\d\.\d) weeks", line):
+                if f"{m.group(1)} weeks" not in (current, superseded):
+                    hits.append(f"{path.relative_to(repo)}:{i}: {line.strip()[:90]}")
+
+    assert not hits, (
+        f"an alert rate other than the published {current} is quoted in the code:\n  "
+        + "\n  ".join(hits)
+    )
