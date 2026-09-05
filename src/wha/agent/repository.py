@@ -279,10 +279,20 @@ class EpisodeRepository:
 
         ANSWERED, not asked. A question that was put and never answered has established
         nothing, so asking it again is not repetition.
+
+        The join through `episodes` is not optional: `interactions` is keyed by episode and
+        has NO `subject_id` column. Selecting on one raised
+        `OperationalError: no such column: subject_id` on every call, and this is called
+        from `node_decide` behind a `hasattr` guard that is True, so it took down the
+        decision node of every production episode. Nothing caught it because every test of
+        `node_decide` passes `db=None`, which makes the guard False and skips the query
+        entirely, and the scenario tests assert their own fixture rather than run the agent.
         """
         rows = self._conn.execute(
-            """SELECT DISTINCT probe_id FROM interactions
-                WHERE subject_id = ? AND status = 'ANSWERED'""",
+            """SELECT DISTINCT i.probe_id
+                 FROM interactions AS i
+                 JOIN episodes    AS e ON e.episode_id = i.episode_id
+                WHERE e.subject_id = ? AND i.status = 'ANSWERED'""",
             (subject_id,),
         ).fetchall()
         return [r["probe_id"] for r in rows]

@@ -121,37 +121,60 @@ def delete_all_subject_data(
 
     try:
         with conn:
-            # Delete in foreign key dependency order
-            tables_with_subject = [
-                "raw_payloads",
-                "heart_rate_samples",
-                "step_buckets",
-                "sleep_stages",
-                "exercise_sessions",
-                "oxygen_saturation_samples",
-                "distance_buckets",
-                "calorie_buckets",
-                "nightly_features",
-                "baselines",
-                "detections",
-                "budgets",
-                "system_status",
-                "notifications",
-                "audit_events",
+            # THE TABLE LIST IS READ OUT OF THE SCHEMA, NOT WRITTEN DOWN HERE.
+            #
+            # It used to be a hand-maintained list of fifteen names, and it silently fell
+            # behind the schema four times. On 5 September 2026 the schema had 27 tables and
+            # this function covered 19 of them. The four it missed were `subject_profile`
+            # and `episode_traces` (added in v7 and v8), and, for far longer,
+            # `conversation_turns` and `triage_answers`: the person's entire chat transcript
+            # and their answers to the triage rules, which are the most sensitive rows in
+            # the database.
+            #
+            # Worse than incomplete, it was inert. `subject_profile` and `episode_traces`
+            # carry foreign keys to `subjects` and `episodes`, so leaving them behind made
+            # the final two DELETEs raise FOREIGN KEY constraint failed, and `with conn:`
+            # rolled the whole transaction back. Measured on a copy of the real database
+            # with one saved Settings profile present: 58,730 heart rate samples before,
+            # 58,730 after. "Delete everything" deleted nothing.
+            #
+            # Introspection is what makes that unrepeatable: a table added tomorrow with a
+            # subject_id or episode_id column is covered the day it is added.
+            all_tables = [
+                r[0]
+                for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table' "
+                    "AND name NOT LIKE 'sqlite_%'"
+                ).fetchall()
             ]
-            for t in tables_with_subject:
-                conn.execute(f"DELETE FROM {t} WHERE subject_id = ?", (subject_id,))
 
-            # Find episodes for subject to delete interactions, measurements, outcomes, beliefs
+            def columns_of(table: str) -> set[str]:
+                return {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+
+            # `subjects` and `episodes` are the parents and go last, after their children.
+            by_subject = sorted(
+                t
+                for t in all_tables
+                if "subject_id" in columns_of(t) and t not in ("subjects", "episodes")
+            )
+            by_episode = sorted(
+                t for t in all_tables if "episode_id" in columns_of(t) and t != "episodes"
+            )
+
             ep_rows = conn.execute(
                 "SELECT episode_id FROM episodes WHERE subject_id = ?", (subject_id,)
             ).fetchall()
-            for ep in ep_rows:
-                ep_id = ep["episode_id"]
-                conn.execute("DELETE FROM interactions WHERE episode_id = ?", (ep_id,))
-                conn.execute("DELETE FROM measurements WHERE episode_id = ?", (ep_id,))
-                conn.execute("DELETE FROM outcomes WHERE episode_id = ?", (ep_id,))
-                conn.execute("DELETE FROM beliefs WHERE episode_id = ?", (ep_id,))
+            ep_ids = [ep["episode_id"] for ep in ep_rows]
+
+            # Episode-scoped children first: some carry no subject_id of their own, so this
+            # is the only pass that reaches them.
+            if ep_ids:
+                placeholders = ",".join("?" for _ in ep_ids)
+                for t in by_episode:
+                    conn.execute(f"DELETE FROM {t} WHERE episode_id IN ({placeholders})", ep_ids)
+
+            for t in by_subject:
+                conn.execute(f"DELETE FROM {t} WHERE subject_id = ?", (subject_id,))
 
             # The agent's checkpointed state is keyed by thread_id, which is the episode
             # id. It holds the person's answers and beliefs verbatim, so a delete that
