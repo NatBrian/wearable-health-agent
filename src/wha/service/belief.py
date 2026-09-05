@@ -156,3 +156,55 @@ def get_knowledge_provenance() -> dict[str, dict[str, str]]:
         }
 
     return out
+
+
+def get_safety_rule_provenance() -> list[dict[str, str]]:
+    """Every number in the deterministic safety floor, and where it came from.
+
+    The standing rule requires an unevidenced clinical figure to be labelled in the docs
+    AND on the dashboard. `causes.yaml` had that on both sides; `red_flags.yaml` had it on
+    neither, and it is the file whose own footer calls its numbers "the only place in this
+    project where a wrong number has a real-world consequence". Six of the eleven turn out
+    to be ASSUMED, which is a legitimate answer and now a visible one.
+    """
+    from wha.safety.rules import load_red_flags
+
+    config = load_red_flags()
+    rows: list[dict[str, str]] = []
+
+    for rule in config.tier_b:
+        rows.append(
+            {
+                "rule": rule.id,
+                "number": f"persists beyond {rule.persist_nights} nights",
+                "provenance": rule.provenance or "UNLABELLED",
+                "basis": (rule.assumption or rule.derivation or rule.source or "").strip(),
+            }
+        )
+
+    for rule in config.vitals:
+        bound = (
+            f"robust z above {rule.robust_z_above}"
+            if rule.robust_z_above is not None
+            else f"robust z below {rule.robust_z_below}"
+        )
+        rows.append(
+            {
+                "rule": rule.id,
+                "number": bound,
+                "provenance": rule.provenance or "UNLABELLED",
+                "basis": (rule.derivation or rule.assumption or rule.source or "").strip(),
+            }
+        )
+        cold = rule.cold_rung_fallback_bpm_above or rule.cold_rung_fallback_bpm_below
+        if cold is not None:
+            rows.append(
+                {
+                    "rule": rule.id,
+                    "number": f"{cold:.0f} bpm before your own range exists",
+                    "provenance": rule.provenance_cold_rung or "UNLABELLED",
+                    "basis": (rule.assumption_cold_rung or "").strip(),
+                }
+            )
+
+    return rows

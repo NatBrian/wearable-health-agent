@@ -379,3 +379,32 @@ returns that allowance, and it removes a question whose answer could not reach t
 model at all: no production caller passed the cycle fact into `update_belief`, so luteal sat
 clamped at 0.0 on every live run. Asking for something that changes nothing is the worst
 possible use of an interruption budget.
+
+## 2026-09-05 — `red_flags.yaml`, every safety number now says where it came from
+
+**Changed:** provenance labels added to eleven numbers. **No number moved.**
+
+**Why.** This is the standing rule, applied to the file that needs it most, and until now
+it was not applied here at all. `causes.yaml` and `probes.yaml` have carried a per-row
+`provenance` since they were written, validated on load and pinned by tests. This file
+carried none, while its own footer says its numbers are "the only place in this project
+where a wrong number has a real-world consequence".
+
+| Number | Label | Basis |
+|---|---|---|
+| `rf_rhr_extreme_high` robust z above 6.0 | **DERIVED** | The largest single effect in `causes.yaml` is the luteal plateau at 3.91 bpm and the measured within-person scale is 3.71 bpm, so six scaled MADs is about 22 bpm, beyond any combination in the table. Fires on 0.6 percent of 7,865 cohort nights. `tools/cohort/band_width.py` |
+| `rf_rhr_extreme_low` robust z below -6.0 | **DERIVED** | The mirror of the above, from the same two numbers |
+| `cold_rung_fallback_bpm_above: 100` | **ASSUMED** | **No evidence found.** The conventional resting tachycardia boundary, but no source was fetched and verified here and none is claimed |
+| `cold_rung_fallback_bpm_below: 40` | **ASSUMED** | **No evidence found.** A conventional marked-bradycardia boundary; trained endurance athletes sleep below it routinely, which is why it can only raise urgency |
+| Six `persist_nights` windows: 3, 4, 4, 2, 2, 2 | **ASSUMED** | **No evidence found.** No study was located measuring how many nights a tier B symptom should persist before it is worth a same-day appointment |
+
+**What was NOT done, deliberately.** No citation was invented for any of the eight ASSUMED
+numbers, and no number was moved to match a figure that sounded better sourced. The
+standing rule says to state plainly that no evidence was found and label it, not to fill
+the gap, and each `assumption` field begins with the words "NO EVIDENCE FOUND".
+
+**Both halves of the rule.** `load_red_flags` now refuses to load a file where any of these
+numbers lacks a provenance, so the labels cannot quietly fall off, and the Audit page
+renders the table with a warning naming how many of them have no published source. A test
+strips one label and asserts loading fails, because a guard that has never fired proves
+nothing.

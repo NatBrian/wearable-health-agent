@@ -63,9 +63,68 @@ def load_red_flags(path: Path | str | None = None) -> RedFlagsConfig:
         data = yaml.safe_load(content)
         if not isinstance(data, dict):
             raise ConfigError(f"Invalid root structure in {file_path}")
-        return RedFlagsConfig.model_validate(data)
+        config = RedFlagsConfig.model_validate(data)
     except Exception as e:
         raise ConfigError(f"Failed to load red flags config from '{file_path}': {e}") from e
+
+    _assert_every_number_declares_where_it_came_from(config, file_path)
+    return config
+
+
+VALID_PROVENANCE = {"CITED", "DERIVED", "ASSUMED"}
+
+
+def _assert_every_number_declares_where_it_came_from(
+    config: RedFlagsConfig, file_path: Path
+) -> None:
+    """Every number in the safety floor must say where it came from, or loading fails.
+
+    causes.yaml and probes.yaml have been validated this way since they were written. This
+    file was not, and it is the one the file's own footer calls "the only place in this
+    project where a wrong number has a real-world consequence". Eleven numbers sat here
+    with no source, no derivation and no ASSUMED label.
+
+    ASSUMED is a perfectly good answer and six of these carry it. What is not allowed is
+    silence, because silence is indistinguishable on the page from a measured figure.
+    """
+    problems: list[str] = []
+
+    def check(rule_id: str, label: str, provenance: str | None, backing: str | None) -> None:
+        if provenance is None:
+            problems.append(f"{rule_id}: {label} has no provenance")
+        elif provenance not in VALID_PROVENANCE:
+            problems.append(
+                f"{rule_id}: {label} provenance {provenance!r} is not one of "
+                f"{sorted(VALID_PROVENANCE)}"
+            )
+        elif provenance != "CITED" and not (backing or "").strip():
+            problems.append(
+                f"{rule_id}: {label} is {provenance} and states no derivation or assumption"
+            )
+
+    for rule in config.tier_b:
+        check(rule.id, "persist_nights", rule.provenance, rule.assumption or rule.derivation)
+
+    for rule in config.vitals:
+        check(rule.id, "robust z bound", rule.provenance, rule.derivation or rule.assumption)
+        if rule.cold_rung_fallback_bpm_above is not None or (
+            rule.cold_rung_fallback_bpm_below is not None
+        ):
+            check(
+                rule.id,
+                "cold rung bpm bound",
+                rule.provenance_cold_rung,
+                rule.assumption_cold_rung,
+            )
+
+    if problems:
+        joined = (chr(10) + "  ").join(problems)
+        raise ConfigError(
+            f"{file_path} has safety numbers that do not say where they came from:"
+            + chr(10)
+            + "  "
+            + joined
+        )
 
 
 def is_phrase_negated(

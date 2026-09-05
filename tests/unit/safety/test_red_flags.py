@@ -167,3 +167,74 @@ def test_negation_scope_stops_at_boundary() -> None:
     assert negation_scope("i have no ", 4) == "i have no"
     assert negation_scope("no cough. ", 4) == ""
     assert negation_scope("patient denies ", 4) == "patient denies"
+
+
+def test_every_number_in_the_safety_floor_says_where_it_came_from() -> None:
+    """The standing rule, applied to the file that needs it most.
+
+    causes.yaml and probes.yaml have carried a per-row provenance since they were written,
+    validated on load and pinned by tests. red_flags.yaml carried none, and its own footer
+    calls its numbers "the only place in this project where a wrong number has a real-world
+    consequence". Eleven safety numbers had no source, no derivation and no ASSUMED label,
+    and appeared in no disclosure anywhere.
+
+    ASSUMED is a perfectly good answer, and eight of the ten carry it. What is not allowed
+    is silence, because silence is indistinguishable on the page from a measured figure.
+    """
+    from wha.safety.rules import load_red_flags
+
+    config = load_red_flags()
+
+    for rule in config.tier_b:
+        assert rule.provenance in {"CITED", "DERIVED", "ASSUMED"}, rule.id
+        assert (rule.assumption or rule.derivation or rule.source or "").strip(), (
+            f"{rule.id} declares {rule.provenance} and gives no basis"
+        )
+
+    for rule in config.vitals:
+        assert rule.provenance in {"CITED", "DERIVED", "ASSUMED"}, rule.id
+        if (
+            rule.cold_rung_fallback_bpm_above is not None
+            or rule.cold_rung_fallback_bpm_below is not None
+        ):
+            assert rule.provenance_cold_rung in {"CITED", "DERIVED", "ASSUMED"}, rule.id
+            assert (rule.assumption_cold_rung or "").strip(), (
+                f"{rule.id} cold rung bound has no stated assumption"
+            )
+
+
+def test_loading_fails_loudly_if_a_safety_number_loses_its_provenance() -> None:
+    """A guard that has never fired proves nothing, so fire it."""
+    import tempfile
+    from pathlib import Path
+
+    import yaml
+
+    from wha.errors import ConfigError
+    from wha.safety.rules import DEFAULT_RED_FLAGS_PATH, load_red_flags
+
+    data = yaml.safe_load(Path(DEFAULT_RED_FLAGS_PATH).read_text(encoding="utf-8"))
+    data["tier_b"][0].pop("provenance")
+
+    stripped = Path(tempfile.mkdtemp()) / "red_flags.yaml"
+    stripped.write_text(yaml.safe_dump(data), encoding="utf-8")
+
+    with pytest.raises(ConfigError) as excinfo:
+        load_red_flags(stripped)
+    assert "has no provenance" in str(excinfo.value)
+
+
+def test_the_assumed_safety_numbers_reach_a_screen_and_not_only_a_file() -> None:
+    """ "Labelled in the docs AND on the dashboard" is the rule, and both halves count."""
+    from wha.service.belief import get_safety_rule_provenance
+
+    rows = get_safety_rule_provenance()
+    assert rows, "no safety numbers exposed to the interface at all"
+
+    assumed = [r for r in rows if r["provenance"] == "ASSUMED"]
+    assert assumed, "this test proves nothing if none of them are unevidenced"
+    for row in assumed:
+        assert row["basis"].strip(), f"{row['rule']} is ASSUMED and states no assumption"
+        assert "NO EVIDENCE FOUND" in row["basis"], (
+            f"{row['rule']} does not say plainly that no evidence was found"
+        )

@@ -20,6 +20,7 @@ from wha.service.belief import (
     BeliefNightRecord,
     explain_belief,
     get_knowledge_provenance,
+    get_safety_rule_provenance,
 )
 from wha.service.conversation import (
     acknowledge_urgency,
@@ -118,6 +119,7 @@ __all__ = [
     "get_night_detail",
     "get_pending_interaction",
     "get_permitted_tool_names",
+    "get_safety_rule_provenance",
     "get_service_settings",
     "get_subject_profile",
     "get_system_status",

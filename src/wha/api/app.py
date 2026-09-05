@@ -392,6 +392,12 @@ def get_knowledge_provenance() -> Any:
     return service.get_knowledge_provenance()
 
 
+@app.get("/knowledge/safety-provenance")
+def get_safety_rule_provenance() -> Any:
+    """Where each number in the deterministic safety floor came from."""
+    return service.get_safety_rule_provenance()
+
+
 @app.post("/diagnostics/{component}")
 def check_component(component: str, overrides: dict[str, Any] | None = None) -> Any:
     """Probe one subsystem live: the bridge, the model provider, or Telegram.

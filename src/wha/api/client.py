@@ -259,6 +259,10 @@ class ApiClient:
         raw = self._request("GET", "/knowledge/provenance")
         return raw if isinstance(raw, dict) else {}
 
+    def get_safety_rule_provenance(self) -> list[dict[str, str]]:
+        """Where each number in the deterministic safety floor came from."""
+        return self._request("GET", "/knowledge/safety-provenance") or []
+
     def get_subject_profile(self, subject_id: str) -> SubjectProfile:
         raw = self._request("GET", f"/subjects/{subject_id}/profile")
         return SubjectProfile.model_validate(raw)

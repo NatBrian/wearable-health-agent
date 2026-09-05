@@ -113,6 +113,47 @@ language model can only **add** a flag to that list, never remove one.
 """
         )
 
+        # THE NUMBERS IN THIS FLOOR, AND WHERE THEY CAME FROM.
+        #
+        # This project's standing rule is that an unevidenced clinical figure must be
+        # labelled in the docs AND on the dashboard. causes.yaml had that on both sides.
+        # red_flags.yaml had it on neither, while its own footer called its numbers "the
+        # only place in this project where a wrong number has a real-world consequence".
+        # Six of the ten are ASSUMED, which is a legitimate answer and now a visible one.
+        rows = api().get_safety_rule_provenance()
+        if rows:
+            assumed = [r for r in rows if r["provenance"] == "ASSUMED"]
+            st.dataframe(
+                [
+                    {
+                        "Rule": r["rule"],
+                        "When it fires": r["number"],
+                        "Where the number came from": (
+                            "no published source found"
+                            if r["provenance"] == "ASSUMED"
+                            else "worked out from other figures here"
+                            if r["provenance"] == "DERIVED"
+                            else "a published study"
+                        ),
+                    }
+                    for r in rows
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+            if assumed:
+                st.warning(
+                    f"**{len(assumed)} of these {len(rows)} numbers have no published "
+                    "source behind them,** and the table says which. No study was found "
+                    "measuring how many nights a symptom should persist before it is "
+                    "worth a same-day appointment, so those windows were chosen rather "
+                    "than measured. They are set short, which means they err towards "
+                    "sending you to a doctor sooner rather than later. This is disclosed "
+                    "because a number nobody measured must not look the same as one "
+                    "somebody did.",
+                    icon="⚠️",
+                )
+
     with st.expander("5. What the AI is and is not allowed to do", expanded=True):
         tool_names = api().get_permitted_tool_names()
         tools = "\n".join(f"- `{name}`" for name in tool_names)

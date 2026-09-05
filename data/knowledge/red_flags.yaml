@@ -74,7 +74,25 @@ vitals:
       Your overnight resting heart rate is far outside your own usual range. If you feel
       unwell with this, seek medical advice today.
     rationale: "Six robust standard deviations is well beyond any confounder in the table."
+    provenance: DERIVED
+    derivation: >
+      Not a published cut-off. It is derived from this repository's own numbers: the
+      largest single effect in causes.yaml is the luteal plateau at 3.91 bpm, and the
+      measured within-person night-to-night scale is 3.71 bpm (WITHIN_PERSON_SCALE_PRIOR_BPM,
+      107 people, tools/cohort/band_width.py). Six scaled MADs is therefore about 22 bpm,
+      which no combination of confounders in the table reaches. The purpose is to catch a
+      reading no ordinary explanation covers, not to score severity.
+      MEASURED FREQUENCY: over 7,865 usable cohort nights, |robust_z| > 6 fires on 0.6
+      percent of nights. Reproduce with `uv run python tools/cohort/band_width.py`.
     cold_rung_fallback_bpm_above: 100
+    provenance_cold_rung: ASSUMED
+    assumption_cold_rung: >
+      NO EVIDENCE FOUND for this exact number in this context. 100 bpm is the conventional
+      resting tachycardia boundary in general clinical use, but no source was fetched and
+      verified for it here, and none is claimed. It applies only below the SHRINKING rung,
+      where no personal range exists, and it can only RAISE urgency. Conservative direction:
+      a wide bound fires rarely, so the risk it carries is a missed reading rather than a
+      false alarm. Marked unevidenced on the dashboard.
     cold_rung_note: >
       Below the SHRINKING rung there is no established personal range, so a wide absolute
       bound is used and the message says the baseline is still forming.
@@ -87,7 +105,18 @@ vitals:
     rationale: >
       Included because relative bradycardia is a documented phase of some infections and
       because beta blockade plus illness is a real combination.
+    provenance: DERIVED
+    derivation: >
+      The mirror of rf_rhr_extreme_high, derived the same way and from the same two
+      numbers. Symmetric by construction rather than by a separate finding.
     cold_rung_fallback_bpm_below: 40
+    provenance_cold_rung: ASSUMED
+    assumption_cold_rung: >
+      NO EVIDENCE FOUND for this exact number in this context. 40 bpm is a conventional
+      marked-bradycardia boundary in general clinical use; no source was fetched and
+      verified for it here, and none is claimed. Trained endurance athletes sleep below it
+      routinely, which is why it can only raise urgency and the wording asks how the person
+      feels rather than naming a condition. Marked unevidenced on the dashboard.
 
 tier_b:
   # TWO OR MORE co-occurring, OR one persisting beyond persist_nights.
@@ -96,29 +125,71 @@ tier_b:
   - id: rf_fever
     match: ["fever", "feverish", "temperature", "burning up", "chills", "shivering"]
     persist_nights: 3
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights a fever should
+      persist before it is worth a same-day appointment, and none is claimed here. Three nights is the shortest window in this tier because fever is the tier B sign most associated with the infections this system exists to catch.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
     guidance: "See a doctor today."
 
   - id: rf_body_aches
     match: ["aching all over", "body aches", "muscle aches", "everything hurts"]
     persist_nights: 4
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights body aches should
+      persist before it is worth a same-day appointment, and none is claimed here. Four nights, longer than fever, because aches follow ordinary exertion far more often than they follow illness.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
 
   - id: rf_severe_fatigue
     match: ["exhausted", "can't get out of bed", "no energy at all",
             "wiped out", "completely drained"]
     persist_nights: 4
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights severe fatigue should
+      persist before it is worth a same-day appointment, and none is claimed here. Four nights, because fatigue has the widest set of benign explanations of anything in this tier.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
 
   - id: rf_poor_intake
     match: ["can't eat", "not eating", "can't keep fluids down", "no appetite at all"]
     persist_nights: 2
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights an inability to eat or keep fluids down should
+      persist before it is worth a same-day appointment, and none is claimed here. Two nights, the shortest available, because dehydration compounds daily and is the tier B sign that deteriorates fastest without care.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
 
   - id: rf_exertional_breathlessness
     match: ["out of breath on the stairs", "breathless walking",
             "short of breath when I move"]
     persist_nights: 2
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights breathlessness on exertion should
+      persist before it is worth a same-day appointment, and none is claimed here. Two nights, because this overlaps with presentations on the urgent list and the cost of waiting is higher than the cost of asking.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
 
   - id: rf_persistent_vomiting
     match: ["vomiting", "throwing up", "being sick repeatedly"]
     persist_nights: 2
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights repeated vomiting should
+      persist before it is worth a same-day appointment, and none is claimed here. Two nights, for the same reason as poor intake: fluid loss compounds daily.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
 
 tier_b_guidance: >
   Two or more of these together, or one that has not settled, is worth a same-day

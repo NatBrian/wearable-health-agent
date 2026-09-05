@@ -15,6 +15,23 @@ class TierARule(BaseModel):
     guidance: str
     rationale: str | None = None
     requires_also: list[str] | None = None
+    # THE STANDING RULE APPLIES HERE MOST OF ALL, and until 5 September 2026 it was not
+    # applied here at all. causes.yaml and probes.yaml carry a per-row provenance and are
+    # validated on load; this file carried none, so eleven safety numbers -- the two robust
+    # z bounds, the two cold-rung absolute bounds, six tier B persistence windows and the
+    # negation window -- had no source, no derivation and no ASSUMED label, and appeared in
+    # no disclosure. The file's own footer calls them "the only place in this project where
+    # a wrong number has a real-world consequence".
+    #
+    # CITED   a published number, with the source in `source`
+    # DERIVED computed from other numbers in this repository, working in `derivation`
+    # ASSUMED no published value was found. `assumption` states what was assumed and the
+    #         direction it is conservative in. NOT a gap to be filled with a plausible
+    #         figure later: an unevidenced number stays labelled until somebody measures it.
+    provenance: str | None = None
+    source: str | None = None
+    derivation: str | None = None
+    assumption: str | None = None
 
 
 class TierBRule(BaseModel):
@@ -27,6 +44,23 @@ class TierBRule(BaseModel):
     persist_nights: int = 2
     guidance: str | None = None
     rationale: str | None = None
+    # THE STANDING RULE APPLIES HERE MOST OF ALL, and until 5 September 2026 it was not
+    # applied here at all. causes.yaml and probes.yaml carry a per-row provenance and are
+    # validated on load; this file carried none, so eleven safety numbers -- the two robust
+    # z bounds, the two cold-rung absolute bounds, six tier B persistence windows and the
+    # negation window -- had no source, no derivation and no ASSUMED label, and appeared in
+    # no disclosure. The file's own footer calls them "the only place in this project where
+    # a wrong number has a real-world consequence".
+    #
+    # CITED   a published number, with the source in `source`
+    # DERIVED computed from other numbers in this repository, working in `derivation`
+    # ASSUMED no published value was found. `assumption` states what was assumed and the
+    #         direction it is conservative in. NOT a gap to be filled with a plausible
+    #         figure later: an unevidenced number stays labelled until somebody measures it.
+    provenance: str | None = None
+    source: str | None = None
+    derivation: str | None = None
+    assumption: str | None = None
 
 
 class VitalsRule(BaseModel):
@@ -42,6 +76,29 @@ class VitalsRule(BaseModel):
     cold_rung_fallback_bpm_above: float | None = None
     cold_rung_fallback_bpm_below: float | None = None
     cold_rung_note: str | None = None
+    # A vitals rule carries TWO numbers with different standing: the robust z bound, which
+    # is derived from figures in this repository, and the cold-rung absolute bpm bound,
+    # for which no source was found. They get separate labels so the weaker one cannot
+    # shelter under the stronger one's provenance.
+    provenance_cold_rung: str | None = None
+    assumption_cold_rung: str | None = None
+    # THE STANDING RULE APPLIES HERE MOST OF ALL, and until 5 September 2026 it was not
+    # applied here at all. causes.yaml and probes.yaml carry a per-row provenance and are
+    # validated on load; this file carried none, so eleven safety numbers -- the two robust
+    # z bounds, the two cold-rung absolute bounds, six tier B persistence windows and the
+    # negation window -- had no source, no derivation and no ASSUMED label, and appeared in
+    # no disclosure. The file's own footer calls them "the only place in this project where
+    # a wrong number has a real-world consequence".
+    #
+    # CITED   a published number, with the source in `source`
+    # DERIVED computed from other numbers in this repository, working in `derivation`
+    # ASSUMED no published value was found. `assumption` states what was assumed and the
+    #         direction it is conservative in. NOT a gap to be filled with a plausible
+    #         figure later: an unevidenced number stays labelled until somebody measures it.
+    provenance: str | None = None
+    source: str | None = None
+    derivation: str | None = None
+    assumption: str | None = None
 
 
 class OutcomeGuidance(BaseModel):
