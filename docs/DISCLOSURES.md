@@ -73,9 +73,11 @@ The deterministic half now writes to the same tamper-evident chain, under
   the record stays a history of what happened to the person rather than a list of cron ticks.
   A night's first scoring always writes, whether or not anything changed.
 - **Refusals are recorded too.** A stage that declined made a decision about the person.
-  "The forecasting model did not run: it needs 5 usable nights and there are 3" and "nothing
-  can be flagged yet: 3 of the 7 nights needed" are what turn silence into something a reader
-  can understand.
+  "Nothing can be flagged yet: 3 of the 7 nights needed" is what turns silence into something
+  a reader can understand. This bullet also quoted "The forecasting model did not run: it needs
+  5 usable nights and there are 3", which no code can produce since the forecast was deleted in
+  item 22. Rows written before that still carry it and are deliberately not rewritten: the audit
+  chain is tamper-evident, and editing history to tidy it is the one thing it must never do.
 
 Every entry carries two forms: the exact figures, so the arithmetic can be redone and
 checked, and a **plain narrative** written for someone with no medical or technical

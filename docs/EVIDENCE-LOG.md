@@ -476,36 +476,55 @@ labelled participants: 32 COVID-19 and 15 other illness; 30 COVID cases carry a 
 symptom onset date.
 
 ### Method
-`scratch/cohort_eval.py` imports this system's own `compute_nocturnal_rhr`,
+`tools/cohort/evaluate.py` imports this system's own `compute_nocturnal_rhr`,
 `compute_baseline` and `compute_detection_for_features` and replays them night by night per
 participant, so what is measured is what the product does. The published NightSignal
 algorithm is implemented separately, transcribed from the authors' own code. A random
 detector matched to each participant's own alert-run count provides the chance floor, over
 2,000 trials.
 
+Every script named in this section used to live in `scratch/`, which `.gitignore` excludes,
+so a reader following these instructions on a clean checkout would have found nothing. They
+were promoted into `tools/cohort/` on 5 September 2026 for exactly that reason: a conclusion
+that cannot be reproduced from the repository is not evidence. Paths below are updated.
+
 ### Results
-In `docs/DESIGN-REVIEW.md`. Headline: 53.3 percent sensitivity at a 3-day pre-symptomatic
-window against a 20.2 percent chance floor, 43.3 percent of cases detected strictly before
-symptoms at a 7-day window, and one investigation opened per healthy person every 3.6 weeks.
+
+> **SUPERSEDED 5 September 2026.** The headline this section published, 53.3 percent
+> sensitivity at a 3-day window against a 20.2 percent chance floor and one investigation
+> every 3.6 weeks, was measured while the detector ran a **looser alert rule than the one it
+> was citing**: two raised nights with at least one at +4, where NightSignal requires two
+> consecutive nights both at +4. Item 8 of the refinement plan tightened it to the published
+> rule.
+>
+> **The current figures**, on the same cohort and the same code, are in
+> `docs/detection-results.json` and `EVALUATION.md`: **46.7 percent at a 3-day window
+> against a 16.5 percent rate-matched chance floor**, 66.7 against 34.2 at seven days, and
+> one investigation per healthy person every **4.9 weeks**. This system and NightSignal now
+> agree case for case; what survives is a longer lead time, 3.0 days against 1.5, and a
+> lower alert burden. `docs/DESIGN-VS-NIGHTSIGNAL.md` has the account.
+>
+> The strictly-before-symptoms figure of 43.3 percent has no current equivalent:
+> `tools/cohort/report.py` scores four symmetric windows and does not compute it, so rather
+> than restate a number the committed tool cannot reproduce, it is withdrawn.
 
 ### Four further measurements on the same data
 
-**The infection effect, spread and shape.** `scratch/infection_effect.py` and
-`scratch/infection_control.py`. Reported in the infection entry above. The control matters:
+**The infection effect, spread and shape.** `tools/cohort/infection.py`. Reported in the infection entry above. The control matters:
 taking the highest night in a window is biased upward, so illness windows are compared with
 matched windows in people with no illness label.
 
-**The step filter.** `scratch/noise_and_stepfilter.py`. 101 people, every night scored twice,
+**The step filter.** `tools/cohort/band_width.py`. 101 people, every night scored twice,
 once over all minutes and once over minutes with zero steps. Night-to-night wobble: **2.97
 bpm both ways**, 15 of 101 improved, median change zero. The step filter does nothing here,
 because this system uses the median rather than the mean.
 
-**Absolute against personal thresholds.** `scratch/threshold_sweep.py`. Both families swept
+**Absolute against personal thresholds.** `tools/cohort/sweep.py`. Both families swept
 over the same 120 people, sensitivity in the seven days before symptoms against alert rate on
 76 healthy people. The fixed threshold in beats is equal or better at every matched alert
 rate. The current 3.0 and 4.0 are confirmed; the persistence rule is the lever worth moving.
 
-**The Chronos forecast.** `scratch/chronos_eval.py` and `scratch/chronos_report.py`. A
+**The Chronos forecast.** `tools/cohort/chronos.py`. A
 forecast computed for all 7,295 eligible nights. Separating illness nights from ordinary
 nights: **residual AUC 0.629, forecast AUC 0.586**. Across 30 labelled infections, the
 forecast caught at most one case the detector missed, and none at tighter settings. The two

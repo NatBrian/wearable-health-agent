@@ -470,7 +470,7 @@ algorithm have been changed here.
 | minutes counted | only minutes where step count was zero | all minutes in the window |
 | nightly value | the **mean** | the **median** |
 | baseline | expanding median of every prior night, including tonight | median of a trailing 28 nights, excluding tonight |
-| red alert | two consecutive nights at or above baseline + 4 | two consecutive raised nights with **at least one** at +4, so RED followed by YELLOW also fires |
+| red alert | two consecutive nights at or above baseline + 4 | **the same, since item 8 on 5 September 2026.** It was two raised nights with at least one at +4, so RED followed by YELLOW also fired; that is the difference the 78 percent sensitivity was quoted against, and it is gone |
 | compared quantity | the raw deviation | the deviation **after subtracting** a recorded workout |
 
 Several of those changes are argued for with evidence and are probably improvements. But
@@ -715,7 +715,7 @@ asks the one with the best score if that score is positive.
 
 ```mermaid
 flowchart TB
-    B["current belief<br/>p(infection) = 0.0756"] --> E["for each of 9 probes:<br/>what would each answer do?"]
+    B["current belief<br/>p(infection) = 0.0756"] --> E["for each of 8 probes:<br/>what would each answer do?"]
     E --> S["score = EVSI - (cost x 0.15)"]
     S --> G{"gates"}
     G -->|"baseline too cold"| NO["do not ask"]
@@ -815,7 +815,7 @@ stateDiagram-v2
 nights, your baseline, recorded events, data quality, and your past investigations. This
 exists so the model starts with facts rather than spending its first turns fetching them.
 
-**investigate.** The model is handed a catalogue of seven tools with their exact argument
+**investigate.** The model is handed a catalogue of six tools with their exact argument
 names and loops: call a tool, see the result, decide whether to call another or stop.
 Bounded at 25 tool calls per episode. A real run made these calls:
 
@@ -1011,33 +1011,37 @@ The extraction quality is genuinely good. Each item was stored with the person's
 beside it: `mhs_reproducible_by_palpation = no`, quote "Pressing on it does not change
 anything".
 
-**Four weaknesses.**
+**Four weaknesses were recorded here. All four are fixed, and they are kept because the
+shape of them is the lesson: every one was a function that existed, was referenced, and was
+never reached.**
 
-1. **The age gate never runs.** The rule was developed and validated only in people aged 35
-   and over, and the code checks that. But `age_years` is never populated by anything. The
-   dashboard does not collect it and does not send it. In the live run the person said "I
-   am 24 and male", the system extracted that into the age/sex item, scored it correctly as
-   zero, **and then applied a rule outside its validated range anyway**, while telling them
-   it was using "a 2010 study of 1,199 people with chest pain". The score of 3 came from
-   three items that are all common in a healthy young adult with a muscular strain.
-2. **The two extreme-heart-rate rules have never once fired.** `red_flags.yaml` defines an
-   escalation for a night more than six robust standard deviations above or below your own
-   baseline. The function that evaluates it takes `robust_z` as an argument. All three
-   production callers pass only the text you typed. So `robust_z` is always absent and the
-   branch is skipped every time. Confirmed by line coverage over a full production run:
-   those lines never execute.
-3. **The blood oxygen rule has never run either.** There is a well-written function that
-   reads your overnight oxygen readings, requires at least ten inside the sleep window,
-   takes the median rather than the minimum, and applies a published threshold. Nothing
-   calls it. Not one line of it executes in production, and no test touches it either. The
-   pure function it wraps is unit tested, which is why the suite is green. STATUS.md says
-   blood oxygen "sits in the deterministic floor as a cited threshold that can raise
-   urgency". It does not sit anywhere.
-4. **The interface says a phrase the safety rules forbid.** `red_flags.yaml` lists
-   "nothing to worry about" among the phrases the system must never say, and the same
-   phrase is in the code's false-reassurance filter. The dashboard's headline for a benign
-   outcome is **"Probably nothing to worry about"**. The filter runs on what the model
-   writes, not on the interface's own hard-coded wording.
+1. **The age gate never ran. Fixed, item 5.** The Marburg rule was validated only in people
+   aged 35 and over and the code checked that, but `age_years` was populated by nothing: the
+   dashboard neither collected it nor sent it. In a live run the person said "I am 24 and
+   male", the system extracted that, scored the age item correctly as zero, **and then
+   applied a rule outside its validated range anyway** while telling them it was using "a
+   2010 study of 1,199 people with chest pain". Age and sex are now standing facts on the
+   Settings profile, and below 35 the rule is withheld and says so by name.
+2. **The two extreme-heart-rate rules had never once fired. Fixed, item 4.**
+   `red_flags.yaml` defines an escalation for a night more than six robust standard
+   deviations from your own baseline, and the function evaluating it takes `robust_z` as an
+   argument. All three production callers passed only the text you typed, so `robust_z` was
+   always absent and the branch was skipped every time, confirmed by line coverage over a
+   full production run.
+3. **The blood oxygen rule had never run either. Fixed, item 4.** A well-written function
+   read the overnight oxygen readings, required at least ten inside the sleep window, took
+   the median rather than the minimum and applied a threshold. Nothing called it. Not one
+   line executed in production and no test touched it; the pure function it wraps was unit
+   tested, which is why the suite was green. It now runs from the nightly job. A second
+   defect in it was found later and fixed separately: it bound raw datetimes against a TEXT
+   column, so it would have returned zero readings forever even once connected.
+4. **The interface said a phrase the safety rules forbid. Fixed.** `red_flags.yaml` lists
+   "nothing to worry about" among the phrases the system must never say, and so does the
+   code's false-reassurance filter, and the dashboard's headline for a benign outcome was
+   **"Probably nothing to worry about"**. The filter runs on what the model writes, not on
+   the interface's own hard-coded wording, so a test now walks the interface phrase tables
+   against `never_say`. A second phrase, "that's reassuring", was added to both lists on 5
+   September 2026 after an audit found it still passing.
 
 ---
 
@@ -1355,14 +1359,18 @@ record. Putting it on a network would need authentication first, and it does not
 
 **Weaknesses found by driving the five screens as an ordinary person:**
 
-- The **Execution Trace** panel reports all nine stages as SKIPPED on every episode, with
+- The **Execution Trace** panel reported all nine stages as SKIPPED on every episode, with
   invented reasons like "Ask probe not selected by EVSI optimizer" on an episode that
-  demonstrably asked a question, and "Human review checkpoint bypassed (direct
-  auto-approval)". The cause: the panel matches stage names against the `operation` column
-  of the audit log, and that column is a fixed list of ten values that does not contain any
-  stage name. No audit row can ever match, so nothing can ever be marked as having run. The
-  belief chart immediately below it correctly shows two belief steps and the probability
-  moving, so the page contradicts itself. This panel is repeated on the Audit page.
+  demonstrably asked a question. The cause: the panel matched stage names against the
+  `operation` column of the audit log, a fixed list of ten values containing no stage name,
+  so no row could ever match. **Fixed, item 11**, and then twice more: the replacement wrote
+  a hardcoded set at conclude time, which could never contain `review` because review runs
+  after it, so every CLOSED episode still said the human checkpoint was skipped when every
+  CLOSED episode has in fact run it. Critique and review now record themselves. The tool
+  expander was also reading `source_ref`, `arguments` and `result`, which nothing ever
+  wrote, so each call rendered as "(Source: `None`, Freshness: `current`)" over an empty
+  `{}`. Both sides now use ToolResult's own field names. **Nine stages became eight**: the
+  list still advertised `measure` after that limb was deleted.
 - The **same escalated investigation appears five times** on History, all with identical
   dates and all never investigated. Each urgent self-report opens its own episode and
   closes it immediately, so five reports in one session become five identical entries.
@@ -1397,13 +1405,16 @@ there is one transcript and one safety floor however you reach it.
 Confirmed working during this review: a question was sent to a real phone, and two
 conversation replies were delivered.
 
-**The weakness, confirmed live:** Telegram does not name the source of a citation. The
-message ends with `Sources: Fever`, where "Fever" is the title of a MedlinePlus topic. The
-dashboard has a module whose entire job is to render that as "MedlinePlus, National Library
-of Medicine"; the Telegram formatter does not import it. MedlinePlus is
-attribution-only-licensed, and the passage text itself even carries the attribution line.
-The message also truncates at 900 characters mid-sentence, and in one real message the cut
-fell inside the amber "not from a cited source" block.
+**The weakness, confirmed live and since fixed, item 12.** Telegram did not name the source
+of a citation: the message ended `Sources: Fever`, where "Fever" is the title of a
+MedlinePlus topic, under an attribution-only licence. The dashboard has a module whose whole
+job is to render that as "MedlinePlus, National Library of Medicine", and the Telegram
+formatter could not import it, because it lived under `ui/` which this module correctly
+refuses to reach into. The labels are constants now and both surfaces read the same ones.
+The 900-character truncation was also cutting mid-sentence, and in one real message the cut
+fell inside the amber "not from a cited source" block, keeping its label and losing the
+warning it carried. Trimming now drops whole optional blocks first and never splits the
+amber one.
 
 ---
 
@@ -1434,13 +1445,17 @@ figures and the same reasoning as sentences:
 > persisted.
 
 **Refusals are recorded too**, which is unusual and right: a stage that declined made a
-decision about you. "The forecasting model did not run: it needs 5 usable nights and there
-are 4."
+decision about you. The example this section used to give was "The forecasting model did not
+run: it needs 5 usable nights and there are 4", which no code can produce any more; the
+forecast was deleted in item 22. Rows written before that still carry the sentence and are
+deliberately not rewritten, because the chain is tamper-evident and editing history to
+tidy it is the one thing an audit log must never do.
 
-**Weaknesses:** notifications are never recorded, even though `notify` is a permitted
-operation, so the log does not show that a question was sent to your phone. Nor is the
-human decision, because there never is one (Part 10). And the latency column is always
-empty: the tool registry measures how long each call took and then discards the number.
+**Three weaknesses, all fixed in item 34.** Notifications were never recorded even though
+`notify` is a permitted operation, so the log did not show that a question had been sent to
+your phone. The human decision was never recorded either, because there never was one
+(Part 10). And the latency column was always empty: the tool registry measured how long each
+call took and then discarded the number.
 
 ---
 

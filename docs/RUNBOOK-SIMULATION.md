@@ -131,8 +131,8 @@ with your answer.
 The illness amplitudes are measured, not chosen for effect. The generator rounds every
 minute to a whole bpm, so an amplitude does not survive intact into the nightly RHR:
 against a mature 61.35 bpm baseline, 4.6 moves RHR 61 → 65 for a 3.65 bpm residual, under
-the 4.0 RED threshold. `flagged` additionally needs two consecutive elevated nights with a
-RED among them. The sweep behind these numbers is in `tools/mock_watch.py`.
+the 4.0 RED threshold. `flagged` additionally needs **two consecutive RED nights**, the published NightSignal
+rule. It was "two elevated nights with a RED among them" until item 8 on 5 September 2026. The sweep behind these numbers is in `tools/mock_watch.py`.
 
 To combine causes on one night — an elevation the agent has to explain away — schedule
 them by date:

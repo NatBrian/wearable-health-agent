@@ -176,9 +176,22 @@ and moved from 0.30 to 0.15 on the frontier.
 
 ## Real device data
 
-Ingested and working. Three usable nights at **51, 56 and 48 bpm** with 379 to 418 minutes
-of wear out of a possible 420, and the baseline correctly shrinking from the population
-prior toward the subject (62.75 → 61.28 → 60.69) as nights accumulate.
+Ingested and working. **Four** usable nights at **44, 45, 45 and 47 bpm** with 303 to 399
+minutes of wear, and the baseline correctly shrinking from the population prior toward the
+subject as nights accumulate.
+
+The figures in this paragraph were "three usable nights at 51, 56 and 48 bpm with 379 to 418
+minutes"; none of the three matched the database, which has always been the source of truth
+for them. Read it back with:
+
+```bash
+uv run python -c "import sqlite3; c=sqlite3.connect('data/wha.sqlite'); print([dict(zip(('date','bpm','mins'), r)) for r in c.execute(\"SELECT night_date, rhr_bpm, coverage_minutes FROM nightly_features WHERE subject_id='me' AND usable=1 ORDER BY night_date\")])"
+```
+
+**A resting heart rate in the mid forties matters for reading the rest of this file.** It sits
+below the `rf_rhr_extreme_low` cold-rung bound of 40 by only a few beats, and that bound is
+one of the numbers marked ASSUMED with no published source. `CLAUDE.md` and `AGENTS.md` both
+say four nights; this section said three.
 
 The watch provides **seven** channels, not the four `history/HANDOFF.md` section 10 originally
 recorded. All seven are ingested. Heart rate variability, respiratory rate and skin
