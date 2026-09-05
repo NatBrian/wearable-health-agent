@@ -244,8 +244,8 @@ uv run wha ingest --days 3       # Fetch & normalize live biometrics from phone 
 uv run wha nightly               # Run daily baseline calculation & anomaly detector
 uv run wha data fetch corpus     # Build the retrieval corpus, including MedlinePlus
 uv run wha data capability       # What your watch sends, and how far each channel gets
-uv run wha data fetch stanford   # Initialize Stanford benchmark evaluation cohort
-uv run wha data fetch pmdata     # Initialize PMData benchmark evaluation cohort
+uv run python tools/cohort/fetch.py   # The Mishra 2020 cohort, a 378 MB public download
+uv run python tools/cohort/labels.py  # Its symptom-onset labels, from the same paper
 
 # Demonstrations & Scenarios
 uv run wha demo list             # List available offline clinical replay scenarios
