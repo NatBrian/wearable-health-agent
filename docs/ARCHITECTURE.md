@@ -56,17 +56,14 @@ flowchart TB
         BEL["believe: Bayesian belief<br/>over 12 causes, 4096 states"]
         DEC["decide: EVSI policy<br/>is a question worth the interruption?"]
         ASK["ask: model words the question<br/>then the graph PAUSES"]
-        MEAS["measure: ask for a hand reading<br/>(never completes, see below)"]
         CON["conclude: draft the outcome<br/>strip any claim with no source"]
         CRI["critique: model removes, never adds"]
-        REV["review: human checkpoint<br/>(auto-approved, see below)"]
+        REV["review: human checkpoint<br/>a person approves, edits, rejects or escalates"]
         EP --> PRE --> INV --> BEL --> DEC
         DEC -->|ASK| ASK
-        DEC -->|MEASURE| MEAS
         DEC -->|OBSERVE| WAIT["wait for another night"]
         DEC -->|CONCLUDE| CON
         ASK -->|answer arrives| INV
-        MEAS --> BEL
         CON --> CRI --> REV
     end
 
@@ -799,13 +796,11 @@ stateDiagram-v2
     investigate --> believe
     believe --> decide
     decide --> ask: ASK
-    decide --> measure: MEASURE
     decide --> conclude: CONCLUDE or ESCALATE
     decide --> [*]: OBSERVE (park)
     ask --> investigate: an answer arrived
     ask --> believe: tool budget spent
     ask --> conclude: a red flag fired
-    measure --> believe
     conclude --> critique
     critique --> review
     review --> [*]
