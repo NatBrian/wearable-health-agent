@@ -74,9 +74,6 @@ def test_scenario_illness_onset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     assert scenario.oracle.get("probe_symptoms") == "fever"
 
     # Outcome contract verification
-    assert scenario.expect["disposition"] == "LIKELY_ILLNESS"
-    assert scenario.expect["asks_at_least"] == 1
-    assert scenario.expect["unsupported_claims"] == 0
     conn.close()
 
 
@@ -86,15 +83,12 @@ def test_scenario_alcohol_night(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
     conn = connect(tmp_path / "alcohol.sqlite")
     apply_schema(conn)
 
-    scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "alcohol-night")
+    _scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "alcohol-night")
     detections = detect_range(conn, subj_id, first_dt, last_dt)
 
     # Assert persistence rule prevents alert event opening
     flagged_detections = [d for d in detections if d.flagged]
     assert len(flagged_detections) == 0
-    assert scenario.expect["disposition"] is None
-    assert scenario.expect["flagged_on_day"] is None
-    assert scenario.expect["escalates"] is False
     conn.close()
 
 
@@ -104,7 +98,7 @@ def test_scenario_workout_explained(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     conn = connect(tmp_path / "workout.sqlite")
     apply_schema(conn)
 
-    scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "workout-explained")
+    _scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "workout-explained")
     detections = detect_range(conn, subj_id, first_dt, last_dt)
 
     # Both nights after workout subtraction remain GREEN and unflagged
@@ -113,9 +107,6 @@ def test_scenario_workout_explained(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         if d.level != DetectionLevel.NA:
             assert d.level == DetectionLevel.GREEN
 
-    assert scenario.expect["disposition"] is None
-    assert scenario.expect["asks_at_least"] == 0
-    assert scenario.expect["escalates"] is False
     conn.close()
 
 
@@ -134,9 +125,6 @@ def test_scenario_red_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert scan_result.escalate is True
     assert scan_result.level == "urgent"
 
-    assert scenario.expect["disposition"] == "ESCALATED"
-    assert scenario.expect["escalates"] is True
-    assert scenario.expect["escalation_level"] == "urgent"
     conn.close()
 
 
@@ -146,7 +134,7 @@ def test_scenario_cold_start(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     conn = connect(tmp_path / "cold.sqlite")
     apply_schema(conn)
 
-    scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "cold-start")
+    _scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "cold-start")
     detections = detect_range(conn, subj_id, first_dt, last_dt)
 
     # 2 usable nights -> COLD rung
@@ -163,9 +151,6 @@ def test_scenario_cold_start(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     for b in b_rows:
         assert b["rung"] == BaselineRung.COLD.value
 
-    assert scenario.expect["rung"] == "COLD"
-    assert scenario.expect["opens_episode"] is False
-    assert scenario.expect["disposition"] == "INSUFFICIENT_DATA"
     conn.close()
 
 
@@ -175,7 +160,7 @@ def test_scenario_nonwear_gap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     conn = connect(tmp_path / "nonwear.sqlite")
     apply_schema(conn)
 
-    scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "nonwear-gap")
+    _scenario, subj_id, first_dt, last_dt = _setup_scenario_db(conn, "nonwear-gap")
     detections = detect_range(conn, subj_id, first_dt, last_dt)
 
     # Non-wear days have level NA and are not interpolated
@@ -205,7 +190,6 @@ def test_scenario_nonwear_gap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
         # is what it now asserts.
         assert r["coverage_minutes"] < MIN_NOCTURNAL_MINUTES
 
-    assert scenario.expect["escalates"] is False
     conn.close()
 
 
@@ -227,10 +211,10 @@ def test_scenario_injection_poisoned(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert verdict.detected is True
     assert verdict.safety_event == "injection_contained"
 
-    # Outcome remains uncompromised
-    assert scenario.expect["disposition"] == "LIKELY_ILLNESS"
-    assert "injection_contained" in scenario.expect["safety_events"]
-    assert "INJ-001" in scenario.expect["sources_must_include"]
+    # The two assertions that were here read the fixture back to itself:
+    # `"injection_contained" in scenario.expect["safety_events"]`. The real check is the
+    # one above, which runs `scan_untrusted` over the poisoned corpus file and asserts the
+    # scanner caught it and named the event.
     conn.close()
 
 
@@ -253,8 +237,36 @@ def test_scenario_no_response_timeout(tmp_path: Path, monkeypatch: pytest.Monkey
     assert timeout_ans is not None
 
     # Expected disposition is UNRESOLVED and budget was consumed
-    assert scenario.expect["disposition"] == "UNRESOLVED"
-    assert scenario.expect["asks_at_least"] == 1
-    assert scenario.expect["budget_consumed"] == 1
-    assert scenario.expect["escalates"] is False
     conn.close()
+
+
+def test_a_frozen_scenario_is_checked_against_what_the_agent_actually_does() -> None:
+    """The one test in this file that runs the agent.
+
+    Every test above drives the real detector, which is genuine, and then used to assert
+    things like `scenario.expect["disposition"] == "LIKELY_ILLNESS"`: the JSON fixture
+    contains the string the JSON fixture contains. Twenty-three such assertions. They would
+    have passed with the entire agent deleted, and the project's "eleven frozen scenarios"
+    guarantee was backed by none of them. They are removed rather than reworded.
+
+    This runs one scenario end to end through `run_demo`, offline against the cassette
+    provider, and checks the expectations against what the run PRODUCED. It is slower than
+    the rest of this file, which is why it is one scenario and not eleven; the full set is
+    `uv run wha demo run <scenario>`, and `--live` puts a real model behind it.
+
+    It is also a canary for the whole agent path. `node_decide` crashed on every episode
+    for a day with the suite green, because nothing here reached it.
+    """
+    from wha.service.demo import run_demo
+
+    result = run_demo("illness-onset", live=False)
+
+    assert result.episode_ids, "no episode was opened, so the agent did not run"
+    assert result.disposition == "LIKELY_ILLNESS", (
+        f"the agent concluded {result.disposition!r}, not what the scenario freezes"
+    )
+    assert result.questions_asked >= 1
+
+    # And the harness's own comparison agrees, so a silent expectation failure cannot pass.
+    assert result.ok, [(e.name, e.expected, e.actual) for e in result.expectations if not e.ok]
+    assert result.expectations, "no expectations were checked at all"
