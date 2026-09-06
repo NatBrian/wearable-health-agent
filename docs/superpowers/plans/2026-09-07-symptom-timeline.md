@@ -81,9 +81,59 @@ in the service layer. Fails safe, but it is the same dead-code shape a fourth ti
       **zero additional cases** at every run length from 3 to 7 nights, while costing
       up to 5 percent more investigations on healthy people. Finding 5 is answered: the
       gap is real, and closing it helps nobody. Do not re-litigate from theory.
-- [ ] 10. Dashboard: the record tab, the step list, and the pipeline must show the symptom
-      timeline and say why it escalated or did not.
-- [ ] 11. Docs: `ARCHITECTURE.md`, `CONTRACTS.md`, `DISCLOSURES.md`,
-      `KNOWLEDGE-CHANGELOG.md`, new `DESIGN-SYMPTOM-TIMELINE.md`, `BLOCKERS.md`
-      (the dizziness item dissolves: it needs tracking, not a red flag).
-- [ ] 12. Live dengue scenario with the real model, as the acceptance test.
+- [x] 10. Dashboard: step 8 "Check what you told us" added to the pipeline, with the
+      symptom table, the arithmetic in words, and the "How this works" topic. Verified in
+      a real browser with Playwright.
+- [x] 11. Docs all updated, plus `STATUS.md` and `CLAUDE.md`, whose banner still said the
+      work was finished.
+- [x] 12. Live dengue scenario RUN against the real model. Result in the section below.
+
+
+## The dengue test, run 7 September 2026 against the real model
+
+**Message sent, as a person would type it:** "I have had a fever for the last three days
+and now I have really bad stomach pain and I keep throwing up. I feel restless and I cannot
+keep any water down."
+
+**What the system did:**
+
+```
+URGENCY : same_day
+FLAGS   : ['rf_fever', 'rf_persistent_vomiting', 'rf_poor_intake']
+GUIDANCE: Two or more of these together ... is worth a same-day appointment. A
+          polyclinic or a GP is appropriate. Go to an A&E if you develop any of the
+          urgent signs listed above.
+CITED   : ['Diarrhea']   (MedlinePlus)
+```
+
+**What the agent said:** *"...Having a fever for three days with severe stomach pain,
+vomiting, and inability to keep water down is concerning. This could be due to an infection
+or other serious condition. It's important to seek medical attention today, as you may need
+fluids or treatment to prevent dehydration. **Have you noticed any blood in your vomit or
+stools?**"*
+
+**The prediction held.** It never said dengue, and it could not: `corpus.yaml` has no dengue
+passage, so `enforce_grounding` cannot pass a dengue claim, and Tier C can only return ids
+from the red-flag list.
+
+**But it did better than the prediction, in one specific way worth recording.** Unprompted,
+it asked about **mucosal bleeding**, which is a WHO dengue warning sign and a tier A rule it
+was not told to seek. It reasoned to a red flag rather than pattern-matching a word. That is
+the behaviour the design is supposed to produce.
+
+**Three things it got wrong, and they are the finding.**
+
+1. **Severe abdominal pain was invisible to every rule.** It is in no tier and not tracked,
+   so it reached the belief model and nothing else. The agent read it in the transcript and
+   the floor never saw it.
+2. **Same-day is arguably UNDER-triaged for this picture.** Three days of fever with severe
+   abdominal pain and persistent vomiting is a WHO dengue warning-sign presentation, which
+   warrants referral for observation, not a polyclinic appointment "today". The system has
+   no way to know that, because it has no dengue content.
+3. **Nothing warned about defervescence.** The single most important thing to tell a person
+   in this position is that the danger rises as the fever breaks. The system does not know
+   it.
+
+**The decision this forces is the user's:** whether this system should carry
+Singapore-specific clinical content in its corpus. `sources.yaml` already names national
+dengue guidance as material that should be there. Recorded in `BLOCKERS.md`.
