@@ -634,7 +634,7 @@ down. It is now, under the `chat` operation the contract had reserved and nothin
 
 Screens called service functions as Python imports. Clean layering, with no SQL in any
 view, but only Python could cross it. There is now a FastAPI boundary on `127.0.0.1:8500`
-with 33 endpoints and generated OpenAPI docs at `/docs`, and Streamlit is one of its
+with 34 endpoints and generated OpenAPI docs at `/docs`, and Streamlit is one of its
 clients. A React front end can replace it without a line of backend work.
 
 `/config` enumerates every public constant from the module rather than listing them by
