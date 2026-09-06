@@ -136,6 +136,19 @@ def delete_subject(subject_id: str) -> dict[str, str]:
 # ------------------------------------------------------------------------ status
 
 
+def _record_end(subject_id: str) -> date:
+    """Where a window of nights should end: today, or later if the record runs ahead.
+
+    A night dated after today exists whenever the watch is being simulated forward, and it
+    is a real row with a real reading. Ending every window at the calendar date hid the
+    newest night on every screen, which made the record and the interface disagree about
+    what had been measured.
+    """
+    newest = service.latest_recorded_night(subject_id)
+    today = local_today()
+    return max(newest, today) if newest else today
+
+
 @app.get("/subjects/{subject_id}/status")
 def get_status(subject_id: str) -> Any:
     """The status strip: what is running, what arrived, how mature the baseline is."""
@@ -153,7 +166,7 @@ def list_nights(
     days: int = Query(default=60, ge=1, le=400),
 ) -> list[Any]:
     """Every calendar night in the range, including nights with no reading."""
-    end_d = end or local_today()
+    end_d = end or _record_end(subject_id)
     start_d = start or (end_d - timedelta(days=days))
     return service.list_nights(subject_id, start=start_d, end=end_d)
 
@@ -163,7 +176,7 @@ def list_nights(
 @app.get("/subjects/{subject_id}/pipeline/nights")
 def list_pipeline_nights(subject_id: str, days: int = Query(default=60, ge=1, le=400)) -> list[Any]:
     """Just enough about each night to draw the stepper: date, level, whether investigated."""
-    return service.list_pipeline_nights(subject_id, days=days)
+    return service.list_pipeline_nights(subject_id, days=days, end=_record_end(subject_id))
 
 
 @app.get("/subjects/{subject_id}/nights/{night_date}/pipeline")

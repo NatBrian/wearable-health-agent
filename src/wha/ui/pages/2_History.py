@@ -9,15 +9,13 @@ clicking an investigation redrew the same page and the detail behind it was unre
 except by pasting the URL. Anything that changes what is shown now reruns.
 """
 
-from datetime import timedelta
-
 import streamlit as st
 
 from wha.api.client import ApiUnavailable
 from wha.models import DetectionLevel
 from wha.ui import design, format
 from wha.ui.components import night_chart
-from wha.ui.components.api import api, today, unavailable
+from wha.ui.components.api import api, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
 from wha.ui.components.subject import resolve as resolve_subject
 
@@ -60,8 +58,8 @@ def main() -> None:
 
         st.title("Your nights")
         choice = st.selectbox("How far back", list(WINDOWS), index=1)
-        end = today()
-        nights = api().list_nights(subject, start=end - timedelta(days=WINDOWS[choice]), end=end)
+        # No end date, for the same reason as Today: the record can run past the calendar.
+        nights = api().list_nights(subject, days=WINDOWS[choice])
         episodes = {e.episode_id: e for e in api().list_episodes(subject)}
 
         night_chart.render(nights)

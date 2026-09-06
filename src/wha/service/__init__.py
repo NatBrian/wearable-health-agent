@@ -67,6 +67,7 @@ from wha.service.nightly import (
 )
 from wha.service.nights import (
     get_night_detail,
+    latest_recorded_night,
     list_nights,
 )
 from wha.service.pipeline import (
@@ -129,6 +130,7 @@ __all__ = [
     "get_subject_profile",
     "get_system_status",
     "get_transcript",
+    "latest_recorded_night",
     "latest_urgency",
     "latest_urgency_reason",
     "list_episodes",

@@ -152,6 +152,32 @@ def list_nights(
             conn.close()
 
 
+def latest_recorded_night(
+    subject_id: str,
+    conn: sqlite3.Connection | None = None,
+) -> date | None:
+    """The newest night this person has a reading for, whatever its date.
+
+    Usually earlier than today. It can be later: the mock watch advances the cursor past
+    the wall clock, which the simulation runbook documents, and a night that exists in the
+    record has to be visible on the screens or the record and the screen disagree.
+    """
+    close_conn = False
+    if conn is None:
+        conn = connect()
+        apply_schema(conn)
+        close_conn = True
+    try:
+        row = conn.execute(
+            "SELECT MAX(night_date) AS newest FROM nightly_features WHERE subject_id = ?",
+            (subject_id,),
+        ).fetchone()
+        return date.fromisoformat(row["newest"]) if row and row["newest"] else None
+    finally:
+        if close_conn:
+            conn.close()
+
+
 def get_night_detail(
     subject_id: str,
     night_date: date,

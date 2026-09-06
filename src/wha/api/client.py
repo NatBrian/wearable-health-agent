@@ -107,12 +107,26 @@ class ApiClient:
 
     # ------------------------------------------------------------------ nights
 
-    def list_nights(self, subject_id: str, start: date, end: date) -> list[NightRow]:
-        rows = self._request(
-            "GET",
-            f"/subjects/{subject_id}/nights",
-            params={"start": start.isoformat(), "end": end.isoformat()},
-        )
+    def list_nights(
+        self,
+        subject_id: str,
+        start: date | None = None,
+        end: date | None = None,
+        days: int | None = None,
+    ) -> list[NightRow]:
+        """Nights in a window. With no dates, the application decides where it ends.
+
+        A screen that computes the end from today's date hides any night dated later, and
+        those exist whenever the watch is being simulated forward.
+        """
+        params: dict[str, str | int] = {}
+        if start is not None:
+            params["start"] = start.isoformat()
+        if end is not None:
+            params["end"] = end.isoformat()
+        if days is not None:
+            params["days"] = days
+        rows = self._request("GET", f"/subjects/{subject_id}/nights", params=params)
         return [NightRow.model_validate(r) for r in rows or []]
 
     def get_night_detail(self, subject_id: str, night_date: date) -> NightDetail | None:

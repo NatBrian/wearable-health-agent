@@ -11,7 +11,7 @@ must never be drawn under a live escalation. That is a condition on the reassura
 on the whole inbox.
 """
 
-from datetime import date, timedelta
+from datetime import date
 
 import streamlit as st
 
@@ -19,7 +19,7 @@ from wha.api.client import ApiUnavailable
 from wha.models import Answer
 from wha.ui import design, explain, format
 from wha.ui.components import chat, verdict
-from wha.ui.components.api import api, config, today, unavailable
+from wha.ui.components.api import api, config, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
 from wha.ui.components.subject import resolve as resolve_subject
 
@@ -240,8 +240,10 @@ def main() -> None:
         if pending is None:
             render_reassurance(subject, status)
 
-        end = today()
-        nights = api().list_nights(subject, start=end - timedelta(days=7), end=end)
+        # No end date: the application decides where the record ends. Computing it from
+        # today hid the newest night whenever the watch ran ahead of the wall clock, so
+        # Today showed a green night while a red one sat unshown in the record.
+        nights = api().list_nights(subject, days=7)
         measured = [n for n in nights if n.usable]
         if measured:
             detail = api().get_night_detail(subject, measured[-1].night_date)

@@ -379,3 +379,19 @@ def test_a_one_night_investigation_is_not_described_as_several(fake_api) -> None
 
     assert "is about the night of Friday 4 September 2026" in body
     assert "those nights" not in body
+
+
+def test_today_shows_the_newest_measured_night_even_if_it_postdates_the_calendar(
+    fake_api,
+) -> None:
+    """Found in simulation: a RED night existed and Today showed the green one before it.
+
+    The screen asked for a window ending today, so a night dated tomorrow was excluded. It
+    now asks for a number of nights and lets the application decide where the record ends.
+    """
+    _ready(fake_api)
+    AppTest.from_file(PAGE, default_timeout=30).run()
+
+    kwargs = fake_api.list_nights.call_args.kwargs
+    assert "end" not in kwargs, "the screen is still deciding where the record ends"
+    assert kwargs.get("days") == 7

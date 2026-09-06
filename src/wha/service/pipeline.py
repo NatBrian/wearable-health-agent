@@ -887,13 +887,14 @@ def list_pipeline_nights(
     subject_id: str,
     days: int = 60,
     conn: sqlite3.Connection | None = None,
+    end: date | None = None,
 ) -> list[PipelineNightRef]:
     """Just enough about each night to draw the stepper.
 
     Built from `list_nights` rather than from its own query, so the stepper and the
     History table can never disagree about which nights exist.
     """
-    end = local_today()
+    end = end or local_today()
     start = end - timedelta(days=days)
     rows = list_nights(subject_id, start=start, end=end, conn=conn)
     return [

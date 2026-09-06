@@ -51,7 +51,7 @@ def stub_service(monkeypatch):
     )
     monkeypatch.setattr(
         "wha.api.app.service.list_pipeline_nights",
-        lambda subject_id, days=60: [
+        lambda subject_id, days=60, end=None: [
             PipelineNightRef(
                 night_date=date(2026, 9, 4),
                 level=DetectionLevel.RED,
@@ -116,3 +116,48 @@ def test_both_routes_are_registered() -> None:
 
     assert "/subjects/{subject_id}/nights/{night_date}/pipeline" in paths
     assert "/subjects/{subject_id}/pipeline/nights" in paths
+
+
+def test_a_window_ends_where_the_record_ends_not_at_the_calendar(monkeypatch) -> None:
+    """A night dated after today is real, and every screen hid it.
+
+    The mock watch advances the cursor past the wall clock, which the simulation runbook
+    documents. Ending each window at local_today() meant Today showed a green night from
+    yesterday while a red one sat unshown in the record.
+    """
+    from datetime import date as _date
+
+    from wha.api import app as api_app
+
+    monkeypatch.setattr(
+        api_app.service, "latest_recorded_night", lambda subject_id: _date(2026, 9, 7)
+    )
+    monkeypatch.setattr(api_app, "local_today", lambda: _date(2026, 9, 6))
+
+    assert api_app._record_end("sim") == _date(2026, 9, 7)
+
+
+def test_a_record_behind_today_still_ends_today(monkeypatch) -> None:
+    """The usual case: the newest reading is older than today, and the nights since then
+    are shown as the gaps they are rather than being cut off the end of the window."""
+    from datetime import date as _date
+
+    from wha.api import app as api_app
+
+    monkeypatch.setattr(
+        api_app.service, "latest_recorded_night", lambda subject_id: _date(2026, 9, 1)
+    )
+    monkeypatch.setattr(api_app, "local_today", lambda: _date(2026, 9, 6))
+
+    assert api_app._record_end("sim") == _date(2026, 9, 6)
+
+
+def test_an_empty_record_ends_today(monkeypatch) -> None:
+    from datetime import date as _date
+
+    from wha.api import app as api_app
+
+    monkeypatch.setattr(api_app.service, "latest_recorded_night", lambda subject_id: None)
+    monkeypatch.setattr(api_app, "local_today", lambda: _date(2026, 9, 6))
+
+    assert api_app._record_end("sim") == _date(2026, 9, 6)
