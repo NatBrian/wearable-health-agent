@@ -21,18 +21,20 @@ the stored value wins and the disagreement is reported.
 
 import json
 import sqlite3
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 from wha.clock import local_today
 from wha.db import connect
 from wha.db.migrations import apply_schema
 from wha.models import (
     CANONICAL_PIPELINE_STEPS,
+    CauseId,
     DetectionLevel,
     NightPipeline,
     PipelineHeadline,
     PipelineNightRef,
     PipelineStepView,
+    StepLayer,
     StepStatus,
 )
 from wha.service.nights import get_night_detail, list_nights
@@ -396,6 +398,426 @@ def _detect_step(detection: sqlite3.Row | None) -> PipelineStepView:
     )
 
 
+# ------------------------------------------------------------------ the agentic half
+
+
+# What each agent node did, said for somebody who has never seen this system. The node
+# names are the graph's own, and the descriptions live here rather than in a screen so the
+# API carries them and a second interface cannot describe the same node differently.
+_AGENT_STEP_REASONS: dict[str, str] = {
+    "preload": (
+        "Five fixed readings were fetched before the model was allowed to do anything: "
+        "your night, your normal, your recent nights, how complete the data was, and what "
+        "was already known about this run."
+    ),
+    "investigate": (
+        "The model chose which of its permitted tools to call, and called them in a loop, "
+        "to gather what it needed. It can only call tools on this list, and it cannot "
+        "reach anything else."
+    ),
+    "believe": (
+        "Twelve possible causes were weighed against each other by exact arithmetic over "
+        "every combination of them. This is not the model guessing: it is Bayes' rule, and "
+        "it gives the same answer every time for the same evidence."
+    ),
+    "decide": (
+        "Worked out whether asking you a question would change what happens next by "
+        "enough to be worth interrupting you. If not, it stays quiet."
+    ),
+    "ask": (
+        "The model put the chosen question into words and the investigation paused there "
+        "until you replied."
+    ),
+    "conclude": (
+        "A draft conclusion was written, and any sentence that did not quote a real "
+        "passage was removed before you could see it."
+    ),
+    "critique": (
+        "The model read its own draft and could only remove claims from it, never add them."
+    ),
+    "review": ("The draft waited for a person to approve, edit, reject or escalate it."),
+    "deliver": (
+        "The conclusion was saved to your record, this dashboard and the tamper-evident log."
+    ),
+}
+
+_AGENT_SKIPPED_REASONS: dict[str, str] = {
+    "ask": "No question was worth its interruption, so none was asked.",
+    "review": "This investigation has not reached the review checkpoint.",
+    "critique": "The draft has not been written yet, so there was nothing to critique.",
+    "conclude": "This investigation has not drafted a conclusion yet.",
+}
+
+
+def _episode_row(conn: sqlite3.Connection, episode_id: str) -> sqlite3.Row | None:
+    return conn.execute("SELECT * FROM episodes WHERE episode_id = ?", (episode_id,)).fetchone()
+
+
+def _episode_open_step(
+    conn: sqlite3.Connection,
+    episode_id: str | None,
+    detection: sqlite3.Row | None,
+) -> PipelineStepView:
+    """Whether this night opened an investigation, and why it did not when it did not."""
+    flagged = bool(detection["flagged"]) if detection is not None else False
+
+    if episode_id is None and not flagged:
+        return _step(
+            "episode_open",
+            StepStatus.NOT_APPLICABLE,
+            "This night did not meet the bar for looking into, so no investigation was "
+            "opened and nothing below this point ran.",
+        )
+
+    if episode_id is None and flagged:
+        # The detector flagged and no episode exists. That is a real fault rather than a
+        # quiet night, and smoothing it over would hide the one case worth seeing.
+        return _step(
+            "episode_open",
+            StepStatus.UNRECORDED,
+            "This night was flagged, and no investigation is recorded against it. That "
+            "is a gap in the record rather than a decision the system made.",
+        )
+
+    row = _episode_row(conn, episode_id or "")
+    if row is None:
+        return _step(
+            "episode_open",
+            StepStatus.UNRECORDED,
+            "An investigation is referenced for this night and its record cannot be found.",
+        )
+
+    return _step(
+        "episode_open",
+        StepStatus.RAN,
+        "An investigation was opened. Only one is ever open at a time, so a run of raised "
+        "nights is looked at as one thing rather than as several.",
+        headline_figure=str(row["episode_id"]),
+        outputs={
+            "episode_id": row["episode_id"],
+            "state": row["state"],
+            "opened_on": row["opened_on"],
+            "disposition": row["disposition"],
+            "tool_call_count": row["tool_call_count"],
+        },
+    )
+
+
+def _agent_steps(
+    conn: sqlite3.Connection,
+    episode_id: str | None,
+    detection: sqlite3.Row | None,
+) -> list[PipelineStepView]:
+    """Steps 9 to 18, from the trace the graph wrote, or an honest gap where it did not."""
+    ids = [
+        s.step_id
+        for s in CANONICAL_PIPELINE_STEPS
+        if s.layer in {StepLayer.AGENTIC, StepLayer.USER} and s.step_id != "episode_open"
+    ]
+
+    if episode_id is None:
+        flagged = bool(detection["flagged"]) if detection is not None else False
+        status = StepStatus.UNRECORDED if flagged else StepStatus.NOT_APPLICABLE
+        reason = (
+            "No investigation is recorded for this night, so what the agent did cannot be shown."
+            if flagged
+            else "This runs only when a night is worth looking into, and this one was not."
+        )
+        return [_step(step_id, status, reason) for step_id in ids]
+
+    trace = _episode_trace(conn, episode_id)
+    if not trace:
+        return [
+            _step(
+                step_id,
+                StepStatus.UNRECORDED,
+                "This investigation ran before the system recorded which steps it took. "
+                "That is a gap in what was written down, not a claim that the step was "
+                "skipped.",
+            )
+            for step_id in ids
+        ]
+
+    ran = set(trace.get("nodes_ran", []))
+    interactions = conn.execute(
+        "SELECT * FROM interactions WHERE episode_id = ? ORDER BY asked_at_utc",
+        (episode_id,),
+    ).fetchall()
+    belief = conn.execute(
+        """SELECT marginals_json, p_illness, ts_utc FROM beliefs
+           WHERE episode_id = ? ORDER BY seq DESC LIMIT 1""",
+        (episode_id,),
+    ).fetchone()
+
+    steps: list[PipelineStepView] = []
+    for step_id in ids:
+        if step_id == "answer":
+            steps.append(_answer_step(interactions))
+            continue
+        if step_id == "deliver":
+            steps.append(_deliver_step(conn, episode_id))
+            continue
+        if step_id not in ran:
+            steps.append(
+                _step(
+                    step_id,
+                    StepStatus.SKIPPED,
+                    _AGENT_SKIPPED_REASONS.get(
+                        step_id, "This step was not needed for this investigation."
+                    ),
+                )
+            )
+            continue
+
+        outputs: dict[str, object] = {}
+        headline: str | None = None
+        occurred: datetime | None = None
+
+        if step_id == "investigate":
+            calls = trace.get("tool_calls", []) or []
+            outputs = {"tool_calls": calls, "tool_call_count": trace.get("tool_call_count", 0)}
+            headline = f"{len(calls)} tool calls"
+        elif step_id == "believe" and belief is not None:
+            marginals = json.loads(belief["marginals_json"])
+            top = max(marginals.items(), key=lambda item: item[1]) if marginals else None
+            outputs = {
+                "marginals": marginals,
+                "p_illness": belief["p_illness"],
+                "top_cause": top[0] if top else None,
+                "top_probability": top[1] if top else None,
+            }
+            headline = f"{top[0].replace('_', ' ')} {top[1]:.0%}" if top else None
+            occurred = _moment(belief["ts_utc"])
+        elif step_id == "decide" and interactions:
+            outputs = {
+                "evsi": interactions[0]["evsi"],
+                "interruption_cost": interactions[0]["interruption_cost"],
+                "action": "ask",
+            }
+            headline = f"EVSI {interactions[0]['evsi']:.3f}"
+        elif step_id == "ask" and interactions:
+            outputs = {
+                "questions": [row["question_text"] for row in interactions],
+                "channel": interactions[0]["channel"],
+            }
+            headline = f"{len(interactions)} asked"
+            occurred = _moment(interactions[0]["asked_at_utc"])
+        elif step_id == "critique":
+            stripped = trace.get("stripped_claims", []) or []
+            outputs = {"stripped_claims": stripped}
+            headline = f"{len(stripped)} removed"
+
+        steps.append(
+            _step(
+                step_id,
+                StepStatus.RAN,
+                _AGENT_STEP_REASONS.get(step_id, "This step ran."),
+                headline_figure=headline,
+                occurred_utc=occurred,
+                outputs=outputs,
+            )
+        )
+
+    return steps
+
+
+def _episode_trace(conn: sqlite3.Connection, episode_id: str) -> dict:
+    row = conn.execute(
+        "SELECT payload_json FROM episode_traces WHERE episode_id = ?", (episode_id,)
+    ).fetchone()
+    if row is None or not row["payload_json"]:
+        return {}
+    try:
+        loaded = json.loads(row["payload_json"])
+    except (TypeError, ValueError):
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _answer_step(interactions: list[sqlite3.Row]) -> PipelineStepView:
+    """What you said back. The only step in the pipeline that is yours."""
+    if not interactions:
+        return _step(
+            "answer",
+            StepStatus.NOT_APPLICABLE,
+            "You were not asked anything about this night, so there was nothing to answer.",
+        )
+
+    answered = [row for row in interactions if row["status"] == "ANSWERED"]
+    if not answered:
+        pending = interactions[0]["status"].lower()
+        return _step(
+            "answer",
+            StepStatus.SKIPPED,
+            f"A question was asked and is {pending}. The investigation waits rather than "
+            "guessing what you would have said.",
+        )
+
+    replies = [row["answer_option_id"] or row["free_text"] or "" for row in answered]
+    return _step(
+        "answer",
+        StepStatus.RAN,
+        "You replied, and your answer changed what the system believed. Nothing about "
+        "your symptoms is assumed: it is either something you said or it is unknown.",
+        headline_figure=f"{len(answered)} answered",
+        occurred_utc=_moment(answered[0]["answered_at_utc"]),
+        outputs={"replies": replies},
+    )
+
+
+def _deliver_step(conn: sqlite3.Connection, episode_id: str) -> PipelineStepView:
+    """Whether anything actually reached the person, and where it went."""
+    rows = conn.execute(
+        """SELECT kind, channel, status, sent_at_utc FROM notifications
+           WHERE episode_id = ? ORDER BY queued_at_utc""",
+        (episode_id,),
+    ).fetchall()
+
+    if not rows:
+        return _step(
+            "deliver",
+            StepStatus.SKIPPED,
+            "Nothing has been sent to you about this investigation yet.",
+        )
+
+    sent = [row for row in rows if row["status"] == "SENT"]
+    return _step(
+        "deliver",
+        StepStatus.RAN,
+        _AGENT_STEP_REASONS["deliver"],
+        headline_figure=f"{len(sent)} sent",
+        occurred_utc=_moment(sent[0]["sent_at_utc"]) if sent else None,
+        outputs={
+            "messages": [
+                {"kind": row["kind"], "channel": row["channel"], "status": row["status"]}
+                for row in rows
+            ]
+        },
+    )
+
+
+# ------------------------------------------------------------------- the safety floor
+
+
+def _safety_steps(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    night_date: date,
+    episode_id: str | None,
+    tz_name: str,
+) -> list[PipelineStepView]:
+    """The floor that runs on your words, shown whether or not it triggered.
+
+    Always present. A screen that hides the safety floor on the nights it stayed quiet
+    teaches the person that it only exists during an investigation, and it is the one part
+    of this system that runs on everything they type.
+    """
+    day_start, day_end = _local_day_bounds(night_date, tz_name)
+
+    events = conn.execute(
+        """SELECT safety_event, timestamp_utc FROM audit_events
+           WHERE subject_id = ? AND operation IN ('chat', 'red_flag_check')
+             AND timestamp_utc >= ? AND timestamp_utc < ?
+           ORDER BY timestamp_utc""",
+        (subject_id, day_start.isoformat(), day_end.isoformat()),
+    ).fetchall()
+    triggered = [row for row in events if (row["safety_event"] or "none") != "none"]
+
+    if not events:
+        phrase_step = _step(
+            "safety_phrase_rules",
+            StepStatus.NOT_APPLICABLE,
+            "These rules read what you write. You did not write to the system around this "
+            "night, so there was nothing for them to read. They are always on.",
+        )
+    elif triggered:
+        phrase_step = _step(
+            "safety_phrase_rules",
+            StepStatus.RAN,
+            "Something you wrote matched a fixed phrase rule, which raised the urgency. "
+            "These rules are a plain list, not a model, and nothing the AI says can lower "
+            "what they set.",
+            headline_figure="triggered",
+            occurred_utc=_moment(triggered[0]["timestamp_utc"]),
+            outputs={"events": [row["safety_event"] for row in triggered]},
+        )
+    else:
+        phrase_step = _step(
+            "safety_phrase_rules",
+            StepStatus.RAN,
+            "Everything you wrote was checked against the fixed phrase rules, and none of "
+            "them matched.",
+            headline_figure="not triggered",
+            occurred_utc=_moment(events[0]["timestamp_utc"]),
+            outputs={"messages_checked": len(events)},
+        )
+
+    answers = conn.execute(
+        """SELECT presentation, item_id, answer FROM triage_answers
+           WHERE subject_id = ? AND (episode_id = ? OR (recorded_at_utc >= ? AND
+                 recorded_at_utc < ?))""",
+        (subject_id, episode_id or "", day_start.isoformat(), day_end.isoformat()),
+    ).fetchall()
+
+    if not answers:
+        triage_step = _step(
+            "safety_triage",
+            StepStatus.NOT_APPLICABLE,
+            "The five published questions only run when what you write suggests the "
+            "presentation they were validated for. Nothing you wrote did.",
+        )
+    else:
+        scored = sum(1 for row in answers if row["answer"] is not None)
+        triage_step = _step(
+            "safety_triage",
+            StepStatus.RAN,
+            "A short published checklist was worked through, using a cut-off from the "
+            "study that produced it rather than a threshold chosen here.",
+            headline_figure=f"{scored} of {len(answers)} answered",
+            outputs={
+                "presentation": answers[0]["presentation"],
+                "items": [{"item_id": row["item_id"], "answer": row["answer"]} for row in answers],
+            },
+        )
+
+    return [phrase_step, triage_step]
+
+
+def _local_day_bounds(night_date: date, tz_name: str) -> tuple[datetime, datetime]:
+    """The person's own day around a night, so a UTC hour cannot pick the wrong one."""
+    from zoneinfo import ZoneInfo
+
+    zone = ZoneInfo(tz_name)
+    start = datetime(night_date.year, night_date.month, night_date.day, 0, 0, tzinfo=zone)
+    return start.astimezone(UTC), (start + timedelta(days=1)).astimezone(UTC)
+
+
+def _headline(
+    detail: object,
+    detection: sqlite3.Row | None,
+    steps: list[PipelineStepView],
+) -> PipelineHeadline:
+    """The tiles, assembled from steps that already read stored rows."""
+    believe = next((s for s in steps if s.step_id == "believe"), None)
+    ask = next((s for s in steps if s.step_id == "ask"), None)
+
+    top_cause = believe.outputs.get("top_cause") if believe else None
+    top_probability = believe.outputs.get("top_probability") if believe else None
+    questions = len(ask.outputs.get("questions", [])) if ask and ask.outputs else 0
+    sources = {citation.source_id for step in steps for citation in step.sources}
+
+    return PipelineHeadline(
+        level=detail.row.level,  # type: ignore[attr-defined]
+        flagged=bool(detection["flagged"]) if detection is not None else False,
+        primary_cause=CauseId(top_cause) if top_cause else None,
+        primary_probability=float(top_probability) if top_probability is not None else None,
+        sleep_hours=detail.features.sleep_hours,  # type: ignore[attr-defined]
+        coverage_minutes=detail.features.coverage_minutes,  # type: ignore[attr-defined]
+        questions_asked=questions,
+        sources_read=len(sources),
+    )
+
+
 def get_night_pipeline(
     subject_id: str,
     night_date: date,
@@ -437,14 +859,13 @@ def get_night_pipeline(
             _baseline_step(conn, subject_id, night_date),
             _subtract_step(detection),
             _detect_step(detection),
+            _episode_open_step(conn, detail.row.episode_id, detection),
+            *_agent_steps(conn, detail.row.episode_id, detection),
+            *_safety_steps(conn, subject_id, night_date, detail.row.episode_id, tz_name),
         ]
+        steps.sort(key=lambda step: step.ordinal)
 
-        headline = PipelineHeadline(
-            level=detail.row.level,
-            flagged=bool(detection["flagged"]) if detection is not None else False,
-            sleep_hours=detail.features.sleep_hours,
-            coverage_minutes=detail.features.coverage_minutes,
-        )
+        headline = _headline(detail, detection, steps)
 
         return NightPipeline(
             subject_id=subject_id,
