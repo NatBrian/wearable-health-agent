@@ -75,10 +75,13 @@ def _arithmetic(step: PipelineStepView) -> str | None:
         )
     if step.step_id == "believe" and out.get("top_probability") is not None:
         return (
-            f"Every combination of twelve causes was weighed. The leading one is "
-            f"{str(out.get('top_cause')).replace('_', ' ')} at "
-            f"{format.probability(out.get('top_probability'))}. These are probabilities on "
-            "the evidence so far, not a diagnosis."
+            "Twelve possible causes, and every combination of them being present or "
+            "absent, were weighed against how far your reading sat from your normal and "
+            "against anything you have told it. That is four thousand and ninety six "
+            "combinations, worked out exactly rather than sampled, so the same evidence "
+            "always gives the same answer. The leading cause is "
+            f"{_cause_name(out.get('top_cause'))} at "
+            f"{format.probability(out.get('top_probability'))}."
         )
     if step.step_id == "decide" and out.get("action"):
         value = out.get("value_of_asking")
@@ -132,6 +135,7 @@ def render(pipeline: Any, step_id: str) -> None:
         st.markdown("**The numbers**")
         st.write(sentence)
 
+    render_causes_weighed(step)
     render_questions_considered(step)
 
     if step.outputs:
@@ -177,6 +181,59 @@ _QUESTION_NAMES: dict[str, str] = {
     "probe_medication": "whether you changed medication",
     "probe_cycle": "where you are in your cycle",
 }
+
+
+# The twelve causes, named for a reader rather than by their internal ids.
+_CAUSE_NAMES: dict[str, str] = {
+    "infection": "an infection coming on",
+    "alcohol": "alcohol",
+    "exertion": "hard exercise",
+    "sleep_restriction": "too little sleep",
+    "stress": "stress",
+    "luteal": "the second half of your cycle",
+    "vaccination": "a recent vaccination",
+    "travel": "travel",
+    "medication": "medication",
+    "recovery_tail": "still recovering from something earlier",
+    "sensor_artifact": "the watch misreading",
+    "unexplained": "something not on this list",
+}
+
+
+def _cause_name(cause_id: Any) -> str:
+    return _CAUSE_NAMES.get(str(cause_id), str(cause_id).replace("_", " "))
+
+
+def render_causes_weighed(step: PipelineStepView) -> None:
+    """All twelve causes and what the arithmetic makes of each.
+
+    Showing only the leading one turns an explicit calculation over twelve possibilities
+    into a single unexplained verdict. The whole point of doing it this way is that every
+    candidate has a number attached and a person can see the ones that were ruled down as
+    well as the one that came top.
+    """
+    marginals = step.outputs.get("marginals")
+    if not isinstance(marginals, dict) or not marginals:
+        return
+
+    st.markdown("**All twelve causes it weighed**")
+    rows = [
+        {"Possible cause": _cause_name(cause), "How likely": format.probability(value)}
+        for cause, value in sorted(marginals.items(), key=lambda kv: kv[1], reverse=True)
+    ]
+    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.caption(
+        "These do not add up to a hundred, and that is deliberate: more than one of them "
+        "can be true on the same night, so each carries its own probability. They are "
+        "probabilities on the evidence so far, not a diagnosis."
+    )
+
+    p_illness = step.outputs.get("p_illness")
+    if p_illness is not None:
+        st.caption(
+            f"Chance an infection is contributing: {format.probability(p_illness)}. This "
+            "is the single number the decision after this step is based on."
+        )
 
 
 def _question_name(probe_id: Any) -> str:

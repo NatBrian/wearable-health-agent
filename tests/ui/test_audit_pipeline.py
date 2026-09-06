@@ -260,3 +260,37 @@ def test_the_decision_step_shows_every_question_it_weighed(fake_api) -> None:
     assert "worth less than the cost of interrupting you" in body
     # An absent value is not a finding and must not be listed as one.
     assert "chosen question: None" not in body
+
+
+def test_the_belief_step_shows_all_twelve_causes(fake_api) -> None:
+    """Showing only the leading cause turns an explicit calculation over twelve
+    possibilities into a single unexplained verdict."""
+    pipeline = _pipeline()
+    believe = next(s for s in pipeline.steps if s.step_id == "believe")
+    enriched = believe.model_copy(
+        update={
+            "outputs": {
+                "marginals": {
+                    "stress": 0.84,
+                    "medication": 0.59,
+                    "sensor_artifact": 0.42,
+                    "infection": 0.34,
+                    "alcohol": 0.39,
+                },
+                "p_illness": 0.344,
+                "top_cause": "stress",
+                "top_probability": 0.84,
+            }
+        }
+    )
+    steps = [enriched if s.step_id == "believe" else s for s in pipeline.steps]
+    _ready(fake_api, pipeline.model_copy(update={"steps": steps}))
+
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    next(b for b in app.button if b.label == "Open step 11").click().run()
+    body = " ".join(m.value for m in app.markdown) + " ".join(c.value for c in app.caption)
+
+    assert "All twelve causes it weighed" in body
+    assert "do not add up to a hundred" in body
+    assert "Chance an infection is contributing: 34%" in body
+    assert "four thousand and ninety six" in body

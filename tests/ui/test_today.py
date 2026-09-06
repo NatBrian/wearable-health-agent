@@ -610,3 +610,52 @@ def test_an_answer_given_on_the_phone_shows_on_the_screen(fake_api) -> None:
 
     assert "Have you noticed any unusual symptoms today?" in body
     assert "I feel a bit dizzy" in body
+
+
+def test_today_says_why_no_question_was_asked(fake_api) -> None:
+    """Silence from a system that sometimes asks questions reads as a fault.
+
+    It is usually a decision: every question it could have put scored below the cost of
+    interrupting. The decision is recorded, so it can be said rather than guessed at.
+    """
+    from wha.models import (
+        DetectionLevel as _Level,
+    )
+    from wha.models import (
+        NightPipeline,
+        PipelineHeadline,
+        PipelineStepView,
+        StepLayer,
+        StepStatus,
+    )
+
+    _ready(fake_api)
+    fake_api.get_night_pipeline.return_value = NightPipeline(
+        subject_id="sim",
+        night_date=NIGHT,
+        episode_id="ep_1",
+        headline=PipelineHeadline(level=_Level.RED, flagged=True),
+        steps=[
+            PipelineStepView(
+                step_id="decide",
+                ordinal=12,
+                layer=StepLayer.AGENTIC,
+                status=StepStatus.RAN,
+                reason="decided",
+                outputs={
+                    "action": "OBSERVE",
+                    "questions_considered": [
+                        {"probe_id": "probe_medication", "value_of_asking": -0.06},
+                        {"probe_id": "probe_stress", "value_of_asking": -0.15},
+                    ],
+                },
+            )
+        ],
+    )
+
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _body(app)
+
+    assert "did not ask you anything about this night" in body
+    assert "decision rather than an oversight" in body
+    assert "scored 2 possible questions" in body

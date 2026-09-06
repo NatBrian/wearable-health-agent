@@ -228,6 +228,37 @@ def _render_last_answer(episode_id: str) -> None:
     )
 
 
+def render_why_no_question(subject_id: str, night: date | None) -> None:
+    """Why nothing was asked, when nothing was asked.
+
+    Silence from a system that sometimes asks questions reads as a fault. It is usually a
+    decision: every question it could have put was worth less than the cost of
+    interrupting. That decision is recorded, so it can be said here rather than left to be
+    guessed at.
+    """
+    if night is None:
+        return
+    try:
+        pipeline = api().get_night_pipeline(subject_id, night)
+    except (ApiUnavailable, RuntimeError, ValueError):
+        return
+
+    decide = next((s for s in pipeline.steps if s.step_id == "decide"), None)
+    if decide is None or decide.outputs.get("action") in (None, "ASK"):
+        return
+
+    considered = decide.outputs.get("questions_considered") or []
+    st.caption(
+        "It did not ask you anything about this night, and that was a decision rather "
+        f"than an oversight: it scored {len(considered)} possible questions and every one "
+        "came out worth less than interrupting you for. The full scoring is on the record "
+        "screen, under the step that made the decision."
+        if considered
+        else "It did not ask you anything about this night. No question it could have put "
+        "was worth the interruption."
+    )
+
+
 def render_handover(subject_id: str) -> None:
     """One summary, visible before it is copied. It is your information to send."""
     st.subheader("Summary for your doctor")
@@ -286,6 +317,7 @@ def main() -> None:
             )
 
         render_investigation(subject)
+        render_why_no_question(subject, shown_night)
         st.markdown(design.separator(), unsafe_allow_html=True)
         chat.render(subject, night=shown_night)
         st.markdown(design.separator(), unsafe_allow_html=True)
