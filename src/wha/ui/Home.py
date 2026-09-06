@@ -16,6 +16,7 @@ from wha.api.client import ApiUnavailable
 from wha.ui import design, explain
 from wha.ui.components.api import api, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
+from wha.ui.components.subject import resolve as resolve_subject
 
 
 def _pick_subject() -> str | None:
@@ -29,25 +30,37 @@ def _pick_subject() -> str | None:
 
     labels = {s.subject_id: f"{s.label} ({s.subject_id})" for s in subjects}
     ids = list(labels)
-    configured = client.config().get("configured_subject")
-    remembered = st.session_state.get("active_subject") or configured
+    remembered = resolve_subject()
     index = ids.index(remembered) if remembered in ids else 0
     return st.sidebar.selectbox("Whose data", ids, index=index, format_func=lambda i: labels[i])
 
 
-def _unevidenced_count() -> int | None:
-    """How many clinical figures carry no published source, read live, never typed in."""
+def _unevidenced_entries() -> tuple[int, int] | None:
+    """How many of the things this system weighs rest on a figure with no source.
+
+    Counts entries, not numbers. The endpoint returns one entry per cause and per probe,
+    and an entry is counted when its provenance is ASSUMED or when it carries at least one
+    unevidenced figure. Saying "11 figures" over this data would have been wrong twice: it
+    is not figures, and it dropped the entries whose provenance is derived while a number
+    inside them still has no source.
+    """
     try:
         provenance = api().get_knowledge_provenance()
     except (ApiUnavailable, RuntimeError, ValueError, OSError):
         return None
-    values = provenance.values() if isinstance(provenance, dict) else []
-    return sum(
+    if not isinstance(provenance, dict):
+        return None
+
+    unevidenced = sum(
         1
-        for entry in values
-        if str(entry.get("provenance", "") if isinstance(entry, dict) else entry).upper()
-        == "ASSUMED"
+        for entry in provenance.values()
+        if isinstance(entry, dict)
+        and (
+            str(entry.get("provenance", "")).upper() == "ASSUMED"
+            or str(entry.get("has_unevidenced_number", "")).lower() == "yes"
+        )
     )
+    return unevidenced, len(provenance)
 
 
 def main() -> None:
@@ -107,7 +120,7 @@ def main() -> None:
         [
             ("Today", "home.nav.today"),
             ("History", "home.nav.history"),
-            ("Record", "home.nav.audit"),
+            ("The record", "home.nav.audit"),
             ("Settings", "home.nav.settings"),
         ],
         strict=True,
@@ -116,12 +129,14 @@ def main() -> None:
             st.markdown(design.card(name, f"<p>{explain.text(key)}</p>"), unsafe_allow_html=True)
 
     st.subheader("Being straight with you about the evidence")
-    unevidenced = _unevidenced_count()
+    counted = _unevidenced_entries()
     st.write(explain.text("home.provenance"))
-    if unevidenced is not None:
+    if counted is not None:
+        unevidenced, total = counted
         st.caption(
-            f"{unevidenced} figures in this system's knowledge currently have no published "
-            "source and are marked as such wherever they are used."
+            f"Of the {total} causes and questions this system weighs, {unevidenced} rest "
+            "on at least one figure with no published source behind it. Each is marked "
+            "where it is used."
         )
 
 

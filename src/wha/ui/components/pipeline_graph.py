@@ -132,8 +132,10 @@ def _render_step(step: PipelineStepView, client) -> None:
         ),
         unsafe_allow_html=True,
     )
+    # The card carries the number and the name. The button used to repeat both, so the
+    # grid said every step name twice.
     if st.button(
-        f"Step {step.ordinal}: {step_name(step.step_id)}",
+        f"Open step {step.ordinal}",
         key=f"step_{step.step_id}",
         use_container_width=True,
         help=step.reason,

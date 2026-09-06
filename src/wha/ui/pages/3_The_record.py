@@ -19,6 +19,7 @@ from wha.ui import design, explain, format
 from wha.ui.components import how_it_works, pipeline_graph, step_detail
 from wha.ui.components.api import api, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
+from wha.ui.components.subject import resolve as resolve_subject
 
 
 def _night_options(subject: str) -> list:
@@ -39,7 +40,13 @@ def render_pipeline_tab(subject: str) -> None:
     remembered = st.session_state.get("pipeline_night")
     dates = [r.night_date for r in refs]
     default = date.fromisoformat(remembered) if remembered else None
-    index = dates.index(default) if default in dates else 0
+    if default not in dates:
+        # The most recent night is often one the watch did not measure, and opening on it
+        # shows twenty steps reading "did not run" to somebody who came here to find out
+        # what happened. Open on the most recent night there is something to explain.
+        measured = [r.night_date for r in refs if r.usable]
+        default = measured[0] if measured else dates[0]
+    index = dates.index(default)
 
     def _label(value: date) -> str:
         ref = next(r for r in refs if r.night_date == value)
@@ -194,10 +201,9 @@ def main() -> None:
     design.inject()
 
     try:
-        subject = st.session_state.get("active_subject")
-        if subject is None:
-            subjects = api().list_subjects()
-            subject = subjects[0].subject_id if subjects else None
+        # Resolved in one place. Reading `subjects[0]` here showed a different person on
+        # this screen than on Home, with no indication that it had.
+        subject = resolve_subject()
         if subject is None:
             st.warning("There is nobody to show yet.")
             return

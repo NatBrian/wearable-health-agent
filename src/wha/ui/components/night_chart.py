@@ -64,20 +64,23 @@ def chart_frame(nights: list[NightRow]) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-def render(nights: list[NightRow]) -> None:
-    """The chart, and a caption naming every element on it."""
-    if not nights:
-        st.info("No nights recorded yet. This is an empty chart, not a finding about your health.")
-        return
+def render_spec(nights: list[NightRow]) -> dict:
+    """The chart as a Vega-Lite spec, so its encodings can be asserted without a browser.
 
+    Separate from `render` because the defect worth testing here is not whether a chart
+    appears. It is which channel each scale is on, and that is only visible in the spec.
+    """
+    chart = _build(nights)
+    assert chart is not None, "no measured night to build a spec from"
+    return chart.to_dict()
+
+
+def _build(nights: list[NightRow]) -> alt.LayerChart | None:
+    """The layered chart, or nothing when there is no measured night to draw."""
     frame = chart_frame(nights)
     measured = frame.dropna(subset=["rhr_bpm"])
     if measured.empty:
-        st.info(
-            "No night in this period was measured well enough to plot. That is missing "
-            "data, not a result."
-        )
-        return
+        return None
 
     frame = frame.loc[measured.index.min() : measured.index.max()]
 
@@ -130,11 +133,16 @@ def render(nights: list[NightRow]) -> None:
 
     dots = (
         alt.Chart(measured)
-        .mark_point(filled=True, size=70)
+        .mark_point(filled=True, size=80, stroke=None)
         .encode(
             x=alt.X("date:T", title=None, axis=axis),
             y=alt.Y("rhr_bpm:Q", title="beats per minute", scale=scale),
-            color=alt.Color(
+            # `fill`, not `color`. Vega-Lite merges the legends of channels encoding the
+            # same channel name, so a second `color` here collapsed into the line legend
+            # and took the line palette with it: a RED night drew in the same blue as the
+            # line labelled "your sleeping heart rate". A chart that colours a red night
+            # blue is making a false statement about the data.
+            fill=alt.Fill(
                 "level:N",
                 title="What the system concluded",
                 scale=alt.Scale(
@@ -149,5 +157,22 @@ def render(nights: list[NightRow]) -> None:
         )
     )
 
-    st.altair_chart((line_layer + dots).properties(height=340), use_container_width=True)
+    return (line_layer + dots).properties(height=340)
+
+
+def render(nights: list[NightRow]) -> None:
+    """The chart, and a caption naming every element on it."""
+    if not nights:
+        st.info("No nights recorded yet. This is an empty chart, not a finding about your health.")
+        return
+
+    chart = _build(nights)
+    if chart is None:
+        st.info(
+            "No night in this period was measured well enough to plot. That is missing "
+            "data, not a result."
+        )
+        return
+
+    st.altair_chart(chart, use_container_width=True)
     st.caption(explain.text("chart.how_to_read"))

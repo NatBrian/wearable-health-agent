@@ -8,7 +8,7 @@ from tests.ui.conftest import page
 from tests.ui.test_audit_pipeline import _pipeline
 from wha.models import AuditEventView, DetectionLevel, PipelineNightRef
 
-PAGE = page("pages/3_Audit.py")
+PAGE = page("pages/3_The_record.py")
 
 
 def _event(operation: str = "ingest", actor: str = "system") -> AuditEventView:

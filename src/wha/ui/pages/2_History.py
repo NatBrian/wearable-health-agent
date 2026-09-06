@@ -19,13 +19,14 @@ from wha.ui import design, explain, format
 from wha.ui.components import night_chart
 from wha.ui.components.api import api, today, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
+from wha.ui.components.subject import resolve as resolve_subject
 
 WINDOWS = {"Last 30 nights": 30, "Last 60 nights": 60, "Last 90 nights": 90, "Last year": 365}
 
 
 def _open_pipeline(night) -> None:
     st.session_state["pipeline_night"] = night.isoformat()
-    st.switch_page("pages/3_Audit.py")
+    st.switch_page("pages/3_The_record.py")
 
 
 def _outcome_words(episode_state: str | None, disposition: str | None) -> str:
@@ -47,10 +48,9 @@ def main() -> None:
     design.inject()
 
     try:
-        subject = st.session_state.get("active_subject")
-        if subject is None:
-            subjects = api().list_subjects()
-            subject = subjects[0].subject_id if subjects else None
+        # Resolved in one place. Reading `subjects[0]` here showed a different person on
+        # this screen than on Home, with no indication that it had.
+        subject = resolve_subject()
         if subject is None:
             st.warning("There is nobody to show yet.")
             return

@@ -114,8 +114,10 @@ def render(subject_id: str, status: SystemStatus | None = None) -> None:
         for name, value, _note in lines
         if value in {"not arriving", "not running", "not reachable", "delayed"}
     ]
-    if status.errors_24h:
-        degraded.append("Problems today")
+    # Named separately rather than added to the list above. "Problems today" was not one
+    # of the five lines, so the attention sentence pointed at something the reader could
+    # not find on the screen.
+    problems = status.errors_24h
 
     columns = st.columns(len(lines))
     for column, (name, value, note) in zip(columns, lines, strict=True):
@@ -128,4 +130,9 @@ def render(subject_id: str, status: SystemStatus | None = None) -> None:
             "Some parts of the system need attention: "
             + ", ".join(degraded)
             + ". The lines above say what each one stops."
+        )
+    if problems:
+        st.warning(
+            f"The system recorded {problems} problems in the last day. They are listed on "
+            "the record screen, under everything the system did."
         )

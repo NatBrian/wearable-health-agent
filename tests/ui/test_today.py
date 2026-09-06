@@ -297,4 +297,18 @@ def test_an_empty_dashboard_says_nothing_is_required_of_you(fake_api) -> None:
     _ready(fake_api)
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    assert any("nothing needs you" in s.value.lower() for s in app.success)
+    assert any("nothing is waiting for you" in s.value.lower() for s in app.success)
+
+
+def test_the_reassurance_is_about_the_inbox_not_about_health(fake_api) -> None:
+    """It sat directly above a RED night with an investigation running underneath it.
+
+    "Nothing needs you right now" over a night the system judged clearly raised reads as a
+    verdict on the person. The sentence describes what is waiting for them to answer.
+    """
+    _ready(fake_api, detail=_detail(level=DetectionLevel.RED))
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    said = " ".join(s.value.lower() for s in app.success)
+    assert "waiting for you to answer" in said
+    assert "nothing needs you" not in said

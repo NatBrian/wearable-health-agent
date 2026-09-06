@@ -129,3 +129,22 @@ def test_filtering_to_investigated_nights_drops_the_others(fake_api) -> None:
 
     table = app.dataframe[0].value
     assert list(table["Night"]) == ["2026-09-03"]
+
+
+def test_the_two_colour_scales_do_not_merge_into_one_legend() -> None:
+    """A RED night was drawn in the same blue as the line labelled with your heart rate.
+
+    The chart has two colour scales: one naming the lines, one colouring each night's dot
+    by what the system concluded. Vega-Lite merges the legends of channels encoding the
+    same channel, so a second `color` collapsed into the line legend and took the line
+    palette with it. The dots use `fill`, which has its own legend and its own scale.
+    """
+    from wha.ui.components.night_chart import DOT_COLOURS, render_spec
+
+    spec = render_spec(_rows())
+    dots = spec["layer"][1]["encoding"]
+
+    assert "fill" in dots, "the dot colours share the line channel again"
+    assert "color" not in dots
+    assert dots["fill"]["scale"]["range"] == [DOT_COLOURS[k] for k in DOT_COLOURS]
+    assert dots["fill"]["title"] != spec["layer"][0]["encoding"]["color"]["title"]

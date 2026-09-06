@@ -21,12 +21,13 @@ from wha.ui import design, explain, format
 from wha.ui.components import chat, verdict
 from wha.ui.components.api import api, config, today, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
+from wha.ui.components.subject import resolve as resolve_subject
 
 
 def _open_pipeline(night: date) -> None:
     """Hand the reader to the step-by-step view of this night."""
     st.session_state["pipeline_night"] = night.isoformat()
-    st.switch_page("pages/3_Audit.py")
+    st.switch_page("pages/3_The_record.py")
 
 
 def render_pending(subject_id: str, pending) -> None:
@@ -134,7 +135,10 @@ def render_reassurance(subject_id: str, status) -> None:
         st.info(f"**Still learning your normal.** {explain.rung(rung)}")
         return
 
-    st.success("Nothing needs you right now.")
+    # Found on the second walkthrough: this sat directly above a night the system had
+    # judged RED, with an investigation running underneath it. The sentence is about the
+    # inbox and was read as being about the person's health, so it now says which.
+    st.success("Nothing is waiting for you to answer right now.")
     quiet = status.quiet_nights_streak
     if quiet:
         st.caption(f"Your last {quiet} measured nights were in your usual range.")
@@ -203,11 +207,10 @@ def main() -> None:
     st.set_page_config(page_title="Today", page_icon="🌙", layout="wide")
     design.inject()
 
-    subject = st.session_state.get("active_subject") or None
     try:
-        if subject is None:
-            subjects = api().list_subjects()
-            subject = subjects[0].subject_id if subjects else None
+        # Resolved in one place. Reading `subjects[0]` here showed a different person on
+        # this screen than on Home, with no indication that it had.
+        subject = resolve_subject()
         if subject is None:
             st.warning("There is nobody to show yet.")
             return

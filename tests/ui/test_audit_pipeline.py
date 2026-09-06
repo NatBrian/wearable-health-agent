@@ -15,7 +15,7 @@ from wha.models import (
     StepStatus,
 )
 
-PAGE = page("pages/3_Audit.py")
+PAGE = page("pages/3_The_record.py")
 NIGHT = date(2026, 9, 4)
 
 
@@ -84,8 +84,10 @@ def test_every_step_the_service_returns_is_drawn(fake_api) -> None:
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
     labels = " ".join(b.label for b in app.button)
+    cards = " ".join(m.value for m in app.markdown if "wha-step" in m.value)
     for definition in CANONICAL_PIPELINE_STEPS:
-        assert f"Step {definition.ordinal}:" in labels, definition.step_id
+        assert f"Open step {definition.ordinal}" in labels, definition.step_id
+        assert f"STEP {definition.ordinal}" in cards, definition.step_id
 
 
 def test_a_step_that_did_not_run_shows_its_real_reason(fake_api) -> None:
@@ -93,7 +95,7 @@ def test_a_step_that_did_not_run_shows_its_real_reason(fake_api) -> None:
     _ready(fake_api, _pipeline({"ask": StepStatus.SKIPPED}))
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    ask = next(b for b in app.button if b.label.startswith("Step 13:"))
+    ask = next(b for b in app.button if b.label == "Open step 13")
     assert ask.proto.help == "reason for ask"
 
 
@@ -102,7 +104,7 @@ def test_an_unrecorded_step_does_not_claim_it_was_skipped(fake_api) -> None:
     _ready(fake_api, _pipeline({"believe": StepStatus.UNRECORDED}))
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    believe = next(b for b in app.button if b.label.startswith("Step 11:"))
+    believe = next(b for b in app.button if b.label == "Open step 11")
     believe.click().run()
     body = _body(app).lower()
 
@@ -114,7 +116,7 @@ def test_clicking_a_step_opens_its_detail(fake_api) -> None:
     _ready(fake_api)
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    believe = next(b for b in app.button if b.label.startswith("Step 11:"))
+    believe = next(b for b in app.button if b.label == "Open step 11")
     believe.click().run()
 
     assert app.session_state["pipeline_step"] == "believe"
@@ -148,8 +150,8 @@ def test_the_safety_floor_is_drawn_even_when_it_did_not_trigger(fake_api) -> Non
     _ready(fake_api, _pipeline({"safety_phrase_rules": StepStatus.NOT_APPLICABLE}))
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    labels = " ".join(b.label for b in app.button)
-    assert "Phrase rules" in labels
+    cards = " ".join(m.value for m in app.markdown if "wha-step" in m.value)
+    assert "Phrase rules" in cards
     assert "Always on" in _body(app)
 
 
@@ -172,3 +174,39 @@ def test_a_night_that_cannot_be_loaded_is_not_reported_as_an_empty_night(fake_ap
 
     assert app.error
     assert "not a statement that nothing happened" in app.error[0].value
+
+
+def test_the_stepper_opens_on_a_night_there_is_something_to_explain(fake_api) -> None:
+    """The most recent night is often one the watch did not measure.
+
+    Opening on it showed twenty steps reading "did not run" to somebody who came here to
+    find out what happened.
+    """
+    unmeasured = date(2026, 9, 6)
+    _ready(fake_api)
+    fake_api.list_pipeline_nights.return_value = [
+        PipelineNightRef(
+            night_date=unmeasured, level=DetectionLevel.NA, has_episode=False, usable=False
+        ),
+        PipelineNightRef(night_date=NIGHT, level=DetectionLevel.RED, has_episode=True, usable=True),
+    ]
+
+    AppTest.from_file(PAGE, default_timeout=30).run()
+
+    fake_api.get_night_pipeline.assert_called_with("sim", NIGHT)
+
+
+def test_a_window_with_no_measured_night_still_opens_something(fake_api) -> None:
+    """The counterpart: preferring a measured night must not mean showing nothing."""
+    unmeasured = date(2026, 9, 6)
+    _ready(fake_api)
+    fake_api.list_pipeline_nights.return_value = [
+        PipelineNightRef(
+            night_date=unmeasured, level=DetectionLevel.NA, has_episode=False, usable=False
+        )
+    ]
+
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert not app.exception
+    fake_api.get_night_pipeline.assert_called_with("sim", unmeasured)

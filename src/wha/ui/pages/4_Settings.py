@@ -21,6 +21,7 @@ from wha.api.client import ApiUnavailable
 from wha.ui import design
 from wha.ui.components.api import api, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
+from wha.ui.components.subject import resolve as resolve_subject
 
 
 def render_profile(subject: str) -> None:
@@ -258,10 +259,9 @@ def main() -> None:
     design.inject()
 
     try:
-        subject = st.session_state.get("active_subject")
-        if subject is None:
-            subjects = api().list_subjects()
-            subject = subjects[0].subject_id if subjects else None
+        # Resolved in one place. Reading `subjects[0]` here showed a different person on
+        # this screen than on Home, with no indication that it had.
+        subject = resolve_subject()
         if subject is None:
             st.warning("There is nobody to show yet.")
             return

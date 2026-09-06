@@ -25,7 +25,7 @@ TEXT: dict[str, str] = {
         "question is worth interrupting you for."
     ),
     "home.emergency": (
-        "If you feel unwell now, contact a clinician or emergency services. Do not wait "
+        "Contact a clinician or emergency services. Do not wait "
         "for this system. It runs once a night, nobody is watching it on your behalf, and "
         "it cannot see how you feel."
     ),
