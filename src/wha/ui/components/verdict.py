@@ -39,6 +39,11 @@ def render(subject_id: str, detail: NightDetail, on_trace: Any = None) -> None:
         st.info(f"**What happens now.** {explain.text(f'level.{level}.next')}")
     st.caption(explain.text("level.not_a_diagnosis"))
     st.caption(explain.text("safety.what_it_cannot_catch"))
+    # An ACCEPTED limitation, not an open question, as of 7 September 2026. The corpus
+    # carries no illness-specific guidance and deliberately will not, so this is permanent
+    # and has to be visible: this project's own rule is that a limitation living only in a
+    # markdown file is not disclosed at all.
+    st.caption(explain.text("safety.no_local_guidance"))
 
     left, middle, right = st.columns(3)
     with left:

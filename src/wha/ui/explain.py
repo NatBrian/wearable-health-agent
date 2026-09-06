@@ -113,6 +113,14 @@ TEXT: dict[str, str] = {
         "how you are getting on if you have told it about a symptom and not said it had "
         "settled, whether or not the answer would change anything."
     ),
+    "safety.no_local_guidance": (
+        "This system has no guidance about any specific illness, including ones that are "
+        "common where you live. It knows general health information and it knows your own "
+        "readings, and that is all. So it can tell you that a group of symptoms is worth "
+        "seeing somebody about, and it cannot tell you which illness they point to, or "
+        "warn you about how a particular illness usually behaves. A clinician here can. "
+        "This is a deliberate limit rather than an oversight, and it will not change."
+    ),
     "safety.what_it_cannot_catch": (
         "What this cannot catch. The rules that raise an alarm on your words match set "
         "phrases, so unusual wording can slip past them. Dizziness and feeling faint raise "

@@ -1376,3 +1376,35 @@ If that prediction holds, the decision it forces is whether this system should c
 Singapore-specific clinical content in its corpus at all. `sources.yaml` already describes
 national dengue guidance as material that should be there, and records that a dengue cluster
 feed was removed on 5 September. That is a scope decision and it is the user's.
+
+
+
+## DECIDED 7 September 2026: no dengue content, no looser matching
+
+Both were the user's calls and both are now made. Neither is a gap any more; each is an
+accepted limitation, and each is disclosed on screen as one.
+
+**No illness-specific content in the corpus. Decided: no.** The live test showed the agent
+cannot name dengue and cannot warn about defervescence, and it will not be given the
+material to. What it can still do, and did unprompted in that test, is escalate on a group
+of symptoms and seek a red flag it was not told to seek: it asked about mucosal bleeding on
+its own. That is the boundary this system now keeps: it can say a picture is worth seeing
+somebody about, and it cannot say which illness it is or how that illness behaves.
+
+Consequence accepted with it: **the same-day routing for a WHO dengue warning-sign picture
+stays**, and may be under-triaged for that specific illness. That is a real cost of the
+decision and is written here rather than smoothed over.
+
+Disclosed at `safety.no_local_guidance`, shown under the verdict on **Today**, because a
+limitation living only in a markdown file is not disclosed at all.
+
+**Looser phrase matching. Decided: no.** The lists stay exact and Tier C stays the backstop.
+Measured before deciding: Tier C rescued "I cannot keep any water down", a phrase the lists
+miss, and escalated it same-day. Since 7 September a Tier C finding is also written to the
+symptom timeline, so a symptom only the model spotted now persists and can raise urgency on
+a later night instead of counting once and being forgotten.
+
+Still disclosed, unchanged, at `safety.what_it_cannot_catch`: unusual wording can slip past
+the rules.
+
+**Nothing in this file is now waiting on the user.**

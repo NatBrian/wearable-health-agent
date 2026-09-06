@@ -53,15 +53,26 @@ Read `docs/DESIGN-SYMPTOM-TIMELINE.md` for the evidence, which is the part worth
 dengue's critical phase begins at defervescence, Faget's sign, and Radin's 79-day recovery
 lag together mean **a green reading is evidence about the reading, not about the person**.
 
-**What is still open, all in `BLOCKERS.md`:**
+**Nothing is waiting on the user. All decisions are made.**
 
-1. **Phrase matching is still exact**, so "my chest hurts" is not "chest pain". Downgraded
-   on measurement: Tier C rescued the case live. Still the user's call, because loosening
-   trades false alarms for coverage and nothing here measures that trade.
-2. **The dengue test has not been run.** Severe abdominal pain is deliberately in no tier,
-   reserved by the user to test whether the agent can reason to a WHO dengue warning sign
-   unaided. The prediction that it will fail is recorded **before** the run, in
-   `red_flags.yaml` and `BLOCKERS.md`: `corpus.yaml` contains "dengue" zero times.
+The dengue test was run live against the real model on 7 September. It escalated correctly
+(same_day on fever, vomiting and poor intake) and, unprompted, asked about mucosal bleeding,
+a WHO dengue warning sign and a tier A rule it was not told to seek. It never said dengue,
+exactly as predicted before the run, because `corpus.yaml` has no dengue passage and
+grounding requires verbatim containment.
+
+Two decisions closed on the back of it, both the user's:
+
+- **No illness-specific content in the corpus.** Accepted with its cost: the same-day
+  routing for a dengue warning-sign picture may be under-triaged for that illness.
+  Disclosed on **Today** under the verdict.
+- **No looser phrase matching.** Tier C stays the backstop, and its findings now reach the
+  symptom timeline, so a symptom only the model spotted persists instead of counting once.
+
+**The simulation is stopped.** `sim` sits at 9 September with investigation
+`ep_20445aee7610` still OPEN. Its timeline now carries dizziness, fever and vomiting: the
+last two came from the dengue test, which wrote into the live database on purpose. Backup
+before that write is `data/backups/wha-before-dengue-test-20260907-021427.sqlite`.
 
 Closed since the last update: dizziness (it needed **tracking**, not a red flag, which
 asserts no threshold), the forced follow-up (done, as a rule), and sustained yellow nights,
