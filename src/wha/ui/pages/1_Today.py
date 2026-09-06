@@ -180,8 +180,23 @@ def render_investigation(subject_id: str) -> None:
             unsafe_allow_html=True,
         )
 
-    if st.button("Show me every step of this", key="episode_trace"):
-        _open_pipeline(episode.night_span[1])
+    # There is no second button here. This one and the one on the verdict card both
+    # opened the same night's pipeline whenever the investigation covered last night,
+    # which is the usual case, so the screen offered the same destination twice under two
+    # different names. What the reader cannot get from the verdict card is which nights
+    # this investigation covers, so that is what this says instead.
+    first, last = episode.night_span
+    if first == last:
+        st.caption(
+            f"This investigation is about the night of {format.night(first)}. Every step "
+            "of it is on the record screen."
+        )
+    else:
+        st.caption(
+            f"This investigation covers the nights of {format.night(first)} to "
+            f"{format.night(last)}. Every step of any of them is on the record screen, "
+            "where you can move between them."
+        )
 
 
 def render_handover(subject_id: str) -> None:

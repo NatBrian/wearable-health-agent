@@ -74,8 +74,8 @@ def render(subject_id: str, detail: NightDetail, on_trace: Any = None) -> None:
         )
 
     if on_trace is not None and st.button(
-        "Show me how this was worked out",
+        "See every step of this night",
         key="verdict_trace",
-        help="Opens every step of this night, from your watch to this result",
+        help="Opens the record screen on this night, from your watch to this result",
     ):
         on_trace(row.night_date)

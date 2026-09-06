@@ -312,3 +312,70 @@ def test_the_reassurance_is_about_the_inbox_not_about_health(fake_api) -> None:
     said = " ".join(s.value.lower() for s in app.success)
     assert "waiting for you to answer" in said
     assert "nothing needs you" not in said
+
+
+def test_one_control_opens_the_pipeline_not_two(fake_api) -> None:
+    """Two buttons under different names opened the same night's steps.
+
+    The verdict card's control and the investigation card's control both landed on the
+    record screen for the same night whenever the investigation covered last night, which
+    is the usual case.
+    """
+    from datetime import date
+
+    from wha.models import EpisodeState, EpisodeSummary
+
+    _ready(fake_api)
+    fake_api.list_episodes.return_value = [
+        EpisodeSummary(
+            episode_id="ep_1",
+            opened_on=NIGHT,
+            state=EpisodeState.OPEN,
+            night_span=(date(2026, 9, 3), NIGHT),
+        )
+    ]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    openers = [b for b in app.button if "step" in b.label.lower()]
+    assert len(openers) == 1, [b.label for b in openers]
+    assert openers[0].label == "See every step of this night"
+
+
+def test_the_investigation_says_which_nights_it_covers(fake_api) -> None:
+    """What the verdict card cannot tell you is the span, so that is what replaced it."""
+    from datetime import date
+
+    from wha.models import EpisodeState, EpisodeSummary
+
+    _ready(fake_api)
+    fake_api.list_episodes.return_value = [
+        EpisodeSummary(
+            episode_id="ep_1",
+            opened_on=NIGHT,
+            state=EpisodeState.OPEN,
+            night_span=(date(2026, 9, 3), NIGHT),
+        )
+    ]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert "covers the nights of Thursday 3 September 2026 to Friday 4 September 2026" in _body(app)
+
+
+def test_a_one_night_investigation_is_not_described_as_several(fake_api) -> None:
+    """ "Every step of any of those nights" over a single night is simply wrong English."""
+    from wha.models import EpisodeState, EpisodeSummary
+
+    _ready(fake_api)
+    fake_api.list_episodes.return_value = [
+        EpisodeSummary(
+            episode_id="ep_1",
+            opened_on=NIGHT,
+            state=EpisodeState.OPEN,
+            night_span=(NIGHT, NIGHT),
+        )
+    ]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _body(app)
+
+    assert "is about the night of Friday 4 September 2026" in body
+    assert "those nights" not in body

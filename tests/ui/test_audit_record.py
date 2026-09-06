@@ -128,6 +128,28 @@ def test_the_two_tabs_describe_one_system_not_two() -> None:
     assert real <= covered, f"steps no topic explains: {sorted(real - covered)}"
 
 
+def test_the_topics_run_in_the_same_order_as_the_steps(fake_api) -> None:
+    """Reported by the user: the ranges jumped about and skipped numbers.
+
+    Steps 19 and 20 sat fourth in the list, one topic claimed 8 to 10 and 15 to 18 with
+    three other topics in between, step 18 appeared twice, and nothing named 15 to 17. A
+    reader following the numbers could not follow them.
+    """
+    from wha.ui.components.how_it_works import TOPIC_STEPS
+
+    ranges = [steps for steps in TOPIC_STEPS.values() if steps]
+
+    for steps in ranges:
+        assert list(steps) == list(range(steps[0], steps[-1] + 1)), f"{steps} has a hole in it"
+
+    firsts = [steps[0] for steps in ranges]
+    assert firsts == sorted(firsts), "the topics are not in the order the steps run"
+
+    flat = [ordinal for steps in ranges for ordinal in steps]
+    assert flat == sorted(flat), "the topics overlap or double back"
+    assert len(flat) == len(set(flat)), "a step is explained under two topics"
+
+
 def test_no_topic_carries_a_number_of_its_own(fake_api) -> None:
     """A topic numbered 1 beside a step numbered 1 is the confusion being removed."""
     from wha.ui.components.how_it_works import TOPIC_STEPS, _title

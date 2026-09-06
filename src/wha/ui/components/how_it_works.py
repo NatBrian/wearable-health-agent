@@ -28,21 +28,32 @@ from wha.ui.components.api import api, config
 # Which of the twenty pipeline steps each topic explains. Checked by a test: every step
 # must appear under exactly the topics that describe it, so a step added to the pipeline
 # cannot go unexplained here, and this page cannot claim a step the pipeline does not have.
+# In the order the steps run, each topic covering a contiguous block, nothing skipped and
+# nothing overlapping. The first version grouped by subject matter instead, so the ranges
+# jumped about: steps 19 and 20 sat fourth, one topic claimed 8 to 10 and 15 to 18 with
+# other topics in between, and step 18 appeared twice while nothing named 15 to 17.
+# Grouping that reads well and ordering that matches the pipeline are not in tension here;
+# the first version simply kept the old explainer's order.
 TOPIC_STEPS: dict[str, tuple[int, ...]] = {
     "Reading the watch": (1, 2, 3, 4),
     "Learning your normal": (5,),
     "Deciding a night is worth looking at": (6, 7),
-    "The safety rules, which run before anything else": (19, 20),
-    "What the AI is and is not allowed to do": (8, 9, 10, 15, 16, 17, 18),
+    "Opening an investigation, and what the AI may do inside it": (8, 9, 10),
     "Working out the likely cause": (11,),
     "Deciding whether to interrupt you": (12, 13, 14),
-    "Where your data goes": (18,),
+    "Writing the conclusion, and checking it before you see it": (15, 16, 17, 18),
+    "The safety rules, which run before anything else": (19, 20),
+    # Not a step. It is true of every step, and giving it a number would have put a ninth
+    # entry in a list of twenty things that happen in order.
+    "Where your data goes": (),
 }
 
 
 def _title(topic: str) -> str:
     """A topic, and the steps on the other tab that it covers."""
     steps = TOPIC_STEPS[topic]
+    if not steps:
+        return f"{topic}  (not a step: this is true of all of them)"
     if len(steps) == 1:
         return f"{topic}  (step {steps[0]})"
     runs: list[str] = []
@@ -114,6 +125,72 @@ of exactly zero and make every later night look infinitely unusual.
 """
         )
 
+    with st.expander(
+        _title("Opening an investigation, and what the AI may do inside it"), expanded=True
+    ):
+        tool_names = api().get_permitted_tool_names()
+        tools = "\n".join(f"- `{name}`" for name in tool_names)
+        st.markdown(
+            f"""
+The model can only call these {len(tool_names)} read-only tools, and nothing
+else. Any other request is refused and recorded:
+
+{tools}
+
+It cannot write to your record, send you anything, or decide whether to interrupt you.
+"""
+        )
+
+    with st.expander(_title("Working out the likely cause"), expanded=False):
+        st.markdown(
+            f"""
+The system tracks **{config()["N_CAUSES"]} possible causes** at once and considers every combination
+of them being present or absent, which is {2 ** config()["N_CAUSES"]:,} possibilities. This is ordinary
+arithmetic, not a model, so the same evidence always gives the same answer.
+"""
+        )
+
+    with st.expander(_title("Deciding whether to interrupt you"), expanded=True):
+        st.markdown(
+            f"""
+This is the one decision the AI does not make. Before asking anything, the system works
+out how much the answer could actually change what it does. If that is worth less than
+the cost of interrupting you, it stays quiet.
+
+**That arithmetic is what keeps this quiet, not a cap.** There is also a hard limit of
+**{config()["INTERRUPTION_BUDGET_PER_WEEK"]} unsolicited questions a week**, and it has
+never been reached. Measured across 76 people and 738 weeks of real wearable data, this
+system opens an investigation about once every 4.9 weeks and asks at most one question in
+each. In a run with the whole weekly allowance unspent it asked one question and stopped,
+because after your answer every remaining question was worth less than the cost of asking
+it.
+
+The cap stays as a backstop. It is just not the reason you are rarely asked anything.
+
+This is why most raised nights never produce a question.
+"""
+        )
+
+    with st.expander(
+        _title("Writing the conclusion, and checking it before you see it"), expanded=False
+    ):
+        st.markdown(
+            """
+- Every clinical sentence in a conclusion has to quote a span that really appears in a
+  passage this system holds. A sentence that quotes nothing is removed before you see it.
+- The model then reads its own draft back, and at that point it can only remove claims,
+  never add them. This step can make a conclusion smaller and never larger.
+- A person approves, edits, rejects or escalates the draft. Nothing reaches you as a
+  settled conclusion without passing that checkpoint.
+- What is kept is saved to your record, this dashboard and the tamper-evident log at the
+  same time, so the copy you read is the copy that was kept.
+
+**What this check does not do.** It proves the quoted words are really in the passage. It
+does not prove the sentence built around them describes that passage fairly, so every
+citation opens to the whole passage for you to read.
+"""
+        )
+
     with st.expander(_title("The safety rules, which run before anything else"), expanded=True):
         st.markdown(
             """
@@ -164,50 +241,6 @@ language model can only **add** a flag to that list, never remove one.
                     "somebody did.",
                     icon="⚠️",
                 )
-
-    with st.expander(_title("What the AI is and is not allowed to do"), expanded=True):
-        tool_names = api().get_permitted_tool_names()
-        tools = "\n".join(f"- `{name}`" for name in tool_names)
-        st.markdown(
-            f"""
-The model can only call these {len(tool_names)} read-only tools, and nothing
-else. Any other request is refused and recorded:
-
-{tools}
-
-It cannot write to your record, send you anything, or decide whether to interrupt you.
-"""
-        )
-
-    with st.expander(_title("Working out the likely cause"), expanded=False):
-        st.markdown(
-            f"""
-The system tracks **{config()["N_CAUSES"]} possible causes** at once and considers every combination
-of them being present or absent, which is {2 ** config()["N_CAUSES"]:,} possibilities. This is ordinary
-arithmetic, not a model, so the same evidence always gives the same answer.
-"""
-        )
-
-    with st.expander(_title("Deciding whether to interrupt you"), expanded=True):
-        st.markdown(
-            f"""
-This is the one decision the AI does not make. Before asking anything, the system works
-out how much the answer could actually change what it does. If that is worth less than
-the cost of interrupting you, it stays quiet.
-
-**That arithmetic is what keeps this quiet, not a cap.** There is also a hard limit of
-**{config()["INTERRUPTION_BUDGET_PER_WEEK"]} unsolicited questions a week**, and it has
-never been reached. Measured across 76 people and 738 weeks of real wearable data, this
-system opens an investigation about once every 4.9 weeks and asks at most one question in
-each. In a run with the whole weekly allowance unspent it asked one question and stopped,
-because after your answer every remaining question was worth less than the cost of asking
-it.
-
-The cap stays as a backstop. It is just not the reason you are rarely asked anything.
-
-This is why most raised nights never produce a question.
-"""
-        )
 
     with st.expander(_title("Where your data goes"), expanded=False):
         st.markdown(

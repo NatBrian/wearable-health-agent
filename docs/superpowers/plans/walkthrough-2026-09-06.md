@@ -157,3 +157,36 @@ covers all twenty steps and claims none that do not exist, so a step added to th
 cannot go unexplained and this page cannot invent one.
 
 Found by the user reading the screen, not by the suite, and not by either of my own passes.
+
+
+### 11. The topics were numbered against the steps but did not run in step order
+
+Reported by the user after finding 10 was fixed. Titling each topic by the steps it covered
+made a second problem visible rather than creating it: the ranges jumped about. Steps 19 and
+20 sat fourth in the list, one topic claimed 8 to 10 and 15 to 18 with three other topics in
+between, step 18 appeared under two topics, and nothing named 15 to 17 at all.
+
+That was the old explainer's order carried across without being reconciled. There was no
+reason for it beyond history. The topics now run in the order the steps run, each covering a
+contiguous block, and the block that nothing explained, writing the conclusion and checking
+it before you see it, is written.
+
+`tests/ui/test_audit_record.py::test_the_topics_run_in_the_same_order_as_the_steps` asserts
+each range is contiguous, that the ranges are in ascending order, and that no step is
+explained twice.
+
+"Where your data goes" is deliberately not a step and now says so, because it is true of all
+of them.
+
+### 12. Two buttons on Today opened the same screen
+
+The verdict card offered "Show me how this was worked out" and the investigation card
+offered "Show me every step of this". Both opened the record screen on the same night
+whenever the investigation covered last night, which is the usual case.
+
+One control survives, on the verdict card, labelled for what it opens: "See every step of
+this night". The investigation card now says what the verdict card cannot, which is the span
+of nights the investigation covers, phrased for one night or several.
+
+`tests/ui/test_today.py::test_one_control_opens_the_pipeline_not_two` asserts there is
+exactly one.
