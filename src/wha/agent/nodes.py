@@ -211,7 +211,7 @@ def node_preload(
     conn = getattr(db, "conn", None)
     if conn is not None:
         try:
-            from wha.service.symptoms import symptom_runs
+            from wha.service.symptoms import symptom_as_of, symptom_runs
 
             preloaded["reported_symptoms"] = [
                 {
@@ -222,7 +222,7 @@ def node_preload(
                     "still_outstanding": run.outstanding,
                     "their_words": run.last_text[:200],
                 }
-                for run in symptom_runs(conn, subject_id, local_today())
+                for run in symptom_runs(conn, subject_id, symptom_as_of(conn, subject_id))
             ]
             erow = conn.execute(
                 """SELECT preceded_by_episode_id, days_since_previous FROM episodes
@@ -533,9 +533,9 @@ def node_decide(
     conn = getattr(db, "conn", None)
     if conn is not None and subject_id:
         try:
-            from wha.service.symptoms import outstanding_symptoms
+            from wha.service.symptoms import outstanding_symptoms, symptom_as_of
 
-            runs = outstanding_symptoms(conn, subject_id, local_today())
+            runs = outstanding_symptoms(conn, subject_id, symptom_as_of(conn, subject_id))
             # The longest-running one. If several are outstanding it is the one that has
             # been going on the longest that the person most needs asking about.
             if runs:

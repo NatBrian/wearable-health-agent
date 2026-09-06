@@ -139,6 +139,31 @@ def record_symptoms(
     return found
 
 
+def symptom_as_of(conn: sqlite3.Connection, subject_id: str) -> date:
+    """The date to judge "still going" against: the latest thing the system knows about.
+
+    NOT the wall clock. A simulation runs nights ahead of today on purpose, and a first
+    sync can carry readings whose local date is ahead of the server's. Keyed on
+    `local_today()` alone, a symptom recorded against a later night is invisible to every
+    rule that reads the timeline, so an outstanding symptom silently stops being
+    outstanding. The API's `_record_end` already solves the same problem for the same
+    reason: the window ends at the newest night on record, not at the calendar.
+
+    Never earlier than today, so a stale database cannot freeze the clock either.
+    """
+    row = conn.execute(
+        "SELECT MAX(night_date) AS n FROM symptom_observations WHERE subject_id = ?",
+        (subject_id,),
+    ).fetchone()
+    today = local_today()
+    if row is None or not row["n"]:
+        return today
+    try:
+        return max(today, date.fromisoformat(str(row["n"])))
+    except ValueError:
+        return today
+
+
 def symptom_runs(
     conn: sqlite3.Connection,
     subject_id: str,
@@ -267,15 +292,23 @@ def cooccurring_tier_b(
     return sorted(str(r["flag_id"]) for r in rows if str(r["flag_id"]) in tier_b_ids)
 
 
-def backfill_from_conversation(
+def backfill_symptoms(
     conn: sqlite3.Connection,
     subject_id: str,
     config: RedFlagsConfig | None = None,
 ) -> int:
-    """Rebuild the timeline from conversation turns already on disk.
+    """Rebuild the timeline from everything the person has already typed.
 
-    The text was always there; only the reading of it was missing. Runs over the person's
-    own messages only: what the agent said is not evidence about how the person feels.
+    The text was always there; only the reading of it was missing.
+
+    TWO SOURCES, because there are two ways to say something to this system and using
+    only one of them loses the more important half. `conversation_turns` holds what was
+    typed into the chat. `interactions.free_text` holds what was typed in ANSWER to a
+    question the agent asked, which is where a symptom report is most likely to appear:
+    the live simulation's only symptom report, "I feel a bit dizzy", was a probe answer
+    and appears in no conversation turn at all.
+
+    The person's own words only. What the agent said is not evidence about how they feel.
     """
     cfg = config or load_red_flags()
     rows = conn.execute(
@@ -308,6 +341,34 @@ def backfill_from_conversation(
             config=cfg,
         )
         written += len(found)
+
+    # Answers to questions the agent asked. Dated by when they were ANSWERED, not asked:
+    # the night a symptom belongs to is the night the person described, and somebody can
+    # answer a question a day after it arrives.
+    answers = conn.execute(
+        """SELECT i.id AS id, i.free_text AS free_text,
+                  COALESCE(i.answered_at_utc, i.asked_at_utc) AS at_utc
+             FROM interactions i
+             JOIN episodes e ON e.episode_id = i.episode_id
+            WHERE e.subject_id = ? AND i.free_text IS NOT NULL AND i.free_text != ''
+            ORDER BY at_utc ASC""",
+        (subject_id,),
+    ).fetchall()
+    for row in answers:
+        try:
+            stamp = from_iso(str(row["at_utc"]))
+        except (TypeError, ValueError):
+            continue
+        found = record_symptoms(
+            conn,
+            subject_id,
+            str(row["free_text"]),
+            local_date_of(stamp, tz_name),
+            source_turn_id=str(row["id"]),
+            config=cfg,
+        )
+        written += len(found)
+
     return written
 
 

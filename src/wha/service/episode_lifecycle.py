@@ -201,9 +201,17 @@ def close_episode(
 def _outstanding_symptom_ids(conn: sqlite3.Connection, subject_id: str, as_of: date) -> list[str]:
     """Symptoms the person reported and has never said were better. Never raises."""
     try:
-        from wha.service.symptoms import outstanding_symptoms
+        from wha.service.symptoms import outstanding_symptoms, symptom_as_of
 
-        return [run.flag_id for run in outstanding_symptoms(conn, subject_id, as_of)]
+        # The latest night on record, never earlier than today. A simulation dates nights
+        # ahead and a first sync can too, and keying on the calendar alone makes an
+        # outstanding symptom invisible, which lets an investigation close over it.
+        return [
+            run.flag_id
+            for run in outstanding_symptoms(
+                conn, subject_id, max(as_of, symptom_as_of(conn, subject_id))
+            )
+        ]
     except Exception:  # noqa: BLE001
         # A failure here must not hold an investigation open forever, so it degrades to
         # the previous behaviour rather than to a stuck episode.
