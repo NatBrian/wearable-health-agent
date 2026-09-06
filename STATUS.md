@@ -1,6 +1,6 @@
 # STATUS: read this first
 
-**Last updated:** 5 September 2026
+**Last updated:** 6 September 2026
 **Branch:** `feat/agentic-early-warning-system` (nothing has ever been pushed)
 
 ---
@@ -12,17 +12,41 @@ If you have just been handed this repository with no context, this is the import
 `history/` is full of documents that look like plans, and every one of them describes a job
 that has ended.
 
-Verified on 5 September 2026, all re-run rather than remembered:
+Verified on 6 September 2026, all re-run rather than remembered:
 
 | Check | Result |
 |---|---|
-| `uv run pytest` | **628 passed, 1 skipped** |
+| `uv run pytest` | **685 passed, 1 skipped** |
 | `uv run ruff check src tests` | clean |
-| `uv run ruff format --check src tests` | clean |
+| `uv run ruff format --check src tests` | clean, 268 files |
 | `uv run wha doctor` | no `fail` rows |
-| Dashboard, all five pages | driven with Playwright, no errors |
-| Eleven frozen scenarios | **11 of 11 live**, 30 expectations, no failures |
-| Telegram | a real message sent through the production path |
+| Dashboard, all five screens | driven twice with Playwright, nine findings fixed |
+| Eleven frozen scenarios | **11 of 11 live**, 30 expectations, no failures, 5 September |
+| Telegram | a real message sent through the production path, 5 September |
+
+## The dashboard was rewritten on 6 September 2026
+
+`src/wha/ui/` was deleted and rewritten for a reader with no engineering and no medical
+background. Nothing in the deterministic half, the agentic half or the safety floor changed.
+
+What is new behind it: `service/pipeline.py` assembles a whole night's journey from what the
+nightly job already stored, so **every** night has a step-by-step account, including the
+sixty-eight of seventy-two where no investigation opened. Two endpoints serve it. A step with
+no recorded timestamp reports none, and a step nobody wrote down reports `unrecorded` rather
+than `skipped`.
+
+What is new in front: one place for styling, one for copy, one for formatting; a top bar that
+says what a failure stops rather than naming a component; a Today screen where every number
+carries what it is and a link to the step that produced it; citations that open to the whole
+passage with the quoted span marked; a History table of six columns; and a record screen whose
+first tab is the night drawn as twenty clickable steps.
+
+The design is in `docs/superpowers/specs/2026-09-06-dashboard-overhaul-design.md`, the plan in
+`docs/superpowers/plans/2026-09-06-dashboard-overhaul.md`, and **the nine defects that only
+appeared when the interface was actually used** are in
+`docs/superpowers/plans/walkthrough-2026-09-06.md`. Two of those nine were serious: every
+screen but Home showed a different person, and the History chart drew a RED night in the same
+colour as the line labelled with the person's own heart rate.
 
 **If somebody asks you to "continue", ask them what they want.** There is no obvious next
 task, and inventing one would be worse than asking.
