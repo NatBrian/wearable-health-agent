@@ -15,7 +15,7 @@ import streamlit as st
 
 from wha.api.client import ApiUnavailable
 from wha.models import DetectionLevel
-from wha.ui import design, explain, format
+from wha.ui import design, format
 from wha.ui.components import night_chart
 from wha.ui.components.api import api, today, unavailable
 from wha.ui.components.status_bar import render as render_status_bar
@@ -113,9 +113,17 @@ def main() -> None:
             st.info("No nights match that filter. Nothing here is a statement about your health.")
         else:
             st.dataframe(rows, use_container_width=True, hide_index=True)
+            # Each level gets its own line. Concatenated, the three sentences read as one
+            # paragraph claiming the same night was in range, somewhat above and clearly
+            # above at once, because every one of them opens "Your sleeping heart rate
+            # was".
+            st.caption("Conclusion is the system's own word for that night:")
             st.caption(
-                "Conclusion is the system's own word for that night. "
-                + " ".join(explain.level(level) for level in ("GREEN", "YELLOW", "RED"))
+                "**GREEN** in your usual range. "
+                "**YELLOW** somewhat above it, which on its own opens nothing. "
+                "**RED** clearly above it, and enough of these in a row opens an "
+                "investigation. "
+                "**NA** too little of the night measured to judge."
             )
 
         st.subheader("Look at one night in full")

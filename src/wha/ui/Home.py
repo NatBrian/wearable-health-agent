@@ -111,7 +111,7 @@ def main() -> None:
 
     st.subheader("How a night gets judged")
     st.write(explain.text("home.judging"))
-    st.caption("Every step of this is shown, night by night, on the Record screen.")
+    st.caption('Every step of this is shown, night by night, on "The record".')
 
     st.subheader("Where to go")
     columns = st.columns(4)

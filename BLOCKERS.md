@@ -1137,3 +1137,40 @@ gap will exist for any model added while the file stays read-only.
 `docs/CONTRACTS.md` so new models can be recorded in it, or to state in the file's own header
 that it describes the models it lists rather than all of them. Both are the user's call, not a
 code change. This is recorded rather than fixed.
+
+## conversation - the model described the system's own verdict wrongly, live
+
+**6 September 2026, found by using the chat on real data.** Asked "Why was last night
+green?", the model replied:
+
+> "The green color last night likely indicates good sleep quality based on your watch's
+> measurements."
+
+GREEN means the night's resting heart rate sat inside the person's own band. It is not a
+statement about sleep quality, and sleep quality is not an input to it. The reply then asked
+a reasonable follow-up question and carried a citation to
+`evidence_probe_sleep_quality#c1`, so on screen it looked grounded.
+
+**This is the open "a cited sentence can still misdescribe its source" entry, with a worse
+edge than that entry records.** The existing entry is about a sentence misreading a retrieved
+passage. This is the model misdescribing **the system it is part of**: the meaning of a level
+this application computed deterministically and displays three screens away. The grounding
+check cannot catch it, because the quoted span really is in the passage about sleep quality.
+
+**What is already true and did not help.** The Today screen states the correct meaning of
+GREEN directly above the chat. The record screen shows the arithmetic. The reply still said
+something else, and a reader who trusts the chat over the card is misinformed by the same
+page that has it right.
+
+**Not fixed here, because the plausible fixes are all decisions rather than code:**
+
+- Feed the night's own verdict and its meaning into the conversation prompt as fixed context,
+  which makes the model less likely to invent one but does not prevent it.
+- Refuse to answer questions about what a level means and answer them from the interface's
+  own copy instead, which is deterministic and cannot be wrong, but makes the chat feel like
+  it is dodging.
+- Grade the reply against the system's own facts with a second model call, which is the
+  model-grading-model path every other check here avoids.
+
+Recorded rather than papered over. The user should decide which of those, if any, is worth
+its cost.

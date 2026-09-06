@@ -210,3 +210,20 @@ def test_a_window_with_no_measured_night_still_opens_something(fake_api) -> None
 
     assert not app.exception
     fake_api.get_night_pipeline.assert_called_with("sim", unmeasured)
+
+
+def test_the_sleep_tile_explains_the_number_it_is_showing(fake_api) -> None:
+    """The tile showed hours slept and the note explained minutes measured, which is a
+    different number: ten hours of sleep beside a note about 453 minutes of coverage.
+    """
+    from wha.ui import explain
+
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    tiles = " ".join(m.value for m in app.markdown if "wha-tile" in m.value)
+    start = tiles.index('<div class="label">Your sleep</div>')
+    sleep_tile = tiles[start : start + 700]
+
+    assert explain.text("metric.sleep_hours")[:40] in sleep_tile
+    assert "331 minutes" in sleep_tile, "the coverage it does mention should be named as such"

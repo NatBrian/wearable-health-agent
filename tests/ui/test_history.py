@@ -148,3 +148,15 @@ def test_the_two_colour_scales_do_not_merge_into_one_legend() -> None:
     assert "color" not in dots
     assert dots["fill"]["scale"]["range"] == [DOT_COLOURS[k] for k in DOT_COLOURS]
     assert dots["fill"]["title"] != spec["layer"][0]["encoding"]["color"]["title"]
+
+
+def test_the_level_legend_does_not_run_three_verdicts_into_one_sentence(fake_api) -> None:
+    """It read as one paragraph saying the night was in range, somewhat above and clearly
+    above at once, because every level explanation opens "Your sleeping heart rate was".
+    """
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    captions = " ".join(c.value for c in app.caption)
+    assert "**GREEN** in your usual range" in captions
+    assert captions.count("Your sleeping heart rate was") == 0

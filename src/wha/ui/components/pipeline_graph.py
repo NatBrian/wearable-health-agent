@@ -69,7 +69,14 @@ def render_headline(pipeline: NightPipeline) -> None:
             if head.primary_cause is None
             else f"{format.probability(head.primary_probability)} likely on the evidence so far.",
         ),
-        ("Your sleep", format.hours(head.sleep_hours), explain.text("metric.coverage")),
+        # The note used to explain coverage while the tile showed hours slept, so it
+        # described a different number from the one above it.
+        (
+            "Your sleep",
+            format.hours(head.sleep_hours),
+            f"{explain.text('metric.sleep_hours')} Your watch measured "
+            f"{format.minutes(head.coverage_minutes)} of it.",
+        ),
         (
             "Questions asked",
             str(head.questions_asked),

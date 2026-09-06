@@ -114,6 +114,10 @@ TEXT: dict[str, str] = {
         "How far this night sat above or below your own normal. This is the number the "
         "system actually judges."
     ),
+    "metric.sleep_hours": (
+        "How long your watch says you slept. This is the stretch the reading was taken "
+        "over, before the waking spells inside it were left out."
+    ),
     "metric.coverage": (
         "How many minutes of the night your watch actually measured. Too few and the night "
         "is set aside rather than guessed at."
@@ -128,8 +132,9 @@ TEXT: dict[str, str] = {
     ),
     # --------------------------------------------------------------------- the chart
     "chart.how_to_read": (
-        "The solid line is your sleeping heart rate, one point per night. The shaded band "
-        "is your own usual range for that night. Dots are coloured by what the system "
+        "The solid dark line is your sleeping heart rate, one point per night. The two "
+        "dashed lines above and below it are the top and bottom of your own usual range, "
+        "which narrows as the system learns you. Dots are coloured by what the system "
         "concluded. Gaps are nights your watch recorded too little to measure, and are left "
         "empty rather than joined up."
     ),
