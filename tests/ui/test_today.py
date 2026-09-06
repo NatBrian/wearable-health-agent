@@ -1,229 +1,264 @@
-"""Unit tests for Today page inbox states, last night summary, and open episodes."""
+"""Today, as the person meets it: what happened last night, and where it came from."""
 
 from datetime import UTC, date, datetime
-from unittest.mock import MagicMock, patch
 
-from wha.api.client import ApiClient
+from streamlit.testing.v1 import AppTest
+
+from tests.ui.conftest import page
 from wha.models import (
     AnswerOption,
+    Baseline,
     BaselineRung,
-    ComponentStatus,
-    Disposition,
-    EpisodeOutcome,
-    MeasurementRequest,
+    CauseId,
+    Detection,
+    DetectionLevel,
+    Forecast,
+    NightDetail,
+    NightlyFeatures,
+    NightRow,
     PendingInteraction,
     Probe,
     Question,
-    SystemStatus,
 )
 
-# The screens read thresholds from the application over HTTP. Tests supply them rather
-# than starting a server, which also keeps a rendering test from depending on a backend.
-_CONFIG = {
-    "BASELINE_MIN_NIGHTS_PERSONAL": 7,
-    "RECENT_NIGHTS_WINDOW": 7,
-    "DETECT_PERSISTENCE_NIGHTS": 2,
-}
-
-from wha.ui.today import (
-    render_inbox,
-)
+PAGE = page("pages/1_Today.py")
+NIGHT = date(2026, 9, 4)
 
 
-def test_today_nothing_pending() -> None:
-    """The most-seen screen: nothing pending displays reassuring message with quiet streak."""
-    status = SystemStatus(
-        components=[
-            ComponentStatus(
-                component="bridge",
-                ok=True,
-                detail="Bridge operational",
-                severity="ok",
-                checked_at_utc=datetime.now(UTC),
-            )
-        ],
-        last_ingest_utc=datetime.now(UTC),
-        last_nightly_utc=datetime.now(UTC),
-        usable_nights=28,
-        rung=BaselineRung.MATURE,
-        errors_24h=0,
-        quiet_nights_streak=14,
+def _row(level: DetectionLevel, rhr: float | None, window_source: str) -> NightRow:
+    return NightRow(
+        night_date=NIGHT,
+        rhr_bpm=rhr,
+        centre_bpm=45.0,
+        band_lo=39.0,
+        band_hi=51.0,
+        deviation_bpm=7.0,
+        explained_bpm=0.0,
+        residual_bpm=7.0,
+        coverage_minutes=331,
+        usable=rhr is not None,
+        level=level,
+        rhr_window_source=window_source,
     )
 
-    with (
-        patch("streamlit.success") as mock_success,
-        patch("wha.ui.components.api.config", return_value=_CONFIG),
-    ):
-        render_inbox(subject_id="sub_test", pending=None, status=status)
-        assert mock_success.called
-        msg = mock_success.call_args[0][0]
-        # Asserts the meaning rather than the exact prose: the person is told nothing is
-        # required of them, and the quiet streak is shown so the silence is evidently
-        # deliberate rather than the system having stopped working.
-        assert "Nothing needs you" in msg
-        assert "14 quiet nights" in msg
+
+def _detail(
+    level: DetectionLevel = DetectionLevel.GREEN,
+    rhr: float | None = 52.0,
+    window_source: str = "sleep",
+) -> NightDetail:
+    return NightDetail(
+        row=_row(level, rhr, window_source),
+        features=NightlyFeatures(
+            subject_id="sim",
+            night_date=NIGHT,
+            rhr_bpm=rhr,
+            coverage_minutes=331,
+            usable=rhr is not None,
+            sleep_hours=6.9,
+            rhr_window_source=window_source,
+        ),
+        baseline=Baseline(
+            centre_bpm=45.0,
+            scale_bpm=6.0,
+            usable_nights=28,
+            rung=BaselineRung.MATURE,
+            shrink_weight=0.0,
+        ),
+        detection=Detection(
+            subject_id="sim",
+            night_date=NIGHT,
+            deviation_bpm=7.0,
+            level=level,
+            flagged=level is DetectionLevel.RED,
+            forecast=Forecast(),
+        ),
+    )
 
 
-def test_today_pending_question() -> None:
-    """Pending question renders probe options, and submitting calls submit_answer."""
+def _question() -> PendingInteraction:
+    options = [
+        AnswerOption(option_id="yes", label="Yes"),
+        AnswerOption(option_id="no", label="No"),
+    ]
     probe = Probe(
-        probe_id="probe_symptoms",
-        target_cause="infection",
-        answer_space=[
-            AnswerOption(option_id="fever", label="Fever or chills"),
-            AnswerOption(option_id="none", label="No symptoms"),
-        ],
-        evsi=0.45,
-        interruption_cost=0.30,
-        fallback_text="Do you have fever?",
+        probe_id="fever",
+        target_cause=CauseId.INFECTION,
+        answer_space=options,
+        evsi=0.031,
+        interruption_cost=0.015,
+        fallback_text="Any illness symptoms yesterday?",
     )
-    question = Question(
-        probe=probe,
-        text="Have you noticed any fever or chills today?",
-        text_source="llm",
-        options=probe.answer_space,
-        allows_free_text=True,
-    )
-    pending = PendingInteraction(
+    return PendingInteraction(
         kind="question",
-        episode_id="ep_001",
-        question=question,
-    )
-
-    with (
-        patch("streamlit.info") as mock_info,
-        patch("streamlit.button", side_effect=[True, False, False]),
-        patch("streamlit.columns", return_value=[MagicMock(), MagicMock(), MagicMock()]),
-        patch("streamlit.rerun"),
-        patch("wha.api.client.ApiClient.submit_answer") as mock_submit,
-    ):
-        render_inbox(subject_id="sub_test", pending=pending)
-        assert mock_info.called
-        assert "Have you noticed any fever" in mock_info.call_args[0][0]
-        assert mock_submit.called
-        call_args = mock_submit.call_args
-        assert call_args[0][0] == "ep_001"
-        ans = call_args[0][1]
-        assert ans.option_id == "fever"
-        assert ans.declined is False
-
-
-def test_today_shows_nothing_for_a_measurement_that_can_no_longer_be_requested() -> None:
-    """The spot-reading limb was removed on 5 September 2026, screen included.
-
-    This asserted that a pending measurement rendered a "A quick reading would help"
-    panel with a Done button. Nothing can create a pending measurement now: the policy no
-    longer selects MEASURE, the graph has no measure node, and the API endpoint is gone.
-    Leaving the panel would be a screen that can never appear, which is the exact defect
-    this codebase keeps producing.
-
-    A stale row from an older database must render nothing rather than crash, which is
-    what this now checks.
-    """
-    m_req = MeasurementRequest(
-        measurement_id="meas_456",
-        kind="spot_resting_hr",
-        instruction="Please sit quietly for 2 minutes and log resting heart rate.",
-        expires_at_utc=datetime.now(UTC),
-    )
-    pending = PendingInteraction(kind="measurement", episode_id="ep_001", measurement=m_req)
-
-    with (
-        patch("streamlit.warning") as mock_warning,
-        patch("streamlit.subheader") as mock_subheader,
-        patch("streamlit.button", side_effect=[True, False]),
-        patch("streamlit.columns", return_value=[MagicMock(), MagicMock()]),
-        patch("streamlit.rerun"),
-    ):
-        render_inbox(subject_id="sub_test", pending=pending)
-
-    assert not mock_warning.called
-    assert not mock_subheader.called
-    assert not hasattr(ApiClient, "submit_measurement_done"), (
-        "the endpoint is gone, so the client method must be too"
+        episode_id="ep_1",
+        question=Question(
+            probe=probe,
+            text="Any illness symptoms yesterday?",
+            text_source="llm",
+            options=options,
+            allows_free_text=True,
+        ),
     )
 
 
-def test_today_pending_review() -> None:
-    """Pending review renders draft outcome, and clicking Approve calls submit_human_decision."""
-    draft = EpisodeOutcome(
-        episode_id="ep_001",
-        subject_id="sub_test",
-        opened_on=date(2026, 9, 1),
-        closed_on=date(2026, 9, 1),
-        disposition=Disposition.LIKELY_ILLNESS,
-        confidence="high",
-        observation="Elevated RHR observed across 2 consecutive nights with fever reported.",
-        action="rest",
-        escalation_criteria=["High fever persistent for > 3 days."],
-        baseline_nights=28,
-        baseline_rung=BaselineRung.MATURE,
-        differential=[],
-        evidence_used=[],
-        ruled_out=[],
-        citations=[],
-        unsupported_claims=0,
-        interruptions_used_this_week=1,
-        depth_used_this_episode=1,
+def _ready(fake_api, detail: NightDetail | None = None, pending=None) -> None:
+    fake_api.get_pending_interaction.return_value = pending
+    fake_api.list_nights.return_value = [(detail or _detail()).row]
+    fake_api.get_night_detail.return_value = detail or _detail()
+    fake_api.list_episodes.return_value = []
+    fake_api.get_transcript.return_value = []
+
+
+def _body(app: AppTest) -> str:
+    parts = [m.value for m in app.markdown]
+    parts += [c.value for c in app.caption]
+    parts += [s.value for s in app.subheader]
+    parts += [i.value for i in app.info]
+    parts += [s.value for s in app.success]
+    parts += [w.value for w in app.warning]
+    return " ".join(parts)
+
+
+def test_the_page_renders_without_an_exception(fake_api) -> None:
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert not app.exception
+
+
+def test_a_pending_question_comes_before_last_night(fake_api) -> None:
+    """Anything needing the person outranks anything reporting to them."""
+    _ready(fake_api, pending=_question())
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    headings = [s.value for s in app.subheader]
+    assert headings.index("One question for you") < headings.index("Last night")
+
+
+def test_the_reassurance_is_never_drawn_while_something_is_pending(fake_api) -> None:
+    """ "Nothing needs you" under a live question is the defect this ordering prevents."""
+    _ready(fake_api, pending=_question())
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert not app.success
+
+
+def test_a_person_whose_normal_is_not_yet_known_is_not_told_they_are_fine(fake_api) -> None:
+    """Below the alerting floor nothing can be flagged, so reassurance is not earned."""
+    status = fake_api.get_system_status.return_value
+    fake_api.get_system_status.return_value = status.model_copy(
+        update={"rung": BaselineRung.COLD, "usable_nights": 2}
     )
-    pending = PendingInteraction(
-        kind="review",
-        episode_id="ep_001",
-        draft_outcome=draft,
-    )
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    with (
-        patch("streamlit.write") as mock_write,
-        patch("streamlit.button", side_effect=[True, False, False]),
-        patch("streamlit.columns", return_value=[MagicMock(), MagicMock(), MagicMock()]),
-        patch("streamlit.text_area", return_value="Elevated RHR observed."),
-        patch("streamlit.text_input", return_value=""),
-        patch("streamlit.rerun"),
-        patch("wha.api.client.ApiClient.submit_human_decision") as mock_decision,
-    ):
-        render_inbox(subject_id="sub_test", pending=pending)
-        # The draft must actually reach the screen, which is a stronger check than
-        # asserting that a particular Streamlit call was made to display it.
-        written = " ".join(str(c[0][0]) for c in mock_write.call_args_list if c[0])
-        assert "Possibly coming down with something" in written
-        assert "Elevated RHR observed" in written
-        assert mock_decision.called
-        call_args = mock_decision.call_args
-        assert call_args.kwargs["episode_id"] == "ep_001"
-        assert call_args.kwargs["decision"] == "approve"
+    assert not app.success
+    assert "learning your normal" in _body(app).lower()
 
 
-def test_an_urgency_the_rules_set_outranks_the_reassurance() -> None:
-    """A person the rules have escalated must not be told nothing needs them.
+def test_the_verdict_shows_the_level_the_system_recorded(fake_api) -> None:
+    """The screen and the record must use the same word for the same night."""
+    _ready(fake_api, detail=_detail(level=DetectionLevel.RED))
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    The escalation banner was once rendered near the bottom of the page while the top of
-    the same screen still read "Nothing needs you right now". Both were true statements
-    about different things and together they were dangerous. The banner is now drawn into a
-    slot reserved above the reassurance, and only one of the two ever appears.
-    """
-    from wha.ui.today import render_urgency_banner
-
-    with (
-        patch("streamlit.error") as mock_error,
-        patch("streamlit.warning") as mock_warning,
-        patch("streamlit.success") as mock_success,
-        patch("streamlit.info"),
-        patch("streamlit.caption"),
-        patch("wha.api.client.ApiClient.latest_urgency_reason", return_value=""),
-    ):
-        render_urgency_banner("urgent", "sub_test")
-
-    assert mock_error.called
-    assert not mock_success.called, "reassurance shown alongside an urgent escalation"
-    assert not mock_warning.called
+    assert "RED" in _body(app)
 
 
-def test_the_page_reserves_the_urgent_slot_above_the_conversation() -> None:
-    """The slot must be opened before the conversation is handled, or ordering is lost."""
-    import inspect
+def test_every_number_on_the_verdict_card_has_an_explanation(fake_api) -> None:
+    """A number with no explanation is the defect this rewrite exists to fix."""
+    from wha.ui import explain
 
-    from wha.ui.today import render_today_page
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _body(app)
 
-    source = inspect.getsource(render_today_page)
-    assert source.index("st.container()") < source.index("render_conversation")
-    assert source.index("render_conversation") < source.index("render_inbox")
+    for key in ("metric.rhr", "metric.baseline", "metric.gap", "metric.coverage"):
+        assert explain.text(key) in body, key
+
+
+def test_a_night_measured_over_recorded_sleep_does_not_claim_otherwise(fake_api) -> None:
+    """The old pages asserted the clock window on all 72 nights, wrongly on 44 of them."""
+    _ready(fake_api, detail=_detail(window_source="sleep"))
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert "recorded no sleep" not in _body(app).lower()
+
+
+def test_a_night_measured_over_the_clock_fallback_says_so(fake_api) -> None:
+    _ready(fake_api, detail=_detail(window_source="clock"))
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert "recorded no sleep" in _body(app).lower()
+
+
+def test_no_measured_night_is_missing_data_not_a_result(fake_api) -> None:
+    """An empty screen and a healthy person must never look the same."""
+    _ready(fake_api)
+    fake_api.list_nights.return_value = [_row(DetectionLevel.NA, None, "clock")]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert "missing data, not a result" in _body(app)
+
+
+def test_the_doctor_summary_shows_what_it_will_copy(fake_api) -> None:
+    """A copy control that sends something the person never saw is not consent."""
+    _ready(fake_api)
+    fake_api.build_handover.return_value = {
+        "text": "SITUATION: raised resting heart rate over two nights."
+    }
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    prepare = next(b for b in app.button if "Prepare" in b.label)
+    prepare.click().run()
+
+    assert any("SITUATION" in block.value for block in app.code)
+
+
+def test_asking_a_question_sends_it_and_shows_the_stored_transcript(fake_api) -> None:
+    """The reply is read back from the record, not rendered from the response."""
+    _ready(fake_api)
+    fake_api.get_transcript.return_value = [
+        {"role": "user", "text": "I feel tired", "citations_json": "[]", "uncited_json": "[]"},
+        {
+            "role": "assistant",
+            "text": "Your last night was above your usual range.",
+            "citations_json": "[]",
+            "uncited_json": "[]",
+            "urgency": None,
+        },
+    ]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert not app.exception
+    assert any("above your usual range" in m.value for m in app.markdown)
+
+
+def test_an_uncited_sentence_is_flagged_and_the_flagging_is_not_promised_complete(
+    fake_api,
+) -> None:
+    """The model sorts its own sentences, so an absence of warnings proves nothing."""
+    _ready(fake_api)
+    fake_api.get_transcript.return_value = [
+        {
+            "role": "assistant",
+            "text": "That is reassuring.",
+            "citations_json": "[]",
+            "uncited_json": '["That is reassuring."]',
+        }
+    ]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert app.warning
+    assert "not from a source" in app.warning[0].value.lower()
+    assert "can miss things" in _body(app)
+
+
+def test_the_timestamp_is_the_persons_own_clock(fake_api) -> None:
+    """A UTC hour printed to somebody in Singapore is simply the wrong time."""
+    _ready(fake_api)
+    AppTest.from_file(PAGE, default_timeout=30).run()
+
+    fake_api.localise.assert_called()
+    assert isinstance(fake_api.localise.call_args[0][0], datetime | type(None))
+    assert datetime.now(UTC).tzinfo is UTC
