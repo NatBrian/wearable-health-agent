@@ -1,0 +1,174 @@
+"""How the system works, as a permanent reference beside the night-by-night view.
+
+Carried over from the previous Audit page and deliberately not rewritten, because of the
+property it already has: every threshold quoted here is read from the running system at
+render time rather than written into the prose. The version before it hardcoded its
+figures and had drifted, claiming a coverage minimum it did not use, a scale floor it did
+not use, baseline tiers that did not match the ladder, and tool names not in the registry.
+
+The pipeline view answers "what happened on this night". This answers "how does any of
+this work", which is a different question and still worth a page.
+"""
+
+import streamlit as st
+
+from wha.ui.components.api import api, config
+
+
+def render(subject_id: str) -> None:
+    """Explain the pipeline, with every figure read from the code."""
+    st.subheader("How a night gets judged")
+    st.caption("The numbers below are read from the running system, not written into this page.")
+
+    with st.expander("1. Reading the watch", expanded=False):
+        st.markdown(
+            f"""
+- The reading is taken over the sleep your watch recorded, because daytime heart rate
+  reflects whatever you were doing. When the watch reports no sleep for a night, the
+  window falls back to midnight to 7am and the night says so.
+- At least **{config()["MIN_NOCTURNAL_MINUTES"]} minutes** of contact are needed, or the night is
+  marked unusable rather than guessed at.
+- Readings below **{config()["HR_PLAUSIBLE_MIN_BPM"]} bpm** or above **{config()["HR_PLAUSIBLE_MAX_BPM"]} bpm**
+  are treated as sensor error and dropped.
+"""
+        )
+
+    with st.expander("2. Learning your normal", expanded=False):
+        st.markdown(
+            f"""
+Your baseline is the middle of your recent nights, not an average, so one bad night
+cannot drag it. How much it relies on you rather than on typical adults depends on how
+many nights it has:
+
+| Nights of your own | What it uses |
+|---|---|
+| 0 to {config()["RUNG_COLD_MAX_NIGHTS"]} | Nothing is judged yet |
+| {config()["RUNG_COLD_MAX_NIGHTS"] + 1} to {config()["RUNG_PRIOR_MAX_NIGHTS"]} | Mostly typical adults |
+| {config()["RUNG_PRIOR_MAX_NIGHTS"] + 1} to {config()["RUNG_SHRINKING_MAX_NIGHTS"]} | A blend |
+| {config()["RUNG_SHRINKING_MAX_NIGHTS"] + 1} to {config()["RUNG_PERSONAL_MAX_NIGHTS"]} | Mostly you |
+| {config()["RUNG_PERSONAL_MAX_NIGHTS"] + 1} and up | You alone |
+
+The measure of your night-to-night spread never goes below **{config()["BASELINE_SCALE_FLOOR_BPM"]} bpm**.
+Watches report whole numbers, so a run of identical nights would otherwise give a spread
+of exactly zero and make every later night look infinitely unusual.
+"""
+        )
+
+    with st.expander("3. Deciding a night is worth looking at", expanded=False):
+        st.markdown(
+            f"""
+- Anything a recorded workout would be expected to add is subtracted first.
+- What remains is compared with your usual: **{config()["DETECT_YELLOW_BPM"]} bpm** above is slightly
+  raised, **{config()["DETECT_RED_BPM"]} bpm** above is clearly raised.
+- A single raised night is not enough. It takes **{config()["DETECT_PERSISTENCE_NIGHTS"]} nights** in a
+  row, **both clearly raised**, before anything opens. That is what keeps a late drink
+  from starting an investigation, and it is exactly the rule the study these thresholds
+  come from used.
+"""
+        )
+
+    with st.expander("4. The safety rules, which run before anything else", expanded=True):
+        st.markdown(
+            """
+If you describe certain symptoms in your own words, the system stops and tells you to
+seek care. That check is plain pattern matching against a fixed list, it runs
+before any model is consulted, and no amount of model output can switch it off. A
+language model can only **add** a flag to that list, never remove one.
+"""
+        )
+
+        # THE NUMBERS IN THIS FLOOR, AND WHERE THEY CAME FROM.
+        #
+        # This project's standing rule is that an unevidenced clinical figure must be
+        # labelled in the docs AND on the dashboard. causes.yaml had that on both sides.
+        # red_flags.yaml had it on neither, while its own footer called its numbers "the
+        # only place in this project where a wrong number has a real-world consequence".
+        # Six of the ten are ASSUMED, which is a legitimate answer and now a visible one.
+        rows = api().get_safety_rule_provenance()
+        if rows:
+            assumed = [r for r in rows if r["provenance"] == "ASSUMED"]
+            st.dataframe(
+                [
+                    {
+                        "Rule": r["rule"],
+                        "When it fires": r["number"],
+                        "Where the number came from": (
+                            "no published source found"
+                            if r["provenance"] == "ASSUMED"
+                            else "worked out from other figures here"
+                            if r["provenance"] == "DERIVED"
+                            else "a published study"
+                        ),
+                    }
+                    for r in rows
+                ],
+                use_container_width=True,
+                hide_index=True,
+            )
+            if assumed:
+                st.warning(
+                    f"**{len(assumed)} of these {len(rows)} numbers have no published "
+                    "source behind them,** and the table says which. No study was found "
+                    "measuring how many nights a symptom should persist before it is "
+                    "worth a same-day appointment, so those windows were chosen rather "
+                    "than measured. They are set short, which means they err towards "
+                    "sending you to a doctor sooner rather than later. This is disclosed "
+                    "because a number nobody measured must not look the same as one "
+                    "somebody did.",
+                    icon="⚠️",
+                )
+
+    with st.expander("5. What the AI is and is not allowed to do", expanded=True):
+        tool_names = api().get_permitted_tool_names()
+        tools = "\n".join(f"- `{name}`" for name in tool_names)
+        st.markdown(
+            f"""
+The model can only call these {len(tool_names)} read-only tools, and nothing
+else. Any other request is refused and recorded:
+
+{tools}
+
+It cannot write to your record, send you anything, or decide whether to interrupt you.
+"""
+        )
+
+    with st.expander("6. Working out the likely cause", expanded=False):
+        st.markdown(
+            f"""
+The system tracks **{config()["N_CAUSES"]} possible causes** at once and considers every combination
+of them being present or absent, which is {2 ** config()["N_CAUSES"]:,} possibilities. This is ordinary
+arithmetic, not a model, so the same evidence always gives the same answer.
+"""
+        )
+
+    with st.expander("7. Deciding whether to interrupt you", expanded=True):
+        st.markdown(
+            f"""
+This is the one decision the AI does not make. Before asking anything, the system works
+out how much the answer could actually change what it does. If that is worth less than
+the cost of interrupting you, it stays quiet.
+
+**That arithmetic is what keeps this quiet, not a cap.** There is also a hard limit of
+**{config()["INTERRUPTION_BUDGET_PER_WEEK"]} unsolicited questions a week**, and it has
+never been reached. Measured across 76 people and 738 weeks of real wearable data, this
+system opens an investigation about once every 4.9 weeks and asks at most one question in
+each. In a run with the whole weekly allowance unspent it asked one question and stopped,
+because after your answer every remaining question was worth less than the cost of asking
+it.
+
+The cap stays as a backstop. It is just not the reason you are rarely asked anything.
+
+This is why most raised nights never produce a question.
+"""
+        )
+
+    with st.expander("8. Where your data goes", expanded=False):
+        st.markdown(
+            """
+Readings, nightly figures and the full record stay in a database file on this machine.
+
+The one exception is the language model. Unless it is set to the offline recorded
+provider, the text of a question or summary is sent to whichever model endpoint is
+configured, which may be a remote service. The Settings page shows which is in use.
+"""
+        )

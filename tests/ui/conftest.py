@@ -31,6 +31,22 @@ def page(name: str) -> str:
     return str(UI_ROOT / name)
 
 
+# Thresholds come from the real constants rather than being typed here. A fixture that
+# hardcodes them passes while the screen and the code disagree, which is the exact class
+# of drift the /config endpoint exists to prevent.
+def _thresholds() -> dict:
+    from wha import constants
+
+    return {
+        name: getattr(constants, name)
+        for name in dir(constants)
+        if name.isupper()
+        and isinstance(
+            getattr(constants, name), str | int | float | bool | list | dict | type(None)
+        )
+    }
+
+
 CONFIG = {
     "today": "2026-09-05",
     "configured_subject": "sim",
@@ -42,6 +58,7 @@ CONFIG = {
     "SOURCE_LABEL_PREFIXES": {"medlineplus": "MedlinePlus"},
     "SOURCE_LABEL_FALLBACK": "this repository's own knowledge",
     "EXTERNAL_SOURCE_PREFIX": "medlineplus",
+    **_thresholds(),
 }
 
 
