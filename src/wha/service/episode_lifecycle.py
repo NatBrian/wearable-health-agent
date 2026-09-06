@@ -20,7 +20,11 @@ from datetime import date, datetime
 from pathlib import Path
 
 from wha.clock import local_date_of, local_today
-from wha.constants import DETECT_PERSISTENCE_NIGHTS, EPISODE_MAX_NIGHTS
+from wha.constants import (
+    DETECT_PERSISTENCE_NIGHTS,
+    EPISODE_MAX_NIGHTS,
+    EPISODE_RECURRENCE_LINK_DAYS,
+)
 from wha.db import apply_schema, connect
 from wha.errors import ConfigError
 from wha.models import BaselineRung, Detection, Disposition
@@ -73,12 +77,29 @@ def open_or_append_episode(
     baseline_nights, rung = _baseline_at(conn, subject_id, trigger_night)
     episode_id = f"ep_{uuid.uuid4().hex[:12]}"
 
+    # A recurrence is not a first-ever investigation, and this used to open one as though
+    # it were. Somebody whose readings settled, whose episode closed, and who was flagged
+    # again four days later got an agent that started from the same prior with no idea it
+    # had met them the week before. That is exactly the information a clinician would want
+    # first, and the system threw it away at the episode boundary.
+    previous, gap_days = _preceding_episode(conn, subject_id, trigger_night)
+
     conn.execute(
         """INSERT INTO episodes
              (episode_id, subject_id, thread_id, opened_on, state,
-              baseline_nights, baseline_rung, step_count, tool_call_count, depth_used)
-           VALUES (?, ?, ?, ?, 'OPEN', ?, ?, 0, 0, 0)""",
-        (episode_id, subject_id, episode_id, trigger_night.isoformat(), baseline_nights, rung),
+              baseline_nights, baseline_rung, step_count, tool_call_count, depth_used,
+              preceded_by_episode_id, days_since_previous)
+           VALUES (?, ?, ?, ?, 'OPEN', ?, ?, 0, 0, 0, ?, ?)""",
+        (
+            episode_id,
+            subject_id,
+            episode_id,
+            trigger_night.isoformat(),
+            baseline_nights,
+            rung,
+            previous,
+            gap_days,
+        ),
     )
     conn.commit()
 
@@ -95,6 +116,69 @@ def open_or_append_episode(
         )
 
     return episode_id
+
+
+def _preceding_episode(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    trigger_night: date,
+) -> tuple[str | None, int | None]:
+    """The investigation this one continues, if it is close enough to be the same illness.
+
+    THE THRESHOLD IS EPISODE_RECURRENCE_LINK_DAYS AND IT IS CITED. Respiratory illness
+    surveillance conventionally separates two illnesses into distinct episodes when they
+    are at least seven symptom-free days apart. That is the illness class this system
+    targets: the NightSignal, DETECT and Mishra cohorts are all respiratory.
+
+    Checked against a second, independent case rather than taken on one source. Saddleback
+    dengue is defined as defervescence of at least one day followed by a second fever peak
+    one to two days later, and the second peak is the dangerous one. Seven days contains
+    that gap comfortably, so a biphasic fever is scored as ONE illness recurring rather
+    than as two unrelated events, which is the whole point.
+
+    THE CLOCK RUNS ON SYMPTOMS WHERE THERE ARE ANY. The source counts symptom-free days,
+    not reading-normal days, and substituting one for the other would be reading the
+    citation to suit the data that happens to be on hand. Where no symptom was ever
+    reported there is nothing else to count, so the gap falls back to the close date.
+
+    A linked episode is still a separate row. Merging would break the one-open-episode
+    invariant and rewrite a closed episode's disposition, and neither is worth it: what
+    was missing is CONTEXT, and a pointer carries context.
+    """
+    row = conn.execute(
+        """SELECT episode_id, closed_on FROM episodes
+            WHERE subject_id = ? AND state = 'CLOSED' AND closed_on IS NOT NULL
+            ORDER BY closed_on DESC LIMIT 1""",
+        (subject_id,),
+    ).fetchone()
+    if row is None:
+        return None, None
+
+    try:
+        closed = date.fromisoformat(str(row["closed_on"]))
+    except (TypeError, ValueError):
+        return None, None
+
+    # Symptom-free days, where symptoms exist to count. The last night the person reported
+    # anything is the end of the previous illness far more faithfully than the date an
+    # algorithm closed a row.
+    last_symptom: date | None = None
+    try:
+        srow = conn.execute(
+            """SELECT MAX(night_date) AS n FROM symptom_observations
+                WHERE subject_id = ? AND present = 1 AND night_date <= ?""",
+            (subject_id, trigger_night.isoformat()),
+        ).fetchone()
+        if srow and srow["n"]:
+            last_symptom = date.fromisoformat(str(srow["n"]))
+    except sqlite3.Error:
+        last_symptom = None
+
+    reference = max(closed, last_symptom) if last_symptom is not None else closed
+    gap = (trigger_night - reference).days
+    if gap < 0 or gap >= EPISODE_RECURRENCE_LINK_DAYS:
+        return None, None
+    return str(row["episode_id"]), gap
 
 
 def close_episode(

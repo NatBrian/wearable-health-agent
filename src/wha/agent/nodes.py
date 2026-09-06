@@ -197,6 +197,50 @@ def node_preload(
     res_hist = reg.invoke("find_similar_past_episodes", {}, context, db=db)
     preloaded["similar_past_episodes"] = res_hist.value
 
+    # 6. What the person has actually told us, and whether this is a recurrence.
+    #
+    # Both go into `preloaded`, which the investigate prompt renders as its history
+    # summary, so the model reasons with them without a new prompt slot. Neither existed
+    # before: the agent could see every reading and none of the words, and it opened a
+    # recurrence four days after the last episode closed with no idea it had met this
+    # person before.
+    #
+    # Deliberately facts, not conclusions. "Reported dizziness on 3 consecutive nights,
+    # not reported as settled" is something the model can reason from and a reader can
+    # check. It is not a diagnosis and does not name one.
+    conn = getattr(db, "conn", None)
+    if conn is not None:
+        try:
+            from wha.service.symptoms import symptom_runs
+
+            preloaded["reported_symptoms"] = [
+                {
+                    "symptom": run.flag_id,
+                    "first_reported": run.first_night.isoformat(),
+                    "last_reported": run.last_night.isoformat(),
+                    "nights": run.nights,
+                    "still_outstanding": run.outstanding,
+                    "their_words": run.last_text[:200],
+                }
+                for run in symptom_runs(conn, subject_id, local_today())
+            ]
+            erow = conn.execute(
+                """SELECT preceded_by_episode_id, days_since_previous FROM episodes
+                    WHERE episode_id = ?""",
+                (state.get("episode_id"),),
+            ).fetchone()
+            if erow is not None and erow["preceded_by_episode_id"]:
+                preloaded["recurrence"] = {
+                    "continues_episode": erow["preceded_by_episode_id"],
+                    "days_since_previous_ended": erow["days_since_previous"],
+                    "note": (
+                        "This is a recurrence within the window that respiratory illness "
+                        "surveillance treats as the same illness, not a new one."
+                    ),
+                }
+        except Exception:
+            logger.exception("Could not preload symptom history for %s", subject_id)
+
     return {
         "preloaded": preloaded,
         "step": state.get("step", 0) + 1,
