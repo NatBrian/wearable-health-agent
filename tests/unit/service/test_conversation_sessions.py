@@ -53,7 +53,8 @@ def test_a_conversation_from_before_the_night_still_moves_to_the_record(db) -> N
 
     _turn(db, 1, datetime.now(UTC) - timedelta(days=3), "an old question")
 
-    sessions = get_conversation_sessions("sim", since_night=date.today(), conn=db)
+    today = datetime.now(UTC).date()
+    sessions = get_conversation_sessions("sim", since_night=today, conn=db)
 
     assert sessions == []
 
