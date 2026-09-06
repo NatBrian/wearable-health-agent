@@ -108,6 +108,7 @@ def _ready(fake_api, detail: NightDetail | None = None, pending=None) -> None:
     fake_api.get_night_detail.return_value = detail or _detail()
     fake_api.list_episodes.return_value = []
     fake_api.get_transcript.return_value = []
+    fake_api.get_conversation_sessions.return_value = []
 
 
 def _body(app: AppTest) -> str:
@@ -218,15 +219,25 @@ def test_the_doctor_summary_shows_what_it_will_copy(fake_api) -> None:
 def test_asking_a_question_sends_it_and_shows_the_stored_transcript(fake_api) -> None:
     """The reply is read back from the record, not rendered from the response."""
     _ready(fake_api)
-    fake_api.get_transcript.return_value = [
-        {"role": "user", "text": "I feel tired", "citations_json": "[]", "uncited_json": "[]"},
+    fake_api.get_conversation_sessions.return_value = [
         {
-            "role": "assistant",
-            "text": "Your last night was above your usual range.",
-            "citations_json": "[]",
-            "uncited_json": "[]",
-            "urgency": None,
-        },
+            "started_utc": "2026-09-05T22:00:00+00:00",
+            "turns": [
+                {
+                    "role": "user",
+                    "text": "I feel tired",
+                    "citations_json": "[]",
+                    "uncited_json": "[]",
+                },
+                {
+                    "role": "assistant",
+                    "text": "Your last night was above your usual range.",
+                    "citations_json": "[]",
+                    "uncited_json": "[]",
+                    "urgency": None,
+                },
+            ],
+        }
     ]
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
@@ -239,12 +250,17 @@ def test_an_uncited_sentence_is_flagged_and_the_flagging_is_not_promised_complet
 ) -> None:
     """The model sorts its own sentences, so an absence of warnings proves nothing."""
     _ready(fake_api)
-    fake_api.get_transcript.return_value = [
+    fake_api.get_conversation_sessions.return_value = [
         {
-            "role": "assistant",
-            "text": "That is reassuring.",
-            "citations_json": "[]",
-            "uncited_json": '["That is reassuring."]',
+            "started_utc": "2026-09-05T22:00:00+00:00",
+            "turns": [
+                {
+                    "role": "assistant",
+                    "text": "That is reassuring.",
+                    "citations_json": "[]",
+                    "uncited_json": '["That is reassuring."]',
+                }
+            ],
         }
     ]
     app = AppTest.from_file(PAGE, default_timeout=30).run()
@@ -395,3 +411,120 @@ def test_today_shows_the_newest_measured_night_even_if_it_postdates_the_calendar
     kwargs = fake_api.list_nights.call_args.kwargs
     assert "end" not in kwargs, "the screen is still deciding where the record ends"
     assert kwargs.get("days") == 7
+
+
+def test_the_chat_starts_fresh_when_a_new_night_arrives(fake_api) -> None:
+    """Reported by the user: the chat was not cleared for the new night.
+
+    Six hours of silence is the agent's rule for ending a consultation. It is not the same
+    boundary as a new night, and a question about Sunday under Monday's verdict reads as
+    though it were about Monday.
+    """
+    _ready(fake_api)
+    AppTest.from_file(PAGE, default_timeout=30).run()
+
+    scoped = [
+        c for c in fake_api.get_conversation_sessions.call_args_list if c.kwargs.get("since_night")
+    ]
+    assert scoped, "the chat asked for every conversation regardless of the night shown"
+    assert scoped[0].kwargs["since_night"] == NIGHT
+
+
+def test_only_the_current_conversation_is_shown(fake_api) -> None:
+    """A question about Sunday sat under Monday's verdict and read as though it were
+    about Monday. The agent already ends a consultation after a gap of several hours; the
+    screen showed the last forty turns whatever night they came from.
+    """
+    _ready(fake_api)
+    fake_api.get_conversation_sessions.return_value = [
+        {
+            "started_utc": "2026-09-05T22:00:00+00:00",
+            "turns": [
+                {
+                    "role": "user",
+                    "text": "tonight's question",
+                    "citations_json": "[]",
+                    "uncited_json": "[]",
+                }
+            ],
+        },
+        {
+            "started_utc": "2026-09-01T09:00:00+00:00",
+            "turns": [
+                {
+                    "role": "user",
+                    "text": "a question from last week",
+                    "citations_json": "[]",
+                    "uncited_json": "[]",
+                },
+                {
+                    "role": "agent",
+                    "text": "an answer from last week",
+                    "citations_json": "[]",
+                    "uncited_json": "[]",
+                },
+            ],
+        },
+    ]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _body(app)
+
+    assert "tonight's question" in body
+    assert "a question from last week" not in body
+    assert "2 earlier turns are kept on the record screen" in body
+    assert "conversation about this night" in body
+
+
+def test_an_escalation_from_an_earlier_conversation_is_still_in_force(fake_api) -> None:
+    """Urgency is monotone by design. Reading only the current session would drop it."""
+    _ready(fake_api)
+    fake_api.get_conversation_sessions.return_value = [
+        {
+            "started_utc": "2026-09-05T22:00:00+00:00",
+            "turns": [
+                {"role": "user", "text": "hello", "citations_json": "[]", "uncited_json": "[]"}
+            ],
+        },
+        {
+            "started_utc": "2026-09-01T09:00:00+00:00",
+            "turns": [
+                {
+                    "role": "agent",
+                    "text": "seek care",
+                    "citations_json": "[]",
+                    "uncited_json": "[]",
+                    "urgency": "urgent",
+                }
+            ],
+        },
+    ]
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert not app.exception
+
+
+def test_a_night_nobody_has_talked_about_says_so(fake_api) -> None:
+    """ "This is your current conversation" over an empty one is not a sentence."""
+    _ready(fake_api)
+    fake_api.get_conversation_sessions.side_effect = lambda subject_id, since_night=None, **kw: (
+        []
+        if since_night
+        else [
+            {
+                "started_utc": "2026-09-01T09:00:00+00:00",
+                "turns": [
+                    {
+                        "role": "user",
+                        "text": "an old question",
+                        "citations_json": "[]",
+                        "uncited_json": "[]",
+                    }
+                ],
+            }
+        ]
+    )
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _body(app)
+
+    assert "Nothing has been said about this night yet" in body
+    assert "an old question" not in body

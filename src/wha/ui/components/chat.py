@@ -14,6 +14,7 @@ the rerun, so what the screen shows is what was actually recorded.
 """
 
 import json
+from datetime import date
 
 import streamlit as st
 
@@ -22,8 +23,16 @@ from wha.ui.components.api import api
 from wha.ui.components.citations import attribution_note, chip, drawer, is_external
 
 
-def render(subject_id: str) -> str | None:
-    """The transcript, the input box, and the urgency the safety rules have established."""
+def render(subject_id: str, night: date | None = None) -> str | None:
+    """This conversation, the input box, and the urgency the safety rules established.
+
+    Only the current consultation is drawn. The screen used to show the last forty turns
+    whatever night they came from, so a question about Sunday sat under Monday's verdict
+    and read as though it were about Monday. The agent already ended a consultation after
+    a gap of several hours; the screen simply did not.
+
+    Nothing is deleted. Earlier conversations are on the record screen in full.
+    """
     st.subheader("Ask about any of this")
     st.caption(
         "Ask about your readings, or say how you feel. Anything you write is checked by "
@@ -31,7 +40,26 @@ def render(subject_id: str) -> str | None:
         "the AI can never lower it."
     )
 
-    turns = api().get_transcript(subject_id)
+    # Scoped to the night on screen. A conversation about Sunday belongs to Sunday: once
+    # Monday has been measured it moves to the record rather than sitting under Monday's
+    # verdict, which is what "the chat was not cleared for the new night" meant.
+    sessions = api().get_conversation_sessions(subject_id, since_night=night)
+    turns = sessions[0]["turns"] if sessions else []
+    earlier_here = sum(len(session["turns"]) for session in sessions[1:])
+    all_sessions = api().get_conversation_sessions(subject_id)
+    earlier = earlier_here + sum(len(session["turns"]) for session in all_sessions[len(sessions) :])
+
+    if earlier and turns:
+        st.caption(
+            f"This is your conversation about this night. {earlier} earlier turns are kept "
+            "on the record screen, under everything the system did."
+        )
+    elif earlier:
+        st.caption(
+            f"Nothing has been said about this night yet. {earlier} earlier turns are kept "
+            "on the record screen, under everything the system did."
+        )
+
     for index, turn in enumerate(turns):
         role = "user" if turn["role"] == "user" else "assistant"
         with st.chat_message(role):
@@ -45,7 +73,10 @@ def render(subject_id: str) -> str | None:
             api().send_message(subject_id=subject_id, text=message.strip())
         st.rerun()
 
-    with_urgency = [t for t in turns if t.get("urgency")]
+    # Urgency is read across every session, not just this one. It is monotone by design
+    # and an escalation from a previous conversation is still in force.
+    all_turns = [turn for session in all_sessions for turn in session["turns"]]
+    with_urgency = [t for t in all_turns if t.get("urgency")]
     return str(with_urgency[-1]["urgency"]) if with_urgency else None
 
 

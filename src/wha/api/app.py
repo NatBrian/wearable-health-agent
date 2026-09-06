@@ -272,6 +272,22 @@ def get_transcript(subject_id: str, limit: int = Query(default=40, ge=1, le=500)
     return service.get_transcript(subject_id, limit=limit)
 
 
+@app.get("/subjects/{subject_id}/conversation/sessions")
+def get_conversation_sessions(
+    subject_id: str,
+    limit_turns: int = Query(default=400, ge=1, le=2000),
+    since_night: date | None = None,
+) -> list[Any]:
+    """The conversation split into the consultations it was, newest first.
+
+    A screen showing the last N turns regardless of when they happened puts a question
+    about one night under another night's verdict.
+    """
+    return service.get_conversation_sessions(
+        subject_id, limit_turns=limit_turns, since_night=since_night
+    )
+
+
 @app.post("/subjects/{subject_id}/conversation")
 def post_message(subject_id: str, body: MessageBody) -> Any:
     """One turn, with every deterministic check applied around the model."""

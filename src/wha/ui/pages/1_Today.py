@@ -245,6 +245,7 @@ def main() -> None:
         # Today showed a green night while a red one sat unshown in the record.
         nights = api().list_nights(subject, days=7)
         measured = [n for n in nights if n.usable]
+        shown_night = measured[-1].night_date if measured else None
         if measured:
             detail = api().get_night_detail(subject, measured[-1].night_date)
             if detail is not None:
@@ -257,7 +258,7 @@ def main() -> None:
 
         render_investigation(subject)
         st.markdown(design.separator(), unsafe_allow_html=True)
-        chat.render(subject)
+        chat.render(subject, night=shown_night)
         st.markdown(design.separator(), unsafe_allow_html=True)
         render_handover(subject)
     except ApiUnavailable as exc:

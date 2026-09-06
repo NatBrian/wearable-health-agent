@@ -9,7 +9,8 @@ a failed query must never look the same, because one of them means nothing happe
 the other means the page is lying by omission.
 """
 
-from datetime import date
+import json
+from datetime import date, datetime
 
 import streamlit as st
 
@@ -139,6 +140,9 @@ def render_record_tab(subject: str) -> None:
                 st.json(record["detail"])
 
     st.markdown(design.separator(), unsafe_allow_html=True)
+    render_conversations(subject)
+
+    st.markdown(design.separator(), unsafe_allow_html=True)
     st.subheader("Every recorded action")
 
     actor, operation, episode = st.columns(3)
@@ -194,6 +198,66 @@ def render_record_tab(subject: str) -> None:
             file_name=f"record-{subject}.jsonl",
             mime="application/json",
         )
+
+
+def render_conversations(subject: str) -> None:
+    """Every conversation, kept and readable, not only the current one.
+
+    Today shows the consultation you are in. Everything before it lives here, with the
+    sources each reply quoted and whatever the safety rules made of it, because a
+    conversation about your own health is part of your record rather than a scratchpad
+    that scrolls away.
+    """
+    st.subheader("Conversations")
+    sessions = api().get_conversation_sessions(subject)
+
+    if not sessions:
+        st.info(
+            "You have not written to the system yet. This is an empty record, not a failed check."
+        )
+        return
+
+    st.caption(
+        f"{len(sessions)} conversation(s), newest first. A gap of several hours starts a "
+        "new one, which is the same rule the system itself uses."
+    )
+
+    for position, session in enumerate(sessions):
+        started = _moment(session.get("started_utc"))
+        label = format.local_time(api(), started) if started else "time not recorded"
+        turns = session["turns"]
+        urgencies = [t["urgency"] for t in turns if t.get("urgency")]
+        summary = f"{label} - {len(turns)} turns"
+        if urgencies:
+            summary += f" - safety rules reached {urgencies[-1]}"
+
+        with st.expander(summary, expanded=position == 0):
+            for turn in turns:
+                who = "You" if turn["role"] == "user" else "The system"
+                st.markdown(f"**{who}**")
+                st.write(turn["text"])
+                citations = json.loads(turn.get("citations_json") or "[]")
+                if citations:
+                    st.caption(
+                        "Sources quoted: "
+                        + ", ".join(str(c.get("title") or c.get("source_id")) for c in citations)
+                    )
+                uncited = json.loads(turn.get("uncited_json") or "[]")
+                if uncited:
+                    st.caption(
+                        f"{len(uncited)} sentence(s) in this reply came from the AI's own "
+                        "knowledge with no source behind them."
+                    )
+
+
+def _moment(value: object) -> datetime | None:
+    """A stored timestamp, or nothing. Never a substitute for a missing one."""
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def main() -> None:

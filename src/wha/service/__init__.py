@@ -24,6 +24,7 @@ from wha.service.belief import (
 )
 from wha.service.conversation import (
     acknowledge_urgency,
+    get_conversation_sessions,
     get_transcript,
     latest_urgency,
     latest_urgency_reason,
@@ -117,6 +118,7 @@ __all__ = [
     "explain_belief",
     "export_audit",
     "fetch_data",
+    "get_conversation_sessions",
     "get_episode",
     "get_evaluation_results",
     "get_knowledge_provenance",

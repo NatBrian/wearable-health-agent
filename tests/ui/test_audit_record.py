@@ -37,6 +37,7 @@ def _ready(fake_api) -> None:
     fake_api.query_audit.return_value = [_event()]
     fake_api.count_audit_events.return_value = 1
     fake_api.verify_hash_chain.return_value = (True, None)
+    fake_api.get_conversation_sessions.return_value = []
 
 
 def _tab_text(app: AppTest) -> str:
@@ -158,3 +159,53 @@ def test_no_topic_carries_a_number_of_its_own(fake_api) -> None:
         rendered = _title(topic)
         assert not rendered.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7.", "8."))
         assert "step" in rendered
+
+
+def test_earlier_conversations_are_readable_on_the_record(fake_api) -> None:
+    """Today shows the consultation you are in. Everything before it has to live somewhere.
+
+    A conversation about your own health is part of your record, not a scratchpad that
+    scrolls away.
+    """
+    _ready(fake_api)
+    fake_api.get_conversation_sessions.return_value = [
+        {
+            "started_utc": "2026-09-05T22:00:00+00:00",
+            "turns": [
+                {
+                    "role": "user",
+                    "text": "tonight's question",
+                    "citations_json": "[]",
+                    "uncited_json": "[]",
+                }
+            ],
+        },
+        {
+            "started_utc": "2026-09-01T09:00:00+00:00",
+            "turns": [
+                {
+                    "role": "user",
+                    "text": "a question from last week",
+                    "citations_json": '[{"title": "Chest Pain", "source_id": "medlineplus_1"}]',
+                    "uncited_json": "[]",
+                    "urgency": "same_day",
+                }
+            ],
+        },
+    ]
+
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _tab_text(app)
+
+    assert "Conversations" in " ".join(s.value for s in app.subheader)
+    assert "a question from last week" in " ".join(m.value for m in app.markdown) + body
+    assert "2 conversation(s)" in body
+
+
+def test_no_conversation_is_an_empty_record_not_a_failure(fake_api) -> None:
+    _ready(fake_api)
+    fake_api.get_conversation_sessions.return_value = []
+
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert any("have not written to the system yet" in i.value for i in app.info)

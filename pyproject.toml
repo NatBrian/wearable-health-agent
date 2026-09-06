@@ -31,6 +31,7 @@ dependencies = [
 dev = [
     "pytest>=8,<9",
     "pytest-cov",
+    "pytest-xdist",
     "ruff",
     "freezegun",
     "pypdf>=6.16.2",
@@ -42,3 +43,12 @@ wha = "wha.cli:app"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+# The interface tests run the real Streamlit scripts through AppTest, which is why the
+# suite is slow: each one starts a script run. They are independent, so they parallelise
+# cleanly. `-p no:cacheprovider` keeps a stale cache from making a green run look green.
+addopts = "-q"
+markers = [
+  "serial: touches the shared database and must not run in parallel",
+]

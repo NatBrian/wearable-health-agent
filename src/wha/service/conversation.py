@@ -5,6 +5,7 @@ seam the dashboard and the CLI talk to, so neither reaches into the agent direct
 """
 
 import sqlite3
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,99 @@ def get_transcript(
     finally:
         if close:
             connection.close()
+
+
+def get_conversation_sessions(
+    subject_id: str,
+    limit_turns: int = 400,
+    since_night: date | None = None,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    """The conversation split into the consultations it actually was, newest first.
+
+    The agent has always had this notion: `_turns_this_session` ends a session after a gap
+    of CONVERSATION_SESSION_GAP_HOURS, so picking the phone up the next morning starts a
+    new one. The screen did not, and showed the last forty turns whatever night they came
+    from, so a question about Sunday sat under Monday's verdict reading as though it were
+    about Monday.
+
+    Grouped here rather than in a screen, and by the same constant the agent uses, so the
+    two cannot end up disagreeing about where a conversation stopped.
+
+    `since_night` additionally drops everything that happened before that night began in
+    the person's own timezone. A conversation about Sunday is about Sunday: once Monday
+    has been measured it belongs to the record rather than under Monday's verdict, and six
+    hours of silence is not the same boundary as a new night.
+    """
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    from wha.constants import CONVERSATION_SESSION_GAP_HOURS
+    from wha.db.iso import from_iso
+
+    connection, close = _open(conn, db_path)
+    try:
+        turns = load_transcript(connection, subject_id, limit=limit_turns)
+    finally:
+        if close:
+            connection.close()
+
+    gap = timedelta(hours=CONVERSATION_SESSION_GAP_HOURS)
+    sessions: list[dict[str, Any]] = []
+    current: list[dict[str, Any]] = []
+    previous = None
+
+    for turn in turns:  # oldest first
+        try:
+            stamp = from_iso(turn["created_at_utc"])
+        except (TypeError, ValueError, KeyError):
+            stamp = None
+        if current and previous is not None and stamp is not None and (stamp - previous) > gap:
+            sessions.append({"started_utc": current[0].get("created_at_utc"), "turns": current})
+            current = []
+        current.append(turn)
+        if stamp is not None:
+            previous = stamp
+
+    if current:
+        sessions.append({"started_utc": current[0].get("created_at_utc"), "turns": current})
+
+    sessions.reverse()
+
+    if since_night is None:
+        return sessions
+
+    connection, close = _open(conn, db_path)
+    try:
+        row = connection.execute(
+            "SELECT timezone FROM subjects WHERE subject_id = ?", (subject_id,)
+        ).fetchone()
+    finally:
+        if close:
+            connection.close()
+
+    tz_name = (row["timezone"] if row and row["timezone"] else None) or "UTC"
+    try:
+        zone = ZoneInfo(tz_name)
+    except Exception:  # noqa: BLE001 - a bad timezone must not hide a conversation
+        zone = ZoneInfo("UTC")
+
+    boundary = datetime(
+        since_night.year, since_night.month, since_night.day, 0, 0, tzinfo=zone
+    ).astimezone(UTC)
+
+    kept = []
+    for session in sessions:
+        last = session["turns"][-1].get("created_at_utc")
+        stamp = None
+        try:
+            stamp = from_iso(last) if last else None
+        except (TypeError, ValueError):
+            stamp = None
+        if stamp is None or stamp >= boundary:
+            kept.append(session)
+    return kept
 
 
 def latest_urgency(

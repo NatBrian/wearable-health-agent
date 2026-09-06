@@ -192,6 +192,23 @@ class ApiClient:
 
     # ------------------------------------------------------------ conversation
 
+    def get_conversation_sessions(
+        self,
+        subject_id: str,
+        limit_turns: int = 400,
+        since_night: date | None = None,
+    ) -> list[dict[str, Any]]:
+        """The conversation grouped into consultations, newest first.
+
+        With `since_night`, only conversations from that night onward, so a screen showing
+        one night does not show a conversation about a different one.
+        """
+        params: dict[str, str | int] = {"limit_turns": limit_turns}
+        if since_night is not None:
+            params["since_night"] = since_night.isoformat()
+        rows = self._request("GET", f"/subjects/{subject_id}/conversation/sessions", params=params)
+        return list(rows or [])
+
     def get_transcript(self, subject_id: str, limit: int = 40) -> list[dict[str, Any]]:
         return (
             self._request("GET", f"/subjects/{subject_id}/conversation", params={"limit": limit})
