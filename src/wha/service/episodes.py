@@ -955,7 +955,13 @@ def step_episode(
         if final_state and final_state.startswith("AWAITING"):
             from wha.agent.graph import get_pending_interrupt
 
-            still_parked = get_pending_interrupt(graph, episode_id) is not None
+            try:
+                still_parked = get_pending_interrupt(graph, episode_id) is not None
+            except (AttributeError, TypeError, ValueError):
+                # A graph that cannot report its state cannot prove the episode is free.
+                # Leaving it parked is the safe reading: releasing it on a guess could
+                # hide a question the person still has to answer.
+                still_parked = True
             waiting_on_person = conn.execute(
                 """SELECT 1 FROM interactions
                     WHERE episode_id = ? AND status IN ('PENDING', 'ASKED') LIMIT 1""",

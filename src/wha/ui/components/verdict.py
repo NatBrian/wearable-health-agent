@@ -38,6 +38,7 @@ def render(subject_id: str, detail: NightDetail, on_trace: Any = None) -> None:
     else:
         st.info(f"**What happens now.** {explain.text(f'level.{level}.next')}")
     st.caption(explain.text("level.not_a_diagnosis"))
+    st.caption(explain.text("safety.what_it_cannot_catch"))
 
     left, middle, right = st.columns(3)
     with left:

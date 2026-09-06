@@ -419,8 +419,14 @@ class EpisodeRepository:
         kind: str = "QUESTION",
         channel: str = "none",
         episode_id: str | None = None,
+        extra: dict[str, object] | None = None,
     ) -> None:
-        """Record a delivered notification, so a resumed node does not send it twice."""
+        """Record a delivered notification, so a resumed node does not send it twice.
+
+        `extra` carries what the message was about. An escalation records the reading that
+        raised it, which is how a later night can tell whether the person has got worse
+        since they were last told anything.
+        """
         self._conn.execute(
             """INSERT INTO notifications
                  (id, subject_id, episode_id, interaction_id, measurement_id, channel,
@@ -434,7 +440,7 @@ class EpisodeRepository:
                 interaction_id if kind == "MEASUREMENT" else None,
                 channel,
                 kind,
-                json.dumps({"interaction_id": interaction_id}),
+                json.dumps({"interaction_id": interaction_id, **(extra or {})}),
                 to_iso(datetime.now(UTC)),
                 to_iso(datetime.now(UTC)),
             ),

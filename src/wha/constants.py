@@ -443,6 +443,24 @@ DEPTH_BUDGET_PER_EPISODE = 5
 # it, and that is recorded too.
 URGENCY_STALE_DAYS = 7
 
+# How much worse a night has to be before an escalation already sent is sent again.
+#
+# The guard used to be "once per episode, ever". A first sync backfills weeks of history
+# and night scoring re-runs every few hours, so an unguarded send would put the same
+# escalation on somebody's phone repeatedly, and that reasoning still holds.
+#
+# What it missed is deterioration. A person whose reading went from six robust deviations
+# above their own normal to nine, having already told the system they felt unwell, was
+# told nothing the second time, because something had been sent for that investigation
+# once. Silence while a person gets worse is the failure this system exists to prevent.
+#
+# One full robust deviation, expressed in the person's own units rather than in bpm, so it
+# means the same thing for somebody who varies by two bpm a night and somebody who varies
+# by six. It is not a clinical threshold and is not claimed as one: it is the smallest
+# change this system can call a change at all, since its whole scale is the person's own
+# night-to-night variation.
+ESCALATION_REPEAT_ROBUST_Z_RISE = 1.0
+
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36
 MEASUREMENT_TIMEOUT_HOURS = 24

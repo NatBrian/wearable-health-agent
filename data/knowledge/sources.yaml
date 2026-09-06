@@ -1,7 +1,6 @@
 # sources.yaml
 #
 # The complete allow-list of external endpoints and corpus sources.
-# READ ONLY.
 #
 # ANYTHING NOT IN THIS FILE IS REFUSED. There is no open web search, no arbitrary URL
 # fetch, and no way for the model to add an entry. Reach is extended by adding a named

@@ -1240,3 +1240,52 @@ out the comfortable explanation that the corruption was to blame.
 ends with no pending interrupt and no PENDING or ASKED interaction, an AWAITING state goes
 back to OPEN. An episode that IS waiting on a person stays parked, which
 `tests/unit/service/test_episode_state_release.py` asserts both ways.
+
+
+## safety - dizziness is in none of the rules, and it needs a clinical decision
+
+**6 September 2026, raised by the user, and the reasoning is theirs: "my dizziness kept
+getting worse, nobody asked, and on the 10th I died".**
+
+Two things were found by testing the phrases rather than reading the file.
+
+**1. Dizziness is not in `red_flags.yaml` at all.** Not tier A, not tier B. Checked
+directly:
+
+```
+False  []                 I feel a bit dizzy
+False  []                 dizzy and short of breath
+True   ['rf_syncope']     I fainted
+```
+
+Fainting escalates. Feeling faint does not, and neither does dizziness with breathlessness.
+So the symptom the user actually reported passed through the deterministic floor untouched
+and reached only the belief model, where it moved a probability rather than raising an
+alarm.
+
+**2. Phrase matching is exact, so ordinary wording escapes it.** "chest pain" escalates,
+"my chest hurts" does not, and neither does "feels like an elephant is sitting on my chest",
+which is the example the simulation runbook itself gives as a tier A phrase to test with.
+Tier C, the model backstop, exists for this and is the only thing standing behind it.
+
+**What was fixed without needing a clinical decision.** Escalation was once per
+investigation, so a person already being escalated about who then got materially worse was
+told nothing. It now repeats when the reading rises by a full robust deviation of that
+person's own variation, and a repeat says it has got worse and asks how they are.
+`ESCALATION_REPEAT_ROBUST_Z_RISE` is a judgement expressed in the system's own units, not a
+clinical threshold, and is marked as such.
+
+**What needs the user's decision, because `data/knowledge/` is under change control and a
+clinical figure may only change against a quotable source.**
+
+- Should dizziness or light-headedness be a tier B symptom, so that it escalates when it
+  persists or co-occurs with another? It is common and usually benign, which is why a naive
+  addition would make the system cry wolf, and that has its own harm.
+- Should any symptom reported during an investigation force a follow-up when the readings
+  worsen, regardless of what the information is worth? The value-of-asking arithmetic is
+  about telling causes apart. It is not about noticing deterioration, and it was never
+  meant to be.
+- Should the phrase lists be matched more loosely, accepting more false alarms?
+
+None of these can be answered from this repository's own numbers, and none should be
+invented. **Recorded, disclosed, and awaiting a decision.**

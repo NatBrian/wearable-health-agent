@@ -111,6 +111,13 @@ TEXT: dict[str, str] = {
         "readings were clearly raised on more than one night in a row. It will ask you "
         "something only if your answer would change what it concludes."
     ),
+    "safety.what_it_cannot_catch": (
+        "What this cannot catch. The rules that raise an alarm on your words match set "
+        "phrases, so unusual wording can slip past them, and dizziness or feeling faint "
+        "raise no alarm on their own at all. Fainting does. If you feel worse, say so or "
+        "contact a clinician rather than waiting to be asked: this system is not watching "
+        "you between nights."
+    ),
     "level.not_a_diagnosis": (
         "Whatever the colour, it describes one measurement of your heart rate against your "
         "own usual range. It is not a diagnosis and not a judgement about your health. If "

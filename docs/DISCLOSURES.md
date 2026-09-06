@@ -27,6 +27,9 @@ Source: `src/wha/ui/components/disclaimer.py`.
 | Not a medical device; cannot diagnose | `DISCLAIMER.md` | **Home**, red banner |
 | Needs 7 nights before it can alert at all | Alavi et al. 2022 (NightSignal): baseline established for over 80% of participants within seven nights | **Home** expander; **Today**, a warning while below the threshold; **History**, on the chart |
 | Compares against your own median, not an average adult | Alavi et al. 2022: "the streaming median of average overnight RHR" per individual | **History**, chart notes and Full references |
+| An escalation repeats only when the reading worsens by a full robust deviation | Not a clinical threshold. A judgement in the system's own units: the smallest change it can call a change, since its scale is the person's own night-to-night variation | **Today**, in the message itself, which says it has got worse |
+| Dizziness and light-headedness raise no alarm on their own | No entry exists in `red_flags.yaml` for either. Recorded in `BLOCKERS.md` as needing a clinical decision rather than an invented one | **Today**, in the safety note under the verdict |
+| Symptom phrases are matched exactly, so unusual wording can be missed | Design of the deterministic floor. Tier C, a model second opinion, is the backstop | **The record**, "How this works", the safety rules topic |
 | Only a *raised* heart rate is investigated | Scope decision, not a cited finding. Infection raises nocturnal RHR; a low rate is usually fitness | **Home** expander; **History**, beneath the chart |
 | Naps are excluded | Whitehurst, Naji & Mednick 2018: heart rate is higher during daytime naps than overnight sleep at matched stages | **Home** expander; **History**, chart notes |
 | Sleep apnoea cannot be detected | Design consequence: a nightly elevation is absorbed into a personal baseline | **Home** expander; **History**, chart notes |

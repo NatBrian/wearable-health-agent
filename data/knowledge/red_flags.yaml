@@ -1,6 +1,6 @@
 # red_flags.yaml
 #
-# The deterministic safety floor. READ ONLY.
+# The deterministic safety floor.
 #
 # Runs BEFORE the agent, on every flagged night and every free-text answer. Plain code.
 # It cannot be reasoned past because it is not reasoning.

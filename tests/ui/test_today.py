@@ -659,3 +659,18 @@ def test_today_says_why_no_question_was_asked(fake_api) -> None:
     assert "did not ask you anything about this night" in body
     assert "decision rather than an oversight" in body
     assert "scored 2 possible questions" in body
+
+
+def test_today_says_what_the_safety_rules_cannot_catch(fake_api) -> None:
+    """A limitation that lives only in a markdown file is not disclosed to anybody.
+
+    Dizziness raises no alarm on its own, and the phrase rules match set wording, so
+    "my chest hurts" is not "chest pain". Somebody relying on being asked has to be told
+    that they may not be.
+    """
+    from wha.ui import explain
+
+    _ready(fake_api, detail=_detail(level=DetectionLevel.RED))
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert explain.text("safety.what_it_cannot_catch") in _body(app)

@@ -1,5 +1,6 @@
 """Deterministic nightly batch calculation service."""
 
+import json
 import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -21,6 +22,58 @@ from wha.service.episode_lifecycle import (
     open_episodes_for_flagged_nights,
     open_or_append_episode,
 )
+
+
+def _should_escalate_again(
+    conn: sqlite3.Connection,
+    episode_id: str,
+    detection: Detection,
+) -> bool:
+    """Whether to send an escalation the person has, in some form, already had.
+
+    Once per investigation was the rule, for a good reason: night scoring re-runs every
+    few hours and a first sync backfills weeks, so an unguarded send repeats the same
+    message endlessly.
+
+    It also meant that somebody who was already being escalated about, and who then got
+    materially worse, heard nothing. That is the wrong way round. A repeat is worth the
+    interruption exactly when the reading has moved by more than this system can call a
+    change at all, which is one of the person's own robust deviations.
+    """
+    from wha.constants import ESCALATION_REPEAT_ROBUST_Z_RISE
+
+    rows = conn.execute(
+        """SELECT payload_json FROM notifications
+            WHERE episode_id = ? AND kind = 'ESCALATION'
+            ORDER BY queued_at_utc DESC""",
+        (episode_id,),
+    ).fetchall()
+    if not rows:
+        return True
+
+    current = abs(detection.robust_z) if detection.robust_z is not None else None
+    if current is None:
+        return False
+
+    previous: float | None = None
+    for row in rows:
+        try:
+            payload = json.loads(row["payload_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        value = payload.get("robust_z")
+        if value is not None:
+            previous = abs(float(value))
+            break
+
+    if previous is None:
+        # Escalations sent before this was recorded carry no reading to compare against.
+        # Not sending is the safer failure here only in the sense that it cannot spam; it
+        # is also how somebody stops hearing about getting worse, so it is recorded as a
+        # limitation rather than treated as correct.
+        return False
+
+    return (current - previous) >= ESCALATION_REPEAT_ROBUST_Z_RISE
 
 
 def parse_date_range(range_str: str | None, tz_name: str = "Asia/Singapore") -> tuple[date, date]:
@@ -238,12 +291,7 @@ def run_data_safety_floor(
             # Once per episode, not once per night. A first sync backfills weeks of
             # history and this job re-scores a rolling window every few hours, so an
             # unguarded send would put the same escalation on somebody's phone repeatedly.
-            already = conn.execute(
-                """SELECT 1 FROM notifications
-                    WHERE episode_id = ? AND kind = 'ESCALATION' LIMIT 1""",
-                (episode_id,),
-            ).fetchone()
-            if already is None:
-                notify_escalation(conn, subject_id, episode_id, result)
+            if _should_escalate_again(conn, episode_id, detection):
+                notify_escalation(conn, subject_id, episode_id, result, detection=detection)
 
     return fired

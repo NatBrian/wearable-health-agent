@@ -34,7 +34,6 @@
 # The model may raise urgency at any time. It can never lower it by reasoning. Urgency
 # falls only when a rule below returns a lower band from items the person actually gave.
 #
-# READ ONLY to the agent.
 
 schema_version: "1.0"
 

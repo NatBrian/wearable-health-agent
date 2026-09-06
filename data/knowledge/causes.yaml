@@ -1,7 +1,6 @@
 # causes.yaml
 #
 # The twelve candidate causes of a nocturnal resting heart rate deviation.
-# READ ONLY. The coding agent loads this and never edits it.
 #
 # FIELDS
 #   base_rate        P(this cause is present on any given night). A PLAIN BASE RATE.

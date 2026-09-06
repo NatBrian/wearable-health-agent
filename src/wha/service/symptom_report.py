@@ -15,6 +15,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from wha.clock import local_today
 from wha.db import apply_schema, connect
@@ -155,6 +156,7 @@ def notify_escalation(
     subject_id: str,
     episode_id: str,
     safety: SafetyCheckResult,
+    detection: Any = None,
 ) -> None:
     """Send the escalation guidance and record that it was sent.
 
@@ -192,6 +194,13 @@ def notify_escalation(
                 kind="ESCALATION",
                 channel=channel,
                 episode_id=episode_id,
+                extra={
+                    "robust_z": getattr(detection, "robust_z", None),
+                    "residual_bpm": getattr(detection, "residual_bpm", None),
+                    "night": str(getattr(detection, "night_date", "") or ""),
+                }
+                if detection is not None
+                else None,
             )
             repo.record_notification_sent(
                 subject_id=subject_id,

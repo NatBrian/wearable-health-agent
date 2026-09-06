@@ -1,7 +1,5 @@
 # data/knowledge
 
-**READ ONLY. The coding agent loads these files and never edits them.**
-
 This directory is the project's intellectual core. It is what the novelty claim rests on, and it is
 the one place where a fabricated number would be invisible and consequential.
 

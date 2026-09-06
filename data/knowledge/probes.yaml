@@ -1,7 +1,6 @@
 # probes.yaml
 #
 # WHAT to find out. Selected by arithmetic, never by the model.
-# READ ONLY. The coding agent loads this and never edits it.
 #
 # A probe is NOT a question. It is a cause to resolve, an answer space, and a cited
 # likelihood. The model writes the actual sentence, freely and in context. Only the
