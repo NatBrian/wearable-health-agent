@@ -528,3 +528,36 @@ def test_a_night_nobody_has_talked_about_says_so(fake_api) -> None:
 
     assert "Nothing has been said about this night yet" in body
     assert "an old question" not in body
+
+
+def test_a_raised_night_says_what_happens_now(fake_api) -> None:
+    """RED with no next step read as a warning nobody could act on.
+
+    A person seeing it asked whether they were ill and what they were meant to do. The
+    card now says what the system is doing, what would change that, and that a colour is
+    not a diagnosis.
+    """
+    from wha.ui import explain
+
+    _ready(fake_api, detail=_detail(level=DetectionLevel.RED))
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _body(app) + " ".join(i.value for i in app.info)
+
+    assert explain.text("level.RED.next") in body
+    assert explain.text("level.not_a_diagnosis") in body
+
+
+def test_a_night_under_investigation_says_that_instead(fake_api) -> None:
+    """Telling somebody nothing is being looked into while it is would be worse."""
+    from wha.ui import explain
+
+    detail = _detail(level=DetectionLevel.RED)
+    investigated = detail.model_copy(
+        update={"row": detail.row.model_copy(update={"episode_id": "ep_1"})}
+    )
+    _ready(fake_api, detail=investigated)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = " ".join(i.value for i in app.info)
+
+    assert explain.text("level.investigating") in body
+    assert explain.text("level.RED.next") not in body

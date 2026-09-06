@@ -132,7 +132,21 @@ of exactly zero and make every later night look infinitely unusual.
         tools = "\n".join(f"- `{name}`" for name in tool_names)
         st.markdown(
             f"""
-The model can only call these {len(tool_names)} read-only tools, and nothing
+**When one opens.** Only after **{config()["DETECT_PERSISTENCE_NIGHTS"]} clearly raised nights in a
+row**, both of them at that level. A clearly raised night next to a slightly raised one does
+not open anything, in either order, and slightly raised nights never open anything however
+many there are. Nothing opens at all until the system has at least
+**{config()["BASELINE_MIN_NIGHTS_PERSONAL"]} of your own measured nights**, because before that
+your normal is still mostly a general estimate.
+
+**What it is.** A single piece of work about one run of raised nights. Only one runs at a
+time, so a stretch of raised nights is looked at as one thing rather than as a series of
+separate alarms. It ends by concluding, or by your nights going quiet again.
+
+**What it does not mean.** It is not a finding, and not a statement that anything is wrong.
+It means the system thinks the readings are worth explaining, and it is going to try.
+
+Inside one, the model can only call these {len(tool_names)} read-only tools, and nothing
 else. Any other request is refused and recorded:
 
 {tools}

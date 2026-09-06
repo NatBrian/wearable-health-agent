@@ -82,6 +82,40 @@ TEXT: dict[str, str] = {
         "Too little of this night was measured to judge it. That is a gap in the data, not "
         "a result."
     ),
+    # What the system is doing about it, and what you should do. A colour with no next
+    # step reads as a warning nobody will act on: "RED" on its own left a reader asking
+    # whether they were ill and what they were supposed to do about it.
+    "level.GREEN.next": (
+        "Nothing to do. The system will keep watching tonight, and it will contact you if "
+        "it ever needs something from you."
+    ),
+    "level.YELLOW.next": (
+        "Nothing to do, and nothing is being looked into. A single raised night is common "
+        "and has many ordinary causes: a late drink, a short night, a warm room, a hard "
+        "session the day before. A night at this level never opens an investigation, "
+        "however many of them there are."
+    ),
+    "level.RED.next": (
+        "Nothing to do right now, and nothing is being looked into yet. One night at this "
+        "level is not enough: it takes two clearly raised nights in a row, both of them at "
+        "this level, before the system starts looking into it. Single raised nights are "
+        "common and have many ordinary causes. If tonight comes out at this level too, it "
+        "will open an investigation and may ask you one question."
+    ),
+    "level.NA.next": (
+        "Nothing to do. Too little of the night was measured to judge it, so nothing was "
+        "concluded either way."
+    ),
+    "level.investigating": (
+        "This is being looked into now. The system opened an investigation because your "
+        "readings were clearly raised on more than one night in a row. It will ask you "
+        "something only if your answer would change what it concludes."
+    ),
+    "level.not_a_diagnosis": (
+        "Whatever the colour, it describes one measurement of your heart rate against your "
+        "own usual range. It is not a diagnosis and not a judgement about your health. If "
+        "you feel unwell, contact a clinician, whatever this screen says."
+    ),
     # ---------------------------------------------------------- how mature the baseline is
     "rung.COLD": (
         "The system does not yet know your normal. Nothing can be flagged, and no night "
@@ -196,10 +230,20 @@ TEXT: dict[str, str] = {
         "This is the only step that decides whether anything else happens. It is "
         "arithmetic, and no AI takes part in it."
     ),
-    "step.episode_open.what": "An investigation was opened, or was not.",
+    "step.episode_open.what": (
+        "Whether this night started an investigation. It takes two clearly raised nights "
+        "in a row, so a single raised night, however high, opens nothing."
+    ),
     "step.episode_open.why": (
-        "Only one investigation is open at a time, so a run of raised nights is looked at "
-        "as one thing rather than as several separate alarms."
+        "Single raised nights are common and mostly harmless: a late drink, a short night, "
+        "a warm room. Acting on every one of them would mean interrupting you constantly "
+        "for nothing, so the system waits for a second one before it looks into anything. "
+        "Both nights have to be clearly raised. A mildly raised night beside a clearly "
+        "raised one does not count, in either order, and mildly raised nights never open "
+        "anything however many there are. Nothing opens at all until the system has enough "
+        "of your own nights "
+        "to know your normal. Only one investigation runs at a time, so a run of raised "
+        "nights is looked at as one thing rather than as several alarms."
     ),
     "step.preload.what": "A fixed set of readings was fetched before the AI ran.",
     "step.preload.why": (

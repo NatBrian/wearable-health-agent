@@ -417,3 +417,28 @@ def test_the_safety_floor_is_shown_even_when_it_did_not_trigger(seeded_db) -> No
 
     assert [s.step_id for s in safety] == ["safety_phrase_rules", "safety_triage"]
     assert all(s.reason for s in safety)
+
+
+def test_a_raised_night_that_opened_nothing_says_why(seeded_db) -> None:
+    """ "Did not meet the bar" over a clearly raised night reads as an unexplained warning.
+
+    It did meet the bar for its level. What it did not have is a second clearly raised
+    night beside it, and that is what the step has to say.
+    """
+    from wha.service.pipeline import get_night_pipeline
+
+    # A clearly raised night with no second one beside it, so the detector did not flag it.
+    _add_flagged_night(seeded_db, FLAGGED)
+    seeded_db.execute(
+        "UPDATE detections SET flagged = 0 WHERE subject_id='sim' AND night_date = ?",
+        (FLAGGED.isoformat(),),
+    )
+    seeded_db.commit()
+    pipeline = get_night_pipeline("sim", FLAGGED, conn=seeded_db)
+
+    detect = next(s for s in pipeline.steps if s.step_id == "detect")
+    opened = next(s for s in pipeline.steps if s.step_id == "episode_open")
+
+    assert "clearly above your own normal" in detect.reason
+    assert "two clearly raised nights in a row" in detect.reason
+    assert "second clearly raised night in a row" in opened.reason

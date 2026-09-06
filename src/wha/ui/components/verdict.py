@@ -31,6 +31,14 @@ def render(subject_id: str, detail: NightDetail, on_trace: Any = None) -> None:
     # somebody whose band is still the population estimate.
     st.write(explain.level(level, str(detail.baseline.rung)))
 
+    # A colour with no next step reads as a warning nobody can act on. "RED" on its own
+    # left a reader asking whether they were ill and what they were supposed to do.
+    if row.episode_id:
+        st.info(f"**What happens now.** {explain.text('level.investigating')}")
+    else:
+        st.info(f"**What happens now.** {explain.text(f'level.{level}.next')}")
+    st.caption(explain.text("level.not_a_diagnosis"))
+
     left, middle, right = st.columns(3)
     with left:
         st.markdown(

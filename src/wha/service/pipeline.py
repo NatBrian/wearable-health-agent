@@ -374,14 +374,28 @@ def _detect_step(detection: sqlite3.Row | None) -> PipelineStepView:
         reason = "There was not enough of this night measured to judge it either way."
     elif flagged:
         reason = (
-            "This night was far enough above your own normal, for long enough, to be "
-            "worth looking into. Opening an investigation is the only thing this decides."
+            "This night was clearly above your own normal, and so was the night before it. "
+            "Two clearly raised nights in a row is the bar for looking into something, so "
+            "an investigation was opened. Opening one is the only thing this step decides."
+        )
+    elif level == "RED":
+        # Saying only "did not meet the bar" here is what made a red night read as an
+        # unexplained warning: it WAS far enough above, and the reader could not tell why
+        # nothing happened.
+        reason = (
+            "This night was clearly above your own normal. On its own that opens nothing: "
+            "it takes two clearly raised nights in a row, and the night before this one "
+            "was not at that level. Single raised nights are common and mostly have "
+            "ordinary causes."
+        )
+    elif level == "YELLOW":
+        reason = (
+            "This night was somewhat above your own normal, which is below the level that "
+            "can open anything. A night at this level never opens an investigation, "
+            "however many of them there are."
         )
     else:
-        reason = (
-            "This night was compared against your own band and did not meet the bar for "
-            "looking into further."
-        )
+        reason = "This night sat inside your own usual range, so there was nothing to look into."
 
     return _step(
         "detect",
@@ -463,11 +477,25 @@ def _episode_open_step(
     flagged = bool(detection["flagged"]) if detection is not None else False
 
     if episode_id is None and not flagged:
+        level = str(detection["level"]) if detection is not None else "NA"
+        if level == "RED":
+            why = (
+                "This night was clearly raised, but a second clearly raised night in a row "
+                "is what opens an investigation, and there was not one."
+            )
+        elif level == "YELLOW":
+            why = (
+                "This night was only somewhat raised, which is below the level that can "
+                "open an investigation at all."
+            )
+        elif level == "NA":
+            why = "This night could not be judged, so there was nothing to look into."
+        else:
+            why = "This night sat inside your usual range."
         return _step(
             "episode_open",
             StepStatus.NOT_APPLICABLE,
-            "This night did not meet the bar for looking into, so no investigation was "
-            "opened and nothing below this point ran.",
+            f"{why} No investigation was opened, so nothing below this point ran.",
         )
 
     if episode_id is None and flagged:
