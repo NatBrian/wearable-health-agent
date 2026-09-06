@@ -74,8 +74,10 @@ def render_headline(pipeline: NightPipeline) -> None:
         (
             "Your sleep",
             format.hours(head.sleep_hours),
-            f"{explain.text('metric.sleep_hours')} Your watch measured "
-            f"{format.minutes(head.coverage_minutes)} of it.",
+            (
+                f"{explain.text('metric.sleep_hours')} Your watch measured "
+                f"{format.minutes(head.coverage_minutes)} of it."
+            ),
         ),
         (
             "Questions asked",
