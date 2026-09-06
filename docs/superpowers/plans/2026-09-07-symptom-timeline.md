@@ -75,7 +75,12 @@ in the service layer. Fails safe, but it is the same dead-code shape a fourth ti
       free-text call site passes the history, verified by reintroducing the original bug.
       The episode-advance guard already existed as
       `test_episode_tick_advances_an_open_episode_that_never_timed_out`.
-- [ ] 9. Measure the yellow arm with `tools/cohort/sweep.py`, report the number.
+- [x] 9. Yellow arm MEASURED and CLOSED BY MEASUREMENT, like the reranker was.
+      `tools/cohort/yellow_persistence.py`, 30 labelled cases, 76 controls, 738
+      person-weeks. Adding a yellow-persistence arm to the current rule catches
+      **zero additional cases** at every run length from 3 to 7 nights, while costing
+      up to 5 percent more investigations on healthy people. Finding 5 is answered: the
+      gap is real, and closing it helps nobody. Do not re-litigate from theory.
 - [ ] 10. Dashboard: the record tab, the step list, and the pipeline must show the symptom
       timeline and say why it escalated or did not.
 - [ ] 11. Docs: `ARCHITECTURE.md`, `CONTRACTS.md`, `DISCLOSURES.md`,
