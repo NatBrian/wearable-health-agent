@@ -28,6 +28,7 @@ from wha.db import connect
 from wha.db.migrations import apply_schema
 from wha.models import (
     CANONICAL_PIPELINE_STEPS,
+    BaselineRung,
     CauseId,
     DetectionLevel,
     NightPipeline,
@@ -800,6 +801,8 @@ def _headline(
     """The tiles, assembled from steps that already read stored rows."""
     believe = next((s for s in steps if s.step_id == "believe"), None)
     ask = next((s for s in steps if s.step_id == "ask"), None)
+    baseline = next((s for s in steps if s.step_id == "baseline"), None)
+    rung = baseline.outputs.get("rung") if baseline else None
 
     top_cause = believe.outputs.get("top_cause") if believe else None
     top_probability = believe.outputs.get("top_probability") if believe else None
@@ -809,6 +812,7 @@ def _headline(
     return PipelineHeadline(
         level=detail.row.level,  # type: ignore[attr-defined]
         flagged=bool(detection["flagged"]) if detection is not None else False,
+        rung=BaselineRung(rung) if rung else None,
         primary_cause=CauseId(top_cause) if top_cause else None,
         primary_probability=float(top_probability) if top_probability is not None else None,
         sleep_hours=detail.features.sleep_hours,  # type: ignore[attr-defined]

@@ -27,7 +27,9 @@ def render(subject_id: str, detail: NightDetail, on_trace: Any = None) -> None:
         design.chip(level, level) + f"  &nbsp; <strong>{format.night(row.night_date)}</strong>",
         unsafe_allow_html=True,
     )
-    st.write(explain.level(level))
+    # The rung is passed, not omitted. Without it this says "in your usual range" to
+    # somebody whose band is still the population estimate.
+    st.write(explain.level(level, str(detail.baseline.rung)))
 
     left, middle, right = st.columns(3)
     with left:

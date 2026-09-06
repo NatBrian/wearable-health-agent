@@ -785,11 +785,14 @@ def _notify_outcome(conn: sqlite3.Connection, episode_id: str, draft: Any) -> No
 
     from wha.notify.factory import get_notifier
     from wha.notify.protocol import MessageKind
-    from wha.ui.components.wording import disposition_phrase
+    from wha.service.phrasing import disposition_phrase
 
-    phrase = disposition_phrase(getattr(draft, "disposition", None))
+    # This used to import the words from the dashboard, which meant a service reached up
+    # into a screen for what it sends to a phone. The words the system says about a
+    # conclusion belong to the system, not to one of its clients.
+    label, explanation = disposition_phrase(getattr(draft, "disposition", None))
     observation = getattr(draft, "observation", "") or ""
-    text = f"{phrase.label}. {phrase.explanation}"
+    text = f"{label}. {explanation}"
     if observation:
         text = text + "\n\n" + observation
 

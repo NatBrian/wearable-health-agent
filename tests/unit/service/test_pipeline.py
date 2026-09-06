@@ -372,7 +372,7 @@ def test_a_step_the_graph_did_not_reach_is_skipped_with_its_reason(
 def test_an_episode_with_no_stored_trace_is_unrecorded_not_skipped(
     seeded_db_with_untraced_episode,
 ) -> None:
-    """"We did not write it down" and "it did not run" are different claims.
+    """ "We did not write it down" and "it did not run" are different claims.
 
     Reporting the first as the second is what made every episode's trace read "Ask probe
     not selected by EVSI optimizer" directly above a chart showing the probability moving

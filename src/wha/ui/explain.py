@@ -71,6 +71,13 @@ TEXT: dict[str, str] = {
         "on enough nights in a row, the system opens an investigation and may ask you "
         "about it."
     ),
+    # Below the shrinking rung the band is still mostly the population estimate, so "your
+    # usual range" is a claim the system has not earned. The Today page once said "in your
+    # usual range" directly beneath a tile reading "baseline: Learning".
+    "level.immature_note": (
+        "Your own range is still being learned, so this night was measured against a "
+        "typical adult rather than against you."
+    ),
     "level.NA": (
         "Too little of this night was measured to judge it. That is a gap in the data, not "
         "a result."
@@ -290,9 +297,27 @@ def text(key: str) -> str:
         ) from exc
 
 
-def level(value: str) -> str:
-    """What a detection level means, in plain words."""
-    return text(f"level.{value}")
+# Rungs at which the band has shrunk toward this person enough for "your usual range" to
+# be a statement about them.
+_PERSONAL_RUNGS = {"SHRINKING", "PERSONAL", "MATURE"}
+
+
+def level(value: str, rung: str | None = None) -> str:
+    """What a detection level means, qualified by how well the system knows the person.
+
+    Passing the rung is not optional politeness. Without it a screen tells somebody on a
+    three-night baseline that their night was inside "your usual range", when that range
+    is the population estimate and nothing about it is theirs yet.
+    """
+    sentence = text(f"level.{value}")
+    if rung is None or rung in _PERSONAL_RUNGS or value == "NA":
+        return sentence
+
+    return (
+        sentence.replace("your usual range", "the usual range for an adult")
+        + " "
+        + text("level.immature_note")
+    )
 
 
 def rung(value: str) -> str:

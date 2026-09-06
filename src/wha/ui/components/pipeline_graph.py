@@ -61,7 +61,7 @@ def render_headline(pipeline: NightPipeline) -> None:
     level = str(head.level)
 
     tiles = [
-        ("What this night was", level, explain.level(level)),
+        ("What this night was", level, explain.level(level, str(head.rung) if head.rung else None)),
         (
             "Most likely explanation",
             str(head.primary_cause).replace("_", " ") if head.primary_cause else "not worked out",

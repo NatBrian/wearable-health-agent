@@ -17,12 +17,7 @@ from pathlib import Path
 
 import yaml
 
-from wha.ui.components.wording import (
-    DISPOSITION_PHRASES,
-    EPISODE_STATE_PHRASES,
-    LEVEL_PHRASES,
-    RUNG_PHRASES,
-)
+from wha.service.phrasing import DISPOSITION_PHRASES
 
 
 def never_say() -> list[str]:
@@ -37,18 +32,13 @@ def test_no_interface_phrase_is_on_never_say() -> None:
     forbidden = never_say()
     offenders: list[str] = []
 
-    for name, table in (
-        ("DISPOSITION_PHRASES", DISPOSITION_PHRASES),
-        ("LEVEL_PHRASES", LEVEL_PHRASES),
-        ("EPISODE_STATE_PHRASES", EPISODE_STATE_PHRASES),
-        ("RUNG_PHRASES", RUNG_PHRASES),
-    ):
-        for key, phrase in table.items():
-            for field in (phrase.label, phrase.explanation):
-                lowered = (field or "").lower()
-                for banned in forbidden:
-                    if banned in lowered:
-                        offenders.append(f"{name}[{key}]: {banned!r} in {field!r}")
+    # What the system sends to a phone, which is not covered by the interface sweep below.
+    for key, phrase in DISPOSITION_PHRASES.items():
+        for field in phrase:
+            lowered = (field or "").lower()
+            for banned in forbidden:
+                if banned in lowered:
+                    offenders.append(f"DISPOSITION_PHRASES[{key}]: {banned!r} in {field!r}")
 
     from wha.ui.explain import TEXT
 

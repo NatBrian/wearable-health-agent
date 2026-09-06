@@ -11,7 +11,6 @@ from wha.models import BaselineRung
 from wha.scheduler import run_episode_tick, safe_job_wrapper
 from wha.service.status import get_system_status
 from wha.service.subjects import list_subjects
-from wha.ui.today import render_today_page
 
 
 def test_scheduler_job_failure_does_not_kill_thread(tmp_path: Path) -> None:
@@ -131,23 +130,9 @@ def test_first_run_produces_insufficient_data(tmp_path: Path) -> None:
     assert status.usable_nights == 0
     assert status.rung == BaselineRung.COLD
 
-    # Rendering Today page on fresh subject does not raise
-    with (
-        patch("wha.service.status.get_system_status", return_value=status),
-        patch("wha.service.episodes.get_pending_interaction", return_value=None),
-        patch("wha.service.nights.list_nights", return_value=[]),
-        patch("wha.service.episodes.list_episodes", return_value=[]),
-        patch("streamlit.success") as mock_success,
-        patch("streamlit.subheader"),
-        patch("streamlit.write"),
-        patch("streamlit.caption"),
-        patch("streamlit.markdown"),
-    ):
-        render_today_page("sub_empty")
-        assert mock_success.called
-        # Contains the reassuring empty state. Asserts the meaning rather than exact prose:
-        # a person opening an empty dashboard must be told nothing is required of them,
-        # not shown a blank page they cannot distinguish from a broken one.
-        assert any(
-            "nothing needs you" in call[0][0].lower() for call in mock_success.call_args_list
-        )
+    # The Today page used to be rendered here by importing it and patching service
+    # functions. It is now an HTTP client of the API, so a screen test that patched the
+    # service layer would prove nothing about what the page fetches. The same assertion,
+    # that an empty dashboard tells a person nothing is required of them rather than
+    # showing a blank page, is made against the real script in
+    # tests/ui/test_today.py::test_an_empty_dashboard_says_nothing_is_required_of_you.

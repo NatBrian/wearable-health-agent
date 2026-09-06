@@ -517,6 +517,10 @@ class PipelineHeadline(BaseModel):
 
     level: DetectionLevel
     flagged: bool
+    # How well the system knows this person's normal. A screen that says "your usual
+    # range" without this can claim a personal range on a three-night baseline, where the
+    # band is still the population estimate.
+    rung: BaselineRung | None = None
     primary_cause: CauseId | None = None
     primary_probability: float | None = None
     sleep_hours: float | None = None

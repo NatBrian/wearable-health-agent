@@ -262,3 +262,39 @@ def test_the_timestamp_is_the_persons_own_clock(fake_api) -> None:
     fake_api.localise.assert_called()
     assert isinstance(fake_api.localise.call_args[0][0], datetime | type(None))
     assert datetime.now(UTC).tzinfo is UTC
+
+
+def test_no_quiet_streak_is_claimed_while_the_system_cannot_flag(fake_api) -> None:
+    """A night can only be quiet if it could have been anything else.
+
+    Below the alerting floor nothing can be flagged, so a streak claims reassurance the
+    system is not in a position to give, directly above a notice saying it is not watching
+    yet. `test_the_rung_the_screen_reads_marks_exactly_the_alerting_floor` ties the rung
+    this reads to that floor.
+    """
+    status = fake_api.get_system_status.return_value
+    fake_api.get_system_status.return_value = status.model_copy(
+        update={"rung": BaselineRung.PRIOR_DOMINATED, "usable_nights": 4}
+    )
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert not app.success, "reassurance was drawn before the system could flag anything"
+    assert "learning your normal" in _body(app).lower()
+
+
+def test_a_quiet_streak_is_said_once_the_system_can_flag(fake_api) -> None:
+    """The counterpart: silence must be about the system's position, not the screen's."""
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert app.success
+    assert "14 measured nights" in _body(app)
+
+
+def test_an_empty_dashboard_says_nothing_is_required_of_you(fake_api) -> None:
+    """A blank page and a working one that has nothing to say must not look the same."""
+    _ready(fake_api)
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+
+    assert any("nothing needs you" in s.value.lower() for s in app.success)

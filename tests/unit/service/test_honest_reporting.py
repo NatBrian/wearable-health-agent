@@ -12,10 +12,10 @@ from pathlib import Path
 from wha.db import connect
 from wha.db.iso import to_iso
 from wha.db.migrations import apply_schema
-from wha.models import BaselineRung, DetectionLevel, SystemStatus
+from wha.models import BaselineRung, DetectionLevel
 from wha.service.audit import count_audit_events, verify_hash_chain
 from wha.service.status import get_system_status
-from wha.ui.components.wording import level_phrase
+from wha.ui.explain import level as level_phrase
 
 
 def _db_with_detections(tmp_path: Path, levels: list[tuple[date, str, int]]) -> Path:
@@ -92,27 +92,27 @@ def test_a_flagged_night_ends_the_streak(tmp_path: Path) -> None:
 def test_an_immature_baseline_does_not_claim_a_personal_range() -> None:
     """Today said "in your usual range" under a tile reading "baseline: Learning"."""
     for rung in (BaselineRung.COLD, BaselineRung.PRIOR_DOMINATED):
-        phrase = level_phrase(DetectionLevel.GREEN, rung=rung)
-        assert "your usual range" not in phrase.explanation
-        assert "typical" in phrase.explanation
+        sentence = level_phrase(DetectionLevel.GREEN.value, rung=rung.value)
+        assert "your usual range" not in sentence
+        assert "typical adult" in sentence
 
 
 def test_a_mature_baseline_keeps_the_personal_wording() -> None:
     for rung in (BaselineRung.SHRINKING, BaselineRung.PERSONAL, BaselineRung.MATURE):
-        phrase = level_phrase(DetectionLevel.GREEN, rung=rung)
-        assert "your usual range" in phrase.explanation
+        sentence = level_phrase(DetectionLevel.GREEN.value, rung=rung.value)
+        assert "your usual range" in sentence
 
 
 def test_a_night_with_no_reading_is_worded_the_same_either_way() -> None:
     """ "Not enough data" makes no claim about a range, so it needs no qualification."""
-    cold = level_phrase(DetectionLevel.NA, rung=BaselineRung.COLD)
-    mature = level_phrase(DetectionLevel.NA, rung=BaselineRung.MATURE)
-    assert cold.explanation == mature.explanation
+    cold = level_phrase(DetectionLevel.NA.value, rung=BaselineRung.COLD.value)
+    mature = level_phrase(DetectionLevel.NA.value, rung=BaselineRung.MATURE.value)
+    assert cold == mature
 
 
 def test_omitting_the_rung_leaves_the_wording_untouched() -> None:
-    assert level_phrase(DetectionLevel.GREEN).explanation == (
-        level_phrase(DetectionLevel.GREEN, rung=BaselineRung.MATURE).explanation
+    assert level_phrase(DetectionLevel.GREEN.value) == (
+        level_phrase(DetectionLevel.GREEN.value, rung=BaselineRung.MATURE.value)
     )
 
 
@@ -134,37 +134,16 @@ def test_an_empty_audit_log_verifies_but_holds_nothing(tmp_path: Path) -> None:
     assert count == 0, "the page must be able to tell 'intact' from 'nothing recorded'"
 
 
-def test_no_quiet_streak_is_claimed_while_the_system_cannot_flag() -> None:
-    """A night can only be quiet if it could have been anything else.
+def test_the_rung_the_screen_reads_marks_exactly_the_alerting_floor() -> None:
+    """The screen suppresses reassurance below PRIOR_DOMINATED. That has to mean the floor.
 
-    Below the alerting floor nothing can be flagged, so a streak claims reassurance the
-    system is not in a position to give, directly above a notice saying it is not watching.
+    Today used to check `usable_nights < BASELINE_MIN_NIGHTS_PERSONAL` directly. It now
+    reads the rung, which is the same boundary only for as long as the ladder puts it
+    there, and a night can only be called quiet if it could have been anything else.
     """
-    from unittest.mock import patch
+    from wha.constants import (
+        BASELINE_MIN_NIGHTS_PERSONAL,
+        RUNG_PRIOR_MAX_NIGHTS,
+    )
 
-    from wha.constants import BASELINE_MIN_NIGHTS_PERSONAL
-    from wha.ui.today import render_inbox
-
-    def _status(usable: int) -> SystemStatus:
-        return SystemStatus(
-            components=[],
-            last_ingest_utc=datetime.now(UTC),
-            last_nightly_utc=datetime.now(UTC),
-            usable_nights=usable,
-            rung=BaselineRung.MATURE,
-            errors_24h=0,
-            quiet_nights_streak=4,
-            unmeasured_recent_nights=0,
-        )
-
-    with patch("wha.ui.today.st") as learning:
-        render_inbox("me", None, _status(BASELINE_MIN_NIGHTS_PERSONAL - 1))
-    said = " ".join(str(c) for c in learning.success.call_args_list)
-    assert "quiet" not in said, "no streak may be claimed before the system can flag"
-    assert learning.warning.called, "and the reader must be told it is not watching yet"
-
-    with patch("wha.ui.today.st") as watching:
-        render_inbox("me", None, _status(BASELINE_MIN_NIGHTS_PERSONAL))
-    said = " ".join(str(c) for c in watching.success.call_args_list)
-    assert "4 quiet nights in a row" in said
-    assert not watching.warning.called
+    assert RUNG_PRIOR_MAX_NIGHTS + 1 == BASELINE_MIN_NIGHTS_PERSONAL
