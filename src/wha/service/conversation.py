@@ -119,6 +119,16 @@ def get_conversation_sessions(
         since_night.year, since_night.month, since_night.day, 0, 0, tzinfo=zone
     ).astimezone(UTC)
 
+    # A conversation still in progress is kept whatever night it started under.
+    #
+    # Scoping on the night boundary alone hid a reply the moment it was written: the night
+    # on screen can begin after the conversation about it. That is guaranteed while the
+    # watch is being simulated forward, where the newest night is dated tomorrow, and it
+    # happens in ordinary use too whenever somebody asks about a night late in the evening.
+    # A person typing a question and watching nothing appear is the worst outcome here, so
+    # a live session wins over the boundary.
+    live_after = datetime.now(UTC) - gap
+
     kept = []
     for session in sessions:
         last = session["turns"][-1].get("created_at_utc")
@@ -127,7 +137,7 @@ def get_conversation_sessions(
             stamp = from_iso(last) if last else None
         except (TypeError, ValueError):
             stamp = None
-        if stamp is None or stamp >= boundary:
+        if stamp is None or stamp >= boundary or stamp >= live_after:
             kept.append(session)
     return kept
 
