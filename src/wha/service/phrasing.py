@@ -63,3 +63,31 @@ def disposition_phrase(value: object) -> tuple[str, str]:
     """The label and the sentence for a disposition. Never raises on an unknown value."""
     key = getattr(value, "value", value)
     return DISPOSITION_PHRASES.get(str(key), _FALLBACK)
+
+
+def disposition_message(value: object, note: str | None = None) -> str:
+    """The full message a person is sent when an investigation closes.
+
+    Label, then what it means, then the care-pathway lines. The last part is not optional:
+    `red_flags.yaml` sets `always_include_escalation_criteria: true` and its own note
+    explains why a BENIGN conclusion needs it most, being the one somebody is most likely
+    to act on by doing nothing.
+
+    Built here because the two time-based closes in `episode_lifecycle` never reach the
+    agent's conclude node, and so used to send nothing at all.
+    """
+    label, meaning = disposition_phrase(value)
+    # `note` replaces the stock meaning where the stock meaning would be FALSE. UNRESOLVED
+    # normally says asking more was not worth interrupting you, which is accurate when the
+    # policy decided that and is a lie when the investigation simply ran out of nights.
+    # Telling somebody the wrong reason for stopping is its own harm.
+    lines = [f"Your investigation has closed: {label}.", note or meaning]
+    try:
+        from wha.safety.rules import load_red_flags
+
+        lines.extend(load_red_flags().outcome_guidance.default)
+    except Exception:  # noqa: BLE001, S110
+        # The knowledge file failing to load must not stop the person being told their
+        # investigation ended. The criteria are omitted rather than invented.
+        pass
+    return "\n\n".join(line for line in lines if line)

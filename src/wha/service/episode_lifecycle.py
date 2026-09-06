@@ -114,6 +114,69 @@ def close_episode(
     conn.commit()
 
 
+def _outstanding_symptom_ids(conn: sqlite3.Connection, subject_id: str, as_of: date) -> list[str]:
+    """Symptoms the person reported and has never said were better. Never raises."""
+    try:
+        from wha.service.symptoms import outstanding_symptoms
+
+        return [run.flag_id for run in outstanding_symptoms(conn, subject_id, as_of)]
+    except Exception:  # noqa: BLE001
+        # A failure here must not hold an investigation open forever, so it degrades to
+        # the previous behaviour rather than to a stuck episode.
+        return []
+
+
+def _announce_close(
+    conn: sqlite3.Connection,
+    episode_id: str,
+    subject_id: str,
+    disposition: Disposition,
+    note: str | None = None,
+) -> None:
+    """Tell the person their investigation ended, and what it concluded.
+
+    A time-based close notified NOBODY. The only code that ever messaged anyone about an
+    outcome is the agent's conclude node, and neither of the closes in this file goes
+    through it, so an investigation somebody had been messaged about could run its ten
+    nights and end in total silence. They would find out by opening a dashboard, if they
+    thought to look.
+
+    That is not a cosmetic gap. This project's own rule is that silence after a warning is
+    read as an all clear, and UNRESOLVED means the opposite: it went away without being
+    explained. Saying nothing communicates the reassuring reading of an unreassuring
+    outcome.
+
+    Never raises: a transport failure must not leave an episode half closed.
+    """
+    from wha.notify.factory import get_notifier
+    from wha.notify.protocol import MessageKind
+    from wha.service.phrasing import disposition_message
+
+    try:
+        body = disposition_message(disposition, note)
+        notifier = get_notifier()
+        delivered = notifier.send(
+            recipient_id=subject_id,
+            kind=MessageKind.OUTCOME,
+            text=body,
+            interaction_id=episode_id,
+        )
+        if not delivered:
+            return
+        from wha.agent.repository import EpisodeRepository
+
+        repo = EpisodeRepository(conn=conn)
+        repo.record_notification_sent(
+            subject_id=subject_id,
+            episode_id=episode_id,
+            kind="OUTCOME",
+            channel=getattr(notifier, "channel", "none"),
+            text=body,
+        )
+    except Exception:  # noqa: BLE001, S110
+        pass
+
+
 def check_close_conditions(
     conn: sqlite3.Connection,
     episode_id: str,
@@ -149,6 +212,23 @@ def check_close_conditions(
 
     if (today - opened).days >= EPISODE_MAX_NIGHTS:
         close_episode(conn, episode_id, Disposition.UNRESOLVED, closing)
+        # AND SAY SO. This closed an investigation and told nobody: close_episode writes a
+        # row, and the only code that notifies anyone is the agent's conclude node, which
+        # a timeout close never reaches. So an investigation the person had been messaged
+        # about ran for ten nights and ended in complete silence, discoverable only by
+        # opening the dashboard and noticing. Silence after a warning reads as an all
+        # clear, which is the opposite of what UNRESOLVED means.
+        _announce_close(
+            conn,
+            episode_id,
+            row["subject_id"],
+            Disposition.UNRESOLVED,
+            note=(
+                f"It ran for {EPISODE_MAX_NIGHTS} nights without reaching an answer, which "
+                "is as long as an investigation here is allowed to run. That is not an all "
+                "clear. If you still feel unwell, tell me or see a doctor."
+            ),
+        )
         return Disposition.UNRESOLVED.value
 
     # A quiet run since the last flag closes the episode as benign, provided nothing is
@@ -181,8 +261,40 @@ def check_close_conditions(
         ).fetchone()
         investigated = step_row is not None and int(step_row["step_count"]) > 0
 
+        # GREEN NIGHTS ARE NOT RECOVERY, and this is the line where that mattered most.
+        #
+        # A quiet run closed the investigation as "probably nothing" no matter what the
+        # person had said about how they felt. Three separate findings say that inference
+        # does not hold:
+        #
+        #   * In dengue the CRITICAL PHASE BEGINS AT DEFERVESCENCE. WHO and CDC both teach
+        #     that patients may appear to improve exactly as they enter the dangerous
+        #     window. Dengue is endemic where this system is used.
+        #   * Faget's sign: relative bradycardia in typhoid, dengue, Legionella, Q fever
+        #     and yellow fever. An ordinary pulse does not exclude an active infection.
+        #   * Radin et al. measured resting heart rate taking 79 days on average to return
+        #     to baseline after COVID symptom onset, against 24 for sleep. A reading that
+        #     settles within two nights is not the signature of somebody recovering from an
+        #     infection at all.
+        #
+        # So a green run is good evidence about the READING and close to none about the
+        # PERSON. It may close the detection. It may not close the symptom.
+        # AS OF TODAY, not as of `closing`. `closing` is the last night that has DATA,
+        # which is the right date to stamp on the episode and the wrong one to ask this
+        # question of: somebody who said this morning that their symptom had gone would
+        # have had that retraction ignored, because it fell after the last scored night,
+        # and their investigation would be held open on a symptom they had already
+        # withdrawn. The person's latest word is what counts here.
+        outstanding = _outstanding_symptom_ids(conn, str(row["subject_id"]), today)
+        if outstanding:
+            # Hold the investigation open so the follow-up rule gets its chance to ask.
+            # EPISODE_MAX_NIGHTS still ends it, so this cannot park forever, and it ends
+            # as UNRESOLVED rather than as an all clear.
+            return None
+
         disposition = Disposition.LIKELY_BENIGN if investigated else Disposition.UNRESOLVED
         close_episode(conn, episode_id, disposition, closing)
+        _announce_close(conn, episode_id, row["subject_id"], disposition)
         return disposition.value
 
     return None

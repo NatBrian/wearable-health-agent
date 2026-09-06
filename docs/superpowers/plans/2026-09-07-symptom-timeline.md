@@ -67,7 +67,7 @@ in the service layer. Fails safe, but it is the same dead-code shape a fourth ti
 - [x] 3. Wire `symptom_history` into both production call sites so `persist_nights` fires.
 - [x] 4. Co-occurrence over a 2-night rolling window.
 - [x] 5. Outstanding-symptom follow-up that overrides EVSI.
-- [ ] 6. Close honestly: block benign close while a symptom is outstanding; make the
+- [x] 6. Close honestly: block benign close while a symptom is outstanding; make the
       timeout close speak.
 - [ ] 7. Recurrence linking at 7 days.
 - [ ] 8. Regression tests for the DEFECT SHAPE, not just behaviour: fail if any
