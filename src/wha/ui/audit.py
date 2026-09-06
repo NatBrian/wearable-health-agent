@@ -16,7 +16,7 @@ import streamlit as st
 
 from wha.models import AuditFilter
 from wha.ui.components.api import api, config
-from wha.ui.components.status_strip import render_status_strip
+from wha.ui.components.status_bar import render as render_status_strip
 from wha.ui.components.wording import disposition_phrase, episode_state_phrase
 
 

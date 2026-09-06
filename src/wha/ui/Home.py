@@ -1,56 +1,127 @@
-"""Wearable Health Early Warning Agent (WHA) Streamlit App Shell."""
+"""The first screen: what this is, what it cannot do, and where to go next.
+
+Not a README on a page. A person arriving here wants three things in this order: what to
+do if they feel unwell right now, what this system is and is not, and which screen answers
+their question. The repository carried a DISCLAIMER.md from the beginning and no screen
+ever showed it, so a person using the dashboard was never told it is not a medical device.
+
+Every figure on this page comes from the application over HTTP. The wording comes from
+`wha.ui.explain`, which is checked against the same forbidden-phrase list the model's own
+output is checked against.
+"""
 
 import streamlit as st
 
-from wha.ui.components.disclaimer import render_disclaimer
-from wha.ui.components.status_strip import render_status_strip
-from wha.ui.components.subject_selector import render_subject_selector
+from wha.api.client import ApiUnavailable
+from wha.ui import design, explain
+from wha.ui.components.api import api, unavailable
+from wha.ui.components.status_bar import render as render_status_bar
+
+
+def _pick_subject() -> str | None:
+    """Which person this dashboard is showing. Silent when there is only one."""
+    client = api()
+    subjects = client.list_subjects()
+    if not subjects:
+        return None
+    if len(subjects) == 1:
+        return subjects[0].subject_id
+
+    labels = {s.subject_id: f"{s.label} ({s.subject_id})" for s in subjects}
+    ids = list(labels)
+    configured = client.config().get("configured_subject")
+    remembered = st.session_state.get("active_subject") or configured
+    index = ids.index(remembered) if remembered in ids else 0
+    return st.sidebar.selectbox("Whose data", ids, index=index, format_func=lambda i: labels[i])
+
+
+def _unevidenced_count() -> int | None:
+    """How many clinical figures carry no published source, read live, never typed in."""
+    try:
+        provenance = api().get_knowledge_provenance()
+    except (ApiUnavailable, RuntimeError, ValueError, OSError):
+        return None
+    values = provenance.values() if isinstance(provenance, dict) else []
+    return sum(
+        1
+        for entry in values
+        if str(entry.get("provenance", "") if isinstance(entry, dict) else entry).upper()
+        == "ASSUMED"
+    )
 
 
 def main() -> None:
-    """Main application shell rendering layout, sidebar, and status strip."""
     st.set_page_config(
-        page_title="Wearable Health Early Warning Agent",
-        page_icon="🩺",
+        page_title="Your night watch",
+        page_icon="🌙",
         layout="wide",
         initial_sidebar_state="expanded",
     )
+    design.inject()
+    st.sidebar.title("Your night watch")
 
-    st.sidebar.title("🩺 WHA Monitor")
+    try:
+        subject = _pick_subject()
+    except ApiUnavailable as exc:
+        unavailable(exc)
+        return
 
-    # Subject selection
-    active_subject = render_subject_selector()
-
-    if not active_subject:
+    if not subject:
         st.warning(
-            "No active subjects found in the database. Ingest wearable data or run a demo scenario."
+            "There is nobody to show yet. Once your watch data has been pulled in for the "
+            "first time, this screen will show it."
         )
         return
 
-    st.session_state["active_subject"] = active_subject
+    st.session_state["active_subject"] = subject
+    render_status_bar(subject)
+    st.markdown(design.separator(), unsafe_allow_html=True)
 
-    # Render top isolated status strip fragment
-    render_status_strip(active_subject)
-
-    st.write("---")
-    st.title("Wearable Health Agent")
-    render_disclaimer()
-    st.write(
-        "This watches your overnight heart rate and, when something looks off, works out "
-        "why before deciding whether it is worth asking you about."
+    st.title("What this is")
+    st.markdown(
+        f'<p class="wha-lede">{explain.text("home.what_it_is")}</p>', unsafe_allow_html=True
     )
 
-    col1, col2 = st.columns(2)
-    with col1:
+    st.error(f"**If you feel unwell now.** {explain.text('home.emergency')}")
+
+    left, right = st.columns(2)
+    with left:
         st.markdown(
-            "**Today** - how last night looked, and anything that needs you.\n\n"
-            "**History** - your nights over time, and what was investigated."
+            design.card("What it can do", f"<p>{explain.text('home.can')}</p>"),
+            unsafe_allow_html=True,
         )
-    with col2:
+    with right:
         st.markdown(
-            "**The record** - everything the system did, and proof it has not "
-            "been changed.\n\n"
-            "**Settings** - where readings come from, and how often you get asked."
+            design.card("What it cannot do", f"<p>{explain.text('home.cannot')}</p>"),
+            unsafe_allow_html=True,
+        )
+
+    st.subheader("How a night gets judged")
+    st.write(explain.text("home.judging"))
+    st.caption("Every step of this is shown, night by night, on the Record screen.")
+
+    st.subheader("Where to go")
+    columns = st.columns(4)
+    for column, (name, key) in zip(
+        columns,
+        [
+            ("Today", "home.nav.today"),
+            ("History", "home.nav.history"),
+            ("Record", "home.nav.audit"),
+            ("Settings", "home.nav.settings"),
+        ],
+        strict=True,
+    ):
+        with column:
+            st.markdown(design.card(name, f"<p>{explain.text(key)}</p>"), unsafe_allow_html=True)
+
+    st.subheader("Being straight with you about the evidence")
+    unevidenced = _unevidenced_count()
+    st.write(explain.text("home.provenance"))
+    if unevidenced is not None:
+        st.caption(
+            f"{unevidenced} figures in this system's knowledge currently have no published "
+            "source and are marked as such wherever they are used."
         )
 
 

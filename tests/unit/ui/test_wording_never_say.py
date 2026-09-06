@@ -50,9 +50,29 @@ def test_no_interface_phrase_is_on_never_say() -> None:
                     if banned in lowered:
                         offenders.append(f"{name}[{key}]: {banned!r} in {field!r}")
 
+    from wha.ui.explain import TEXT
+
+    for key, sentence in TEXT.items():
+        lowered = sentence.lower()
+        for banned in forbidden:
+            if banned in lowered:
+                offenders.append(f"explain.TEXT[{key}]: {banned!r} in {sentence!r}")
+
     assert not offenders, "the interface says what the model is forbidden to say:\n" + "\n".join(
         offenders
     )
+
+
+def test_the_sweep_actually_covers_the_copy_module() -> None:
+    """A sweep that reads an empty table passes and proves nothing.
+
+    The four phrase tables above are being retired as the screens are rewritten. If this
+    sweep silently ended up checking nothing, every forbidden phrase in the interface
+    would pass unnoticed, so the size of what it reads is asserted rather than assumed.
+    """
+    from wha.ui.explain import TEXT
+
+    assert len(TEXT) > 30, "explain.TEXT is smaller than the interface it is meant to cover"
 
 
 def test_the_record_does_not_say_from_the_your_watch_source() -> None:

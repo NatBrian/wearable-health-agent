@@ -13,7 +13,7 @@ import streamlit as st
 from wha.models import EpisodeSummary, NightRow
 from wha.ui.components.api import api, today
 from wha.ui.components.night_chart import render_night_chart
-from wha.ui.components.status_strip import render_status_strip
+from wha.ui.components.status_bar import render as render_status_strip
 from wha.ui.components.wording import (
     disposition_phrase,
     episode_state_phrase,

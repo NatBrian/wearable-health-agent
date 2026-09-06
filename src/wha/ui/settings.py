@@ -11,7 +11,7 @@ from pydantic import SecretStr
 
 from wha.models import SettingsPatch
 from wha.ui.components.api import api
-from wha.ui.components.status_strip import render_status_strip
+from wha.ui.components.status_bar import render as render_status_strip
 
 
 def render_profile_section(subject_id: str) -> None:

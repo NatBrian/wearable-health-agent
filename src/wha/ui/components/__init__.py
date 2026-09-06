@@ -1,9 +1,7 @@
-"""UI reusable components."""
+"""Reusable pieces of the interface."""
 
-from wha.ui.components.status_strip import render_status_strip
-from wha.ui.components.subject_selector import render_subject_selector
+from wha.ui.components.status_bar import render as render_status_bar
 
 __all__ = [
-    "render_status_strip",
-    "render_subject_selector",
+    "render_status_bar",
 ]

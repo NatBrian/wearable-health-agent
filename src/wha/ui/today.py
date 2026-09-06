@@ -12,7 +12,7 @@ from wha.models import (
 )
 from wha.ui.components.api import api, config, today
 from wha.ui.components.citations import attribution_note, is_external, source_label
-from wha.ui.components.status_strip import render_status_strip
+from wha.ui.components.status_bar import render as render_status_strip
 from wha.ui.components.wording import (
     describe_bpm_difference,
     disposition_phrase,
