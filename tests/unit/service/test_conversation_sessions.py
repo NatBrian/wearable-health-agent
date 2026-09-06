@@ -69,3 +69,40 @@ def test_without_a_night_every_conversation_is_returned(db) -> None:
     sessions = get_conversation_sessions("sim", conn=db)
 
     assert len(sessions) == 2
+
+
+def test_a_conversation_dated_ahead_of_the_clock_is_not_treated_as_live(db) -> None:
+    """Under a simulated watch the record runs into the future.
+
+    Without an upper bound on "still in progress", every conversation in a forward
+    simulation counted as live and none ever moved to the record.
+    """
+    from wha.service.conversation import get_conversation_sessions
+
+    ahead = datetime.now(UTC) + timedelta(days=2)
+    _turn(db, 1, ahead, "a conversation dated in the future")
+
+    sessions = get_conversation_sessions(
+        "sim", since_night=(ahead + timedelta(days=5)).date(), conn=db
+    )
+
+    assert sessions == []
+
+
+def test_only_the_newest_conversation_gets_the_live_exception(db) -> None:
+    """An older conversation that happens to fall inside the window is not "in progress".
+
+    With the record dated ahead of the clock, a chat from days earlier in simulated terms
+    was the only one recent by the wall clock, so it surfaced under a night it had nothing
+    to do with while the newer one was hidden.
+    """
+    from wha.service.conversation import get_conversation_sessions
+
+    _turn(db, 1, datetime.now(UTC) - timedelta(minutes=5), "recent by the wall clock")
+    _turn(db, 2, datetime.now(UTC) + timedelta(days=2), "newer in the record")
+
+    sessions = get_conversation_sessions(
+        "sim", since_night=(datetime.now(UTC) + timedelta(days=5)).date(), conn=db
+    )
+
+    assert sessions == []

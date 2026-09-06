@@ -127,17 +127,29 @@ def get_conversation_sessions(
     # happens in ordinary use too whenever somebody asks about a night late in the evening.
     # A person typing a question and watching nothing appear is the worst outcome here, so
     # a live session wins over the boundary.
-    live_after = datetime.now(UTC) - gap
+    now = datetime.now(UTC)
+    live_after = now - gap
 
     kept = []
-    for session in sessions:
+    for index, session in enumerate(sessions):
         last = session["turns"][-1].get("created_at_utc")
         stamp = None
         try:
             stamp = from_iso(last) if last else None
         except (TypeError, ValueError):
             stamp = None
-        if stamp is None or stamp >= boundary or stamp >= live_after:
+
+        # The live exception exists for one case: something said moments ago, which must
+        # never be filed as history before the person has seen the reply. So it applies
+        # only to the newest conversation, and only when that conversation really is
+        # recent by the wall clock.
+        #
+        # Both bounds matter. Without the upper one, a record dated ahead of the clock,
+        # which is what a simulated watch produces, makes every conversation look live.
+        # Without the "newest only" rule, an old conversation that happens to sit inside
+        # the window surfaces under a night it has nothing to do with.
+        live = index == 0 and stamp is not None and live_after <= stamp <= now
+        if stamp is None or stamp >= boundary or live:
             kept.append(session)
     return kept
 
