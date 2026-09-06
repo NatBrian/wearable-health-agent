@@ -108,3 +108,31 @@ def test_the_explainer_reads_its_figures_from_the_running_system(fake_api) -> No
 
     assert not app.exception
     fake_api.config.assert_called()
+
+
+def test_the_two_tabs_describe_one_system_not_two() -> None:
+    """Both tabs shipped a numbered list starting at 1, with different names and lengths.
+
+    A reader could reasonably conclude the system does two different things. The topics
+    are not a second pipeline: each one covers a range of the same twenty steps, and every
+    step has to be covered by at least one topic, so a step added to the pipeline cannot
+    go unexplained here and this page cannot claim a step the pipeline does not have.
+    """
+    from wha.models import CANONICAL_PIPELINE_STEPS
+    from wha.ui.components.how_it_works import TOPIC_STEPS
+
+    covered = {ordinal for steps in TOPIC_STEPS.values() for ordinal in steps}
+    real = {definition.ordinal for definition in CANONICAL_PIPELINE_STEPS}
+
+    assert covered <= real, f"topics claim steps that do not exist: {sorted(covered - real)}"
+    assert real <= covered, f"steps no topic explains: {sorted(real - covered)}"
+
+
+def test_no_topic_carries_a_number_of_its_own(fake_api) -> None:
+    """A topic numbered 1 beside a step numbered 1 is the confusion being removed."""
+    from wha.ui.components.how_it_works import TOPIC_STEPS, _title
+
+    for topic in TOPIC_STEPS:
+        rendered = _title(topic)
+        assert not rendered.startswith(("1.", "2.", "3.", "4.", "5.", "6.", "7.", "8."))
+        assert "step" in rendered

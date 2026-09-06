@@ -1,4 +1,15 @@
-"""How the system works, as a permanent reference beside the night-by-night view.
+"""How the system works, by topic, beside the same system walked night by night.
+
+**These are not a second set of steps.** The tab beside this one walks a single night
+through the twenty numbered steps the system actually runs. This one groups the same
+machinery by topic, because "what is the safety floor" is a question about the system
+rather than about last night.
+
+That distinction was invisible in the first version: both tabs presented a numbered list
+starting at 1, with different names, different counts and a different order, so a reader
+could reasonably conclude the system does two different things. The topics are no longer
+numbered on their own; each one says which steps it covers, and `TOPIC_STEPS` below is
+asserted to cover all twenty so the two tabs cannot drift apart.
 
 Carried over from the previous Audit page and deliberately not rewritten, because of the
 property it already has: every threshold quoted here is read from the running system at
@@ -14,13 +25,49 @@ import streamlit as st
 
 from wha.ui.components.api import api, config
 
+# Which of the twenty pipeline steps each topic explains. Checked by a test: every step
+# must appear under exactly the topics that describe it, so a step added to the pipeline
+# cannot go unexplained here, and this page cannot claim a step the pipeline does not have.
+TOPIC_STEPS: dict[str, tuple[int, ...]] = {
+    "Reading the watch": (1, 2, 3, 4),
+    "Learning your normal": (5,),
+    "Deciding a night is worth looking at": (6, 7),
+    "The safety rules, which run before anything else": (19, 20),
+    "What the AI is and is not allowed to do": (8, 9, 10, 15, 16, 17, 18),
+    "Working out the likely cause": (11,),
+    "Deciding whether to interrupt you": (12, 13, 14),
+    "Where your data goes": (18,),
+}
+
+
+def _title(topic: str) -> str:
+    """A topic, and the steps on the other tab that it covers."""
+    steps = TOPIC_STEPS[topic]
+    if len(steps) == 1:
+        return f"{topic}  (step {steps[0]})"
+    runs: list[str] = []
+    start = previous = steps[0]
+    for value in steps[1:] + (None,):
+        if value == previous + 1:
+            previous = value
+            continue
+        runs.append(str(start) if start == previous else f"{start} to {previous}")
+        if value is not None:
+            start = previous = value
+    return f"{topic}  (steps {', '.join(runs)})"
+
 
 def render(subject_id: str) -> None:
     """Explain the pipeline, with every figure read from the code."""
-    st.subheader("How a night gets judged")
-    st.caption("The numbers below are read from the running system, not written into this page.")
+    st.subheader("How the system works, by topic")
+    st.caption(
+        "The tab beside this one walks one night through the twenty steps in the order they "
+        "run. This is the same machinery grouped by topic, and each heading says which of "
+        "those steps it covers. Every number below is read from the running system rather "
+        "than written into this page."
+    )
 
-    with st.expander("1. Reading the watch", expanded=False):
+    with st.expander(_title("Reading the watch"), expanded=False):
         st.markdown(
             f"""
 - The reading is taken over the sleep your watch recorded, because daytime heart rate
@@ -33,7 +80,7 @@ def render(subject_id: str) -> None:
 """
         )
 
-    with st.expander("2. Learning your normal", expanded=False):
+    with st.expander(_title("Learning your normal"), expanded=False):
         st.markdown(
             f"""
 Your baseline is the middle of your recent nights, not an average, so one bad night
@@ -54,7 +101,7 @@ of exactly zero and make every later night look infinitely unusual.
 """
         )
 
-    with st.expander("3. Deciding a night is worth looking at", expanded=False):
+    with st.expander(_title("Deciding a night is worth looking at"), expanded=False):
         st.markdown(
             f"""
 - Anything a recorded workout would be expected to add is subtracted first.
@@ -67,7 +114,7 @@ of exactly zero and make every later night look infinitely unusual.
 """
         )
 
-    with st.expander("4. The safety rules, which run before anything else", expanded=True):
+    with st.expander(_title("The safety rules, which run before anything else"), expanded=True):
         st.markdown(
             """
 If you describe certain symptoms in your own words, the system stops and tells you to
@@ -118,7 +165,7 @@ language model can only **add** a flag to that list, never remove one.
                     icon="⚠️",
                 )
 
-    with st.expander("5. What the AI is and is not allowed to do", expanded=True):
+    with st.expander(_title("What the AI is and is not allowed to do"), expanded=True):
         tool_names = api().get_permitted_tool_names()
         tools = "\n".join(f"- `{name}`" for name in tool_names)
         st.markdown(
@@ -132,7 +179,7 @@ It cannot write to your record, send you anything, or decide whether to interrup
 """
         )
 
-    with st.expander("6. Working out the likely cause", expanded=False):
+    with st.expander(_title("Working out the likely cause"), expanded=False):
         st.markdown(
             f"""
 The system tracks **{config()["N_CAUSES"]} possible causes** at once and considers every combination
@@ -141,7 +188,7 @@ arithmetic, not a model, so the same evidence always gives the same answer.
 """
         )
 
-    with st.expander("7. Deciding whether to interrupt you", expanded=True):
+    with st.expander(_title("Deciding whether to interrupt you"), expanded=True):
         st.markdown(
             f"""
 This is the one decision the AI does not make. Before asking anything, the system works
@@ -162,7 +209,7 @@ This is why most raised nights never produce a question.
 """
         )
 
-    with st.expander("8. Where your data goes", expanded=False):
+    with st.expander(_title("Where your data goes"), expanded=False):
         st.markdown(
             """
 Readings, nightly figures and the full record stay in a database file on this machine.

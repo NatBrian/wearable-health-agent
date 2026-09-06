@@ -132,3 +132,28 @@ were invisible to reading the code as well. The wrong-subject defect looked corr
 test because every test supplies one subject. The chart's merged legend was a false statement
 about the data that no assertion in the suite could have caught, because the suite did not
 look at what colour anything was drawn in.
+
+
+---
+
+## Reported by the user after the second pass
+
+### 10. The record screen showed two competing numbered lists of steps
+
+"This night, step by step" numbered twenty steps in the order the system runs them.
+"How this works" numbered eight sections, also from one, with different names, a different
+order and a different count. Both read as "the steps", so the screen let a reader conclude
+the system does two different things. This is the two-vocabularies defect the repository has
+been bitten by before, reintroduced by carrying the old explainer across unchanged.
+
+The eight sections are topics, not steps, and their own numbering was what made them look
+like a rival list. They keep their content, which is worth keeping because every figure in
+them is read from the running system, but each is now titled by the steps it covers:
+"Reading the watch (steps 1 to 4)", "Working out the likely cause (step 11)".
+
+`TOPIC_STEPS` in `wha/ui/components/how_it_works.py` holds that mapping, and
+`tests/ui/test_audit_record.py::test_the_two_tabs_describe_one_system_not_two` asserts it
+covers all twenty steps and claims none that do not exist, so a step added to the pipeline
+cannot go unexplained and this page cannot invent one.
+
+Found by the user reading the screen, not by the suite, and not by either of my own passes.
