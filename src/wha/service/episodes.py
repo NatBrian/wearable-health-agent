@@ -943,6 +943,30 @@ def step_episode(
         # Persist the outcome. The graph reached a disposition in state and nothing wrote
         # it back, so an episode that had finished still read as OPEN with no disposition.
         final_state = _close_if_concluded(conn, episode_id, res)
+
+        # Release a parked state the graph is no longer parked on.
+        #
+        # `node_ask` sets AWAITING_USER before it interrupts, so the interface can surface
+        # the question. When the answer arrives and the policy then decides to OBSERVE,
+        # the graph routes to END: it is waiting for another night, not for the person.
+        # Nothing set the state back, so the screen said "waiting for your answer" with no
+        # question to answer, and every later tick ran no nodes at all while still
+        # counting as a step. Found by answering a real question from a real phone.
+        if final_state and final_state.startswith("AWAITING"):
+            from wha.agent.graph import get_pending_interrupt
+
+            still_parked = get_pending_interrupt(graph, episode_id) is not None
+            waiting_on_person = conn.execute(
+                """SELECT 1 FROM interactions
+                    WHERE episode_id = ? AND status IN ('PENDING', 'ASKED') LIMIT 1""",
+                (episode_id,),
+            ).fetchone()
+            if not still_parked and waiting_on_person is None:
+                conn.execute(
+                    "UPDATE episodes SET state = 'OPEN' WHERE episode_id = ?", (episode_id,)
+                )
+                final_state = "OPEN"
+
         conn.commit()
 
         return {

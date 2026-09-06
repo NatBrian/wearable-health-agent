@@ -1221,4 +1221,22 @@ that was just answered. That is where the next session should start.
 The 36-hour answer timeout cannot release it either, because that only expires rows in
 PENDING or ASKED and there are none. `EPISODE_MAX_NIGHTS` would eventually close it.
 
-**Reproduce:** the live database holds `ep_d1e73ee457d6` in exactly this state.
+**RESOLVED, 6 September 2026, and it was simpler than this entry assumed.**
+
+The episode was never stuck asking. It had finished thinking. Once the answer went in, the
+policy chose OBSERVE, which means wait for another night, and `route_after_decide` sends that
+to END. `node_ask` had set `AWAITING_USER` before interrupting so the interface could surface
+the question, and nothing set it back, so the row said "waiting for your answer" while the
+graph was waiting for a night. Every later tick then invoked a graph with nothing left to run:
+zero nodes executed, `step_count` incremented anyway, and the tick reported the episode as
+advanced.
+
+The two contributing defects above were real and are fixed. Neither caused this one, which
+was proved by clearing the episode entirely, including its checkpoint, and reproducing the
+same behaviour on a fresh investigation with every fix in place. Cheap to test, and it ruled
+out the comfortable explanation that the corruption was to blame.
+
+`step_episode` now releases a parked state the graph is no longer parked on: when the run
+ends with no pending interrupt and no PENDING or ASKED interaction, an AWAITING state goes
+back to OPEN. An episode that IS waiting on a person stays parked, which
+`tests/unit/service/test_episode_state_release.py` asserts both ways.
