@@ -70,9 +70,11 @@ in the service layer. Fails safe, but it is the same dead-code shape a fourth ti
 - [x] 6. Close honestly: block benign close while a symptom is outstanding; make the
       timeout close speak.
 - [x] 7. Recurrence linking at 7 days.
-- [ ] 8. Regression tests for the DEFECT SHAPE, not just behaviour: fail if any
-      `persist_nights` rule can never fire end to end; fail if a newly opened episode is
-      never advanced.
+- [x] 8. Regression tests for the DEFECT SHAPE, not just behaviour. 19 tests in
+      `tests/unit/safety/test_symptom_persistence.py`, including an AST check that every
+      free-text call site passes the history, verified by reintroducing the original bug.
+      The episode-advance guard already existed as
+      `test_episode_tick_advances_an_open_episode_that_never_timed_out`.
 - [ ] 9. Measure the yellow arm with `tools/cohort/sweep.py`, report the number.
 - [ ] 10. Dashboard: the record tab, the step list, and the pipeline must show the symptom
       timeline and say why it escalated or did not.
