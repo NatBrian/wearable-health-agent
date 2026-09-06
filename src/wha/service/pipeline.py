@@ -644,13 +644,13 @@ def _agent_steps(
             }
             headline = f"{top[0].replace('_', ' ')} {top[1]:.0%}" if top else None
             occurred = _moment(belief["ts_utc"])
-        elif step_id == "decide" and interactions:
-            outputs = {
-                "evsi": interactions[0]["evsi"],
-                "interruption_cost": interactions[0]["interruption_cost"],
-                "action": "ask",
-            }
-            headline = f"EVSI {interactions[0]['evsi']:.3f}"
+        elif step_id == "decide":
+            outputs = _decision_outputs(conn, episode_id, interactions)
+            action = outputs.get("action")
+            if action == "ASK" and outputs.get("value_of_asking") is not None:
+                headline = f"asked, worth {outputs['value_of_asking']:.3f}"
+            elif action:
+                headline = str(action).lower()
         elif step_id == "ask" and interactions:
             outputs = {
                 "questions": [row["question_text"] for row in interactions],
@@ -724,6 +724,55 @@ def _agent_steps_from_evidence(conn: sqlite3.Connection, episode_id: str) -> set
         ran.add("conclude")
 
     return ran
+
+
+def _decision_outputs(
+    conn: sqlite3.Connection, episode_id: str, interactions: list[sqlite3.Row]
+) -> dict[str, object]:
+    """What the policy decided, and every question it scored to decide it.
+
+    Read from the decision the agent wrote down. Recomputing it here would be a second
+    opinion rather than the record: the inputs move as the week goes on, so a recomputation
+    days later can disagree with what actually happened.
+    """
+    row = None
+    for candidate in conn.execute(
+        """SELECT output_json FROM audit_events
+            WHERE episode_id = ? AND operation = 'plan' AND output_json IS NOT NULL
+            ORDER BY timestamp_utc DESC""",
+        (episode_id,),
+    ):
+        try:
+            if "action" in json.loads(candidate["output_json"]):
+                row = candidate
+                break
+        except (TypeError, ValueError):
+            continue
+
+    if row is None or not row["output_json"]:
+        # Older investigations decided before the decision was written down. What survives
+        # is whatever an asked question recorded about the probes it beat.
+        if interactions:
+            rejected = json.loads(interactions[0]["rejected_json"] or "[]")
+            return {
+                "action": "ASK",
+                "value_of_asking": interactions[0]["evsi"],
+                "interruption_cost": interactions[0]["interruption_cost"],
+                "questions_considered": [
+                    {"probe_id": probe, "value_of_asking": value} for probe, value in rejected
+                ],
+            }
+        return {}
+
+    payload = json.loads(row["output_json"])
+    return {
+        "action": str(payload.get("action") or "").upper(),
+        "why": payload.get("rationale"),
+        "chosen_question": payload.get("chosen_probe"),
+        "value_of_asking": payload.get("value_of_asking"),
+        "interruption_cost": payload.get("interruption_cost"),
+        "questions_considered": payload.get("candidates") or [],
+    }
 
 
 def _episode_trace(conn: sqlite3.Connection, episode_id: str) -> dict:

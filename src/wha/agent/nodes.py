@@ -1,6 +1,7 @@
 """Graph execution nodes for preloading, investigation, belief, decision, asking, measuring, and outcome lifecycle."""
 
 import json
+import logging
 import re
 from datetime import datetime, timedelta
 from typing import Any, Literal
@@ -43,6 +44,8 @@ from wha.safety.output_checks import (
     validate_and_sanitize_outcome,
 )
 from wha.safety.tier_c import check_red_flags_with_tier_c
+
+logger = logging.getLogger(__name__)
 
 
 class ToolCallArgs(BaseModel):
@@ -551,6 +554,38 @@ def node_decide(
         new_depth = depth_used + 1
     else:
         new_depth = depth_used
+
+    # Write the decision down, including the decision to stay quiet.
+    #
+    # An episode that asked recorded the question and the probes it rejected. An episode
+    # that decided asking was not worth the interruption recorded nothing at all, so
+    # neither the screen nor anybody reading the record afterwards could say why the
+    # system had gone quiet. That is the decision a person is most likely to want
+    # explained, because it is the difference between being interrupted and not.
+    #
+    # Never raises into the graph: a failure to write the reasoning must not stop the
+    # reasoning.
+    if db is not None and hasattr(db, "conn"):
+        try:
+            from wha.audit.monitor import record_policy_decision
+
+            question = getattr(action, "question", None)
+            record_policy_decision(
+                db.conn,
+                subject_id=state.get("subject_id", "default_subject"),
+                episode_id=state.get("episode_id", "ep_default"),
+                action_kind=action.kind.value,
+                rationale=action.rationale or "",
+                chosen_probe=question.probe.probe_id if question else None,
+                chosen_value=question.probe.evsi if question else None,
+                interruption_cost=question.probe.interruption_cost if question else None,
+                candidates=list(action.rejected or []),
+            )
+        except Exception as exc:  # noqa: BLE001
+            # The reasoning matters more than the note about it, so this never raises into
+            # the graph. It is logged rather than swallowed, because silence here would
+            # mean the record quietly stopped explaining decisions.
+            logger.warning("Could not record the policy decision: %s", exc)
 
     return {
         "action": action,

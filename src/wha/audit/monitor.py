@@ -475,6 +475,69 @@ def record_review_decision(
     conn.commit()
 
 
+def record_policy_decision(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    episode_id: str,
+    action_kind: str,
+    rationale: str,
+    chosen_probe: str | None,
+    chosen_value: float | None,
+    interruption_cost: float | None,
+    candidates: list[tuple[str, float]] | None,
+) -> None:
+    """Write down what the policy decided, and what it scored to decide it.
+
+    The decision to stay quiet left no trace anywhere. An episode that asked a question
+    recorded it in `interactions`, along with the probes it rejected, but an episode that
+    decided asking was not worth the interruption recorded nothing at all, so the screen
+    could not say why the system had gone quiet and neither could anybody reading the
+    record afterwards.
+
+    That is the one decision in this system a person is most likely to want explained: it
+    is the difference between being interrupted and not.
+    """
+    candidate_rows = [
+        {"probe_id": probe_id, "value_of_asking": round(float(value), 4)}
+        for probe_id, value in (candidates or [])
+    ]
+    append_audit(
+        conn,
+        _event(
+            subject_id,
+            "agent",
+            # `operation` is a closed list. "plan" is the value the schema reserves for
+            # deciding what to do next, which is exactly what this is.
+            "plan",
+            episode_id=episode_id,
+            output={
+                "action": action_kind,
+                "rationale": rationale,
+                "chosen_probe": chosen_probe,
+                "value_of_asking": round(float(chosen_value), 4)
+                if chosen_value is not None
+                else None,
+                "interruption_cost": round(float(interruption_cost), 4)
+                if interruption_cost is not None
+                else None,
+                "candidates": candidate_rows,
+                "summary": (
+                    f"The policy chose {action_kind}. "
+                    + (
+                        f"Asking about {chosen_probe} was worth "
+                        f"{chosen_value:.3f} against a cost of {interruption_cost:.3f}."
+                        if chosen_probe
+                        and chosen_value is not None
+                        and interruption_cost is not None
+                        else "No question scored above the cost of interrupting."
+                    )
+                ),
+            },
+        ),
+    )
+    conn.commit()
+
+
 def record_data_safety_escalation(
     conn: sqlite3.Connection,
     subject_id: str,

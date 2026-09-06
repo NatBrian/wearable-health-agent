@@ -36,7 +36,7 @@ def get_service_settings() -> Settings:
         notify_channel=channel,  # type: ignore[arg-type]
         llm_provider=provider,  # type: ignore[arg-type]
         llm_model=os.environ.get("WHA_LLM_MODEL", "deepseek-chat"),
-        llm_base_url=os.environ.get("WHA_LLM_BASE_URL", "https://api.gptplus5.com/v1"),
+        llm_base_url=os.environ.get("WHA_LLM_BASE_URL", "https://openrouter.ai/api/v1"),
         # WHA_BRIDGE_URL is the canonical name, and the one config.py reads. This used to
         # read URL first but update_settings wrote HOST, so .env permanently shadowed every
         # change made in the Settings page: the displayed value never moved and ingestion

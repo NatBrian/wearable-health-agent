@@ -80,12 +80,26 @@ def _arithmetic(step: PipelineStepView) -> str | None:
             f"{format.probability(out.get('top_probability'))}. These are probabilities on "
             "the evidence so far, not a diagnosis."
         )
-    if step.step_id == "decide" and out.get("evsi") is not None:
-        return (
-            f"Asking you was worth {out.get('evsi'):.3f} against an interruption cost of "
-            f"{out.get('interruption_cost'):.3f}. A question is only asked when the first "
-            "is larger."
-        )
+    if step.step_id == "decide" and out.get("action"):
+        value = out.get("value_of_asking")
+        cost = out.get("interruption_cost")
+        if out.get("action") == "ASK" and value is not None and cost is not None:
+            return (
+                f"Asking you was worth {value:.3f} against a cost of interrupting you of "
+                f"{cost:.3f}. A question is only asked when the first is larger, and it "
+                "was."
+            )
+        considered = out.get("questions_considered") or []
+        if considered:
+            best = max(considered, key=lambda c: c.get("value_of_asking", 0))
+            return (
+                f"Every question it could have asked was scored. The best of them, "
+                f"{_question_name(best.get('probe_id'))}, was worth "
+                f"{best.get('value_of_asking'):.3f}. A negative number means the answer "
+                "would be worth less than the cost of interrupting you, so it asked "
+                "nothing."
+            )
+        return "No question scored high enough to be worth interrupting you."
     return None
 
 
@@ -118,10 +132,17 @@ def render(pipeline: Any, step_id: str) -> None:
         st.markdown("**The numbers**")
         st.write(sentence)
 
+    render_questions_considered(step)
+
     if step.outputs:
         st.markdown("**What it produced**")
         for key, value in step.outputs.items():
             if isinstance(value, list | dict) and len(str(value)) > 120:
+                continue
+            # A field with no value is not a finding. Printing "chosen question: None"
+            # under a decision not to ask one reads as a gap in the record rather than as
+            # the absence it is.
+            if value is None:
                 continue
             st.write(f"- {_FIELD_NAMES.get(key, key.replace('_', ' '))}: {_value(value)}")
 
@@ -142,6 +163,50 @@ def render(pipeline: Any, step_id: str) -> None:
                 "detail": step.detail_json,
             }
         )
+
+
+# What each question is about, for a reader who did not name the probes.
+_QUESTION_NAMES: dict[str, str] = {
+    "probe_symptoms": "whether you have any symptoms",
+    "probe_alcohol": "whether you drank",
+    "probe_exertion": "whether you exercised hard",
+    "probe_sleep_quality": "how you slept",
+    "probe_stress": "whether you were stressed",
+    "probe_travel": "whether you travelled",
+    "probe_vaccination": "whether you were vaccinated",
+    "probe_medication": "whether you changed medication",
+    "probe_cycle": "where you are in your cycle",
+}
+
+
+def _question_name(probe_id: Any) -> str:
+    return _QUESTION_NAMES.get(str(probe_id), str(probe_id))
+
+
+def render_questions_considered(step: PipelineStepView) -> None:
+    """Every question the policy weighed, and what each was worth.
+
+    The decision to stay quiet is the one a person is most likely to want explained: it is
+    the difference between being interrupted and not. Showing only the question it asked,
+    and nothing about the ones it decided against, leaves that decision unexplainable.
+    """
+    considered = step.outputs.get("questions_considered") or []
+    if not considered:
+        return
+
+    st.markdown("**Every question it weighed**")
+    rows = [
+        {
+            "Question": _question_name(entry.get("probe_id")),
+            "Worth asking": f"{entry.get('value_of_asking', 0):.3f}",
+        }
+        for entry in sorted(considered, key=lambda c: c.get("value_of_asking", 0), reverse=True)
+    ]
+    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.caption(
+        "Higher is worth more. A negative number means the answer would change what the "
+        "system concludes by less than the cost of interrupting you, so it is not asked."
+    )
 
 
 def _value(value: Any) -> str:

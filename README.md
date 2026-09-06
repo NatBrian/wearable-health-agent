@@ -167,7 +167,7 @@ WHA_TIMEZONE=Asia/Singapore
 
 # --- Live LLM Inference Provider ---
 WHA_LLM_PROVIDER=openai_compatible
-WHA_LLM_BASE_URL=https://api.gptplus5.com/v1     # or https://api.openai.com/v1
+WHA_LLM_BASE_URL=https://openrouter.ai/api/v1     # or https://api.openai.com/v1
 WHA_LLM_MODEL=deepseek-chat                      # or gpt-4o, gpt-4.1-mini
 WHA_LLM_API_KEY=sk-your-api-key-here
 

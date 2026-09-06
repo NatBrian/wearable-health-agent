@@ -227,3 +227,36 @@ def test_the_sleep_tile_explains_the_number_it_is_showing(fake_api) -> None:
 
     assert explain.text("metric.sleep_hours")[:40] in sleep_tile
     assert "331 minutes" in sleep_tile, "the coverage it does mention should be named as such"
+
+
+def test_the_decision_step_shows_every_question_it_weighed(fake_api) -> None:
+    """The decision to stay quiet is the one a person most wants explained.
+
+    It is the difference between being interrupted and not, and nothing on screen said
+    what had been considered or what each was worth.
+    """
+    pipeline = _pipeline()
+    decide = next(s for s in pipeline.steps if s.step_id == "decide")
+    enriched = decide.model_copy(
+        update={
+            "outputs": {
+                "action": "OBSERVE",
+                "chosen_question": None,
+                "questions_considered": [
+                    {"probe_id": "probe_medication", "value_of_asking": -0.06},
+                    {"probe_id": "probe_stress", "value_of_asking": -0.15},
+                ],
+            }
+        }
+    )
+    steps = [enriched if s.step_id == "decide" else s for s in pipeline.steps]
+    _ready(fake_api, pipeline.model_copy(update={"steps": steps}))
+
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    next(b for b in app.button if b.label == "Open step 12").click().run()
+    body = " ".join(m.value for m in app.markdown) + " ".join(c.value for c in app.caption)
+
+    assert "whether you changed medication" in body
+    assert "worth less than the cost of interrupting you" in body
+    # An absent value is not a finding and must not be listed as one.
+    assert "chosen question: None" not in body
