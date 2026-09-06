@@ -305,3 +305,41 @@ def test_a_recurrence_inside_the_window_is_linked(conn, gap_days, should_link):
         assert gap_days < EPISODE_RECURRENCE_LINK_DAYS
     else:
         assert row["preceded_by_episode_id"] is None
+
+
+def test_a_symptom_only_tier_c_spotted_still_reaches_the_timeline(conn):
+    """The model's findings must persist, or they count for tonight and nothing after.
+
+    Found by running the live dengue scenario, not by reading code. "I cannot keep any
+    water down" is not an exact match for "can't keep fluids down", so the phrase lists
+    missed it and Tier C caught it. The escalation was correct and the symptom was then
+    forgotten, because only the deterministic matcher wrote to the timeline. That is the
+    same silence-over-time defect this module exists to remove, reintroduced one layer up.
+
+    Safe in the one direction that matters: Tier C is additive only and may never clear a
+    rule, so recording what it found can raise urgency later and never lower it.
+    """
+    from unittest.mock import patch
+
+    from wha.safety.models import SafetyCheckResult
+    from wha.service.symptoms import observe_and_check, symptom_runs
+
+    spotted = SafetyCheckResult(
+        escalate=True, level="same_day", triggered_flags=["rf_poor_intake"], guidance=[]
+    )
+    start = date(2026, 9, 1)
+    with patch("wha.safety.tier_c.check_red_flags_with_tier_c", return_value=spotted):
+        result = observe_and_check(conn, "s", "I cannot keep any water down", start)
+        assert result.triggered_flags == ["rf_poor_intake"]
+
+        runs = symptom_runs(conn, "s", start)
+        assert [r.flag_id for r in runs] == ["rf_poor_intake"], (
+            "Tier C escalated on a symptom the phrase lists missed, and it never reached "
+            "the timeline, so it would count for nothing tomorrow"
+        )
+
+        # And it accumulates, which is the whole point of recording it.
+        observe_and_check(conn, "s", "still cannot keep any water down", start + timedelta(days=1))
+        observe_and_check(conn, "s", "still cannot keep any water down", start + timedelta(days=2))
+
+    assert symptom_runs(conn, "s", start + timedelta(days=2))[0].nights == 3

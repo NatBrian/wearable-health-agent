@@ -100,6 +100,7 @@ def record_symptoms(
     night_date: date,
     source_turn_id: str | None = None,
     config: RedFlagsConfig | None = None,
+    force_flag_id: str | None = None,
 ) -> dict[str, bool]:
     """Write what one message says about the person's symptoms, against one night.
 
@@ -108,7 +109,10 @@ def record_symptoms(
     recent thing the person said.
     """
     cfg = config or load_red_flags()
-    found = detect_symptoms(text, cfg)
+    # `force_flag_id` records a symptom the phrase lists did not match, which is how a
+    # tier C finding reaches the timeline. Never used to record an ABSENCE: the model may
+    # only add.
+    found = {force_flag_id: True} if force_flag_id else detect_symptoms(text, cfg)
     if not found:
         return {}
 
@@ -396,9 +400,28 @@ def observe_and_check(
     cfg = config or load_red_flags()
     night = night_date or local_today()
     record_symptoms(conn, subject_id, text, night, config=cfg)
-    return check_red_flags_with_tier_c(
+    result = check_red_flags_with_tier_c(
         user_text=text,
         symptom_history=symptom_history(conn, subject_id, night, cfg),
         recent_tier_b=cooccurring_tier_b(conn, subject_id, night, cfg),
         config=cfg,
     )
+
+    # Anything TIER C spotted that the phrase lists missed goes on the timeline too.
+    #
+    # Found by running the live dengue scenario. "I cannot keep any water down" is not an
+    # exact match for "can't keep fluids down", so the deterministic matcher missed it and
+    # the model caught it. The escalation was correct, and the symptom was then FORGOTTEN:
+    # it counted for tonight and would have counted for nothing tomorrow, because only the
+    # matcher wrote to the timeline. That is the same silence-over-time defect this module
+    # exists to remove, reintroduced one layer up.
+    #
+    # Safe in the one direction that matters: tier C is additive only and may never clear a
+    # rule, so recording what it found can raise urgency later and can never lower it.
+    known = set(detect_symptoms(text, cfg))
+    for flag_id in result.triggered_flags:
+        if flag_id in known:
+            continue
+        record_symptoms(conn, subject_id, text, night, config=cfg, force_flag_id=flag_id)
+
+    return result
