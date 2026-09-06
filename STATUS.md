@@ -1,28 +1,76 @@
 # STATUS: read this first
 
-**Last updated:** 6 September 2026
+**Last updated:** 7 September 2026
 **Branch:** `feat/agentic-early-warning-system` (nothing has ever been pushed)
 
 ---
 
-## THE WORK IS FINISHED. THERE IS NO TASK LIST.
+## THERE IS WORK IN PROGRESS. READ THIS BEFORE ANYTHING ELSE.
 
-If you have just been handed this repository with no context, this is the important part:
-**nothing is waiting to be built, and nothing is half done.** Do not go hunting for a queue.
-`history/` is full of documents that look like plans, and every one of them describes a job
-that has ended.
+This replaces the "the work is finished" banner that stood here until 6 September. It is no
+longer true. A dashboard overhaul and a live simulation are both in flight, and three
+decisions are waiting on the user.
 
-Verified on 6 September 2026, all re-run rather than remembered:
+**A production-mimic simulation is running.** Subject `sim` holds a continuous history to
+9 September 2026: 28 mock nights generated at the user's own resting rate, then their seven
+real nights carried over from subject `me` as raw readings and scored by the real nightly
+job, then three raised nights on the 7th, 8th and 9th. An investigation, `ep_20445aee7610`,
+is OPEN, opened on the 8th, with one question asked and answered ("I feel a bit dizzy") and
+two escalations sent to a real phone.
+
+**Rules that hold while it runs:**
+
+- Subject `me` holds the user's real watch data. Never write to it. `.env` points at `sim`.
+- The mock watch serves `data/sim_state.json`, cursor at 2026-09-09, window one night. It
+  clamps to that window, so the scheduler's catch-up ingest cannot fabricate a month of
+  synthetic nights over the carried-over real ones. That clamp is load-bearing.
+- Backups of the database before each destructive step are in `data/backups/`.
+- Advance a night with `uv run python tools/mock_watch.py day --scenario <name>`, and only
+  when the user asks. They have been explicit about that.
+
+**Three decisions are open, all in `BLOCKERS.md`, none of them code:**
+
+1. Dizziness and light-headedness raise no alarm in `red_flags.yaml`. "I fainted" escalates;
+   "dizzy and short of breath" does not. Adding it is clinical content under change control.
+2. Symptom phrases match exactly, so "my chest hurts" is not "chest pain", and neither is
+   the elephant-on-the-chest line the runbook itself suggests testing with.
+3. Should a reported symptom plus worsening readings force a question regardless of what the
+   value-of-asking arithmetic says? That arithmetic tells causes apart. It does not notice
+   deterioration and was never meant to.
+
+Verified on 7 September 2026, all re-run rather than remembered:
 
 | Check | Result |
 |---|---|
-| `uv run pytest` | **685 passed, 1 skipped** |
+| `uv run pytest -n auto` | **736 passed, 1 skipped**, about five minutes |
 | `uv run ruff check src tests` | clean |
-| `uv run ruff format --check src tests` | clean, 268 files |
+| `uv run ruff format --check src tests` | clean |
 | `uv run wha doctor` | no `fail` rows |
-| Dashboard, all five screens | driven twice with Playwright, nine findings fixed |
-| Eleven frozen scenarios | **11 of 11 live**, 30 expectations, no failures, 5 September |
-| Telegram | a real message sent through the production path, 5 September |
+| Dashboard, all five screens | driven with Playwright through the whole simulation |
+| Eleven frozen scenarios | 11 of 11 live, 5 September, not re-run since |
+| Telegram | real messages sent and received through the production path |
+
+`pytest-xdist` is installed: run `-n auto`. The suite takes about five minutes in parallel
+against nearly eight serial, and the interface tests forty-five seconds against ninety.
+
+## What the simulation found, and what it cost to find
+
+Fifteen defects, none of which the test suite could have caught, because every one of them
+needed the product to be used. The full list is in
+`docs/superpowers/plans/walkthrough-2026-09-06.md` and in the commits from 6 and 7
+September. The ones worth knowing about before touching anything:
+
+- **Typing an answer was recorded as refusing to answer.** Tapping a button worked. A reply
+  typed on a phone reached the graph as `declined` with the person's words as a footnote, so
+  the belief never moved.
+- **An episode could sit at "waiting for your answer" with no question.** `node_ask` parks
+  the row before interrupting; when the policy then chose to observe, nothing set it back.
+- **Escalation was once per investigation, ever.** Somebody who got worse, or who stayed far
+  outside their own range for days, heard nothing after the first message. Both now speak.
+- **The record claimed steps had not run while they were running**, because the agent only
+  writes its trace when it concludes.
+- **Every screen but Home showed a different person**, and the History chart drew a RED
+  night in the same colour as the line labelled with the person's own heart rate.
 
 ## The dashboard was rewritten on 6 September 2026
 

@@ -1,16 +1,26 @@
-# Handover, 5 September 2026
+# Handover, 5 September 2026, amended 7 September
 
 **For somebody, or something, opening this repository with no prior context.**
 
 Read this, then `STATUS.md`. Together they take five minutes and will save you from the two
 mistakes everyone makes here.
 
+> **Amendment, 7 September 2026.** Section 1 below said there was nothing to do. That was
+> true when it was written and is not true now. The dashboard was rewritten on 6 September,
+> a production-mimic simulation is running against subject `sim`, an investigation is open,
+> and three clinical decisions are waiting on the user. **`STATUS.md` is the current
+> picture; read it first.** Everything else in this file still holds: the traps, the rules,
+> and the reason `history/` must not be mined for tasks.
+
 ---
 
 ## 1. There is nothing to do
 
-The work is finished. This is the single most important sentence in this file, because the
-repository is full of documents that look like open work and are not.
+**Superseded, 7 September 2026. See the amendment above.** The rest of this section is still
+correct about `history/`, which is what it was written to warn you about.
+
+The work was finished on 5 September. The repository is full of documents that look like
+open work and are not.
 
 - `history/review-2026-09/REFINEMENT-PLAN.md` is a 34 item queue. **All 34 are done.**
 - `history/plan/` is a 67 task build plan with a progress log. **Finished.**
