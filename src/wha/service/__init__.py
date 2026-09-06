@@ -69,6 +69,10 @@ from wha.service.nights import (
     get_night_detail,
     list_nights,
 )
+from wha.service.pipeline import (
+    get_night_pipeline,
+    list_pipeline_nights,
+)
 from wha.service.scheduler import (
     create_scheduler,
     run_episode_tick,
@@ -117,6 +121,7 @@ __all__ = [
     "get_knowledge_provenance",
     "get_monitoring_since",
     "get_night_detail",
+    "get_night_pipeline",
     "get_pending_interaction",
     "get_permitted_tool_names",
     "get_safety_rule_provenance",
@@ -128,6 +133,7 @@ __all__ = [
     "latest_urgency_reason",
     "list_episodes",
     "list_nights",
+    "list_pipeline_nights",
     "list_plain_records",
     "list_subjects",
     "parse_date_range",
