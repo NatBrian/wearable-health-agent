@@ -19,8 +19,10 @@ from wha.models import (
     EpisodeDetail,
     EpisodeSummary,
     NightDetail,
+    NightPipeline,
     NightRow,
     PendingInteraction,
+    PipelineNightRef,
     Settings,
     Subject,
     SubjectProfile,
@@ -116,6 +118,20 @@ class ApiClient:
     def get_night_detail(self, subject_id: str, night_date: date) -> NightDetail | None:
         raw = self._request("GET", f"/subjects/{subject_id}/nights/{night_date.isoformat()}")
         return NightDetail.model_validate(raw) if raw else None
+
+    def get_night_pipeline(self, subject_id: str, night_date: date) -> NightPipeline:
+        """Every step of one night, in the order it happened."""
+        raw = self._request(
+            "GET", f"/subjects/{subject_id}/nights/{night_date.isoformat()}/pipeline"
+        )
+        return NightPipeline.model_validate(raw)
+
+    def list_pipeline_nights(self, subject_id: str, days: int = 60) -> list[PipelineNightRef]:
+        """The nights the stepper can move between, and what each one concluded."""
+        rows = self._request(
+            "GET", f"/subjects/{subject_id}/pipeline/nights", params={"days": days}
+        )
+        return [PipelineNightRef.model_validate(r) for r in rows or []]
 
     # ---------------------------------------------------------------- episodes
 

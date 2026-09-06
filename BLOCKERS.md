@@ -1116,3 +1116,24 @@ neural forecaster separated illness worse than the plain residual and was delete
 
 `data/datasets/stanford` and `pmdata` remain empty and nothing reads them. `wha data fetch
 stanford` no longer pretends to fetch anything; it names `tools/cohort/fetch.py`, which does.
+
+## contract - the pipeline models are not in it, and the drift test cannot see that
+
+**6 September 2026.** The dashboard overhaul added five models to `wha.models`:
+`PipelineStepDef`, `PipelineStepView`, `PipelineHeadline`, `NightPipeline` and
+`PipelineNightRef`, plus the `StepLayer` and `StepStatus` enumerations. None of them appear in
+`docs/CONTRACTS.md`, because that file is read-only.
+
+**Why the drift test does not catch it.** `test_the_contract_lists_the_fields_the_models
+_actually_have` iterates over the models the contract declares and compares each against the
+code. A model the contract has never heard of is not in that iteration, so it passes. The test
+catches a model that changed, not a model that was added.
+
+**Consequence.** `docs/CONTRACTS.md` remains accurate about everything it describes and is now
+incomplete. Anyone using it as the full list of models will miss the five above, and the same
+gap will exist for any model added while the file stays read-only.
+
+**What would resolve it.** A decision from the user either to lift the read-only rule on
+`docs/CONTRACTS.md` so new models can be recorded in it, or to state in the file's own header
+that it describes the models it lists rather than all of them. Both are the user's call, not a
+code change. This is recorded rather than fixed.

@@ -158,6 +158,28 @@ def list_nights(
     return service.list_nights(subject_id, start=start_d, end=end_d)
 
 
+# Declared before the `{night_date}` route below so that `pipeline` in the path segment
+# after `nights` cannot be read as a date. Checked by a test rather than by reasoning.
+@app.get("/subjects/{subject_id}/pipeline/nights")
+def list_pipeline_nights(subject_id: str, days: int = Query(default=60, ge=1, le=400)) -> list[Any]:
+    """Just enough about each night to draw the stepper: date, level, whether investigated."""
+    return service.list_pipeline_nights(subject_id, days=days)
+
+
+@app.get("/subjects/{subject_id}/nights/{night_date}/pipeline")
+def get_night_pipeline(subject_id: str, night_date: date) -> Any:
+    """One night's journey from watch to conclusion, step by step.
+
+    Assembled from what was stored rather than re-run, so it cannot disagree with the
+    detector, and a step with no recorded time is returned with no time rather than a
+    plausible one.
+    """
+    try:
+        return service.get_night_pipeline(subject_id, night_date)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.get("/subjects/{subject_id}/nights/{night_date}")
 def get_night(subject_id: str, night_date: date) -> Any:
     """One night, with its features, baseline and detection."""
