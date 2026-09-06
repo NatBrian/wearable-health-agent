@@ -142,7 +142,20 @@ CREATE TABLE IF NOT EXISTS episodes (
   depth_used       INTEGER NOT NULL DEFAULT 0,
   -- The most recent night the agent has reasoned over, so an episode that decided to
   -- observe can be re-entered when a further night arrives rather than sitting forever.
-  last_evidence_night TEXT
+  last_evidence_night TEXT,
+  -- v9. Which investigation this one continues, if any, and the gap in days.
+  --
+  -- Respiratory illness surveillance conventionally separates two episodes by at least
+  -- seven symptom-free days; inside that window this is the same illness recurring, not a
+  -- new one. Saddleback dengue makes the case concretely: the second fever peak arrives
+  -- one to two days after defervescence and is the dangerous one, so treating it as an
+  -- unrelated first-ever investigation throws away the fact that matters most.
+  --
+  -- A linked episode is still its own row. Merging them would break the one-open-episode
+  -- invariant and rewrite a closed episode's disposition, and neither is worth it: what
+  -- was missing is the CONTEXT, and a pointer carries that.
+  preceded_by_episode_id TEXT,
+  days_since_previous INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_episodes_subject_state ON episodes(subject_id, state);
 
@@ -380,3 +393,44 @@ CREATE TABLE IF NOT EXISTS episode_traces (
   payload_json   TEXT NOT NULL,
   updated_at_utc TEXT NOT NULL
 );
+
+-- Symptoms as things that PERSIST, rather than keywords in one message.
+--
+-- Added 7 September 2026, schema v9. red_flags.yaml has always documented Tier B as
+-- "two or more co-occurring, OR one persisting beyond a stated duration", and the
+-- persistence half had never once fired: `check_red_flags_deterministic` takes a
+-- `symptom_history` argument that no production caller passed, so `history.get(id, 1)`
+-- was always 1 and `1 > persist_nights` was never true. Six symptoms carry a
+-- persist_nights value and not one of them could escalate on its own.
+--
+-- It was not merely unwired, it was uncomputable: nothing anywhere recorded that a
+-- symptom had been present on a given night. triage_answers upserts and keeps only the
+-- latest state. This table is that missing record.
+--
+-- One row per symptom per night, so "fever on 3 of the last 5 nights" is a query rather
+-- than an inference. Rebuilt from conversation_turns text, which was already stored, so
+-- no new data is collected from anybody to make this work.
+--
+-- `present` distinguishes the two silences that look identical without it: 0 means the
+-- person SAID it had settled (a negated mention), and no row at all means they did not
+-- mention it. Treating those the same is how a resolved symptom and a forgotten one end
+-- up with the same consequence.
+CREATE TABLE IF NOT EXISTS symptom_observations (
+  subject_id      TEXT NOT NULL,
+  -- The local date the person was talking about their state on. Symptoms are reported
+  -- during the day about how they feel; the night is the unit everything else here is
+  -- keyed on, so they are recorded against the local date of the turn.
+  night_date      TEXT NOT NULL,
+  -- A red_flags.yaml rule id where one matched. Symptoms with no rule are still recorded,
+  -- under their own id, because tracking a symptom is a far weaker claim than escalating
+  -- on it and is the right home for anything not evidenced enough to sit in a tier.
+  flag_id         TEXT NOT NULL,
+  tier            TEXT NOT NULL CHECK (tier IN ('A','B','TRACKED')),
+  present         INTEGER NOT NULL DEFAULT 1,
+  source_turn_id  TEXT,
+  source_text     TEXT NOT NULL,
+  recorded_at_utc TEXT NOT NULL,
+  PRIMARY KEY (subject_id, night_date, flag_id)
+);
+CREATE INDEX IF NOT EXISTS idx_symptom_recent
+  ON symptom_observations(subject_id, night_date DESC);

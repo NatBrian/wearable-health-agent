@@ -1,0 +1,311 @@
+"""Symptoms as things that persist, rather than keywords in a single message.
+
+`red_flags.yaml` has always described Tier B as "two or more co-occurring, OR one
+persisting beyond a stated duration". The persistence half had never once fired.
+`check_red_flags_deterministic` takes a `symptom_history` argument and no production
+caller passed it, so `history.get(rule_id, 1)` was always 1 and `1 > persist_nights` was
+never true for any of the six symptoms that carry one. Verified by running five nights of
+a worsening fever through the floor: five refusals to escalate.
+
+It was not merely unwired. It was uncomputable, because nothing recorded that a symptom
+had been present on a given night. This module is that missing record, and everything it
+needs was already in `conversation_turns`, so nothing new is collected from anybody.
+
+Three definitions live here, and each one is a decision rather than an implementation
+detail:
+
+**When does a symptom stop counting?** On an explicit retraction, or after
+SYMPTOM_RUN_GAP_DAYS with no mention. Strict night-by-night consecutiveness was rejected:
+somebody who says nothing on Tuesday has not recovered on Tuesday, and resetting their
+fever to zero for going quiet punishes exactly the silence this work exists to fix.
+
+**How long has it been going?** First mention to most recent mention within the current
+run, inclusive. So a fever mentioned on the 1st and the 3rd has lasted three nights, not
+two mentions.
+
+**What counts as a symptom being gone?** The person saying so. A negated mention writes
+`present = 0` rather than no row at all, because "I said my fever went" and "I did not
+mention my fever" are different facts and only one of them is reassuring.
+"""
+
+import sqlite3
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, timedelta
+
+from wha.clock import local_date_of
+from wha.constants import SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS, SYMPTOM_RUN_GAP_DAYS
+from wha.db.iso import from_iso, to_iso
+from wha.safety.models import RedFlagsConfig
+from wha.safety.rules import is_phrase_negated, load_red_flags, matches_symptom
+
+
+@dataclass(frozen=True)
+class SymptomRun:
+    """One symptom, and how long the person has been reporting it."""
+
+    flag_id: str
+    tier: str
+    first_night: date
+    last_night: date
+    nights: int
+    resolved: bool
+    last_text: str
+
+    @property
+    def outstanding(self) -> bool:
+        """Still going, as far as anything here knows."""
+        return not self.resolved
+
+
+def _tier_of(flag_id: str, cfg: RedFlagsConfig) -> str:
+    if any(r.id == flag_id for r in cfg.tier_a):
+        return "A"
+    if any(r.id == flag_id for r in cfg.tier_b):
+        return "B"
+    return "TRACKED"
+
+
+def detect_symptoms(text: str, config: RedFlagsConfig | None = None) -> dict[str, bool]:
+    """Which known symptoms this message mentions, and whether it asserts or denies each.
+
+    Returns flag id to `present`. A phrase that appears only under a negation yields
+    False, which is a retraction, not an absence of information.
+    """
+    cfg = config or load_red_flags()
+    neg = cfg.negation_guards.phrases
+    window = cfg.negation_guards.window_words
+    lowered = (text or "").lower()
+
+    found: dict[str, bool] = {}
+    for rule in [*cfg.tier_a, *cfg.tier_b, *cfg.tracked]:
+        if matches_symptom(lowered, rule.match, neg, window):
+            found[rule.id] = True
+            continue
+        # Present in the text but negated every time it appears: the person is telling us
+        # it has gone. Recorded, because a resolution is the only thing that should let an
+        # investigation close as benign, and it has to be distinguishable from silence.
+        for phrase in rule.match:
+            if phrase.lower() in lowered and is_phrase_negated(
+                lowered, phrase.lower(), neg, window
+            ):
+                found[rule.id] = False
+                break
+    return found
+
+
+def record_symptoms(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    text: str,
+    night_date: date,
+    source_turn_id: str | None = None,
+    config: RedFlagsConfig | None = None,
+) -> dict[str, bool]:
+    """Write what one message says about the person's symptoms, against one night.
+
+    Idempotent per night: saying "still feverish" twice in an evening is one fact about
+    that night, not two. A later retraction on the same night wins, because it is the more
+    recent thing the person said.
+    """
+    cfg = config or load_red_flags()
+    found = detect_symptoms(text, cfg)
+    if not found:
+        return {}
+
+    now = to_iso(datetime.now(UTC))
+    for flag_id, present in found.items():
+        conn.execute(
+            """INSERT INTO symptom_observations
+                 (subject_id, night_date, flag_id, tier, present, source_turn_id,
+                  source_text, recorded_at_utc)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(subject_id, night_date, flag_id) DO UPDATE SET
+                 present = excluded.present,
+                 source_turn_id = excluded.source_turn_id,
+                 source_text = excluded.source_text,
+                 recorded_at_utc = excluded.recorded_at_utc""",
+            (
+                subject_id,
+                night_date.isoformat(),
+                flag_id,
+                _tier_of(flag_id, cfg),
+                1 if present else 0,
+                source_turn_id,
+                text[:2000],
+                now,
+            ),
+        )
+    conn.commit()
+    return found
+
+
+def symptom_runs(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    as_of: date,
+    config: RedFlagsConfig | None = None,
+) -> list[SymptomRun]:
+    """Every symptom's current run, most recently mentioned first.
+
+    A run ends when the person retracts the symptom, or when SYMPTOM_RUN_GAP_DAYS pass
+    with no mention of it. Both endings are recorded, and neither is inferred from the
+    heart rate having settled: a reading returning to normal is evidence about the
+    reading. Dengue's critical phase begins as the fever breaks, relative bradycardia
+    means an infection can run with an ordinary pulse, and resting heart rate takes weeks
+    to months to return to baseline after an infection. Green is not recovered.
+    """
+    cfg = config or load_red_flags()
+    rows = conn.execute(
+        """SELECT night_date, flag_id, tier, present, source_text
+             FROM symptom_observations
+            WHERE subject_id = ? AND night_date <= ?
+            ORDER BY flag_id ASC, night_date ASC""",
+        (subject_id, as_of.isoformat()),
+    ).fetchall()
+
+    by_flag: dict[str, list[sqlite3.Row]] = {}
+    for row in rows:
+        by_flag.setdefault(str(row["flag_id"]), []).append(row)
+
+    runs: list[SymptomRun] = []
+    for flag_id, entries in by_flag.items():
+        first: date | None = None
+        last: date | None = None
+        last_text = ""
+        resolved = False
+        for entry in entries:
+            night = date.fromisoformat(str(entry["night_date"]))
+            if not entry["present"]:
+                # An explicit retraction ends the run outright.
+                first = None
+                last = None
+                resolved = True
+                continue
+            if first is None or (last is not None and (night - last).days > SYMPTOM_RUN_GAP_DAYS):
+                first = night
+            last = night
+            last_text = str(entry["source_text"] or "")
+            resolved = False
+
+        if first is None or last is None:
+            continue
+        # Gone quiet for longer than the episode-separation window: treat the run as over
+        # rather than carrying it forward indefinitely. Not a retraction, so it is not
+        # recorded as resolved; it simply stops being outstanding.
+        stale = (as_of - last).days > SYMPTOM_RUN_GAP_DAYS
+        runs.append(
+            SymptomRun(
+                flag_id=flag_id,
+                tier=_tier_of(flag_id, cfg),
+                first_night=first,
+                last_night=last,
+                nights=(last - first).days + 1,
+                resolved=resolved or stale,
+                last_text=last_text,
+            )
+        )
+
+    return sorted(runs, key=lambda r: r.last_night, reverse=True)
+
+
+def symptom_history(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    as_of: date,
+    config: RedFlagsConfig | None = None,
+) -> dict[str, int]:
+    """How many nights each still-running symptom has been going, for the safety floor.
+
+    This is the argument `check_red_flags_deterministic` has always accepted and never
+    once been given. Resolved runs are excluded: a fever the person says has gone must not
+    keep accumulating nights towards an escalation.
+    """
+    return {
+        run.flag_id: run.nights
+        for run in symptom_runs(conn, subject_id, as_of, config)
+        if run.outstanding
+    }
+
+
+def outstanding_symptoms(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    as_of: date,
+    config: RedFlagsConfig | None = None,
+) -> list[SymptomRun]:
+    """Symptoms the person has reported and never said were better."""
+    return [run for run in symptom_runs(conn, subject_id, as_of, config) if run.outstanding]
+
+
+def cooccurring_tier_b(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    as_of: date,
+    config: RedFlagsConfig | None = None,
+) -> list[str]:
+    """Distinct Tier B symptoms reported within the co-occurrence window.
+
+    "Two or more co-occurring" was implemented as "two or more in the same sentence",
+    which is not what the word means. A fever on Monday and vomiting on Tuesday co-occur
+    in any ordinary reading, and the system scored them as two unrelated singletons and
+    did nothing. A person whose symptoms EVOLVE across nights, dizziness then fever then
+    stomach pain, is the case this matters most for, and it was the case that produced the
+    least response.
+
+    The window is SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS, derived from this file's own
+    shortest persist_nights rather than invented.
+    """
+    cfg = config or load_red_flags()
+    tier_b_ids = {r.id for r in cfg.tier_b}
+    start = as_of - timedelta(days=SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS - 1)
+    rows = conn.execute(
+        """SELECT DISTINCT flag_id FROM symptom_observations
+            WHERE subject_id = ? AND present = 1
+              AND night_date >= ? AND night_date <= ?""",
+        (subject_id, start.isoformat(), as_of.isoformat()),
+    ).fetchall()
+    return sorted(str(r["flag_id"]) for r in rows if str(r["flag_id"]) in tier_b_ids)
+
+
+def backfill_from_conversation(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    config: RedFlagsConfig | None = None,
+) -> int:
+    """Rebuild the timeline from conversation turns already on disk.
+
+    The text was always there; only the reading of it was missing. Runs over the person's
+    own messages only: what the agent said is not evidence about how the person feels.
+    """
+    cfg = config or load_red_flags()
+    rows = conn.execute(
+        """SELECT id, text, created_at_utc FROM conversation_turns
+            WHERE subject_id = ? AND role = 'user' ORDER BY seq ASC""",
+        (subject_id,),
+    ).fetchall()
+
+    # The night a message belongs to is a LOCAL date. Taking the UTC date instead put a
+    # message typed at 01:41 in Singapore on the previous night, which is the same
+    # off-by-one that once made `monitoring_since` treat a night before installation as
+    # one the system had been watching.
+    tz_row = conn.execute(
+        "SELECT timezone FROM subjects WHERE subject_id = ?", (subject_id,)
+    ).fetchone()
+    tz_name = str(tz_row["timezone"]) if tz_row and tz_row["timezone"] else "Asia/Singapore"
+
+    written = 0
+    for row in rows:
+        try:
+            stamp = from_iso(str(row["created_at_utc"]))
+        except (TypeError, ValueError):
+            continue
+        found = record_symptoms(
+            conn,
+            subject_id,
+            str(row["text"] or ""),
+            local_date_of(stamp, tz_name),
+            source_turn_id=str(row["id"]),
+            config=cfg,
+        )
+        written += len(found)
+    return written

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from wha.errors import ConfigError
 
-DB_VERSION = 8
+DB_VERSION = 9
 
 # Columns added after version 1. CREATE TABLE IF NOT EXISTS does not alter a table that
 # already exists, so a database created before a column was introduced would silently
@@ -22,6 +22,11 @@ _ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
     ("interactions", "initiation", "TEXT"),
     # v6. Which discriminator conversation a turn belongs to.
     ("conversation_turns", "presentation", "TEXT"),
+    # v9. The investigation this one continues, and how many days separated them.
+    # A recurrence inside the episode-separation window is the same illness, and an
+    # episode that starts from scratch asks as though it had never met the person.
+    ("episodes", "preceded_by_episode_id", "TEXT"),
+    ("episodes", "days_since_previous", "INTEGER"),
 )
 
 

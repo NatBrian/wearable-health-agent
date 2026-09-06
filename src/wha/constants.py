@@ -475,6 +475,52 @@ ESCALATION_REPEAT_ROBUST_Z_RISE = 1.0
 # judgement about how often to speak, not a clinical threshold, and it is disclosed as one.
 ESCALATION_REPEAT_NIGHTS = 2
 
+# --- symptoms over time ---------------------------------------------------
+# How many days of silence end a symptom's run.
+#
+# CITED, and it is the one number here that a literature actually supplies. Respiratory
+# illness surveillance cohorts conventionally treat two illnesses as distinct episodes
+# when they are separated by at least SEVEN SYMPTOM-FREE DAYS. Shorter intervals appear
+# (48 hours in RSV infant studies) and longer ones (21 and 30 days in some community
+# cohorts), but seven is the common convention and the illness class is the one this
+# system targets: the NightSignal, DETECT and Mishra cohorts are all respiratory.
+#
+# It is checked against a second, independent case. Saddleback dengue is defined as
+# defervescence of at least one day followed by a second fever peak one to two days later,
+# and that second peak is the dangerous one. Seven days contains that gap comfortably, so
+# a biphasic fever stays ONE illness rather than being scored as two unrelated events.
+#
+# WHY DAYS OF SILENCE AND NOT CONSECUTIVE NIGHTS. Requiring an unbroken night-by-night run
+# would reset a fever to zero because somebody did not pick up their phone on Tuesday.
+# Punishing a person's silence is the exact failure this whole change exists to remove.
+#
+# WHY NOT GREEN NIGHTS. The source says symptom-free, not reading-normal, and those are
+# not interchangeable: dengue's critical phase begins as the fever breaks, relative
+# bradycardia (Faget's sign) means typhoid, dengue, Legionella and Q fever can run with an
+# ordinary pulse, and Radin et al. measured resting heart rate taking on average 79 days to
+# return to baseline after COVID symptom onset. A reading coming back to normal is evidence
+# about the reading, not about the person.
+SYMPTOM_RUN_GAP_DAYS = 7
+
+# The same number, used for whether a new investigation continues a previous one.
+# Held separately from SYMPTOM_RUN_GAP_DAYS because they are two decisions that happen to
+# share a source, and a later change to one must not silently move the other.
+EPISODE_RECURRENCE_LINK_DAYS = 7
+
+# How many nights apart two Tier B symptoms may be and still count as co-occurring.
+#
+# DERIVED, from this repository's own reviewed numbers rather than invented. red_flags.yaml
+# escalates on "two or more co-occurring" Tier B symptoms, and that was implemented as two
+# or more IN THE SAME MESSAGE, which is not what the word means: a fever on Monday and
+# vomiting on Tuesday co-occur in any ordinary reading. Two nights is the shortest
+# persist_nights in that file (rf_poor_intake and rf_persistent_vomiting, both 2), so the
+# window is the tightest one the file's own authors already reviewed.
+#
+# Conservative direction: a WIDER window escalates more often, so the error this carries is
+# an unnecessary same-day appointment rather than a missed deterioration. Disclosed on the
+# dashboard as DERIVED, not measured.
+SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS = 2
+
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36
 MEASUREMENT_TIMEOUT_HOURS = 24

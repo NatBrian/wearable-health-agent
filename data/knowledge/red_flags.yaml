@@ -11,8 +11,20 @@
 #
 #   TIER A   one is enough           the ambulance list. Nobody wants a second opinion
 #   TIER B   two or more, or persistence beyond a stated duration
+#   TRACKED  recorded over time, escalates on nothing, asked about rather than forgotten
 #   VITALS   alongside tier A, in robust z against the person's own baseline
 #   TIER C   the model, ADDITIVE ONLY, in code elsewhere. It may add a flag, never remove
+#
+# CORRECTION, 7 SEPTEMBER 2026. Until this date the second line above was HALF FICTION.
+# `check_red_flags_deterministic` takes a `symptom_history` argument that NO PRODUCTION
+# CALLER EVER PASSED, so the persistence half never once fired for any of the six symptoms
+# below that carry a persist_nights value: `history.get(id, 1)` was always 1, and 1 is
+# never greater than 2, 3 or 4. Verified by running five nights of a worsening fever
+# through the floor and getting five refusals to escalate. "Two or more co-occurring" was
+# separately implemented as two or more IN THE SAME MESSAGE, so a fever on Monday and
+# vomiting on Tuesday scored as two unrelated singletons. Both halves now work, against
+# the symptom_observations timeline. The numbers below did not change; they simply began
+# to be read.
 #
 # THE MODEL CAN ONLY MAKE THIS LOUDER, NEVER QUIETER. Rules and model are combined by
 # SET UNION, in code, not by a prompt instruction.
@@ -190,6 +202,43 @@ tier_b:
       Conservative direction: a SHORTER window escalates sooner, so the error this carries
       is an unnecessary appointment rather than a missed one. Marked unevidenced on the
       dashboard.
+
+tracked:
+  # RECORDED OVER TIME, NEVER ESCALATED ON. Added 7 September 2026.
+  #
+  # This section exists because of a question the tier structure could not answer.
+  # A person reported feeling dizzy, it got worse over the following nights, and the
+  # system recorded nothing and asked nothing, because dizziness is in no tier. The two
+  # available answers were both wrong: putting it in a tier asserts a routing threshold
+  # no source supports, and leaving it out entirely produces silence while somebody
+  # deteriorates.
+  #
+  # Tracking is a much weaker claim than escalating, and it needs no clinical threshold.
+  # It says only: you told us about this, so we will remember it and ask you about it.
+  # A tracked symptom counts toward NOTHING in tier B's arithmetic. What it does:
+  #   * it stops an investigation closing as "probably nothing" while it is outstanding
+  #   * it gives the follow-up rule something to ask about
+  # Neither of those makes a clinical claim, which is exactly why this is the right home
+  # for a symptom with no evidence base for routing.
+  #
+  # DELIBERATELY NOT LISTED HERE: severe abdominal pain. It is a WHO and CDC dengue
+  # warning sign and would be defensible in tier B, and it is being held out ON PURPOSE
+  # as a live test of whether the agent can recognise the significance of a symptom
+  # nobody has hand-coded for it. Pre-registered prediction, 7 September 2026: it will
+  # fail, because corpus.yaml contains the word "dengue" zero times and a grounded claim
+  # requires verbatim containment in a retrieved passage. Recorded before running it.
+
+  - id: sx_dizziness
+    match: ["dizzy", "dizziness", "light-headed", "lightheaded", "light headed",
+            "room is spinning", "woozy", "off balance", "unsteady on my feet"]
+    label: "dizziness or light-headedness"
+    rationale: >
+      NO ROUTING EVIDENCE, and none is claimed. No source was found that says how many
+      nights of dizziness in an otherwise well person warrants same-day care, which is
+      why this is not a tier B rule with a persist_nights value invented to fill the gap.
+      Severe or sudden dizziness with fainting is already covered by rf_syncope in tier A.
+      What is recorded here is the ordinary kind, so that it can be followed up rather
+      than forgotten.
 
 tier_b_guidance: >
   Two or more of these together, or one that has not settled, is worth a same-day

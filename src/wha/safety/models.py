@@ -124,6 +124,30 @@ class NegationGuards(BaseModel):
     note: str | None = None
 
 
+class TrackedSymptom(BaseModel):
+    """A symptom that is RECORDED over time but never escalates on its own.
+
+    Added 7 September 2026. It exists because of a real question with no good answer under
+    the previous design: dizziness. Putting it in Tier A or Tier B means asserting a
+    routing threshold no source supports, and leaving it out entirely means a person can
+    say "I feel dizzy", have it get worse for three nights, and have the system record
+    nothing and ask nothing. Neither is acceptable.
+
+    Tracking is a far weaker claim than escalating. It says only "this is a thing worth
+    noticing that you told us about", which needs no clinical threshold to justify. A
+    tracked symptom counts toward nothing in Tier B's arithmetic; what it does is keep the
+    investigation from closing as benign while it is outstanding, and give the follow-up
+    rule something to ask about.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str
+    match: list[str]
+    label: str
+    rationale: str | None = None
+
+
 class RedFlagsConfig(BaseModel):
     """Complete red flags specification loaded from data/knowledge/red_flags.yaml."""
 
@@ -133,6 +157,9 @@ class RedFlagsConfig(BaseModel):
     tier_a: list[TierARule]
     tier_b: list[TierBRule]
     vitals: list[VitalsRule]
+    # Recorded, never escalated on. Defaults to empty so a config predating this section
+    # still loads.
+    tracked: list[TrackedSymptom] = Field(default_factory=list)
     negation_guards: NegationGuards
     tier_b_guidance: str = ""
     outcome_guidance: OutcomeGuidance = Field(default_factory=OutcomeGuidance)
