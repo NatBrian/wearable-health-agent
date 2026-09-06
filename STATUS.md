@@ -28,15 +28,44 @@ two escalations sent to a real phone.
 - Advance a night with `uv run python tools/mock_watch.py day --scenario <name>`, and only
   when the user asks. They have been explicit about that.
 
-**Three decisions are open, all in `BLOCKERS.md`, none of them code:**
+## 7 SEPTEMBER 2026: the symptom timeline landed. Two of those three decisions are closed.
 
-1. Dizziness and light-headedness raise no alarm in `red_flags.yaml`. "I fainted" escalates;
-   "dizzy and short of breath" does not. Adding it is clinical content under change control.
-2. Symptom phrases match exactly, so "my chest hurts" is not "chest pain", and neither is
-   the elephant-on-the-chest line the runbook itself suggests testing with.
-3. Should a reported symptom plus worsening readings force a question regardless of what the
-   value-of-asking arithmetic says? That arithmetic tells causes apart. It does not notice
-   deterioration and was never meant to.
+The safety floor could not see time passing. `check_red_flags_deterministic` accepts a
+`symptom_history` argument and **no production caller ever passed it**, so the persistence
+half of Tier B had never fired for any symptom in the life of this project: five nights of
+a worsening fever through the real path produced five refusals to escalate. "Two or more
+co-occurring" separately meant "in the same message", so a fever on Monday and vomiting on
+Tuesday counted as two unrelated singletons. Neither threshold in `red_flags.yaml` changed.
+They simply began to be read.
+
+Four silences fixed, each measured before and after:
+
+- Tier B persistence now fires. Six symptoms could not escalate alone; now they can.
+- Co-occurrence spans nights, so an illness whose symptoms evolve is seen.
+- An outstanding symptom **overrides the value-of-asking arithmetic** and forces a
+  follow-up. EVSI scores how much an answer moves the belief across twelve causes, so once
+  a cause is settled asking is worth nothing by construction: the more certain the system
+  became that somebody was ill, the less reason it had to speak to them.
+- Green nights no longer close an investigation as benign while a symptom is outstanding,
+  and a time-based close now says something instead of nothing.
+
+Read `docs/DESIGN-SYMPTOM-TIMELINE.md` for the evidence, which is the part worth your time:
+dengue's critical phase begins at defervescence, Faget's sign, and Radin's 79-day recovery
+lag together mean **a green reading is evidence about the reading, not about the person**.
+
+**What is still open, all in `BLOCKERS.md`:**
+
+1. **Phrase matching is still exact**, so "my chest hurts" is not "chest pain". Downgraded
+   on measurement: Tier C rescued the case live. Still the user's call, because loosening
+   trades false alarms for coverage and nothing here measures that trade.
+2. **The dengue test has not been run.** Severe abdominal pain is deliberately in no tier,
+   reserved by the user to test whether the agent can reason to a WHO dengue warning sign
+   unaided. The prediction that it will fail is recorded **before** the run, in
+   `red_flags.yaml` and `BLOCKERS.md`: `corpus.yaml` contains "dengue" zero times.
+
+Closed since the last update: dizziness (it needed **tracking**, not a red flag, which
+asserts no threshold), the forced follow-up (done, as a rule), and sustained yellow nights,
+which were **measured** and found to catch zero additional cases across 738 person-weeks.
 
 Verified on 7 September 2026, all re-run rather than remembered:
 

@@ -26,6 +26,7 @@ STEP_NAMES: dict[str, str] = {
     "baseline": "Your normal",
     "subtract_explained": "Subtract what is explained",
     "detect": "Judge the night",
+    "safety_floor": "Check what you told us",
     "episode_open": "Open an investigation",
     "preload": "Fixed first readings",
     "investigate": "AI gathers evidence",

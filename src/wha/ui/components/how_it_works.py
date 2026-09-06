@@ -25,7 +25,7 @@ import streamlit as st
 
 from wha.ui.components.api import api, config
 
-# Which of the twenty pipeline steps each topic explains. Checked by a test: every step
+# Which pipeline steps each topic explains. Checked by a test: every step
 # must appear under exactly the topics that describe it, so a step added to the pipeline
 # cannot go unexplained here, and this page cannot claim a step the pipeline does not have.
 # In the order the steps run, each topic covering a contiguous block, nothing skipped and
@@ -38,13 +38,18 @@ TOPIC_STEPS: dict[str, tuple[int, ...]] = {
     "Reading the watch": (1, 2, 3, 4),
     "Learning your normal": (5,),
     "Deciding a night is worth looking at": (6, 7),
-    "Opening an investigation, and what the AI may do inside it": (8, 9, 10),
-    "Working out the likely cause": (11,),
-    "Deciding whether to interrupt you": (12, 13, 14),
-    "Writing the conclusion, and checking it before you see it": (15, 16, 17, 18),
-    "The safety rules, which run before anything else": (19, 20),
+    # Step 8 was added on 7 September 2026. The rules that read what you have TOLD the
+    # system ran before the agent from the beginning and appeared on neither tab, so the
+    # two screens that promise to show every step both left out the layer that can
+    # override all the others.
+    "Checking what you have told us, over time": (8,),
+    "Opening an investigation, and what the AI may do inside it": (9, 10, 11),
+    "Working out the likely cause": (12,),
+    "Deciding whether to interrupt you": (13, 14, 15),
+    "Writing the conclusion, and checking it before you see it": (16, 17, 18, 19),
+    "The safety rules, which run before anything else": (20, 21),
     # Not a step. It is true of every step, and giving it a number would have put a ninth
-    # entry in a list of twenty things that happen in order.
+    # entry in a list of things that happen in order.
     "Where your data goes": (),
 }
 
@@ -72,7 +77,7 @@ def render(subject_id: str) -> None:
     """Explain the pipeline, with every figure read from the code."""
     st.subheader("How the system works, by topic")
     st.caption(
-        "The tab beside this one walks one night through the twenty steps in the order they "
+        "The tab beside this one walks one night through every step in the order they "
         "run. This is the same machinery grouped by topic, and each heading says which of "
         "those steps it covers. Every number below is read from the running system rather "
         "than written into this page."
@@ -152,6 +157,37 @@ else. Any other request is refused and recorded:
 {tools}
 
 It cannot write to your record, send you anything, or decide whether to interrupt you.
+"""
+        )
+
+    with st.expander(_title("Checking what you have told us, over time"), expanded=False):
+        st.markdown(
+            f"""
+Anything you say about how you feel is checked against a fixed list of symptoms. This is
+plain rules, not AI, and it can only ever make the system MORE cautious, never less.
+
+Three things can happen, and the first two need a memory of what you have said before
+rather than just tonight's message:
+
+- **One symptom that keeps going.** Each symptom has its own number of nights, and the
+  count runs from the first night you mentioned it. **A night you say nothing does not
+  reset it**, because going quiet is not the same as getting better. It stops when you
+  say the symptom has gone, or after **{config()["SYMPTOM_RUN_GAP_DAYS"]} days** with no
+  mention.
+- **Two symptoms close together.** Two of these within
+  **{config()["SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS"]} nights** of each other is enough, whether
+  you mentioned them in one message or on different nights. Feeling dizzy on Monday and
+  feverish on Tuesday counts as both.
+- **A symptom that goes straight to urgent care**, on its own, with no waiting.
+
+Symptoms with no good evidence behind a rule, such as dizziness, are still **written down**
+so the system can ask you about them. Recording something is a much smaller claim than
+deciding where you should be treated, and it is the honest place for a symptom nobody has
+measured a threshold for.
+
+While any symptom of yours is still going, an investigation **will not close as "nothing
+points towards illness"**, however settled your heart rate looks. Your readings coming back
+to normal is evidence about your readings.
 """
         )
 

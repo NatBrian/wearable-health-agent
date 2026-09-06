@@ -1,12 +1,15 @@
 # CLAUDE.md
 
-> **THE WORK ON THIS PROJECT IS FINISHED, as of 5 September 2026. There is no task list.**
-> 628 tests pass, ruff is clean, the dashboard and all eleven frozen scenarios were verified
-> live. **Do not go looking for a queue.** `history/` is full of documents that look like
-> plans and every one describes a job that has ended. If you are asked to "continue" with no
-> further detail, **ask what is wanted** rather than inventing work. Two known imperfections
-> are open and both need a human decision, not code; they are the last entries in
-> `BLOCKERS.md`.
+> **THERE IS WORK IN FLIGHT. This banner said the opposite until 7 September 2026 and it
+> was wrong for two days.** Read `STATUS.md` first, every time; it is the only file
+> guaranteed to describe the present. A production-mimic simulation is running against
+> subject `sim`, and a symptom-timeline change landed on 7 September that fixed several
+> silences in the safety floor.
+>
+> `history/` is still full of documents that look like plans and every one describes a job
+> that has ended. **Do not mine it for a queue.** If you are asked to "continue" with no
+> further detail, ask what is wanted rather than inventing work. What IS open lives in
+> `BLOCKERS.md`, and most of it needs a human decision rather than code.
 
 **New to this repository? Read `HANDOVER.md` first, then `STATUS.md`.**
 

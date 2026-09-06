@@ -451,3 +451,65 @@ contains the words NO EVIDENCE FOUND, and the panel marks those rows "not measur
 tests: one asserts no CITED row's own backing contradicts its label, the other asserts every
 row naming an unevidenced number is marked on screen. Putting alcohol back to CITED fails
 the first with "its own citation says the paper did not measure it".
+
+---
+
+## 7 September 2026: `red_flags.yaml` gains a tracked tier, and a half-fictional header is corrected
+
+**What changed in the knowledge file.**
+
+1. **A `tracked:` section**, holding one symptom: `sx_dizziness`. Recorded over time,
+   escalates on nothing.
+2. **The header's Tier B line, corrected.** It read "two or more, or persistence beyond a
+   stated duration". The second half had never been true.
+
+**Why the header was fiction, and how that was established.** Not by reading the code, by
+running it. `check_red_flags_deterministic` accepts a `symptom_history` argument. Grep
+finds three references across the repository: the parameter itself, a pass-through in
+`tier_c.py`, and one unit test that supplies the dict by hand. No production caller ever
+passed it. So `history.get(rule_id, 1)` returned 1 on every call, and 1 is never greater
+than 2, 3 or 4. Five nights of a worsening fever through the real path:
+
+```
+night 1 'I have a fever'          -> escalate=False
+night 2 'still feverish today'    -> escalate=False
+night 3 'fever is worse'          -> escalate=False
+night 4 'burning up, fourth day'  -> escalate=False
+night 5 'still got a fever'       -> escalate=False
+```
+
+All six Tier B `persist_nights` values were unreachable. Each carries a written safety
+argument, of the form "a SHORTER window escalates sooner, so the error this carries is an
+unnecessary appointment rather than a missed one". Those paragraphs described behaviour the
+system did not have. **No number changed. They simply began to be read.**
+
+"Two or more co-occurring" was separately implemented as two or more *in the same message*,
+so a fever on Monday and vomiting on Tuesday scored as two unrelated singletons. Co-occurrence
+now spans `SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS`, which is DERIVED from the shortest
+`persist_nights` in this file (`rf_poor_intake` and `rf_persistent_vomiting`, both 2) rather
+than invented.
+
+**Why `tracked` exists rather than a new tier.** Dizziness had no good home. Putting it in
+Tier A or Tier B asserts a routing threshold no source supports; leaving it out means a
+person can report it, have it worsen for three nights, and have the system record nothing
+and ask nothing. Tracking asserts nothing clinical. It says only "you told us, so we will
+remember and ask". A tracked symptom counts toward nothing in Tier B's arithmetic; it keeps
+an investigation from closing as benign while outstanding, and gives the follow-up rule
+something to ask about. Neither is a claim about care, which is exactly why it is the right
+home for a symptom with no evidence base.
+
+**What was deliberately NOT added, and the prediction recorded before testing it.** Severe
+abdominal pain. It is a WHO and CDC dengue warning sign and would be defensible in Tier B.
+It is held out on purpose as a live test of whether the agent can recognise the significance
+of a symptom nobody hand-coded for it. Pre-registered prediction, written before the test
+was run: **it will fail.** `corpus.yaml` contains the word "dengue" zero times, so
+`enforce_grounding`'s verbatim containment test makes a grounded dengue claim impossible,
+and Tier C is handed only the Tier A and Tier B ids and can return nothing else. The only
+surviving route is an uncited note.
+
+**Related constants, outside this file but carrying its reasoning.** `SYMPTOM_RUN_GAP_DAYS`
+is CITED at 7: respiratory illness surveillance conventionally separates two episodes by at
+least seven symptom-free days, and it is checked against saddleback dengue, whose second
+fever peak arrives one to two days after defervescence, so a biphasic fever stays one
+illness. `SYMPTOM_FOLLOWUP_MAX_PER_EPISODE` is ASSUMED at 3 and marked unevidenced on the
+dashboard.

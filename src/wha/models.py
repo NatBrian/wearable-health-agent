@@ -569,19 +569,27 @@ CANONICAL_PIPELINE_STEPS: tuple[PipelineStepDef, ...] = (
     PipelineStepDef(step_id="baseline", ordinal=5, layer=StepLayer.DETERMINISTIC),
     PipelineStepDef(step_id="subtract_explained", ordinal=6, layer=StepLayer.DETERMINISTIC),
     PipelineStepDef(step_id="detect", ordinal=7, layer=StepLayer.DETERMINISTIC),
-    PipelineStepDef(step_id="episode_open", ordinal=8, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="preload", ordinal=9, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="investigate", ordinal=10, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="believe", ordinal=11, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="decide", ordinal=12, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="ask", ordinal=13, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="answer", ordinal=14, layer=StepLayer.USER),
-    PipelineStepDef(step_id="conclude", ordinal=15, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="critique", ordinal=16, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="review", ordinal=17, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="deliver", ordinal=18, layer=StepLayer.AGENTIC),
-    PipelineStepDef(step_id="safety_phrase_rules", ordinal=19, layer=StepLayer.SAFETY),
-    PipelineStepDef(step_id="safety_triage", ordinal=20, layer=StepLayer.SAFETY),
+    # The deterministic floor over what you have TOLD us, added 7 September 2026.
+    #
+    # It ran before the agent from the beginning and was not on this list, so the one
+    # screen that claims to show every step showed everything except the layer that can
+    # override every other layer. It is also where the persistence and co-occurrence
+    # rules live, and those are the rules a person most needs to see, because they are
+    # the ones that decide whether anybody is told anything.
+    PipelineStepDef(step_id="safety_floor", ordinal=8, layer=StepLayer.SAFETY),
+    PipelineStepDef(step_id="episode_open", ordinal=9, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="preload", ordinal=10, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="investigate", ordinal=11, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="believe", ordinal=12, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="decide", ordinal=13, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="ask", ordinal=14, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="answer", ordinal=15, layer=StepLayer.USER),
+    PipelineStepDef(step_id="conclude", ordinal=16, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="critique", ordinal=17, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="review", ordinal=18, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="deliver", ordinal=19, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="safety_phrase_rules", ordinal=20, layer=StepLayer.SAFETY),
+    PipelineStepDef(step_id="safety_triage", ordinal=21, layer=StepLayer.SAFETY),
 )
 
 

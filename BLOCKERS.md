@@ -1289,3 +1289,90 @@ clinical figure may only change against a quotable source.**
 
 None of these can be answered from this repository's own numbers, and none should be
 invented. **Recorded, disclosed, and awaiting a decision.**
+
+
+## RESOLVED 7 September 2026: two of the three dizziness items, and how
+
+The item above is kept unedited because it records what was true, and because the reasoning
+in it is the user's. Two of its three open questions are now answered, and the third is
+downgraded on evidence.
+
+**"Should dizziness be a tier B symptom?" Answered: no, and it does not need to be.** The
+question assumed the only two options were escalating on it or ignoring it. There was a
+third. `red_flags.yaml` now has a `tracked:` tier: recorded over time, escalates on nothing.
+Tracking asserts no clinical threshold, which is precisely why it is defensible where a
+tier B `persist_nights` invented for dizziness would not have been. A tracked symptom keeps
+an investigation from closing as "nothing points towards illness" while it is outstanding,
+and gives the follow-up rule something to ask about. Neither is a claim about where anybody
+should be treated.
+
+**"Should a reported symptom force a follow-up regardless of what the information is worth?"
+Answered: yes, and it is a rule rather than a number.** The diagnosis in the item above was
+right and understated. EVSI scores a question by how much the answer moves the belief across
+twelve causes, so once a cause is settled, asking again is worth nothing BY CONSTRUCTION:
+the more confident the system became that somebody was ill, the less reason it had to speak
+to them. `probe_symptoms` also has no severity and no trajectory in its answer space, so
+"feverish or chills" is the identical token on night one and night five, and there was no
+question in the system that meant "are you worse than yesterday".
+
+The fix is `select_action` step 3b. It bypasses the EVSI score, the weekly interruption
+budget and the rung gates, and it does not bypass a pending question or its own per-episode
+cap. It is deliberately NOT a term inside the belief model: adding trajectory there would
+mean writing likelihood rows no literature supplies.
+
+**"Should phrase lists be looser?" Downgraded, on measurement.** Tier C rescues the case:
+
+```
+deterministic only : I have a fever and I cannot keep fluids down  -> no escalation
+with tier C        : I have a fever and I cannot keep fluids down  -> same_day
+```
+
+It picked an arguably wrong flag id and it escalated, which is the direction that matters.
+The gap is real and is no longer the most serious thing in this file. **Still open** and
+still the user's call, because loosening the lists trades false alarms for coverage and this
+repository has no measurement of that trade.
+
+
+## MEASURED AND CLOSED 7 September 2026: sustained yellow nights
+
+Raised as a possible gap: the detector flags two consecutive RED nights and nothing else, so
+somebody at three and a half beats above their own normal for ten nights running has no
+investigation opened, ever. `sweep.py` had compared "at least one RED" against "both RED"
+and never scored a yellow-persistence arm, so the behaviour was an assumption rather than a
+finding.
+
+Measured with `tools/cohort/yellow_persistence.py` on 30 labelled cases, 76 controls and 738
+person-weeks:
+
+```
+two consecutive RED (production today)   53.3%  16 cases  0.198 alerts/week
+both RED or 3 raised nights              53.3%  16 cases  0.207   1.05x
+both RED or 5 raised nights              53.3%  16 cases  0.200   1.01x
+both RED or 7 raised nights              53.3%  16 cases  0.198   1.00x
+```
+
+**Zero additional cases at every run length**, for up to 5 percent more investigations on
+healthy people. Every case a long yellow run would catch is already caught. Nothing changes,
+and that is a finding rather than a shrug: the gap is real and closing it helps nobody. Do
+not re-litigate from theory.
+
+
+## OPEN: can the agent recognise a dengue warning sign nobody coded for it?
+
+**Reserved by the user on 7 September 2026 as a deliberate test rather than a fix.**
+
+Severe abdominal pain is a WHO and CDC dengue warning sign and appears nowhere in
+`data/knowledge/`. It would be defensible in tier B. The user chose to leave it out and use
+it to test whether the system and the agent can reason to it unaided, dengue being endemic
+where this system is used.
+
+**Prediction recorded before the test is run: it will fail.** `corpus.yaml` contains the
+word "dengue" zero times, so `enforce_grounding`'s verbatim containment test makes a grounded
+dengue claim impossible, and Tier C is handed only the tier A and tier B ids and can return
+nothing else. The only route that survives is an uncited note, which the interface labels as
+unsourced.
+
+If that prediction holds, the decision it forces is whether this system should carry
+Singapore-specific clinical content in its corpus at all. `sources.yaml` already describes
+national dengue guidance as material that should be there, and records that a dengue cluster
+feed was removed on 5 September. That is a scope decision and it is the user's.

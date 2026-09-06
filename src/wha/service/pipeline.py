@@ -464,6 +464,117 @@ _AGENT_SKIPPED_REASONS: dict[str, str] = {
 }
 
 
+def _safety_floor_step(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    night_date: date,
+) -> PipelineStepView:
+    """What the person said, how long they have been saying it, and what the rules made of it.
+
+    This layer ran before the agent from the beginning and was on no list, so the one
+    screen that claims to show every step showed everything except the layer that can
+    override every other layer.
+
+    It is also where the two rules live that a person most needs to see, because they are
+    the ones that decide whether anybody is told anything: a symptom that persists beyond
+    its own window, and two symptoms that turn up within a few nights of each other. Both
+    were unreachable until 7 September 2026, and both are stated here in nights and names
+    rather than as a verdict.
+    """
+    from wha.constants import SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS
+    from wha.safety.rules import load_red_flags
+    from wha.service.phrasing import symptom_label
+    from wha.service.symptoms import cooccurring_tier_b, symptom_runs
+
+    try:
+        runs = symptom_runs(conn, subject_id, night_date)
+        cooccurring = cooccurring_tier_b(conn, subject_id, night_date)
+        windows = {rule.id: rule.persist_nights for rule in load_red_flags().tier_b}
+    except Exception:  # noqa: BLE001
+        return _step(
+            "safety_floor",
+            StepStatus.UNRECORDED,
+            "The symptom record could not be read for this night.",
+        )
+
+    if not runs:
+        return _step(
+            "safety_floor",
+            StepStatus.NOT_APPLICABLE,
+            (
+                "You had not told the system about any symptoms by this night, so there "
+                "was nothing here for the rules to read. The rules that judge your "
+                "readings still ran."
+            ),
+        )
+
+    # The human words come from HERE, not from the screen. The dashboard is a client of
+    # this API and holds no content of its own, so a symptom added to red_flags.yaml must
+    # reach a page without anybody editing the page.
+    reported = [
+        {
+            "symptom": symptom_label(run.flag_id),
+            "symptom_id": run.flag_id,
+            "nights_so_far": run.nights,
+            "first_reported": run.first_night.isoformat(),
+            "last_reported": run.last_night.isoformat(),
+            "still_going": run.outstanding,
+            "escalates_after_nights": windows.get(run.flag_id),
+            "your_words": run.last_text[:200],
+        }
+        for run in runs
+    ]
+
+    persisted = [
+        entry["symptom"]
+        for entry in reported
+        if entry["escalates_after_nights"] is not None
+        and entry["still_going"]
+        and entry["nights_so_far"] > entry["escalates_after_nights"]
+    ]
+
+    if persisted:
+        reason = (
+            f"{_join_words(persisted)} had been going on longer than the number of "
+            "nights this system waits before saying something, so it raised it."
+        )
+    elif len(cooccurring) >= 2:
+        reason = (
+            f"{_join_words([symptom_label(f) for f in cooccurring])} were both reported within "
+            f"{SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS} nights of each other, and two of these "
+            "together is enough to raise it."
+        )
+    else:
+        reason = (
+            f"{len(reported)} symptom{'s' if len(reported) != 1 else ''} on record. None "
+            "had gone on long enough on its own, and no two of them fell close enough "
+            "together, so nothing was raised by this step on this night."
+        )
+
+    return _step(
+        "safety_floor",
+        StepStatus.RAN,
+        reason,
+        inputs={
+            "cooccurrence_window_nights": SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS,
+            "persistence_windows": windows,
+        },
+        outputs={
+            "reported_symptoms": reported,
+            "persisted_beyond_window": persisted,
+            "co_occurring_within_window": [symptom_label(f) for f in cooccurring],
+            "raised_something": bool(persisted or len(cooccurring) >= 2),
+        },
+    )
+
+
+def _join_words(names: list[str]) -> str:
+    """Names joined into a phrase a person would read aloud."""
+    if len(names) == 1:
+        return names[0].capitalize()
+    return (", ".join(names[:-1]) + " and " + names[-1]).capitalize()
+
+
 def _episode_row(conn: sqlite3.Connection, episode_id: str) -> sqlite3.Row | None:
     return conn.execute("SELECT * FROM episodes WHERE episode_id = ?", (episode_id,)).fetchone()
 
@@ -1016,6 +1127,7 @@ def get_night_pipeline(
             _baseline_step(conn, subject_id, night_date),
             _subtract_step(detection),
             _detect_step(detection),
+            _safety_floor_step(conn, subject_id, night_date),
             _episode_open_step(conn, detail.row.episode_id, detection),
             *_agent_steps(conn, detail.row.episode_id, detection),
             *_safety_steps(conn, subject_id, night_date, detail.row.episode_id, tz_name),

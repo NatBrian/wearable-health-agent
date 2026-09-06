@@ -52,6 +52,15 @@ def _pipeline(
     )
 
 
+def _ordinal(step_id: str) -> int:
+    """The step's position, read from the canonical list rather than retyped.
+
+    These were hardcoded, so inserting a step in the middle of the pipeline broke four
+    unrelated tests with an off-by-one that said nothing about what had actually changed.
+    """
+    return next(s.ordinal for s in CANONICAL_PIPELINE_STEPS if s.step_id == step_id)
+
+
 def _ready(fake_api, pipeline: NightPipeline | None = None) -> None:
     fake_api.list_pipeline_nights.return_value = [
         PipelineNightRef(night_date=NIGHT, level=DetectionLevel.RED, has_episode=True, usable=True)
@@ -95,7 +104,7 @@ def test_a_step_that_did_not_run_shows_its_real_reason(fake_api) -> None:
     _ready(fake_api, _pipeline({"ask": StepStatus.SKIPPED}))
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    ask = next(b for b in app.button if b.label == "Open step 13")
+    ask = next(b for b in app.button if b.label == f"Open step {_ordinal('ask')}")
     assert ask.proto.help == "reason for ask"
 
 
@@ -104,7 +113,7 @@ def test_an_unrecorded_step_does_not_claim_it_was_skipped(fake_api) -> None:
     _ready(fake_api, _pipeline({"believe": StepStatus.UNRECORDED}))
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    believe = next(b for b in app.button if b.label == "Open step 11")
+    believe = next(b for b in app.button if b.label == f"Open step {_ordinal('believe')}")
     believe.click().run()
     body = _body(app).lower()
 
@@ -116,7 +125,7 @@ def test_clicking_a_step_opens_its_detail(fake_api) -> None:
     _ready(fake_api)
     app = AppTest.from_file(PAGE, default_timeout=30).run()
 
-    believe = next(b for b in app.button if b.label == "Open step 11")
+    believe = next(b for b in app.button if b.label == f"Open step {_ordinal('believe')}")
     believe.click().run()
 
     assert app.session_state["pipeline_step"] == "believe"
@@ -253,7 +262,7 @@ def test_the_decision_step_shows_every_question_it_weighed(fake_api) -> None:
     _ready(fake_api, pipeline.model_copy(update={"steps": steps}))
 
     app = AppTest.from_file(PAGE, default_timeout=30).run()
-    next(b for b in app.button if b.label == "Open step 12").click().run()
+    next(b for b in app.button if b.label == f"Open step {_ordinal('decide')}").click().run()
     body = " ".join(m.value for m in app.markdown) + " ".join(c.value for c in app.caption)
 
     assert "whether you changed medication" in body
@@ -287,7 +296,7 @@ def test_the_belief_step_shows_all_twelve_causes(fake_api) -> None:
     _ready(fake_api, pipeline.model_copy(update={"steps": steps}))
 
     app = AppTest.from_file(PAGE, default_timeout=30).run()
-    next(b for b in app.button if b.label == "Open step 11").click().run()
+    next(b for b in app.button if b.label == f"Open step {_ordinal('believe')}").click().run()
     body = " ".join(m.value for m in app.markdown) + " ".join(c.value for c in app.caption)
 
     assert "All twelve causes it weighed" in body

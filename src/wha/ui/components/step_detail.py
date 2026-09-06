@@ -55,6 +55,10 @@ _FIELD_NAMES: dict[str, str] = {
     "tool_call_count": "tool calls",
     "messages_checked": "messages checked",
     "episode_id": "investigation",
+    "persisted_beyond_window": "symptoms that had gone on too long",
+    "co_occurring_within_window": "symptoms close together in time",
+    "raised_something": "this step raised something",
+    "cooccurrence_window_nights": "how close together two symptoms must be, in nights",
 }
 
 
@@ -82,6 +86,33 @@ def _arithmetic(step: PipelineStepView) -> str | None:
             "always gives the same answer. The leading cause is "
             f"{_cause_name(out.get('top_cause'))} at "
             f"{format.probability(out.get('top_probability'))}."
+        )
+    if step.step_id == "safety_floor":
+        reported = out.get("reported_symptoms") or []
+        if not reported:
+            return None
+        persisted = out.get("persisted_beyond_window") or []
+        together = out.get("co_occurring_within_window") or []
+        if persisted:
+            names = ", ".join(str(p) for p in persisted)
+            return (
+                f"You had been reporting {names} for longer than the number of nights this "
+                "system waits before it says something, so it said something. Counting is "
+                "from the first night you mentioned it to the most recent, and a night you "
+                "said nothing does not reset it."
+            )
+        if len(together) >= 2:
+            names = ", ".join(str(t) for t in together)
+            return (
+                f"You reported {names} within "
+                f"{step.inputs.get('cooccurrence_window_nights')} nights of each other. Two "
+                "of these together is enough on its own, whether you mentioned them in the "
+                "same message or on different nights."
+            )
+        return (
+            f"{len(reported)} symptom{'s' if len(reported) != 1 else ''} on record. No "
+            "single one had gone on past its own limit, and no two fell close enough "
+            "together, so this step raised nothing. It is still watching them."
         )
     if step.step_id == "decide" and out.get("action"):
         value = out.get("value_of_asking")
@@ -135,6 +166,7 @@ def render(pipeline: Any, step_id: str) -> None:
         st.markdown("**The numbers**")
         st.write(sentence)
 
+    render_symptom_timeline(step)
     render_causes_weighed(step)
     render_questions_considered(step)
 
@@ -198,6 +230,49 @@ _CAUSE_NAMES: dict[str, str] = {
     "sensor_artifact": "the watch misreading",
     "unexplained": "something not on this list",
 }
+
+
+def render_symptom_timeline(step: PipelineStepView) -> None:
+    """Every symptom on record, how long it has run, and what would raise it.
+
+    Showing only the outcome would repeat the mistake this step was added to fix. A
+    person who is told "nothing was raised" cannot tell whether that is because the rules
+    looked and were unmoved, or because nothing was ever recorded. The row for each
+    symptom carries the count and the limit side by side, so the decision is checkable
+    rather than announced.
+    """
+    reported = step.outputs.get("reported_symptoms")
+    if not isinstance(reported, list) or not reported:
+        return
+
+    st.markdown("**What you have told the system, and for how long**")
+    rows = []
+    for entry in reported:
+        if not isinstance(entry, dict):
+            continue
+        limit = entry.get("escalates_after_nights")
+        rows.append(
+            {
+                # Already in ordinary words when it arrives. This screen holds no
+                # content of its own, so the label travels with the data.
+                "Symptom": entry.get("symptom"),
+                "Nights so far": entry.get("nights_so_far"),
+                "Raises it after": (
+                    f"{limit} nights" if limit is not None else "does not raise on its own"
+                ),
+                "Still going": "yes" if entry.get("still_going") else "you said it had gone",
+                "First said": entry.get("first_reported"),
+                "Last said": entry.get("last_reported"),
+            }
+        )
+    st.dataframe(rows, use_container_width=True, hide_index=True)
+    st.caption(
+        "Counted from the first night you mentioned something to the most recent. A night "
+        "you said nothing does not reset the count, because saying nothing is not the same "
+        "as being better. A symptom stops counting when you say it has gone, or after a "
+        "week with no mention. Symptoms marked as not raising anything on their own are "
+        "recorded so they can be asked about, not to route your care."
+    )
 
 
 def _cause_name(cause_id: Any) -> str:

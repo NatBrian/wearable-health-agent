@@ -440,9 +440,37 @@ CREATE TABLE episodes (
   baseline_rung    TEXT NOT NULL,
   step_count       INTEGER NOT NULL DEFAULT 0,
   tool_call_count  INTEGER NOT NULL DEFAULT 0,
-  depth_used       INTEGER NOT NULL DEFAULT 0
+  depth_used       INTEGER NOT NULL DEFAULT 0,
+  -- v9. The investigation this one continues, and the gap in days. Under
+  -- EPISODE_RECURRENCE_LINK_DAYS this is the same illness recurring, not a new one.
+  preceded_by_episode_id TEXT,
+  days_since_previous    INTEGER
 );
 CREATE INDEX idx_episodes_subject_state ON episodes(subject_id, state);
+
+-- v9. Symptoms as things that PERSIST, rather than keywords in one message.
+--
+-- red_flags.yaml has always documented Tier B as "two or more co-occurring, OR one
+-- persisting beyond a stated duration", and the persistence half had never fired:
+-- check_red_flags_deterministic takes a symptom_history argument no production caller
+-- passed. It was not merely unwired, it was uncomputable, because nothing recorded that a
+-- symptom had been present on a given night. This is that record, rebuilt from
+-- conversation_turns text already on disk.
+--
+-- `present` distinguishes two things that are otherwise identical: 0 means the person SAID
+-- it had settled, and no row means they did not mention it.
+CREATE TABLE symptom_observations (
+  subject_id      TEXT NOT NULL,
+  night_date      TEXT NOT NULL,
+  flag_id         TEXT NOT NULL,      -- a red_flags.yaml rule id, tier A, B or tracked
+  tier            TEXT NOT NULL CHECK (tier IN ('A','B','TRACKED')),
+  present         INTEGER NOT NULL DEFAULT 1,
+  source_turn_id  TEXT,
+  source_text     TEXT NOT NULL,
+  recorded_at_utc TEXT NOT NULL,
+  PRIMARY KEY (subject_id, night_date, flag_id)
+);
+CREATE INDEX idx_symptom_recent ON symptom_observations(subject_id, night_date DESC);
 
 CREATE TABLE beliefs (
   episode_id     TEXT NOT NULL,
@@ -884,6 +912,9 @@ class Action(BaseModel):
     disposition: Disposition | None = None
     rationale: str                       # produced by the policy, not the LLM
     rejected: list[tuple[str, float]]    # probe_id, score for every alternative considered
+    followup_for: str | None = None      # the symptom this ASK follows up, when the action
+                                         # was chosen as a RULE rather than on expected
+                                         # information gain. See select_action step 3b.
 
 class EpisodeOutcome(BaseModel):
     schema_version: Literal["1.0"] = "1.0"

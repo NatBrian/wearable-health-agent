@@ -67,7 +67,9 @@ def test_the_pipeline_endpoint_returns_every_step(stub_service) -> None:
 
     assert response.status_code == 200
     body = response.json()
-    assert [s["ordinal"] for s in body["steps"]] == list(range(1, 21))
+    assert [s["ordinal"] for s in body["steps"]] == [
+        d.ordinal for d in CANONICAL_PIPELINE_STEPS
+    ]
     assert body["headline"]["level"] == "RED"
 
 

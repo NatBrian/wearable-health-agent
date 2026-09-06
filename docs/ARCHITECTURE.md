@@ -43,9 +43,10 @@ flowchart TB
         FEA["3. FEATURES<br/>median heart rate in that window<br/>coverage minutes, sleep hours, workouts"]
         BASE["4. BASELINE<br/>your own median over 28 nights<br/>plus a band width"]
         EXPL["5. SUBTRACT WHAT IS EXPLAINED<br/>a recorded evening workout only"]
-        DETECT["6. DETECT<br/>GREEN / YELLOW / RED<br/>flag on 2 raised nights with a RED"]
+        DETECT["6. DETECT<br/>GREEN / YELLOW / RED<br/>flag on 2 consecutive nights, BOTH RED"]
+        FLOOR["7. SAFETY FLOOR<br/>what you TOLD us, read over time<br/>plus extreme readings and blood oxygen"]
         FC["CHRONOS FORECAST<br/>advisory only, changes nothing"]
-        ING --> WIN --> FEA --> BASE --> EXPL --> DETECT
+        ING --> WIN --> FEA --> BASE --> EXPL --> DETECT --> FLOOR
         FEA -.-> FC -.-> DETECT
     end
 
@@ -773,6 +774,31 @@ sensor data alone carries no usable signal about which cause it is.
 
 ---
 
+### The one thing EVSI cannot do, and the rule that covers it
+
+**Added 7 September 2026.** EVSI scores a question by how much the answer moves the belief
+across twelve **causes**. Once a cause is settled, asking again is worth nothing *by
+construction*, which produces this:
+
+> The more confident the system became that somebody was ill, the less reason it had to
+> speak to them.
+
+A person reported dizziness, it worsened over the following nights, the arithmetic
+correctly computed that another answer would not change which cause it believed in, and
+the system said nothing. Every step was working as specified and the behaviour was
+indefensible. `probe_symptoms` also has no severity and no trajectory in its answer space,
+so there was no question in the system that meant "are you worse than yesterday".
+
+`select_action` step 3b is therefore a **rule**, sitting beside the scoring rather than
+inside it. Putting trajectory into the belief model would mean inventing likelihood rows no
+literature supplies.
+
+It cannot bypass a pending question, or its own per-episode cap. It **can** bypass the
+weekly interruption budget and the rung gates: a budget exists to stop the system pestering
+a well person, and letting it silence somebody who has said they feel unwell inverts its
+purpose. The follow-up is still charged to the budget and still shown; it simply cannot be
+gagged by it.
+
 ## Part 10. The agent: the LangGraph loop
 
 ### What does this part do?
@@ -967,6 +993,46 @@ flowchart TB
 The negation guard is deliberately simple: a "no" or "not" within four words suppresses a
 match, but the guard stops at a comma or at "but". So "no fever, but chest pain" correctly
 denies the fever and escalates the chest pain.
+
+### Symptoms are read over TIME, not one message at a time
+
+**Corrected 7 September 2026, and the correction is the important part of this section.**
+
+Until that date the diagram above was half fiction. The "one that has persisted" branch
+had **never once fired, for any symptom, in the life of the project**.
+`check_red_flags_deterministic` accepts a `symptom_history` argument and no production
+caller passed it, so `history.get(rule_id, 1)` was always 1, and 1 is never greater than
+2, 3 or 4. Five nights of a worsening fever, run through the real path, produced five
+refusals to escalate. Six symptoms carry a `persist_nights` value and none of them could
+escalate alone.
+
+It was not merely unwired. It was **uncomputable**, because nothing anywhere recorded that
+a symptom had been present on a given night: `triage_answers` upserts and keeps only the
+latest state.
+
+"Two or more co-occurring" was separately implemented as two or more **in the same
+message**, so a fever on Monday and vomiting on Tuesday scored as two unrelated singletons.
+The case it failed hardest on is the one that matters most, a person whose symptoms evolve
+across nights.
+
+`symptom_observations` is the missing record, one row per symptom per night, rebuilt from
+`conversation_turns` text already on disk, so nothing new is collected from anybody. Both
+halves of Tier B now work against it. **No threshold in `red_flags.yaml` changed. They
+simply began to be read.**
+
+A run ends when the person says the symptom has gone, or after `SYMPTOM_RUN_GAP_DAYS` of
+silence. It does **not** end on a night they said nothing, because going quiet is not
+recovering, and it does **not** end because their heart rate settled. That last point has
+its own evidence and its own consequences; see `docs/DESIGN-SYMPTOM-TIMELINE.md`.
+
+### A third tier: tracked
+
+`red_flags.yaml` also has `tracked:`, holding symptoms that are recorded over time and
+escalate on nothing. It exists because dizziness had no good home: a tier assignment
+asserts a routing threshold no source supports, and omission means silence while somebody
+gets worse. Tracking asserts nothing clinical. It keeps an investigation from closing as
+benign while the symptom is outstanding, and gives the follow-up rule something to ask
+about.
 
 ### The Marburg Heart Score
 

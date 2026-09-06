@@ -43,7 +43,7 @@ def render_pipeline_tab(subject: str) -> None:
     default = date.fromisoformat(remembered) if remembered else None
     if default not in dates:
         # The most recent night is often one the watch did not measure, and opening on it
-        # shows twenty steps reading "did not run" to somebody who came here to find out
+        # shows every step reading "did not run" to somebody who came here to find out
         # what happened. Open on the most recent night there is something to explain.
         measured = [r.night_date for r in refs if r.usable]
         default = measured[0] if measured else dates[0]

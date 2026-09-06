@@ -345,7 +345,7 @@ def test_an_investigated_night_carries_every_step(seeded_db_with_episode) -> Non
     pipeline = get_night_pipeline("sim", FLAGGED, conn=seeded_db_with_episode)
 
     assert pipeline.episode_id == "ep_test"
-    assert [s.ordinal for s in pipeline.steps] == list(range(1, 21))
+    assert [s.ordinal for s in pipeline.steps] == [d.ordinal for d in CANONICAL_PIPELINE_STEPS]
 
     believe = next(s for s in pipeline.steps if s.step_id == "believe")
     assert believe.status == StepStatus.RAN
@@ -429,7 +429,11 @@ def test_the_safety_floor_is_shown_even_when_it_did_not_trigger(seeded_db) -> No
     pipeline = get_night_pipeline("sim", MEASURED, conn=seeded_db)
     safety = [s for s in pipeline.steps if s.layer == StepLayer.SAFETY]
 
-    assert [s.step_id for s in safety] == ["safety_phrase_rules", "safety_triage"]
+    assert [s.step_id for s in safety] == [
+        "safety_floor",
+        "safety_phrase_rules",
+        "safety_triage",
+    ]
     assert all(s.reason for s in safety)
 
 

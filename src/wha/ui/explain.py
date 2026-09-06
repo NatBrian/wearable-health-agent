@@ -109,14 +109,18 @@ TEXT: dict[str, str] = {
     "level.investigating": (
         "This is being looked into now. The system opened an investigation because your "
         "readings were clearly raised on more than one night in a row. It will ask you "
-        "something only if your answer would change what it concludes."
+        "something if your answer would change what it concludes, and it will also ask "
+        "how you are getting on if you have told it about a symptom and not said it had "
+        "settled, whether or not the answer would change anything."
     ),
     "safety.what_it_cannot_catch": (
         "What this cannot catch. The rules that raise an alarm on your words match set "
-        "phrases, so unusual wording can slip past them, and dizziness or feeling faint "
-        "raise no alarm on their own at all. Fainting does. If you feel worse, say so or "
-        "contact a clinician rather than waiting to be asked: this system is not watching "
-        "you between nights."
+        "phrases, so unusual wording can slip past them. Dizziness and feeling faint raise "
+        "no alarm on their own, because nobody has measured how long either should last in "
+        "an otherwise well person before it means anything; they are written down and asked "
+        "about instead. Fainting does raise one. If you feel worse, say so or contact a "
+        "clinician rather than waiting to be asked: this system is not watching you between "
+        "nights."
     ),
     "level.not_a_diagnosis": (
         "Whatever the colour, it describes one measurement of your heart rate against your "
@@ -236,6 +240,21 @@ TEXT: dict[str, str] = {
     "step.detect.why": (
         "This is the only step that decides whether anything else happens. It is "
         "arithmetic, and no AI takes part in it."
+    ),
+    "step.safety_floor.what": (
+        "Anything you said about how you feel was checked against a fixed list of "
+        "symptoms, over time rather than one message at a time."
+    ),
+    "step.safety_floor.why": (
+        "This is the layer that can overrule every other layer, and it is plain rules "
+        "rather than AI, so it cannot be talked round. Some symptoms send you straight to "
+        "urgent care on their own. Others matter when two of them turn up together, or "
+        "when one keeps going for several nights, and both of those need a memory of what "
+        "you have said before, not just tonight's message. Until this was fixed the system "
+        "only ever read one message at a time, so a symptom that went on for a week, or a "
+        "second symptom that appeared the next day, counted for nothing. Symptoms with no "
+        "good evidence behind a rule are still written down here, so they can be asked "
+        "about, without pretending to route your care."
     ),
     "step.episode_open.what": (
         "Whether this night started an investigation. It takes two clearly raised nights "

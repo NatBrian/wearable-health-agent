@@ -91,3 +91,28 @@ def disposition_message(value: object, note: str | None = None) -> str:
         # investigation ended. The criteria are omitted rather than invented.
         pass
     return "\n\n".join(line for line in lines if line)
+
+
+def symptom_label(flag_id: str) -> str:
+    """A symptom rule id in the words a person would use.
+
+    Read from `red_flags.yaml` rather than held in a dictionary here, so a symptom added
+    to the knowledge file cannot appear on a screen as `rf_poor_intake`. Tracked symptoms
+    carry an explicit label; tier A and tier B rules do not, so their first match phrase
+    is used, which is written in ordinary words already because it has to match what
+    somebody types.
+    """
+    try:
+        from wha.safety.rules import load_red_flags
+
+        config = load_red_flags()
+        for rule in config.tracked:
+            if rule.id == flag_id:
+                return rule.label
+        for rule in [*config.tier_a, *config.tier_b]:
+            if rule.id == flag_id and rule.match:
+                return rule.match[0]
+    except Exception:  # noqa: BLE001, S110
+        pass
+    # Never the raw id on a screen. Stripping the prefix leaves something readable.
+    return flag_id.removeprefix("rf_").removeprefix("sx_").replace("_", " ")
