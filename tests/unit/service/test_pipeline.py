@@ -369,7 +369,7 @@ def test_a_step_the_graph_did_not_reach_is_skipped_with_its_reason(
     assert review.reason
 
 
-def test_an_episode_with_no_stored_trace_is_unrecorded_not_skipped(
+def test_work_that_left_no_trace_and_no_evidence_is_unrecorded(
     seeded_db_with_untraced_episode,
 ) -> None:
     """ "We did not write it down" and "it did not run" are different claims.
@@ -377,16 +377,30 @@ def test_an_episode_with_no_stored_trace_is_unrecorded_not_skipped(
     Reporting the first as the second is what made every episode's trace read "Ask probe
     not selected by EVSI optimizer" directly above a chart showing the probability moving
     because a question had been answered.
+
+    This is the genuine version of that gap: a closed investigation that left no trace and
+    nothing else to read either. Where a step DID leave something behind it is reported as
+    having run, which `test_a_running_investigation_shows_the_steps_that_have_run` covers.
     """
     from wha.service.pipeline import get_night_pipeline
 
-    pipeline = get_night_pipeline("sim", FLAGGED, conn=seeded_db_with_untraced_episode)
+    conn = seeded_db_with_untraced_episode
+    conn.execute("DELETE FROM beliefs")
+    conn.execute("DELETE FROM interactions")
+    conn.execute("UPDATE episodes SET state = 'CLOSED' WHERE episode_id = 'ep_test'")
+    conn.commit()
+
+    pipeline = get_night_pipeline("sim", FLAGGED, conn=conn)
     agentic = [
-        s for s in pipeline.steps if s.layer == StepLayer.AGENTIC and s.step_id != "episode_open"
+        s
+        for s in pipeline.steps
+        if s.layer == StepLayer.AGENTIC and s.step_id not in ("episode_open", "deliver")
     ]
 
     assert agentic
-    assert all(s.status == StepStatus.UNRECORDED for s in agentic)
+    assert all(s.status == StepStatus.UNRECORDED for s in agentic), [
+        (s.step_id, s.status.value) for s in agentic
+    ]
 
 
 def test_the_headline_counts_what_actually_happened(seeded_db_with_episode) -> None:
@@ -442,3 +456,59 @@ def test_a_raised_night_that_opened_nothing_says_why(seeded_db) -> None:
     assert "clearly above your own normal" in detect.reason
     assert "two clearly raised nights in a row" in detect.reason
     assert "second clearly raised night in a row" in opened.reason
+
+
+def test_a_running_investigation_shows_the_steps_that_have_run(seeded_db_with_episode) -> None:
+    """The agent writes its trace when it concludes, so one still going has none.
+
+    Reporting every agent step as unrecorded then claimed the investigation "ran before the
+    system recorded which steps it took" about work happening at that moment, with the
+    beliefs, tool calls and questions behind it in the same database.
+    """
+    from wha.service.pipeline import get_night_pipeline
+
+    seeded_db_with_episode.execute("DELETE FROM episode_traces")
+    seeded_db_with_episode.commit()
+
+    pipeline = get_night_pipeline("sim", FLAGGED, conn=seeded_db_with_episode)
+    by_id = {s.step_id: s for s in pipeline.steps}
+
+    # A belief was stored, so believing and the decision that follows it happened.
+    assert by_id["believe"].status == StepStatus.RAN
+    assert by_id["decide"].status == StepStatus.RAN
+    # A question was asked and answered.
+    assert by_id["ask"].status == StepStatus.RAN
+    assert by_id["answer"].status == StepStatus.RAN
+
+
+def test_a_step_a_running_investigation_has_not_reached_says_so(
+    seeded_db_with_episode,
+) -> None:
+    """ "Did not run" reads as a decision. "Has not got there yet" is what is true."""
+    from wha.service.pipeline import get_night_pipeline
+
+    seeded_db_with_episode.execute("DELETE FROM episode_traces")
+    seeded_db_with_episode.commit()
+
+    pipeline = get_night_pipeline("sim", FLAGGED, conn=seeded_db_with_episode)
+    conclude = next(s for s in pipeline.steps if s.step_id == "conclude")
+
+    assert conclude.status == StepStatus.SKIPPED
+    assert "still going" in conclude.reason
+
+
+def test_a_closed_investigation_with_no_trace_is_still_unrecorded(
+    seeded_db_with_untraced_episode,
+) -> None:
+    """Where the work is genuinely not written down and cannot be inferred, say so."""
+    from wha.service.pipeline import get_night_pipeline
+
+    seeded_db_with_untraced_episode.execute(
+        "UPDATE episodes SET state = 'CLOSED' WHERE episode_id = 'ep_test'"
+    )
+    seeded_db_with_untraced_episode.commit()
+
+    pipeline = get_night_pipeline("sim", FLAGGED, conn=seeded_db_with_untraced_episode)
+    conclude = next(s for s in pipeline.steps if s.step_id == "conclude")
+
+    assert conclude.status in {StepStatus.UNRECORDED, StepStatus.SKIPPED}

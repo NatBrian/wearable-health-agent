@@ -555,19 +555,22 @@ def _agent_steps(
         return [_step(step_id, status, reason) for step_id in ids]
 
     trace = _episode_trace(conn, episode_id)
+    closed = bool(
+        conn.execute(
+            "SELECT 1 FROM episodes WHERE episode_id = ? AND state = 'CLOSED'", (episode_id,)
+        ).fetchone()
+    )
     if not trace:
-        return [
-            _step(
-                step_id,
-                StepStatus.UNRECORDED,
-                "This investigation ran before the system recorded which steps it took. "
-                "That is a gap in what was written down, not a claim that the step was "
-                "skipped.",
-            )
-            for step_id in ids
-        ]
-
-    ran = set(trace.get("nodes_ran", []))
+        # The agent writes its trace when it concludes, so an investigation still running
+        # has none. Reporting every step as unrecorded then said "this ran before the
+        # system recorded which steps it took" about work that was happening at that
+        # moment, with the beliefs, tool calls and questions behind it sitting in the same
+        # database. The trace is a convenience, not the only evidence: where it is absent,
+        # the steps are read from what each one leaves behind, exactly as the deterministic
+        # half already is.
+        ran = _agent_steps_from_evidence(conn, episode_id)
+    else:
+        ran = set(trace.get("nodes_ran", []))
     interactions = conn.execute(
         "SELECT * FROM interactions WHERE episode_id = ? ORDER BY asked_at_utc",
         (episode_id,),
@@ -587,15 +590,39 @@ def _agent_steps(
             steps.append(_deliver_step(conn, episode_id))
             continue
         if step_id not in ran:
-            steps.append(
-                _step(
-                    step_id,
-                    StepStatus.SKIPPED,
-                    _AGENT_SKIPPED_REASONS.get(
-                        step_id, "This step was not needed for this investigation."
-                    ),
+            # An investigation that is still going has not reached its later steps yet.
+            # Saying it "did not run" reads as a decision the system made, when the truth
+            # is that it has not got there.
+            if not trace and not closed:
+                steps.append(
+                    _step(
+                        step_id,
+                        StepStatus.SKIPPED,
+                        "This investigation is still going and has not reached this step yet.",
+                    )
                 )
-            )
+            elif not trace:
+                # Finished, wrote no trace, and left nothing else behind either. This is
+                # the one case where the honest answer is that we do not know.
+                steps.append(
+                    _step(
+                        step_id,
+                        StepStatus.UNRECORDED,
+                        "This investigation finished without recording what this step did, "
+                        "and it left nothing else to read. That is a gap in the record, not "
+                        "a claim that the step was skipped.",
+                    )
+                )
+            else:
+                steps.append(
+                    _step(
+                        step_id,
+                        StepStatus.SKIPPED,
+                        _AGENT_SKIPPED_REASONS.get(
+                            step_id, "This step was not needed for this investigation."
+                        ),
+                    )
+                )
             continue
 
         outputs: dict[str, object] = {}
@@ -648,6 +675,55 @@ def _agent_steps(
         )
 
     return steps
+
+
+def _agent_steps_from_evidence(conn: sqlite3.Connection, episode_id: str) -> set[str]:
+    """Which agent steps ran, read from what each one leaves behind.
+
+    Used when no trace has been written yet, which is the normal state of an investigation
+    that is still going. Every source here is a row the step itself wrote.
+    """
+    ran: set[str] = set()
+
+    tools = [
+        row["tool_name"]
+        for row in conn.execute(
+            """SELECT tool_name FROM audit_events
+                WHERE episode_id = ? AND operation = 'execute_tool' AND tool_name IS NOT NULL""",
+            (episode_id,),
+        ).fetchall()
+    ]
+    if tools:
+        # The five fixed reads are the preload set. Anything else was chosen by the model
+        # inside the investigation loop.
+        preload_tools = {
+            "get_nightly_features",
+            "get_personal_baseline",
+            "get_known_events",
+            "get_data_quality",
+            "find_similar_past_episodes",
+        }
+        ran.add("preload")
+        if set(tools) - preload_tools:
+            ran.add("investigate")
+
+    if conn.execute("SELECT 1 FROM beliefs WHERE episode_id = ? LIMIT 1", (episode_id,)).fetchone():
+        # `believe` and `decide` are joined by an unconditional edge in the graph, so a
+        # stored belief means the decision that follows it was reached too.
+        ran.add("believe")
+        ran.add("decide")
+
+    if conn.execute(
+        "SELECT 1 FROM interactions WHERE episode_id = ? LIMIT 1", (episode_id,)
+    ).fetchone():
+        ran.add("ask")
+
+    if conn.execute(
+        "SELECT 1 FROM outcomes WHERE episode_id = ? LIMIT 1", (episode_id,)
+    ).fetchone():
+        ran.add("conclude")
+
+    return ran
 
 
 def _episode_trace(conn: sqlite3.Connection, episode_id: str) -> dict:
