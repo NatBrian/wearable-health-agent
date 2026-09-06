@@ -36,6 +36,7 @@ def check_red_flags_with_tier_c(
     rhr_bpm: float | None = None,
     rung: Any = None,
     symptom_history: dict[str, int] | None = None,
+    recent_tier_b: list[str] | None = None,
     llm_client: LLMClient | None = None,
     config: RedFlagsConfig | None = None,
 ) -> SafetyCheckResult:
@@ -53,6 +54,7 @@ def check_red_flags_with_tier_c(
         rhr_bpm=rhr_bpm,
         rung=rung,
         symptom_history=symptom_history,
+        recent_tier_b=recent_tier_b,
         config=cfg,
     )
 
@@ -93,7 +95,14 @@ def check_red_flags_with_tier_c(
 
     # Determine if any added LLM flags are Tier A or Tier B
     has_tier_a = any(f in tier_a_ids for f in combined_flags)
-    tier_b_count = sum(1 for f in combined_flags if f in tier_b_ids)
+    # Union with the window before counting. A symptom the MODEL spotted tonight must be
+    # able to combine with one the RULES recorded on another night; counting only tonight's
+    # flags here would have reintroduced the same-message restriction on the Tier C path
+    # after it had been removed from the deterministic one.
+    tier_b_seen = {f for f in combined_flags if f in tier_b_ids} | {
+        f for f in (recent_tier_b or []) if f in tier_b_ids
+    }
+    tier_b_count = len(tier_b_seen)
 
     escalate_urgent = det_result.level == "urgent" or has_tier_a
     escalate_same_day = det_result.level == "same_day" or (

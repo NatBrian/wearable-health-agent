@@ -766,7 +766,27 @@ def node_ask(
     # belief model, when the contract requires it to escalate on the RULES and never
     # reach the belief or policy nodes at all.
     if answer.free_text:
-        safety = check_red_flags_with_tier_c(user_text=answer.free_text)
+        # With the person's symptom history, not just tonight's sentence.
+        #
+        # The history argument existed on this call from the beginning and nothing ever
+        # passed it, so the persistence half of Tier B never fired for anybody. The
+        # fallback below is the OLD behaviour and is deliberately narrow: with no
+        # connection there is no history to have, which is a different thing from
+        # choosing to ignore one. It is logged so it cannot become the quiet default.
+        from wha.service.symptoms import observe_and_check
+
+        conn = getattr(db, "conn", None)
+        subject_id = state.get("subject_id", "")
+        if conn is not None and subject_id:
+            safety = observe_and_check(conn, subject_id, answer.free_text)
+        else:
+            logger.warning(
+                "Safety floor ran on episode %s with no symptom history: db=%s subject=%r",
+                episode_id,
+                type(db).__name__,
+                subject_id,
+            )
+            safety = check_red_flags_with_tier_c(user_text=answer.free_text)
         if safety.escalate:
             return {
                 "answers": [answer],

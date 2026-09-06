@@ -181,9 +181,21 @@ def check_red_flags_deterministic(
     rhr_bpm: float | None = None,
     rung: BaselineRung | str | None = None,
     symptom_history: dict[str, int] | None = None,
+    recent_tier_b: list[str] | None = None,
     config: RedFlagsConfig | None = None,
 ) -> SafetyCheckResult:
-    """Evaluate deterministic safety floor (Tier A, Tier B, and Vitals rules)."""
+    """Evaluate deterministic safety floor (Tier A, Tier B, and Vitals rules).
+
+    `symptom_history` maps a rule id to how many nights that symptom has been running.
+    Until 7 September 2026 nothing passed it, so the persistence half of Tier B had never
+    fired: the default of 1 is never greater than any persist_nights value. Build it with
+    `wha.service.symptoms.symptom_history`.
+
+    `recent_tier_b` is the Tier B ids seen on other nights inside the co-occurrence
+    window. "Two or more co-occurring" was implemented as two or more in the same
+    message, which is not what the word means, and it is the case of a person whose
+    symptoms EVOLVE across nights that it failed hardest on.
+    """
     cfg = config or load_red_flags()
     text = (user_text or "").strip()
     history = symptom_history or {}
@@ -263,12 +275,20 @@ def check_red_flags_deterministic(
                         f"Tier B symptom '{brule.id}' persisted {duration} nights > {brule.persist_nights}"
                     )
 
-    if len(tier_b_matched) >= 2:
-        for bid in tier_b_matched:
+    # Co-occurrence spans the window, not the sentence. A fever on Monday and vomiting on
+    # Tuesday co-occur in any ordinary reading of the word; scoring them as two unrelated
+    # singletons is what let an evolving illness pass unnoticed night after night.
+    cooccurring = sorted(set(tier_b_matched) | set(recent_tier_b or []))
+    if len(cooccurring) >= 2:
+        for bid in cooccurring:
             if bid not in triggered_flags:
                 triggered_flags.append(bid)
         escalate_same_day = True
-        reasons.append(f"Multiple Tier B symptoms co-occurred ({len(tier_b_matched)} symptoms)")
+        across_nights = len(cooccurring) > len(tier_b_matched)
+        reasons.append(
+            f"Multiple Tier B symptoms co-occurred ({len(cooccurring)} symptoms"
+            + (" across recent nights)" if across_nights else ")")
+        )
 
     if escalate_same_day and not escalate_urgent and cfg.tier_b_guidance:
         guidance_list.append(cfg.tier_b_guidance)

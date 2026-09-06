@@ -48,7 +48,6 @@ from wha.retrieve.grounding import enforce_grounding
 from wha.retrieve.models import Citation as RetrievedPassage
 from wha.retrieve.models import GeneratedClaim
 from wha.safety.output_checks import DIAGNOSIS_PHRASES, FALSE_REASSURANCE_PHRASES
-from wha.safety.tier_c import check_red_flags_with_tier_c
 from wha.safety.triage import (
     TriageOutcome,
     load_triage_rules,
@@ -579,7 +578,15 @@ def respond(
     profile = get_subject_profile(subject_id, conn=conn)
 
     # 1. The floor, on the person's own words, before the model is involved at all.
-    safety = check_red_flags_with_tier_c(user_text=user_message)
+    #
+    # `observe_and_check` rather than the bare check, because the floor needs to know how
+    # long each symptom has been going. It did not, and the persistence half of Tier B had
+    # therefore never fired for anybody: five nights of a worsening fever produced five
+    # refusals to escalate. Recording tonight's mention first is load-bearing, which is why
+    # the ordering lives in one function instead of at each call site.
+    from wha.service.symptoms import observe_and_check
+
+    safety = observe_and_check(conn, subject_id, user_message)
     triggered = list(safety.triggered_flags)
     floor_urgency = safety.level if safety.escalate else None
 

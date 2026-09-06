@@ -32,10 +32,10 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
-from wha.clock import local_date_of
+from wha.clock import local_date_of, local_today
 from wha.constants import SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS, SYMPTOM_RUN_GAP_DAYS
 from wha.db.iso import from_iso, to_iso
-from wha.safety.models import RedFlagsConfig
+from wha.safety.models import RedFlagsConfig, SafetyCheckResult
 from wha.safety.rules import is_phrase_negated, load_red_flags, matches_symptom
 
 
@@ -309,3 +309,35 @@ def backfill_from_conversation(
         )
         written += len(found)
     return written
+
+
+def observe_and_check(
+    conn: sqlite3.Connection,
+    subject_id: str,
+    text: str,
+    night_date: date | None = None,
+    config: RedFlagsConfig | None = None,
+) -> SafetyCheckResult:
+    """Record what the person said, then run the floor with their history in hand.
+
+    One function because the ORDER matters and would otherwise be re-derived at every
+    call site. Tonight's mention has to be written before the history is read, or a
+    symptom's final night is missing from its own count and a run of exactly
+    persist_nights + 1 escalates a night late.
+
+    This is the only supported way to run the floor over something a person typed.
+    Calling `check_red_flags_with_tier_c` directly with no history is what produced the
+    original defect, and it still type-checks, so the guard is this function existing and
+    being used rather than a signature that forbids it.
+    """
+    from wha.safety.tier_c import check_red_flags_with_tier_c
+
+    cfg = config or load_red_flags()
+    night = night_date or local_today()
+    record_symptoms(conn, subject_id, text, night, config=cfg)
+    return check_red_flags_with_tier_c(
+        user_text=text,
+        symptom_history=symptom_history(conn, subject_id, night, cfg),
+        recent_tier_b=cooccurring_tier_b(conn, subject_id, night, cfg),
+        config=cfg,
+    )
