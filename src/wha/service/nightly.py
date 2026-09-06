@@ -28,19 +28,21 @@ def _should_escalate_again(
     conn: sqlite3.Connection,
     episode_id: str,
     detection: Detection,
-) -> bool:
-    """Whether to send an escalation the person has, in some form, already had.
+) -> str | None:
+    """Whether to escalate again, and which kind of repeat it would be.
 
     Once per investigation was the rule, for a good reason: night scoring re-runs every
     few hours and a first sync backfills weeks, so an unguarded send repeats the same
     message endlessly.
 
-    It also meant that somebody who was already being escalated about, and who then got
-    materially worse, heard nothing. That is the wrong way round. A repeat is worth the
-    interruption exactly when the reading has moved by more than this system can call a
-    change at all, which is one of the person's own robust deviations.
+    It also meant two silences that should not exist. Somebody already being escalated
+    about who then got materially WORSE heard nothing. And somebody whose reading simply
+    STAYED far outside their own range, night after night, heard nothing either, which
+    reads as "nothing new" when it means "still far outside your range".
+
+    Returns "first", "worse", "still", or None for stay quiet.
     """
-    from wha.constants import ESCALATION_REPEAT_ROBUST_Z_RISE
+    from wha.constants import ESCALATION_REPEAT_NIGHTS, ESCALATION_REPEAT_ROBUST_Z_RISE
 
     rows = conn.execute(
         """SELECT payload_json FROM notifications
@@ -49,13 +51,14 @@ def _should_escalate_again(
         (episode_id,),
     ).fetchall()
     if not rows:
-        return True
+        return "first"
 
     current = abs(detection.robust_z) if detection.robust_z is not None else None
     if current is None:
-        return False
+        return None
 
     previous: float | None = None
+    last_night: date | None = None
     for row in rows:
         try:
             payload = json.loads(row["payload_json"] or "{}")
@@ -64,16 +67,35 @@ def _should_escalate_again(
         value = payload.get("robust_z")
         if value is not None:
             previous = abs(float(value))
+            try:
+                last_night = date.fromisoformat(str(payload.get("night") or ""))
+            except ValueError:
+                last_night = None
             break
 
     if previous is None:
         # Escalations sent before this was recorded carry no reading to compare against.
-        # Not sending is the safer failure here only in the sense that it cannot spam; it
-        # is also how somebody stops hearing about getting worse, so it is recorded as a
-        # limitation rather than treated as correct.
-        return False
+        # Not sending cannot spam, but it is also how somebody stops hearing about getting
+        # worse, so it is recorded as a limitation rather than treated as correct.
+        return None
 
-    return (current - previous) >= ESCALATION_REPEAT_ROBUST_Z_RISE
+    if (current - previous) >= ESCALATION_REPEAT_ROBUST_Z_RISE:
+        return "worse"
+
+    # Still extreme, and long enough since anything was said. A reading that holds at this
+    # level is not good news, and silence after a warning reads as though it were.
+    # "Still" has to mean still. A reading that has come down by a full deviation is not
+    # the same situation, even if it has not come all the way down, and telling somebody it
+    # is still far outside their range when it is improving would be false.
+    improved = (previous - current) >= ESCALATION_REPEAT_ROBUST_Z_RISE
+    if (
+        not improved
+        and last_night is not None
+        and (detection.night_date - last_night).days >= ESCALATION_REPEAT_NIGHTS
+    ):
+        return "still"
+
+    return None
 
 
 def parse_date_range(range_str: str | None, tz_name: str = "Asia/Singapore") -> tuple[date, date]:
@@ -291,7 +313,10 @@ def run_data_safety_floor(
             # Once per episode, not once per night. A first sync backfills weeks of
             # history and this job re-scores a rolling window every few hours, so an
             # unguarded send would put the same escalation on somebody's phone repeatedly.
-            if _should_escalate_again(conn, episode_id, detection):
-                notify_escalation(conn, subject_id, episode_id, result, detection=detection)
+            reason = _should_escalate_again(conn, episode_id, detection)
+            if reason:
+                notify_escalation(
+                    conn, subject_id, episode_id, result, detection=detection, reason=reason
+                )
 
     return fired

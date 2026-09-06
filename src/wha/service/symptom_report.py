@@ -157,6 +157,7 @@ def notify_escalation(
     episode_id: str,
     safety: SafetyCheckResult,
     detection: Any = None,
+    reason: str = "first",
 ) -> None:
     """Send the escalation guidance and record that it was sent.
 
@@ -172,6 +173,22 @@ def notify_escalation(
     from wha.notify.protocol import MessageKind
 
     body = "This needs medical attention.\n\n" + "\n".join(safety.guidance)
+
+    # A repeat says which kind of repeat it is, and asks. Resending the same sentence is
+    # how a warning stops being read, and somebody who is worse, or who is still far
+    # outside their range days later, is being told something different each time.
+    ask_how_they_are = "\n\nHow are you feeling now? Reply here and I will record what you say."
+    if reason == "worse":
+        body = (
+            "This has got worse since I last messaged you.\n\n"
+            + "\n".join(safety.guidance)
+            + ask_how_they_are
+        )
+    elif reason == "still":
+        body = (
+            "This is still far outside your usual range, and has been for several "
+            "nights.\n\n" + "\n".join(safety.guidance) + ask_how_they_are
+        )
 
     try:
         notifier = get_notifier()

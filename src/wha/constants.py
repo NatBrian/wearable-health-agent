@@ -461,6 +461,20 @@ URGENCY_STALE_DAYS = 7
 # night-to-night variation.
 ESCALATION_REPEAT_ROBUST_Z_RISE = 1.0
 
+# How many nights an extreme reading may persist before the person is told again, even
+# when it has not got any worse.
+#
+# The rise rule above catches deterioration and nothing else. A reading that stays at seven
+# robust deviations above somebody's own normal, night after night, produced one message
+# and then silence, and silence after a warning reads as "nothing new" when what it
+# actually means is "still far outside your range". Somebody who did not act on the first
+# message hears nothing further while it continues.
+#
+# Two nights, so it is a reminder rather than a nightly alarm. Alarm fatigue is a real harm
+# and repeating the same sentence every night is how a warning stops being read. This is a
+# judgement about how often to speak, not a clinical threshold, and it is disclosed as one.
+ESCALATION_REPEAT_NIGHTS = 2
+
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36
 MEASUREMENT_TIMEOUT_HOURS = 24
