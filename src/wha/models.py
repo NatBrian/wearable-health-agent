@@ -448,6 +448,131 @@ class PipelineStage(BaseModel):
     detail_json: dict[str, Any] = Field(default_factory=dict)
 
 
+class StepLayer(StrEnum):
+    """Which machine ran the step.
+
+    The three halves of this system are different kinds of machine and behave differently
+    when they are wrong. Arithmetic that is wrong is wrong the same way every night; a
+    language model is not. A person looking at a result deserves to know which one produced
+    it, so the layer travels with the step rather than being inferred from its name.
+    """
+
+    DETERMINISTIC = "deterministic"
+    AGENTIC = "agentic"
+    USER = "user"
+    SAFETY = "safety"
+
+
+class StepStatus(StrEnum):
+    """RAN and SKIPPED are claims about the night. UNRECORDED is a claim about us.
+
+    Reporting "we did not write this down" as "it did not run" is exactly the defect the
+    September 2026 audit found on every episode: `_pipeline_stages` matched stage names
+    against a column that never held them, so every stage on every episode read SKIPPED
+    with an invented reason, directly above a chart showing the work it denied doing.
+    """
+
+    RAN = "ran"
+    SKIPPED = "skipped"
+    NOT_APPLICABLE = "not_applicable"
+    UNRECORDED = "unrecorded"
+
+
+class PipelineStepDef(BaseModel):
+    """One step of the journey, independent of any particular night."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    step_id: str
+    ordinal: int
+    layer: StepLayer
+
+
+class PipelineStepView(BaseModel):
+    """What one step did on one night.
+
+    `occurred_utc` is optional because most of the deterministic half records what it
+    computed and not when, and a clock time nobody wrote down would be an invented figure.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    step_id: str
+    ordinal: int
+    layer: StepLayer
+    status: StepStatus
+    reason: str
+    headline_figure: str | None = None
+    occurred_utc: datetime | None = None
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    outputs: dict[str, Any] = Field(default_factory=dict)
+    sources: list[Citation] = Field(default_factory=list)
+    detail_json: dict[str, Any] = Field(default_factory=dict)
+
+
+class PipelineHeadline(BaseModel):
+    """The tiles above the graph. Assembled from stored values, never recalculated."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    level: DetectionLevel
+    flagged: bool
+    primary_cause: CauseId | None = None
+    primary_probability: float | None = None
+    sleep_hours: float | None = None
+    coverage_minutes: int = 0
+    questions_asked: int = 0
+    sources_read: int = 0
+
+
+class NightPipeline(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    subject_id: str
+    night_date: date
+    episode_id: str | None = None
+    headline: PipelineHeadline
+    steps: list[PipelineStepView] = Field(default_factory=list)
+
+
+class PipelineNightRef(BaseModel):
+    """One entry in the night stepper. Small on purpose: sixty of these load at once."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    night_date: date
+    level: DetectionLevel
+    has_episode: bool
+    usable: bool
+
+
+# The journey, in the order it happens. The agentic ids are the agent's own node names, so
+# a step drawn on screen and a stage written into `episode_traces` cannot mean different
+# things. `deliver` has no node: it is what happens after the graph finishes.
+CANONICAL_PIPELINE_STEPS: tuple[PipelineStepDef, ...] = (
+    PipelineStepDef(step_id="collect", ordinal=1, layer=StepLayer.DETERMINISTIC),
+    PipelineStepDef(step_id="store", ordinal=2, layer=StepLayer.DETERMINISTIC),
+    PipelineStepDef(step_id="sleep_window", ordinal=3, layer=StepLayer.DETERMINISTIC),
+    PipelineStepDef(step_id="features", ordinal=4, layer=StepLayer.DETERMINISTIC),
+    PipelineStepDef(step_id="baseline", ordinal=5, layer=StepLayer.DETERMINISTIC),
+    PipelineStepDef(step_id="subtract_explained", ordinal=6, layer=StepLayer.DETERMINISTIC),
+    PipelineStepDef(step_id="detect", ordinal=7, layer=StepLayer.DETERMINISTIC),
+    PipelineStepDef(step_id="episode_open", ordinal=8, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="preload", ordinal=9, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="investigate", ordinal=10, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="believe", ordinal=11, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="decide", ordinal=12, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="ask", ordinal=13, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="answer", ordinal=14, layer=StepLayer.USER),
+    PipelineStepDef(step_id="conclude", ordinal=15, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="critique", ordinal=16, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="review", ordinal=17, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="deliver", ordinal=18, layer=StepLayer.AGENTIC),
+    PipelineStepDef(step_id="safety_phrase_rules", ordinal=19, layer=StepLayer.SAFETY),
+    PipelineStepDef(step_id="safety_triage", ordinal=20, layer=StepLayer.SAFETY),
+)
+
+
 class InteractionView(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
