@@ -169,6 +169,11 @@ def render_investigation(subject_id: str) -> None:
     }.get(str(episode.state), "In progress.")
     st.write(waiting)
 
+    # What you last told it, on the screen as well as on the phone. Answering from
+    # Telegram recorded the answer and showed nothing here, so somebody who replied on
+    # their phone then opened the dashboard saw no sign that it had arrived.
+    _render_last_answer(episode.episode_id)
+
     if episode.top_cause is not None:
         st.markdown(
             design.tile(
@@ -197,6 +202,30 @@ def render_investigation(subject_id: str) -> None:
             f"{format.night(last)}. Every step of any of them is on the record screen, "
             "where you can move between them."
         )
+
+
+def _render_last_answer(episode_id: str) -> None:
+    """The most recent question you answered, and what you said."""
+    try:
+        detail = api().get_episode(episode_id)
+    except (ApiUnavailable, RuntimeError, ValueError):
+        return
+    if detail is None:
+        return
+
+    answered = [i for i in detail.interactions if i.status == "ANSWERED"]
+    if not answered:
+        return
+
+    latest = answered[-1]
+    said = latest.free_text or latest.answer_option_id or ""
+    when = format.local_time(api(), latest.answered_at_utc)
+    st.markdown(f"**It asked:** {latest.question_text}")
+    st.markdown(f"**You answered at {when}:** {said}")
+    st.caption(
+        "Recorded. Whatever you said is used as evidence and never overridden, and the "
+        "system will only message you again if there is something worth telling you."
+    )
 
 
 def render_handover(subject_id: str) -> None:

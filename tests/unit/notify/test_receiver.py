@@ -199,3 +199,60 @@ def test_free_text_with_no_pending_question_is_answered_not_deflected() -> None:
     assert mock_client.post.called
     call_payload = mock_client.post.call_args.kwargs.get("json", {})
     assert "did you sleep normally" in call_payload.get("text", "").lower()
+
+
+def test_a_typed_answer_is_acknowledged_on_the_phone() -> None:
+    """Somebody answered a question about their own health and got silence back.
+
+    Tapping a button answers with "Response recorded". Typing the same thing recorded the
+    answer and sent nothing, so the person could not tell whether it had arrived, and the
+    dashboard did not show it either.
+    """
+    mock_client = MagicMock()
+    mock_db = MagicMock()
+    mock_db.get_pending_interaction_for_chat.return_value = {"id": "int_1"}
+
+    receiver = TelegramReceiver(
+        token="test_token",
+        authorized_chat_id="111222",
+        client=mock_client,
+        db=mock_db,
+    )
+
+    res = receiver.process_update(
+        {
+            "update_id": 501,
+            "message": {"chat": {"id": "111222"}, "text": "I feel a bit dizzy"},
+        }
+    )
+
+    assert res["status"] == "answered_free_text"
+    mock_db.record_interaction_answer.assert_called_once_with(
+        "int_1", free_text="I feel a bit dizzy"
+    )
+
+    sent = [c for c in mock_client.post.call_args_list if "sendMessage" in str(c)]
+    assert sent, "the answer was recorded and nothing was sent back to the phone"
+    text = sent[0].kwargs["json"]["text"]
+    assert "recorded that as your answer" in text
+    # An acknowledgement, not a verdict on what they said.
+    assert "dizzy" not in text.lower()
+
+
+def test_the_acknowledgement_says_nothing_about_their_health() -> None:
+    """It confirms receipt. Anything more would be the receiver making a clinical claim."""
+    mock_client = MagicMock()
+    mock_db = MagicMock()
+    mock_db.get_pending_interaction_for_chat.return_value = {"id": "int_1"}
+
+    receiver = TelegramReceiver(
+        token="t", authorized_chat_id="111222", client=mock_client, db=mock_db
+    )
+    receiver.process_update(
+        {"update_id": 502, "message": {"chat": {"id": "111222"}, "text": "chest pain"}}
+    )
+
+    text = mock_client.post.call_args_list[0].kwargs["json"]["text"].lower()
+    for claim in ("you are fine", "nothing to worry", "you may be", "likely"):
+        assert claim not in text
+    assert "contact a clinician" in text

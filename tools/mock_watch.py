@@ -167,7 +167,18 @@ class MockWatchHandler(BaseHTTPRequestHandler):
 
         qs = parse_qs(parsed.query)
         days = int(qs.get("days", [state["window_days"]])[0])
-        days = max(1, min(days, 400))
+
+        # Never serve more than the watch is holding, whatever the caller asks for. A real
+        # phone can only hand over what Health Connect has; asking it for thirty days when
+        # it holds one does not conjure the other twenty-nine.
+        #
+        # This mattered. The scheduler's catch-up ingest asks for thirty days regardless of
+        # the mock's window, so a mock configured to serve a single night happily generated
+        # a month of synthetic nights and overwrote real readings that had been carried
+        # into the subject. Working around it by running the system with --no-scheduler
+        # then disabled Telegram polling, so a message sent from the phone was never
+        # collected and the person got no reply. Clamping here fixes both.
+        days = max(1, min(days, int(state["window_days"]), 400))
 
         body = build_body(state, days)
         raw = json.dumps(body).encode("utf-8")

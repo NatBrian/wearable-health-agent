@@ -1174,3 +1174,51 @@ page that has it right.
 
 Recorded rather than papered over. The user should decide which of those, if any, is worth
 its cost.
+
+## agent - an answered question can leave an episode parked with nothing to answer
+
+**6 September 2026, found by answering a real question from a real phone.**
+
+The user answered "I fee a bit dizzy" over Telegram at 13:53. The answer was recorded
+correctly: `interactions.status = ANSWERED`, `free_text` set, and the episode released from
+`AWAITING_USER` to `OPEN`. Every tick after that advanced `step_count` (4, 5, 6) and left the
+episode back in `AWAITING_USER` with:
+
+- **no pending interaction** anywhere, so nothing can be answered, in the dashboard or on the
+  phone
+- **no pending interrupt in the graph**, so the database and the agent disagree about what
+  the episode is doing
+- **no belief movement**: `p_illness` reads 0.178 at belief seq 1, 2 and 3, before and after
+  the answer
+
+Two contributing defects were found and fixed. Neither resolves this one.
+
+1. `_resume_value` in `service/scheduler.py` marked any answer with no `answer_option_id` as
+   `declined`, so typing a reply was delivered to the graph as a refusal to answer while the
+   person's words rode along as a footnote. Tapping a button worked; typing did not. Fixed,
+   with `tests/unit/service/test_resume_value.py`.
+2. The Telegram receiver recorded a typed answer and sent nothing back, so the person got
+   silence. Fixed, with tests in `tests/unit/notify/test_receiver.py`.
+
+**What is still wrong.** `node_ask` writes its interaction with a deterministic id,
+`int_{episode}_{probe}`, and on conflict updates only the wording:
+
+```sql
+ON CONFLICT(id) DO UPDATE SET question_text = ..., text_source = ..., options_json = ...
+```
+
+so re-asking a probe that has already been answered cannot produce a PENDING row. It then
+sets `AWAITING_USER` and interrupts. The tick's `_advance_episode` loop finds the interrupt,
+builds a resume value from the same already-answered row, resumes, and can re-enter the same
+node, up to `max_steps` of 24 per tick. The episode ends each tick parked with no question.
+
+**Why it should not have re-asked at all.** `node_decide` passes
+`already_asked_probe_ids = get_answered_probe_ids(episode_id)`, which returns every probe with
+an interactions row, and `select_action` skips those. Something is still selecting the probe
+that was just answered. That is where the next session should start.
+
+**Consequence.** An investigation can spin without progressing and without being answerable.
+The 36-hour answer timeout cannot release it either, because that only expires rows in
+PENDING or ASKED and there are none. `EPISODE_MAX_NIGHTS` would eventually close it.
+
+**Reproduce:** the live database holds `ep_d1e73ee457d6` in exactly this state.

@@ -270,13 +270,21 @@ def _resume_value(conn: Any, episode_id: str, pending: Any) -> dict[str, Any] | 
         if row["status"] == "DECLINED":
             return {"probe_id": probe_id, "declined": True}
 
+        # Typing an answer is answering. This marked every reply without a button press as
+        # `declined`, so a person who typed "I feel a bit dizzy" on their phone was
+        # recorded as having refused to answer: the belief did not move, the probe stayed
+        # unanswered, and the episode parked again on a question that no longer existed.
+        # Tapping a button worked; typing the same thing did not.
+        #
+        # A refusal is `status = DECLINED`, which is handled above. Here, declined means
+        # the person sent neither an option nor any words.
         response: dict[str, Any] = {"probe_id": probe_id}
         if row["answer_option_id"]:
             response["option_id"] = row["answer_option_id"]
-        else:
-            response["declined"] = True
         if row["free_text"]:
             response["free_text"] = row["free_text"]
+        if not row["answer_option_id"] and not row["free_text"]:
+            response["declined"] = True
         return response
 
     # A "measurement" interrupt can no longer be raised: the spot-reading limb was removed

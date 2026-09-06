@@ -221,6 +221,20 @@ class TelegramReceiver:
                 )
                 if hasattr(self.db, "record_interaction_answer"):
                     self.db.record_interaction_answer(int_id, free_text=text)
+
+                # Say that it arrived. Tapping a button answers with "Response recorded";
+                # typing the same thing said nothing at all, so somebody who answered a
+                # question about their own health got silence back and could not tell
+                # whether the message had been received. It is an acknowledgement and not
+                # a reply: nothing here is a judgement about what they said.
+                if chat_id is not None:
+                    self._send_reply(
+                        chat_id,
+                        "Thanks, I have recorded that as your answer. I am working through "
+                        "it now and will only message again if there is something worth "
+                        "telling you. If you feel unwell, contact a clinician rather than "
+                        "waiting for me.",
+                    )
                 self.save_offset(up_id + 1)
                 return {"status": "answered_free_text"}
             else:

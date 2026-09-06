@@ -561,3 +561,52 @@ def test_a_night_under_investigation_says_that_instead(fake_api) -> None:
 
     assert explain.text("level.investigating") in body
     assert explain.text("level.RED.next") not in body
+
+
+def test_an_answer_given_on_the_phone_shows_on_the_screen(fake_api) -> None:
+    """Answering from Telegram recorded the answer and showed nothing in the dashboard.
+
+    Somebody who replied on their phone and then opened Today saw the question gone, no
+    chat, and no sign anywhere that what they said had arrived.
+    """
+    from datetime import UTC, datetime
+
+    from wha.models import (
+        EpisodeDetail,
+        EpisodeState,
+        EpisodeSummary,
+        InteractionView,
+    )
+
+    _ready(fake_api)
+    summary = EpisodeSummary(
+        episode_id="ep_1",
+        opened_on=NIGHT,
+        state=EpisodeState.OPEN,
+        night_span=(NIGHT, NIGHT),
+    )
+    fake_api.list_episodes.return_value = [summary]
+    fake_api.get_episode.return_value = EpisodeDetail(
+        summary=summary,
+        interactions=[
+            InteractionView(
+                id="int_1",
+                probe_id="probe_symptoms",
+                question_text="Have you noticed any unusual symptoms today?",
+                text_source="llm",
+                options=[],
+                evsi=0.417,
+                interruption_cost=0.015,
+                free_text="I feel a bit dizzy",
+                status="ANSWERED",
+                asked_at_utc=datetime(2026, 9, 6, 13, 42, tzinfo=UTC),
+                answered_at_utc=datetime(2026, 9, 6, 13, 53, tzinfo=UTC),
+            )
+        ],
+    )
+
+    app = AppTest.from_file(PAGE, default_timeout=30).run()
+    body = _body(app)
+
+    assert "Have you noticed any unusual symptoms today?" in body
+    assert "I feel a bit dizzy" in body
