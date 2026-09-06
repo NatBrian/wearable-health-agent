@@ -61,12 +61,12 @@ in the service layer. Fails safe, but it is the same dead-code shape a fourth ti
 
 ## Tasks
 
-- [ ] 1. `symptom_observations` table + migration to v9.
-- [ ] 2. Recorder: re-run the matcher over conversation turns, one row per symptom
+- [x] 1. `symptom_observations` table + migration to v9.
+- [x] 2. Recorder: re-run the matcher over conversation turns, one row per symptom
       per night. Backfill from existing `conversation_turns`.
-- [ ] 3. Wire `symptom_history` into both production call sites so `persist_nights` fires.
-- [ ] 4. Co-occurrence over a 2-night rolling window.
-- [ ] 5. Outstanding-symptom follow-up that overrides EVSI.
+- [x] 3. Wire `symptom_history` into both production call sites so `persist_nights` fires.
+- [x] 4. Co-occurrence over a 2-night rolling window.
+- [x] 5. Outstanding-symptom follow-up that overrides EVSI.
 - [ ] 6. Close honestly: block benign close while a symptom is outstanding; make the
       timeout close speak.
 - [ ] 7. Recurrence linking at 7 days.

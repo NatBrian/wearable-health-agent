@@ -307,6 +307,14 @@ class Action(BaseModel):
     disposition: Disposition | None = None
     rationale: str  # produced by policy, not LLM
     rejected: list[tuple[str, float]] = Field(default_factory=list)
+    # The symptom this ASK is following up, when the action was chosen as a rule rather
+    # than on expected information gain. Carried on the action rather than inferred from
+    # the rationale text, because the ask node needs it for two things that must not be
+    # guessed at: a per-night interaction id, so a follow-up does not overwrite the
+    # question it follows, and the `followup` initiation that makes the per-episode cap
+    # countable. A cap that cannot count is not a cap, and an uncapped follow-up is a
+    # nightly alarm.
+    followup_for: str | None = None
 
 
 class EpisodeOutcome(BaseModel):

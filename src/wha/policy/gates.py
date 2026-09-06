@@ -7,6 +7,7 @@ from wha.constants import (
     EPISODE_MAX_NIGHTS,
     EPISODE_MAX_STEPS,
     INTERRUPTION_BUDGET_PER_WEEK,
+    SYMPTOM_FOLLOWUP_MAX_PER_EPISODE,
 )
 from wha.models import BaselineRung
 
@@ -70,6 +71,52 @@ def check_episode_caps_gate(nights_in_episode: int, steps_in_episode: int) -> Ga
         return GateResult(
             allowed=False,
             reason=f"Episode max steps cap reached ({steps_in_episode}/{EPISODE_MAX_STEPS})",
+        )
+    return GateResult(allowed=True)
+
+
+def check_symptom_followup_gates(
+    has_pending_interaction: bool,
+    episode_followups_sent: int,
+) -> GateResult:
+    """The gates a symptom follow-up must clear, which are fewer than a probe's.
+
+    A follow-up is not an information-seeking question and must not be scored like one.
+    EVSI measures how much an answer moves the belief across twelve CAUSES, so once a
+    cause is settled, asking again is worth nothing by construction: the more certain the
+    system becomes that somebody is ill, the less reason it has to speak to them. That is
+    the arithmetic working exactly as designed, and it is the wrong arithmetic for the
+    question "are you getting worse".
+
+    WHICH GATES STILL APPLY, and why each survives:
+
+    * PENDING INTERACTION always. Two open questions at once is how a person ends up
+      answering one and having the other silently time out.
+    * A per-episode cap on follow-ups, so this cannot become a nightly alarm. Alarm
+      fatigue is a real harm and this project cites it in its own constants.
+
+    WHICH DO NOT, and why:
+
+    * The weekly interruption budget. A budget exists to stop the system pestering a well
+      person, and letting it silence somebody who has told us they feel unwell and is
+      getting worse inverts its purpose. The budget is still SPENT and still shown; it
+      simply cannot gag this particular question.
+    * The EVSI score, which is the whole point.
+    * The rung gates. Not knowing somebody's baseline well is a reason to be careful about
+      interpreting their heart rate. It is not a reason to stop asking them how they feel.
+    """
+    if has_pending_interaction:
+        return GateResult(
+            allowed=False,
+            reason="Another interaction is already pending with user",
+        )
+    if episode_followups_sent >= SYMPTOM_FOLLOWUP_MAX_PER_EPISODE:
+        return GateResult(
+            allowed=False,
+            reason=(
+                f"Symptom follow-up cap reached "
+                f"({episode_followups_sent}/{SYMPTOM_FOLLOWUP_MAX_PER_EPISODE})"
+            ),
         )
     return GateResult(allowed=True)
 

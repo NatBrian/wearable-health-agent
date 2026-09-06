@@ -243,10 +243,16 @@ class EpisodeRepository:
         #
         # Rows written before the `initiation` column existed are NULL and are counted, so
         # a migrated database never under-counts what it already spent.
+        #
+        # A symptom follow-up IS counted, even though the budget cannot block one. It
+        # arrives on somebody's phone unbidden, so calling it anything other than an
+        # interruption would be a definition chosen to make a number look better. What the
+        # follow-up gate does is decline to be silenced by this figure; it does not get to
+        # pretend it did not happen, and the dashboard shows the spend either way.
         row = self._conn.execute(
             """SELECT COUNT(*) AS n FROM interactions
                 WHERE DATE(asked_at_utc) >= ?
-                  AND (initiation IS NULL OR initiation = 'unsolicited')""",
+                  AND (initiation IS NULL OR initiation IN ('unsolicited', 'followup'))""",
             (since.isoformat(),),
         ).fetchone()
         return int(row["n"]) if row else 0

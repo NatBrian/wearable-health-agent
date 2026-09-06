@@ -6,6 +6,7 @@ from wha.constants import (
     EPISODE_MAX_NIGHTS,
     EPISODE_MAX_STEPS,
     POLICY_COST_PER_INTERRUPT,
+    SYMPTOM_FOLLOWUP_PROBE_ID,
 )
 from wha.models import (
     Action,
@@ -18,7 +19,7 @@ from wha.models import (
     Question,
 )
 from wha.policy.evsi import DERIVED_TREATMENT_THRESHOLD, evsi, score_probe
-from wha.policy.gates import check_all_ask_gates
+from wha.policy.gates import check_all_ask_gates, check_symptom_followup_gates
 from wha.policy.probes import ProbeDefinition, load_probes
 
 
@@ -37,8 +38,15 @@ def select_action(
     cost_per_interrupt: float = POLICY_COST_PER_INTERRUPT,
     already_measured: bool = False,
     unanswered_questions: int = 0,
+    outstanding_symptom: str | None = None,
+    episode_followups_sent: int = 0,
 ) -> Action:
-    """Select the next policy action following the deterministic 6-step contract."""
+    """Select the next policy action following the deterministic 6-step contract.
+
+    `outstanding_symptom` is a symptom the person reported and has never said was better.
+    When one is present the arithmetic is OVERRIDDEN and a follow-up is asked; see step
+    3b. This is the only place in the policy where a decision is not made by scoring.
+    """
     all_probes = probes if probes is not None else load_probes()
     asked_set = set(already_asked_probe_ids)
     # A one-time probe answered in ANY past episode is not asked again. Its low cost is
@@ -76,6 +84,59 @@ def select_action(
         episode_questions=episode_questions_asked,
         has_pending_interaction=has_pending_interaction,
     )
+
+    # 3b. AN OUTSTANDING SYMPTOM OVERRIDES THE ARITHMETIC.
+    #
+    # Added 7 September 2026 after a scenario with no acceptable answer under the old
+    # design: somebody reports feeling dizzy, it gets worse each night, and the system
+    # says nothing, because EVSI measures how much an answer would move the belief across
+    # twelve CAUSES and the cause is already settled. The more confident it became that
+    # this person was ill, the less reason it had to speak to them. Every step of that is
+    # the arithmetic working as specified, and the outcome is a person who is deteriorating
+    # being met with silence, having been told once that something was wrong.
+    #
+    # So this is a RULE, deliberately, and it sits beside the scoring rather than inside
+    # it. Putting trajectory into the belief model would mean writing likelihood rows for
+    # "worse than yesterday" that no study supplies, which is the one thing this project
+    # must not do. A rule can be read, argued with, and shown on screen as a rule.
+    #
+    # It re-asks a probe that has already been asked, on purpose. The answer to "how are
+    # you feeling" is not a fact that stays true; that is the entire point.
+    if outstanding_symptom:
+        follow_up_gate = check_symptom_followup_gates(
+            has_pending_interaction=has_pending_interaction,
+            episode_followups_sent=episode_followups_sent,
+        )
+        follow_up = next(
+            (p for p in all_probes if p.probe_id == SYMPTOM_FOLLOWUP_PROBE_ID), None
+        )
+        if follow_up_gate.allowed and follow_up is not None:
+            probe_model = Probe(
+                probe_id=follow_up.probe_id,
+                target_cause=follow_up.target_cause,
+                answer_space=follow_up.answer_space,
+                evsi=evsi(belief, follow_up),
+                interruption_cost=follow_up.interruption_cost,
+                fallback_text=follow_up.fallback_text,
+            )
+            return Action(
+                kind=ActionKind.ASK,
+                question=Question(
+                    probe=probe_model,
+                    text=follow_up.fallback_text,
+                    text_source="llm",
+                    options=follow_up.answer_space,
+                    allows_free_text=True,
+                ),
+                rationale=(
+                    f"Following up an outstanding symptom '{outstanding_symptom}' that has "
+                    "not been reported as settled. Asked as a rule rather than on expected "
+                    "information gain, because information gain measures which cause is "
+                    "likeliest and cannot see somebody getting worse."
+                ),
+                rejected=all_rejected,
+                followup_for=outstanding_symptom,
+            )
 
     # 4. If asking is allowed and best probe scores > 0 -> ASK
     if ask_gate.allowed and candidate_scores and candidate_scores[0][1] > 0.0:

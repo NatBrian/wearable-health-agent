@@ -521,6 +521,34 @@ EPISODE_RECURRENCE_LINK_DAYS = 7
 # dashboard as DERIVED, not measured.
 SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS = 2
 
+# The probe used to follow up an outstanding symptom, and how often it may be re-asked.
+#
+# WHY THIS RULE EXISTS AT ALL. EVSI scores a question by how much the answer moves the
+# belief across twelve CAUSES. Once a cause is settled, asking again is worth nothing, so
+# the more certain the system becomes that somebody is ill, the LESS reason it has to
+# speak to them. A person reported dizziness, it got worse over the following nights, and
+# the system correctly computed that another answer would not change which cause it
+# believed in, and said nothing at all. The arithmetic was right and the behaviour was
+# indefensible. This rule sits beside it rather than inside it, because adding severity or
+# trajectory to the belief table would mean inventing likelihood rows no literature
+# supplies.
+SYMPTOM_FOLLOWUP_PROBE_ID = "probe_symptoms"
+
+# At most this many follow-ups per investigation.
+#
+# ASSUMED. No source measures how often to ask an unwell person how they are, and none is
+# claimed. Three is chosen so the rule cannot become a nightly alarm across an episode
+# whose hard ceiling is EPISODE_MAX_NIGHTS, while still allowing a symptom to be revisited
+# more than once. Conservative direction is genuinely ambiguous here, which is why the
+# number is small: too many messages is the alarm fatigue this project exists to reduce,
+# and too few is the silence it exists to prevent. Bounded on both sides by things that
+# are not this number: it stops the moment the person says the symptom has gone, and the
+# run itself expires after SYMPTOM_RUN_GAP_DAYS. Marked unevidenced on the dashboard.
+SYMPTOM_FOLLOWUP_MAX_PER_EPISODE = 3
+
+# At most one follow-up per night, whatever else happens.
+SYMPTOM_FOLLOWUP_MIN_NIGHTS_APART = 1
+
 # --- episode lifecycle ----------------------------------------------------
 ANSWER_TIMEOUT_HOURS = 36
 MEASUREMENT_TIMEOUT_HOURS = 24

@@ -15,7 +15,7 @@ from wha.agent.tools.impl import create_default_tool_registry
 from wha.agent.tools.registry import ToolContext, ToolRegistry, describe_tools
 from wha.belief import update_belief
 from wha.clock import local_today
-from wha.constants import MAX_TOOL_CALLS_PER_EPISODE
+from wha.constants import MAX_TOOL_CALLS_PER_EPISODE, SYMPTOM_FOLLOWUP_PROBE_ID
 from wha.errors import LLMUnavailable, PermissionDenied, ValidationFailed
 from wha.llm.client import LLMClient, get_llm_client
 from wha.llm.prompts import get_prompt_definition
@@ -480,6 +480,34 @@ def node_decide(
 
     has_symptoms_evidence = any(a.probe_id == "probe_symptoms" and not a.declined for a in answers)
 
+    # A symptom the person reported and has never said was better, and how many times this
+    # investigation has already followed one up. Read here rather than in the policy so
+    # that select_action stays a pure function of its arguments and can still be tested
+    # without a database.
+    outstanding_symptom: str | None = None
+    followups_sent = 0
+    conn = getattr(db, "conn", None)
+    if conn is not None and subject_id:
+        try:
+            from wha.service.symptoms import outstanding_symptoms
+
+            runs = outstanding_symptoms(conn, subject_id, local_today())
+            # The longest-running one. If several are outstanding it is the one that has
+            # been going on the longest that the person most needs asking about.
+            if runs:
+                outstanding_symptom = max(runs, key=lambda r: r.nights).flag_id
+            row = conn.execute(
+                """SELECT COUNT(*) AS n FROM interactions
+                    WHERE episode_id = ? AND probe_id = ? AND initiation = 'followup'""",
+                (episode_id, SYMPTOM_FOLLOWUP_PROBE_ID),
+            ).fetchone()
+            followups_sent = int(row["n"]) if row else 0
+        except Exception:
+            # Never let this cost the episode its decision. A failure here means the
+            # follow-up does not fire, which is the behaviour that existed before it, so
+            # it degrades to the old system rather than to no system.
+            logger.exception("Could not read outstanding symptoms for %s", subject_id)
+
     action = select_action(
         belief=belief,
         weekly_interruptions_used=weekly_used,
@@ -497,6 +525,9 @@ def node_decide(
         # Questions asked that were never answered, including timeouts. Silence must not
         # produce a reassuring conclusion.
         unanswered_questions=sum(1 for a in answers if a.declined),
+        # Overrides the arithmetic. See select_action step 3b.
+        outstanding_symptom=outstanding_symptom,
+        episode_followups_sent=followups_sent,
     )
 
     client = llm_client or get_llm_client()
@@ -608,7 +639,18 @@ def node_ask(
     question = action.question
     probe_id = question.probe.probe_id
     episode_id = state.get("episode_id", "ep_default")
-    interaction_id = f"int_{episode_id}_{probe_id}"
+    # A follow-up gets its own id per night. Without the date it would collide with the
+    # question it is following up, because the id is built from the episode and the probe,
+    # and upsert_interaction would UPDATE that row rather than insert a new one. The
+    # previous question would be silently overwritten, the per-episode follow-up cap would
+    # count one forever and never trip, and an uncapped follow-up is a nightly alarm.
+    #
+    # Keying on the night also gives idempotency for free: re-running a night re-asks
+    # nothing.
+    if action.followup_for:
+        interaction_id = f"int_{episode_id}_{probe_id}_{local_today().isoformat()}"
+    else:
+        interaction_id = f"int_{episode_id}_{probe_id}"
 
     # 1. Prepare Question Text (with fallback if LLM is unavailable)
     question_text = question.text
@@ -665,6 +707,11 @@ def node_ask(
             evsi=question.probe.evsi,
             interruption_cost=question.probe.interruption_cost,
             rejected=list(action.rejected),
+            # Marks a question asked BY RULE rather than by expected information gain, so
+            # the per-episode cap on follow-ups has something to count. Its evsi is stored
+            # unchanged and is usually near zero, which is the honest record: this question
+            # was not worth asking by the arithmetic, and was asked anyway, on purpose.
+            initiation="followup" if action.followup_for else "unsolicited",
             # Whether the model wrote this sentence or the canned one was used. The
             # column defaults to "fallback" and nothing ever passed anything, so every
             # question in the record claimed the canned wording had been used, including
