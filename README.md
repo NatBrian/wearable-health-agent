@@ -54,6 +54,7 @@ question is worth interrupting you for.
 | [docs/DESIGN-VS-NIGHTSIGNAL.md](docs/DESIGN-VS-NIGHTSIGNAL.md) | How this compares to the published algorithm it takes its thresholds from. |
 | [docs/RESEARCH-AGENTIC-TRIAGE.md](docs/RESEARCH-AGENTIC-TRIAGE.md) | The literature behind the agent design. |
 | [docs/RUNBOOK-SIMULATION.md](docs/RUNBOOK-SIMULATION.md) | How to run a production-mimic simulation with the mock watch. |
+| [docs/demo/README.md](docs/demo/README.md) | The demo film: what is in it, what is real, and how to rebuild it from scratch. |
 
 ---
 
