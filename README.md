@@ -318,7 +318,7 @@ In medical software engineering (IEC 62304 / ISO 14971), **an auxiliary model ou
 ```
 
 * **Why we do NOT halt the pipeline indefinitely**: If a patient develops an acute infection, an auxiliary LLM or PyTorch failure must never prevent their resting heart rate anomaly from being flagged. The deterministic statistical detector and clinical fallback questions deliver immediate alerts regardless of cloud uptime.
-* **Full Transparency**: Every fallback, skipped stage, stripped claim, and tool call is recorded in the **Episode Trace Tab** and cryptographic **Audit Journal (`/Audit`)**.
+* **Full Transparency**: Every fallback, skipped stage, stripped claim, and tool call is recorded in the **Episode Trace tab** and the cryptographic **audit journal**, both on the **The record** screen. There is no separate Audit page; it was folded into The record during the 6 September dashboard overhaul.
 
 ---
 

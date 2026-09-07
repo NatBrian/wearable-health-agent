@@ -298,7 +298,7 @@ def _detection_from_cohort() -> list[str]:
         "",
         "The cap is kept as a backstop, and the alarm-fatigue citation behind it is real but",
         "was measured on **intensive care bedside monitors**, which is a large jump to a",
-        "phone notification. That caveat is in `data/knowledge/` and on the Audit page.",
+        "phone notification. That caveat is in `data/knowledge/` and on the record screen.",
         "",
     ]
     return lines

@@ -44,7 +44,7 @@ and the honesty is not improved by the repetition. It stays in this spec, in the
 
 ## 2. The timeline
 
-Subject `demo`, in a **separate database file** `data/demo.sqlite`. The live `data/wha.sqlite`
+Subject `demo`, in a **separate database file** `data/demo_film.sqlite`. The live `data/wha.sqlite`
 is opened read-only exactly once, to copy the real nights out of subject `me`. Subject `me`
 is never written to, and the parked `sim` episode from 7 September is untouched.
 
@@ -91,14 +91,21 @@ rule is **not allowed to run at all** and it is an unconditional emergency with 
 ## 3. The clock
 
 Twelve nights have to pass in one afternoon. `wha/clock.py` already centralises "what day is
-it", but **44 sites in `src/wha` call `datetime.now(UTC)` directly** for timestamps, so a
-shifted date would reach the night labels and not the audit rows, the LLM prompt context or
-the episode ticks.
+it", but **43 sites in `src/wha` read the wall clock directly** for timestamps, so a shifted
+date would reach the night labels and not the audit rows, the LLM prompt context or the
+episode ticks.
+
+42 of them call `datetime.now(UTC)`. The forty-third, `service/nightly.py:104`, calls
+`datetime.now(ZoneInfo(tz))` and never mentions UTC, so the grep that found the other 42
+walked straight past it. It is the function that resolves a default date range, which is to
+say the one place where being a day out is least likely to be noticed and most likely to
+matter.
 
 **Design.** `clock.now_utc()` becomes the single source of the current instant, honouring
-`WHA_CLOCK_OFFSET_DAYS`. Default is unset, which is exactly today's behaviour. All 44 call
-sites route through it. A test then forbids `datetime.now(` anywhere in `src/wha` outside
-`clock.py`, in the same style as the existing wiring tests, so it cannot rot back.
+`WHA_CLOCK_OFFSET_DAYS`. Default is unset, which is exactly today's behaviour. All 43 call
+sites route through it. A test then forbids `datetime.now(`, `date.today()` and
+`datetime.today()` anywhere in `src/wha` outside `clock.py`, in the same style as the
+existing wiring tests, so it cannot rot back.
 
 **Blast radius control.** The offset is read from a separate `demo.env` that the build script
 loads. It never goes in `.env`. `wha doctor` grows a row that reports the offset and marks it
@@ -114,7 +121,7 @@ prompt, which would show on camera the moment the agent mentions a day.
 ## 4. Two passes, and why
 
 **Pass one, the build.** Runs the twelve days through the real CLI against the real model.
-Snapshots `data/demo.sqlite` after each day into `data/demo-snapshots/day-NN.sqlite`.
+Snapshots `data/demo_film.sqlite` after each day into `data/demo-snapshots/day-NN.sqlite`.
 
 **Pass two, the camera.** Restores a snapshot per scene and drives the browser. Re-shooting a
 scene costs no API calls and cannot produce a weaker answer than the take before it.
@@ -167,16 +174,26 @@ The three chapters this film is really for:
 
 ---
 
-## 7. Two defects found while writing this spec
+## 7. Defects found while writing this spec
 
-Both are real, and both get fixed rather than filmed around.
+**One real, one imagined.** Recorded together because the imagined one is the more useful
+lesson.
 
-1. **`README.md` promises an Audit Journal at `/Audit`.** There is no such page.
-   `src/wha/ui/pages/` holds Today, History, The record and Settings, and the journal is a tab
-   inside The record. Stale documentation.
-2. **There is no surface that verifies the audit hash chain.** `db/audit_chain.py` appends
-   links, and nothing checks them. The film is not going to say "tamper evident" and then not
-   show it verified, so a small read-only verification gets added and shown running.
+1. **Real. `README.md` promised an Audit Journal at `/Audit`.** No such route exists; the
+   journal is a tab on The record. `EVALUATION.md` carried the same stale name, and that file
+   is generated, so the fix had to go into `src/wha/eval/report.py` too or the next report
+   run would have restored it. Fixed.
+2. **Not real. This spec first claimed nothing verifies the audit hash chain.** It does.
+   `verify_chain` in `db/audit_chain.py`, wrapped by `service/audit.py`, called by
+   `api/app.py` on every audit request, rendered by `ui/pages/3_The_record.py`, and unit
+   tested, with a considered case for an empty chain where claiming "intact" over zero rows
+   would be a small lie. The claim came from a grep that searched `src/wha/audit/` and
+   `cli.py` and never `src/wha/db/`. Withdrawn.
+
+The second is worth keeping in writing. This project's stated recurring defect is code that
+exists, is referenced, and is never reached, and looking for that shape makes it easy to
+report an absence that is really an incomplete search. Verify the absence, not just the
+silence.
 
 ---
 
