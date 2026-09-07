@@ -3,6 +3,12 @@
 > **Agentic early-warning, physiological anomaly detection, and causal attribution for
 > consumer wearable data.**
 
+
+
+https://github.com/user-attachments/assets/80ddc8ef-3f70-4fe5-9877-78938f91dcd4
+
+
+
 Your smartwatch can tell that something changed. It cannot tell you what changed it.
 
 Consumer smartwatches detect that something in your body changed: a raised overnight resting
@@ -34,21 +40,6 @@ parameter of the code. Anything this project measured about itself lives in
 this works.
 
 It is not a medical device and it does not diagnose. See [DISCLAIMER.md](DISCLAIMER.md).
-
----
-
-## Current state, as of 7 September 2026
-
-**The project is finished.** There is no task queue, and nothing is waiting on anybody.
-
-- The whole suite passes, `ruff` is clean on `src` and `tests`, `wha doctor` reports no
-  failures.
-- The dashboard has five screens and was driven end to end through a seventeen day illness.
-- A complete demo timeline is committed and can be opened in one command, below.
-- A 28 minute walkthrough film of the whole system is in [`docs/demo/`](docs/demo/README.md).
-
-If you are asked to "continue" with no further detail, **ask what is wanted**. `archive/` is
-full of documents that look like plans and every one of them describes work that has ended.
 
 ---
 
@@ -485,10 +476,10 @@ flowchart LR
     end
 ```
 
-* **⌚ Phone Bridge (Health Connect Webhook)**: Ingests raw heart rate samples, step counts, and sleep stages directly from Android Health Connect over local HTTP (`:8787`) with Bearer token authentication.
-* **🤖 Live LLM Inference API**: Compatible with OpenAI, DeepSeek (`deepseek-chat`, `gpt-4o`, `gpt-4.1-mini`), Ollama, OpenRouter, or offline recorded cassettes with automatic Pydantic v2 JSON repair.
-* **💬 Telegram Companion Bot**: Pushes instant anomaly alerts and interactive symptom questionnaires with 1-tap clickable inline keyboard buttons directly to your mobile phone.
-* **📐 Hybrid Retrieval (BM25 + `BAAI/bge-small-en-v1.5` + Reciprocal Rank Fusion)**: Every clinical sentence the agent produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on screen. That check is decidable by code and deliberately narrow: it proves the quoted span exists, not that the sentence around it says what the source says. A neural forecaster was tried here and removed, because it separated illness less well than the plain baseline residual on our own data. See [`experiments/forecasting/`](experiments/forecasting/README.md).
+* **Phone Bridge (Health Connect Webhook)**: Ingests raw heart rate samples, step counts, and sleep stages directly from Android Health Connect over local HTTP (`:8787`) with Bearer token authentication.
+* **Live LLM Inference API**: Compatible with OpenAI, DeepSeek (`deepseek-chat`, `gpt-4o`, `gpt-4.1-mini`), Ollama, OpenRouter, or offline recorded cassettes with automatic Pydantic v2 JSON repair.
+* **Telegram Companion Bot**: Pushes instant anomaly alerts and interactive symptom questionnaires with 1-tap clickable inline keyboard buttons directly to your mobile phone.
+* **Hybrid Retrieval (BM25 + `BAAI/bge-small-en-v1.5` + Reciprocal Rank Fusion)**: Every clinical sentence the agent produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on screen. That check is decidable by code and deliberately narrow: it proves the quoted span exists, not that the sentence around it says what the source says. A neural forecaster was tried here and removed, because it separated illness less well than the plain baseline residual on our own data. See [`experiments/forecasting/`](experiments/forecasting/README.md).
 
 ---
 
@@ -669,19 +660,19 @@ background. Every number on screen says what it is, where it came from, and what
 it; the wording lives in one module and carries no figures, because a number typed into a
 screen drifts away from the code that uses it.*
 
-* **📅 Today (`/Today`)**: Anything needing you first, then last night as a level, a plain
+* **Today (`/Today`)**: Anything needing you first, then last night as a level, a plain
   sentence, three numbers each with its explanation, and what happens next. Chat with
   citations that open to the whole passage with the quoted span marked. One control copies a
   summary for a clinician.
-* **📊 History (`/History`)**: One chart with a caption naming every element on it, and six
+* **History (`/History`)**: One chart with a caption naming every element on it, and six
   columns rather than eleven. Everything else is behind one toggle.
-* **🔍 The record (`/The_record`)**: The night drawn as **21** numbered clickable steps,
+* **The record (`/The_record`)**: The night drawn as **21** numbered clickable steps,
   coloured by which machine ran them, for **every** night rather than only investigated ones.
   Each step opens to what it did, why it exists, the arithmetic in words, and its sources:
   all twelve causes with their probabilities, every question the policy weighed and what each
   was worth, the symptoms you have reported and for how long, and the tamper-evident log
   beside it. A step with no recorded time shows none.
-* **⚙️ Settings (`/Settings`)**: Every field the application accepts, each saying what it
+* **Settings (`/Settings`)**: Every field the application accepts, each saying what it
   changes about the system's behaviour, connection tests, and deletion.
 
 Benchmark results are not a dashboard page. They live in [experiments/detection/](experiments/detection/README.md),
@@ -821,4 +812,4 @@ The agent may cite these and nothing else. There is no open web search, and it c
 
 ## Disclaimer
 
-This software is a research prototype and personal health intelligence system. It is **not an FDA/CE-certified medical device**, does not provide formal medical diagnoses, and must not be used as a substitute for professional medical care or emergency services. If you experience severe chest pain, shortness of breath, or emergency symptoms, seek immediate professional medical attention.
+This software is a research prototype and personal health intelligence system. It is **not a medical device**, does not provide formal medical diagnoses, and must not be used as a substitute for professional medical care or emergency services. If you experience severe chest pain, shortness of breath, or emergency symptoms, seek immediate professional medical attention.
