@@ -35,6 +35,10 @@ dev = [
     # Records the demo film. tools/demo_film/film.py and preflight.py drive a real browser
     # against the running dashboard; nothing in src/ or tests/ imports it.
     "playwright>=1.62.0",
+    # Trims the dashboard screenshots. tools/crop_screenshots.py imports it by name.
+    # Streamlit already pulls it in, but a tool that imports a package should not depend
+    # on another package continuing to want it.
+    "pillow>=11,<14",
 ]
 
 [project.scripts]
