@@ -26,6 +26,7 @@ from wha.db.connection import connect
 from wha.db.iso import to_iso
 from wha.models import AuditEvent, Baseline, BaselineRung, BeliefState, NightlyFeatures
 from wha.notify.telegram import format_callback_token
+from wha.retrieve.index import Retriever
 
 
 def _row_to_nightly_features(row: sqlite3.Row) -> NightlyFeatures:
@@ -52,7 +53,7 @@ class EpisodeRepository:
         db_path: Path | None = None,
     ) -> None:
         self._conn = conn if conn is not None else connect(db_path)
-        self._retrieval_index: Any = None
+        self._retrieval_index: Retriever | None = None
 
     @property
     def conn(self) -> sqlite3.Connection:
@@ -60,7 +61,7 @@ class EpisodeRepository:
         return self._conn
 
     @property
-    def retrieval_index(self) -> Any:
+    def retrieval_index(self) -> Retriever:
         """The index ``retrieve_clinical_evidence`` searches, built on first use.
 
         This attribute was set to None in ``__init__`` and assigned by nothing, anywhere.
@@ -79,7 +80,7 @@ class EpisodeRepository:
         return self._retrieval_index
 
     @retrieval_index.setter
-    def retrieval_index(self, index: Any) -> None:
+    def retrieval_index(self, index: Retriever) -> None:
         """Tests and evaluations substitute a narrower index here."""
         self._retrieval_index = index
 

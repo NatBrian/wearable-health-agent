@@ -7,18 +7,35 @@ function.
 
 ## Module boundaries
 
-These are enforced by a lint rule, not by good intentions. Breaking one is a blocker, not a
-judgement call.
+These are enforced by `tests/unit/test_layering.py` and `tests/ui/test_ui_boundary.py`.
+Breaking one is a blocker, not a judgement call.
 
 ```
-ui/       may import ONLY from service/ and models.py
-service/  may import from anything below it
-cli.py    may import ONLY from service/ and config.py
-db/       is the ONLY module that imports sqlite3
+ui/       may import ONLY from api/ and models.py, and reaches the application over HTTP
+api/      the boundary. Everything a screen reads passes through it
+service/  application logic. May import from anything except ui/
+agent/    the graph, its nodes and its tools
+db/       owns connections, schema and migrations
+config, constants, errors, models    depend on nothing, and everything depends on them
 ```
 
-No `sqlite3` import anywhere outside `db/`. No business logic in `ui/`. If a page needs a
-computation, it belongs in `service/`.
+**Nothing in the application imports `ui/`.** The dependency points one way, so the system
+runs headless and the dashboard is replaceable. No business logic in `ui/`: if a screen needs
+a computation it belongs in `service/` and reaches the screen through `api/`. No SQL in
+`ui/` either.
+
+**A dependency between two packages is a design decision.** Every one that exists is listed
+in `DECLARED_EDGES` in `tests/unit/test_layering.py`, and creating a new one fails that test
+until it is added there. The friction is intentional: coupling two subsystems should be a
+choice somebody made, and visible to anyone working in the other one.
+
+**Two import cycles exist:** `agent` with `service`, and `notify` with `service`. Both are
+held open by function-local imports, listed with their reasons in `ALLOWED_UPWARD_IMPORTS`.
+A new one fails the test. Each cycle marks a boundary in the wrong place and is a candidate
+for removal, not a pattern to copy.
+
+**`sqlite3` is not confined to `db/`.** `db/` owns connection handling, schema and
+migrations; query text lives with the code that needs it.
 
 ---
 

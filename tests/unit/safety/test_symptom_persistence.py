@@ -161,7 +161,10 @@ _ALLOWED_HISTORYLESS = {
     "service/symptom_report.py",
     # The documented fallback inside node_ask, taken only when there is no database
     # connection, and logged when it is.
-    "agent/nodes.py",
+    #
+    # Names the single module holding the call, not the package: an exemption that names a
+    # directory would widen as files are added to it.
+    "agent/nodes/ask.py",
     # The layer being called, not a caller.
     "safety/tier_c.py",
 }

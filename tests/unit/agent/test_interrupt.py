@@ -87,7 +87,7 @@ def test_interrupt_resume_does_not_double_send() -> None:
         mock_db.has_notification_for.return_value = True
         return {"probe_id": "probe_alcohol", "option_id": "none"}
 
-    with patch("wha.agent.nodes.interrupt", side_effect=fake_interrupt):
+    with patch("wha.agent.nodes.ask.interrupt", side_effect=fake_interrupt):
         res1 = node_ask(state, notifier=mock_notifier, db=mock_db)
         assert len(res1["answers"]) == 1
         assert mock_notifier.send.call_count == 1
@@ -116,7 +116,7 @@ def test_ask_node_calls_the_real_notifier_protocol_method() -> None:
     db.has_notification_for.return_value = False
 
     with patch(
-        "wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+        "wha.agent.nodes.ask.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
     ):
         node_ask(state, notifier=notifier, db=db)
 
@@ -146,7 +146,7 @@ def test_failed_delivery_is_not_recorded_as_sent() -> None:
     db.has_notification_for.return_value = False
 
     with patch(
-        "wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+        "wha.agent.nodes.ask.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
     ):
         node_ask(state, notifier=notifier, db=db)
 
@@ -168,7 +168,7 @@ def test_interrupt_resume_is_idempotent_on_writes() -> None:
     mock_db.has_notification_for.return_value = True
 
     with patch(
-        "wha.agent.nodes.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+        "wha.agent.nodes.ask.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
     ):
         node_ask(state, db=mock_db)
         node_ask(state, db=mock_db)
@@ -191,7 +191,7 @@ def test_timeout_resumes_with_timed_out_answer() -> None:
         "step": 1,
     }
 
-    with patch("wha.agent.nodes.interrupt", return_value={"timed_out": True}):
+    with patch("wha.agent.nodes.ask.interrupt", return_value={"timed_out": True}):
         res = node_ask(state)
 
     assert len(res["answers"]) == 1
@@ -245,7 +245,7 @@ def test_llm_unavailable_in_ask_uses_fallback_text() -> None:
         captured_payload.update(payload)
         return {"probe_id": "probe_alcohol", "option_id": "none"}
 
-    with patch("wha.agent.nodes.interrupt", side_effect=fake_interrupt):
+    with patch("wha.agent.nodes.ask.interrupt", side_effect=fake_interrupt):
         res = node_ask(state, llm_client=mock_client)
 
     assert len(res["answers"]) == 1

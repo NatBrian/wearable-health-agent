@@ -6,7 +6,7 @@ from typing import Any
 
 from wha.agent.tools.registry import ToolContext, ToolRegistry, ToolResult
 from wha.constants import INGEST_STALE_WARN_HOURS, MIN_NOCTURNAL_MINUTES
-from wha.retrieve.index import HybridIndex
+from wha.retrieve.index import Retriever
 from wha.safety.injection import scan_untrusted
 
 
@@ -272,7 +272,10 @@ def tool_retrieve_clinical_evidence(
         )
 
     passages: list[Any] = []
-    index = db if isinstance(db, HybridIndex) else getattr(db, "retrieval_index", None)
+    # `db` is either the episode database or, in evaluations that drive this tool directly,
+    # a search index. The check is against the `Retriever` protocol rather than against
+    # `HybridIndex`, so replacing the index does not mean matching a class name here.
+    index = db if isinstance(db, Retriever) else getattr(db, "retrieval_index", None)
     if index is not None and hasattr(index, "query"):
         try:
             results = index.query(query, layer=layer, top_k=5)

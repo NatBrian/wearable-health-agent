@@ -23,6 +23,7 @@ import json
 import sqlite3
 from datetime import UTC, date, datetime, timedelta
 
+from wha.agent.steps import PRELOAD_TOOLS, pipeline_steps_that_ran
 from wha.clock import local_today
 from wha.db import connect
 from wha.db.migrations import apply_schema
@@ -679,9 +680,9 @@ def _agent_steps(
         # database. The trace is a convenience, not the only evidence: where it is absent,
         # the steps are read from what each one leaves behind, exactly as the deterministic
         # half already is.
-        ran = _agent_steps_from_evidence(conn, episode_id)
+        ran = pipeline_steps_that_ran(_agent_steps_from_evidence(conn, episode_id))
     else:
-        ran = set(trace.get("nodes_ran", []))
+        ran = pipeline_steps_that_ran(trace.get("nodes_ran", []))
     interactions = conn.execute(
         "SELECT * FROM interactions WHERE episode_id = ? ORDER BY asked_at_utc",
         (episode_id,),
@@ -806,16 +807,10 @@ def _agent_steps_from_evidence(conn: sqlite3.Connection, episode_id: str) -> set
     ]
     if tools:
         # The five fixed reads are the preload set. Anything else was chosen by the model
-        # inside the investigation loop.
-        preload_tools = {
-            "get_nightly_features",
-            "get_personal_baseline",
-            "get_known_events",
-            "get_data_quality",
-            "find_similar_past_episodes",
-        }
+        # inside the investigation loop. The set is read from `wha.agent.steps` so that a
+        # tool added to preload is not counted here as evidence that the model chose it.
         ran.add("preload")
-        if set(tools) - preload_tools:
+        if set(tools) - PRELOAD_TOOLS:
             ran.add("investigate")
 
     if conn.execute("SELECT 1 FROM beliefs WHERE episode_id = ? LIMIT 1", (episode_id,)).fetchone():

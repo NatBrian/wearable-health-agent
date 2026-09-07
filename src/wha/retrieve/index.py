@@ -2,7 +2,7 @@
 
 import hashlib
 import re
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 from rank_bm25 import BM25Okapi
@@ -16,6 +16,36 @@ class Embedder(Protocol):
 
     def embed_texts(self, texts: list[str]) -> np.ndarray:
         """Embed a list of strings into a normalized 2D numpy array (N, D)."""
+        ...
+
+
+@runtime_checkable
+class Retriever(Protocol):
+    """What the agent requires of a search index, and nothing more.
+
+    Implement this to replace retrieval. `HybridIndex` satisfies it structurally, so no
+    change to the current implementation was needed to introduce it.
+
+    **The binding contract is the return type, not the signature.** `enforce_grounding` in
+    `retrieve/grounding.py` reads `chunk_id`, `doc_id`, `title`, `text` and `source_url`
+    from `RetrievalResult` to strip clinical sentences that no retrieved passage supports.
+    An index returning a different shape disables that check without raising, so keep the
+    shape. `tests/unit/retrieve/test_retriever_protocol.py` pins the fields it depends on.
+
+    `runtime_checkable` is required because `tool_retrieve_clinical_evidence` uses
+    `isinstance` to distinguish an index from the episode database. That check only tests
+    for a `query` attribute, which is safe because `EpisodeRepository` has none; a test
+    holds that true.
+    """
+
+    def query(
+        self,
+        query_str: str,
+        top_k: int = RETRIEVE_TOP_K,
+        layer: int | list[int] | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> list[RetrievalResult]:
+        """Return passages matching the query, best first."""
         ...
 
 

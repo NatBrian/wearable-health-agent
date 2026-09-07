@@ -723,17 +723,47 @@ You will hit these if you break them, so they are worth knowing up front.
 - **Every free-text call into the safety floor must pass the symptom history.** An AST check
   enforces it, because that exact wire was missing for the life of the project and no
   behavioural test could see it.
+- **A new dependency between two packages fails the build until it is declared** in
+  `tests/unit/test_layering.py`, which also holds the two known import cycles to their
+  documented call sites.
+- **The agent's node names must match the graph.** `src/wha/agent/steps.py` declares them
+  and `tests/unit/agent/test_steps.py` compares that against the compiled graph, so a node
+  that is added or renamed cannot go missing from the audit view.
+
+### Working in parallel
+
+Each major subsystem sits behind a boundary that a test enforces, so the four largest pieces
+of work can proceed independently.
+
+| Workstream | Start at | Boundary that holds it |
+|---|---|---|
+| Replacing the dashboard | `src/wha/api/client.py` and the 34 endpoints behind it | `tests/ui/test_ui_boundary.py`. No screen may reach past the API |
+| Restructuring the agent | `src/wha/agent/steps.py`, then `src/wha/agent/nodes/` | `tests/unit/agent/test_steps.py`. Map new nodes onto existing public steps and no screen changes |
+| Replacing retrieval | The `Retriever` protocol in `src/wha/retrieve/index.py` | `tests/unit/retrieve/test_retriever_protocol.py`. Keep the `RetrievalResult` shape, which the grounding check depends on |
+| Changing when an investigation opens | `src/wha/service/episode_lifecycle.py` | Already independent of the agent. The detector has no knowledge of episodes |
+
+Four files are shared by everything and are where concurrent work overlaps. Changing one is
+routine, but flag it in the pull request:
+
+| Shared surface | Why |
+|---|---|
+| `src/wha/models.py` | Imported by 71 files |
+| `src/wha/constants.py` | Imported by 54, and under change control: a clinical figure here also needs `docs/KNOWLEDGE-CHANGELOG.md` |
+| `data/schema.sql` | Four tests compare it against `docs/CONTRACTS.md`, so a column is never a local change |
+| `docs/CONTRACTS.md` | The obligation the three above lead back to |
 
 ### How to make common changes
 
 | You want to... | Do this |
 |---|---|
+| **Change or replace the retrieval** | Implement the `Retriever` protocol in `src/wha/retrieve/index.py`: one method, `query`. Nothing outside the package refers to `HybridIndex` by name. **Keep returning `RetrievalResult` with its existing fields:** `enforce_grounding` reads `chunk_id`, `title`, `text` and `source_url` from those results to strip clinical sentences no passage supports, and a different shape disables that check silently. |
 | **Change the AI model or provider** | Set `WHA_LLM_PROVIDER`, `WHA_LLM_BASE_URL`, `WHA_LLM_MODEL` and `WHA_LLM_API_KEY` in `.env`, or use the Settings screen. Anything OpenAI-compatible works. Prompts live in `src/wha/llm/prompts`. |
 | **Add or change a cause** | Edit `data/knowledge/causes.yaml`. Every number needs a provenance label and a derivation. Record it in `docs/KNOWLEDGE-CHANGELOG.md` with the source sentence quoted. |
 | **Add a question the agent can ask** | Add a probe to `data/knowledge/probes.yaml` with its answer slots and likelihood rows. The policy scores it automatically. |
 | **Add or change a red flag** | Edit `data/knowledge/red_flags.yaml`. A symptom with no evidence for a routing threshold belongs in `tracked:`, not in a tier. |
 | **Add a tool the agent can call** | Register it in `src/wha/agent/tools/`. The registry is a closed allow-list; anything not on it is refused, and the refusal is recorded. |
-| **Add a pipeline step** | Add it to `CANONICAL_PIPELINE_STEPS` in `models.py`, implement it in `service/pipeline.py`, give it copy in `ui/explain.py`, a name in `ui/components/pipeline_graph.py`, and a topic in `ui/components/how_it_works.py`. The tests will tell you which you missed. |
+| **Add a pipeline step** | A step visible to the reader. Add it to `CANONICAL_PIPELINE_STEPS` in `models.py`, implement it in `service/pipeline.py`, give it copy in `ui/explain.py`, a name in `ui/components/pipeline_graph.py`, and a topic in `ui/components/how_it_works.py`. The tests will tell you which you missed. |
+| **Rename, split or add an agent node** | A smaller job than the row above. Name the node in `AGENT_NODES` in `src/wha/agent/steps.py` and map it to the public step it reports as in `NODE_TO_PIPELINE_STEP`; several nodes may map to one step, which is how the agent is restructured without any screen changing. Add a Trace tab description in `_STAGE_DESCRIPTIONS` in `service/episodes.py`. `tests/unit/agent/test_steps.py` fails if the graph and that declaration disagree. |
 | **Change a detection threshold** | Measure it first with `experiments/detection/cohort/`. Several such changes have been proposed and rejected on measurement; the table above lists them. |
 
 ### Testing

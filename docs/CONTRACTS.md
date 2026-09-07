@@ -12,7 +12,7 @@
 > **BINDING, AND NOW CHECKED.** This was `plan/02-contracts.md`, now `archive/plan/`, and moved here on 4 September
 > 2026, when the rest of the build plan was retired to `archive/`. It moved rather than being
 > retired because the source code cites it by name in `constants.py`, `models.py`,
-> `agent/nodes.py`, `eval/policy_oracle.py` and `service/episode_lifecycle.py`.
+> `agent/nodes/schemas.py`, `eval/policy_oracle.py` and `service/episode_lifecycle.py`.
 >
 > **RECONCILED 5 September 2026, on the owner's instruction.** Until then this file said "never
 > edit it to match the code", and the result was that it silently fell **24 disagreements**
