@@ -11,89 +11,233 @@ A cheap monitor that watches every night and uses no AI.
 And an agent that wakes up only when there is something worth explaining.
 
 4
-00:02:17,500 --> 00:02:22,000
+00:02:28,717 --> 00:02:33,217
 Every night the system runs the same twenty one steps.
 
 5
-00:02:22,000 --> 00:02:26,500
+00:02:33,217 --> 00:02:37,717
 The screen you are looking at is the real record of one of them.
 
 6
-00:04:32,750 --> 00:04:37,250
-A hard training session late in the evening.
+00:03:59,650 --> 00:04:04,150
+A night is not a clock window. It is the sleep your watch actually recorded.
 
 7
-00:04:37,250 --> 00:04:41,750
-It barely moves the night, and nothing is said.
+00:04:04,150 --> 00:04:08,650
+Sleep from midnight to seven would miss a shift worker entirely.
 
 8
-00:04:41,750 --> 00:04:46,250
-A heavier drinking night than usual. Now the night is amber.
+00:04:08,650 --> 00:04:13,150
+The number that matters is the lowest sustained heart rate while you slept.
 
 9
-00:04:46,250 --> 00:04:50,750
-Amber does not raise an alarm. That is a decision, and it was measured.
+00:07:16,983 --> 00:07:21,483
+This is a real person, over a month.
 
 10
-00:05:43,750 --> 00:05:48,250
-And the line it works against was not chosen by anybody.
+00:07:21,483 --> 00:07:25,983
+Green means this night looked like your normal.
 
 11
-00:05:48,250 --> 00:05:52,750
-Missing an illness is set at nine times worse than a false alarm.
+00:07:25,983 --> 00:07:30,483
+Nothing has happened yet, and nothing needed to be said.
 
 12
-00:05:52,750 --> 00:05:57,250
-One divided by one plus nine gives ten percent. The threshold falls out of that.
+00:08:21,033 --> 00:08:25,533
+A hard training session late in the evening.
 
 13
-00:06:55,500 --> 00:07:00,000
-Every clinical sentence has to quote words that appear in a real source.
+00:08:25,533 --> 00:08:30,033
+It barely moves the night, and nothing is said.
 
 14
-00:07:00,000 --> 00:07:04,500
-If it cannot, the sentence is removed, or flagged in amber as unsourced.
+00:08:30,033 --> 00:08:34,533
+A heavier drinking night than usual. Now the night is amber.
 
 15
-00:07:34,500 --> 00:07:39,000
-Fever reported yesterday. Vomiting reported today.
+00:08:34,533 --> 00:08:39,033
+Amber does not raise an alarm. That is a decision, and it was measured.
 
 16
-00:07:39,000 --> 00:07:43,500
-Neither one alone changes anything.
+00:09:40,300 --> 00:09:44,800
+The first red night.
 
 17
-00:07:43,500 --> 00:07:48,000
-Together they do, and the system now reads them together.
+00:09:44,800 --> 00:09:49,300
+No alert. An alarm needs two raised nights in a row.
 
 18
-00:07:48,000 --> 00:07:52,500
-See a doctor today. Decided by code, before the AI was asked.
+00:09:49,300 --> 00:09:53,800
+The person mentions feeling dizzy, without being asked.
 
 19
-00:08:32,250 --> 00:08:36,750
-The heart rate settles. The person says the fever has gone.
+00:09:53,800 --> 00:09:58,300
+Dizziness is recorded, and on its own it raises nothing.
 
 20
-00:08:36,750 --> 00:08:41,250
-The investigation does not close.
+00:09:58,300 --> 00:10:02,800
+There is no trustworthy figure for how long dizziness must last to matter.
 
 21
-00:09:21,000 --> 00:09:25,500
-Chest pain is not handled by spotting the words chest pain.
+00:10:02,800 --> 00:10:07,300
+So the system tracks it and does not pretend to know.
 
 22
-00:09:25,500 --> 00:09:30,000
-The AI asks five specific questions. Then code, not the AI, scores the answers.
+00:10:47,583 --> 00:10:52,083
+And the line it works against was not chosen by anybody.
 
 23
-00:09:30,000 --> 00:09:34,500
-And when the picture is one the rule was never tested on,
+00:10:52,083 --> 00:10:56,583
+Missing an illness is set at nine times worse than a false alarm.
 
 24
-00:09:34,500 --> 00:09:39,000
-such as pain right now with sweating or fainting,
+00:10:56,583 --> 00:11:01,083
+One divided by one plus nine gives ten percent. The threshold falls out of that.
 
 25
-00:09:39,000 --> 00:09:43,500
+00:12:01,583 --> 00:12:06,083
+Second red night in a row. Now an investigation opens.
+
+26
+00:12:06,083 --> 00:12:10,583
+This is the first time in eleven days the AI has done anything.
+
+27
+00:12:10,583 --> 00:12:15,083
+It weighs twelve possible causes, and it asks one question.
+
+28
+00:12:15,083 --> 00:12:19,583
+Watch the list of causes rearrange after a single answer.
+
+29
+00:12:19,583 --> 00:12:24,083
+Every reply the model produces is checked against a strict shape before anything acts on it.
+
+30
+00:12:48,833 --> 00:12:51,833
+The question arrives on Telegram, and can be answered from there.
+
+31
+00:12:51,833 --> 00:12:54,833
+The investigation is then parked, and picked up days later where it left off.
+
+32
+00:12:54,833 --> 00:12:57,833
+It remembers across the waiting, which is what makes it an agent and not a chat window.
+
+33
+00:13:47,133 --> 00:13:51,633
+Every clinical sentence has to quote words that appear in a real source.
+
+34
+00:13:51,633 --> 00:13:56,133
+If it cannot, the sentence is removed, or flagged in amber as unsourced.
+
+35
+00:15:06,917 --> 00:15:11,417
+Fever reported yesterday. Vomiting reported today.
+
+36
+00:15:11,417 --> 00:15:15,917
+Neither one alone changes anything.
+
+37
+00:15:15,917 --> 00:15:20,417
+Together they do, and the system now reads them together.
+
+38
+00:15:20,417 --> 00:15:24,917
+See a doctor today. Decided by code, before the AI was asked.
+
+39
+00:16:43,683 --> 00:16:48,183
+Every step, every source, every decision, with the time it happened.
+
+40
+00:16:48,183 --> 00:16:52,683
+Each entry is sealed with a fingerprint of the entry before it.
+
+41
+00:16:52,683 --> 00:16:57,183
+Change any one of them and the chain stops matching.
+
+42
+00:17:27,233 --> 00:17:31,733
+The heart rate settles. The person says the fever has gone.
+
+43
+00:17:31,733 --> 00:17:36,233
+The investigation does not close.
+
+44
+00:18:41,500 --> 00:18:45,875
+The AI drafted its conclusion and stopped to have it checked.
+
+45
+00:18:45,875 --> 00:18:50,250
+It does not get to publish that on its own.
+
+46
+00:18:50,250 --> 00:18:54,625
+The next day the fever returns, and the person rejects the draft.
+
+47
+00:18:54,625 --> 00:18:59,000
+The investigation stays open, because a person said so.
+
+48
+00:18:59,000 --> 00:19:03,375
+Days later, recovered, they read the final one and approve it.
+
+49
+00:19:03,375 --> 00:19:07,750
+It never worked out what caused this, and it closes saying exactly that.
+
+50
+00:19:07,750 --> 00:19:12,125
+Not an all clear. It does not have one to give.
+
+51
+00:19:12,125 --> 00:19:16,500
+And it says so out loud. An investigation that ends in silence reads as reassurance.
+
+52
+00:20:08,117 --> 00:20:12,617
+Chest pain is not handled by spotting the words chest pain.
+
+53
+00:20:12,617 --> 00:20:17,117
+The AI asks five specific questions. Then code, not the AI, scores the answers.
+
+54
+00:21:23,733 --> 00:21:28,233
+And when the picture is one the rule was never tested on,
+
+55
+00:21:28,233 --> 00:21:32,733
+such as pain right now with sweating or fainting,
+
+56
+00:21:32,733 --> 00:21:37,233
 the rule is not allowed to run at all. That is an emergency, with no questions.
+
+57
+00:22:23,950 --> 00:22:28,450
+The AI is now pointed at an address that does not answer.
+
+58
+00:22:28,450 --> 00:22:32,950
+The monitor still scores the night. The safety checks still run.
+
+59
+00:22:32,950 --> 00:22:37,450
+The question still goes out, in plain prepared words.
+
+60
+00:22:37,450 --> 00:22:41,950
+The screen says so, rather than pretending.
+
+61
+00:22:41,950 --> 00:22:46,450
+An outage in the AI must never be able to hide somebody's illness.

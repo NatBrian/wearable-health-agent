@@ -26,7 +26,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -92,12 +91,18 @@ def slug_for(title: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:48]
 
 
+def up_to_date(dest: Path, source: Path) -> bool:
+    return dest.is_file() and dest.stat().st_mtime >= source.stat().st_mtime
+
+
 def still_to_clip(image: Path, seconds: float, dest: Path) -> None:
     """A still frame becomes a clip. Encoded to match the live footage exactly.
 
     Same resolution, frame rate, pixel format and codec, or the concat demuxer produces a
     file that plays for a while and then stops without an error.
     """
+    if up_to_date(dest, image) and abs(probe_seconds(dest) - seconds) < 0.2:
+        return
     ffmpeg(
         "-loop",
         "1",
@@ -123,6 +128,8 @@ def still_to_clip(image: Path, seconds: float, dest: Path) -> None:
 
 
 def footage_to_clip(source: Path, dest: Path) -> None:
+    if up_to_date(dest, source):
+        return
     ffmpeg(
         "-i",
         str(source),
@@ -224,6 +231,55 @@ def build_segments(script: dict, work: Path) -> list[Segment]:
     return segments
 
 
+# Burned as ASS, not as SRT with force_style.
+#
+# libass lays an SRT out on a default canvas of its own choosing, so a font size picked for
+# 1080p renders about four times too large and a bottom margin puts the caption across the
+# middle of the picture. `original_size` does not fix it: that option corrects pixel aspect
+# ratio, not the layout resolution. Two full cuts were burned wrong before this was found.
+#
+# An ASS file states PlayResX and PlayResY itself, so the size on screen is the size asked
+# for. The SRT is still written, because it is the readable artefact a person checks before
+# committing to a half hour render.
+ASS_HEADER = """[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Caption,Segoe UI Semibold,46,&H00FFFFFF,&H000000FF,&H00000000,&H99000000,0,0,0,0,100,100,0,0,3,14,0,2,160,160,72,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+"""
+
+
+def ass_time(seconds: float) -> str:
+    whole = int(seconds)
+    cs = round((seconds - whole) * 100)
+    return f"{whole // 3600:d}:{whole % 3600 // 60:02d}:{whole % 60:02d}.{cs:02d}"
+
+
+def write_ass(segments: list[Segment], path: Path) -> None:
+    lines = [ASS_HEADER]
+    clock = 0.0
+    for segment in segments:
+        if segment.captions:
+            each = min(CAPTION_SECONDS, segment.seconds / len(segment.captions))
+            start = clock + max(0.0, (segment.seconds - each * len(segment.captions)) / 2)
+            for caption in segment.captions:
+                text = " ".join(caption.split())
+                lines.append(
+                    f"Dialogue: 0,{ass_time(start)},{ass_time(start + each)},Caption,,0,0,0,,{text}"
+                )
+                start += each
+        clock += segment.seconds
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def write_captions(segments: list[Segment], path: Path) -> None:
     lines: list[str] = []
     index = 1
@@ -263,6 +319,7 @@ def main() -> int:
     parser.add_argument(
         "--no-captions", action="store_true", help="skip the burn-in, for a quick check"
     )
+    parser.add_argument("--work-dir", help="where the intermediate segments live")
     args = parser.parse_args()
 
     if shutil.which("ffmpeg") is None:
@@ -271,8 +328,13 @@ def main() -> int:
     script = yaml.safe_load(SCRIPT.read_text(encoding="utf-8"))
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    with tempfile.TemporaryDirectory(prefix="wha-film-") as tmp:
-        work = Path(tmp)
+    # A PERSISTENT work directory, on purpose. The first version used a temporary one, so
+    # fixing the caption style meant re-encoding all 58 segments again: twenty five minutes
+    # to change a font size. Segments are reused when they are newer than what they came
+    # from, which is the same rule make has used for fifty years.
+    work = Path(args.work_dir) if args.work_dir else (OUT_DIR / "work")
+    work.mkdir(parents=True, exist_ok=True)
+    if True:
         segments = build_segments(script, work)
 
         listing = work / "concat.txt"
@@ -286,6 +348,8 @@ def main() -> int:
 
         srt = OUT_DIR / "captions.srt"
         write_captions(segments, srt)
+        ass = OUT_DIR / "captions.ass"
+        write_ass(segments, ass)
         write_chapters(script, segments, OUT_DIR / "chapters.txt")
 
         final = OUT_DIR / "wha-demo.mp4"
@@ -296,11 +360,8 @@ def main() -> int:
             # a filter argument has to be escaped twice and fails quietly when it is not.
             staged = work / "captions.srt"
             shutil.copyfile(srt, staged)
-            style = (
-                "FontName=Segoe UI,FontSize=22,PrimaryColour=&H00FFFFFF,"
-                "BackColour=&H90000000,BorderStyle=4,Outline=0,Shadow=0,"
-                "MarginV=60,Alignment=2"
-            )
+            staged = work / "captions.ass"
+            shutil.copyfile(ass, staged)
             subprocess.run(
                 [
                     "ffmpeg",
@@ -311,7 +372,7 @@ def main() -> int:
                     "-i",
                     str(silent),
                     "-vf",
-                    f"subtitles=captions.srt:force_style='{style}'",
+                    "ass=captions.ass",
                     "-c:v",
                     "libx264",
                     "-preset",

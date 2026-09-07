@@ -1,26 +1,26 @@
 00:00  One number, six explanations
 00:48  Why an agent, and not a better algorithm
 02:01  Perceive, reason, act
-02:40  From a wrist to one number
-02:43  What your own normal means
-03:17  The model that got deleted
-04:15  A month of nights
-04:18  Four quiet nights
-05:02  Something starts, and it still says nothing
-05:05  The quiet band
-06:33  The agent wakes
-06:36  On your phone, and still there two days later
-06:39  It has to prove what it says
-07:18  Two symptoms, two different nights
-08:06  Everything it did, written down
-08:09  Feeling better is not the same as being better
-09:01  It comes back, and the person overrules the system
-09:04  Chest pain: five questions, then a rule the AI cannot argue with
-09:57  Take the AI away
-10:00  What was measured
-11:33  What did not work
-12:56  What is still wrong with it
-14:09  The guard rails
-15:12  What this is not
+03:38  From a wrist to one number
+04:31  What your own normal means
+05:44  The model that got deleted
+06:42  A month of nights
+08:01  Four quiet nights
+09:35  Something starts, and it still says nothing
+10:08  The quiet band
+11:36  The agent wakes
+12:45  On your phone, and still there two days later
+13:18  It has to prove what it says
+14:57  Two symptoms, two different nights
+16:26  Everything it did, written down
+17:11  Feeling better is not the same as being better
+18:38  It comes back, and the person overrules the system
+19:16  Chest pain: five questions, then a rule the AI cannot argue with
+21:55  Take the AI away
+23:12  What was measured
+24:45  What did not work
+26:08  What is still wrong with it
+27:21  The guard rails
+28:24  What this is not
 
-Total: 16:00
+Total: 29:12
