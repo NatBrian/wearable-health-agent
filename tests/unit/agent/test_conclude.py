@@ -131,7 +131,7 @@ def test_human_reject_closes_unresolved() -> None:
         "step": 1,
     }
 
-    with patch("wha.agent.nodes.interrupt", return_value={"decision": "reject"}):
+    with patch("wha.agent.nodes.review.interrupt", return_value={"decision": "reject"}):
         res = node_review(state)
 
     assert res["status"] == "unresolved"
@@ -149,7 +149,7 @@ def test_human_edit_preserves_machine_fields() -> None:
     }
 
     with patch(
-        "wha.agent.nodes.interrupt",
+        "wha.agent.nodes.review.interrupt",
         return_value={
             "decision": "edit",
             "edited_observation": "Clinician edited observation note.",
