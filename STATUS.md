@@ -139,13 +139,15 @@ Verified on 7 September 2026, all re-run rather than remembered:
 
 | Check | Result |
 |---|---|
-| `uv run pytest -n auto` | **756 passed, 1 skipped**, about four minutes |
+| `uv run pytest -n auto` | **782 collected, all passing, 1 skipped**, about five minutes |
 | `uv run ruff check src tests` | clean |
 | `uv run ruff format --check src tests` | clean |
-| `uv run wha doctor` | no `fail` rows |
-| Dashboard, all five screens | driven with Playwright through the whole simulation |
+| `uv run wha doctor` | no `fail` rows, and a new `clock` row that warns when the demo offset is set |
+| Dashboard, all five screens | driven with Playwright through the whole demo timeline, and recorded |
+| Seventeen day demo timeline | every day matched the outcome predicted before it ran |
 | Eleven frozen scenarios | 11 of 11 live, 5 September, not re-run since |
-| Telegram | real messages sent and received through the production path |
+| Telegram | real questions, a real same-day escalation and real outcomes, on a real phone |
+| The film | `docs/demo/wha-demo.mp4`, 29 minutes 12 seconds, 24 chapters |
 
 `pytest-xdist` is installed: run `-n auto`. The suite takes about five minutes in parallel
 against nearly eight serial, and the interface tests forty-five seconds against ninety.
