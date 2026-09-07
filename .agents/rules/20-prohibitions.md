@@ -94,7 +94,7 @@ when, one of these holds:
 
 1. **The published source it cites can be quoted saying something different.**
 2. **A measurement made in this repository, on real data, with the script committed**, says
-   something different. `tools/cohort/` is the worked example.
+   something different. `experiments/detection/cohort/` is the worked example.
 
 Not a hunch that a number looks wrong, not a better number found elsewhere, and never the model's
 own knowledge. Every change goes in `docs/KNOWLEDGE-CHANGELOG.md` with the old value, the new

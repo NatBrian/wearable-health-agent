@@ -10,6 +10,14 @@ A figure may change when, and only when, one of two things holds:
 2. **A measurement made in this repository, on real data, with the script committed**,
    contradicts it.
 
+> **What "measurement" means in this file, and what it does not.** It means an analysis run
+> by this project, on an archive of data collected by somebody else for another purpose,
+> with the script committed so anybody can re-run it. It does **not** mean a clinical trial,
+> peer review, or validation against any clinical outcome, because this project has none of
+> those. A figure derived that way is good enough to choose a parameter and is not evidence
+> that this system works. Where such a derivation appears below, it is labelled and the
+> reproducing command is given. See `experiments/README.md`.
+
 No new clinical content may be added, no figure may be changed on judgement, and every edit
 is recorded here with the old value, the new value, what it changed downstream, and either
 the quoted source sentence or the command that reproduces the measurement.
@@ -37,7 +45,7 @@ et al. 2020 cohort, using this system's own `compute_baseline`:
 | **Difference** | **+2.18 bpm** | standard error about 0.85 |
 
 1.60 sits inside that interval. It is kept rather than moved to a point estimate the data
-cannot separate from it. Reproduce with `uv run python tools/cohort/infection.py`.
+cannot separate from it. Reproduce with `uv run python experiments/detection/cohort/infection.py`.
 
 **`effect_sd_bpm`: 1.00 to 1.75.** 1.00 had no source at all. The between-person spread of
 the mean pre-symptomatic elevation is SD 3.75 bpm in cases against 3.32 in controls; the
@@ -91,7 +99,7 @@ participants' own overnight readings across 8,508 nights of the Mishra et al. 20
 is **3.71 bpm** (IQR 2.97 to 4.45). Reproduce with:
 
 ```bash
-uv run python tools/cohort/band_width.py
+uv run python experiments/detection/cohort/band_width.py
 ```
 
 **Downstream effect, measured on the same 8,508 nights.**
@@ -392,7 +400,7 @@ where a wrong number has a real-world consequence".
 
 | Number | Label | Basis |
 |---|---|---|
-| `rf_rhr_extreme_high` robust z above 6.0 | **DERIVED** | The largest single effect in `causes.yaml` is the luteal plateau at 3.91 bpm and the measured within-person scale is 3.71 bpm, so six scaled MADs is about 22 bpm, beyond any combination in the table. Fires on 0.6 percent of 7,865 cohort nights. `tools/cohort/band_width.py` |
+| `rf_rhr_extreme_high` robust z above 6.0 | **DERIVED** | The largest single effect in `causes.yaml` is the luteal plateau at 3.91 bpm and the measured within-person scale is 3.71 bpm, so six scaled MADs is about 22 bpm, beyond any combination in the table. Fires on 0.6 percent of 7,865 cohort nights. `experiments/detection/cohort/band_width.py` |
 | `rf_rhr_extreme_low` robust z below -6.0 | **DERIVED** | The mirror of the above, from the same two numbers |
 | `cold_rung_fallback_bpm_above: 100` | **ASSUMED** | **No evidence found.** The conventional resting tachycardia boundary, but no source was fetched and verified here and none is claimed |
 | `cold_rung_fallback_bpm_below: 40` | **ASSUMED** | **No evidence found.** A conventional marked-bradycardia boundary; trained endurance athletes sleep below it routinely, which is why it can only raise urgency |

@@ -29,7 +29,7 @@ question is worth interrupting you for.
 | **Picking up development** | This file, then **[STATUS.md](STATUS.md)** (what is true *right now*), then **[BLOCKERS.md](BLOCKERS.md)** (what is open). |
 | **Changing anything clinical** | **[docs/DISCLOSURES.md](docs/DISCLOSURES.md)** and **[docs/KNOWLEDGE-CHANGELOG.md](docs/KNOWLEDGE-CHANGELOG.md)**, before you touch `data/knowledge/`. |
 | **Trying to understand the whole design** | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**: 19 parts, end to end. The short version is [below](#the-short-version-of-the-architecture). |
-| **Checking the accuracy claims** | **[EVALUATION.md](EVALUATION.md)** and **[docs/detection-results.json](docs/detection-results.json)**. |
+| **Wondering how well it works** | **[experiments/README.md](experiments/README.md)**. The short answer is that it has not been established: there is no clinical trial and no validation behind this project. |
 | **An AI agent working in this repo** | **[CLAUDE.md](CLAUDE.md)** and **[AGENTS.md](AGENTS.md)** for the working rules. |
 
 ### The full document map
@@ -51,7 +51,7 @@ question is worth interrupting you for.
 | [docs/DESIGN-BASELINE-CENTRE.md](docs/DESIGN-BASELINE-CENTRE.md) | Why the band uses a within-person scale, not a between-person one. |
 | [docs/DESIGN-SLEEP-WINDOW.md](docs/DESIGN-SLEEP-WINDOW.md) | Why the night is measured over recorded sleep rather than a clock window. |
 | [docs/DESIGN-DATA-CHANNELS.md](docs/DESIGN-DATA-CHANNELS.md) | Which of Health Connect's ~60 data types are used, and why not the rest. |
-| [docs/DESIGN-VS-NIGHTSIGNAL.md](docs/DESIGN-VS-NIGHTSIGNAL.md) | How this compares to the published algorithm it takes its thresholds from. |
+| [experiments/detection/COMPARED-TO-NIGHTSIGNAL.md](experiments/detection/COMPARED-TO-NIGHTSIGNAL.md) | How this compares to the published algorithm it takes its thresholds from. |
 | [docs/RESEARCH-AGENTIC-TRIAGE.md](docs/RESEARCH-AGENTIC-TRIAGE.md) | The literature behind the agent design. |
 | [docs/RUNBOOK-SIMULATION.md](docs/RUNBOOK-SIMULATION.md) | How to run a production-mimic simulation with the mock watch. |
 | [docs/demo/README.md](docs/demo/README.md) | The demo film: what is in it, what is real, and how to rebuild it from scratch. |
@@ -243,16 +243,21 @@ Measured before deciding: Tier C caught "I cannot keep any water down", which th
 and escalated it correctly. A Tier C finding is now also written to the symptom timeline, so it
 persists instead of counting once and being forgotten.
 
-### Settled by measurement. Do not re-litigate from theory
+### Engineering questions that were tried and settled
 
-| Question | Answer, and the measurement behind it |
+**These were settled by our own experiments, not by evidence about anybody's health.** The
+runs, and what each is and is not worth, are in [`experiments/`](experiments/README.md).
+The answers are recorded here so they are not re-argued from theory; the numbers behind
+them are not, because they are not the kind of number that belongs in a summary.
+
+| Question | What was decided |
 |---|---|
-| Should a long run of **yellow** nights open an investigation? | **No.** Adding it catches **zero** additional cases across 30 labelled cases and 738 person-weeks, for up to 5% more alerts. `tools/cohort/yellow_persistence.py` |
-| Should flagging need one RED night or two? | **Two.** The looser rule bought 6.7 points of sensitivity for 37% more investigations on healthy people. `tools/cohort/sweep.py` |
-| Personal thresholds (`robust_z`) or absolute bpm? | **Absolute.** Personal thresholds were worse at every matched alert rate. |
-| Would a neural forecaster help? | **No.** Chronos separated illness *worse* than the plain residual, AUC 0.586 against 0.629. Deleted. `tools/cohort/chronos.py` |
-| Would a reranker improve retrieval? | **No.** 16 configurations measured; not one beat plain hybrid retrieval. |
-| Within-person or between-person spread for the band? | **Within-person, 3.71 bpm.** Using the between-person 8.64 was a category error. |
+| Should a long run of **yellow** nights open an investigation? | **No.** Adding that rule found nothing extra on the archive we tried it on, and would have interrupted people more often. |
+| Should flagging need one RED night or two? | **Two.** One night is common and has many ordinary causes. The looser rule found slightly more of the illnesses in that archive at the cost of considerably more investigations into people who were never ill. |
+| Personal thresholds (`robust_z`) or absolute bpm? | **Absolute.** Personal thresholds were no better at any matched alert rate. |
+| Would a neural forecaster help? | **No.** It separated illness less well than plain arithmetic, so it was deleted. |
+| Would a reranker improve retrieval? | **No.** Several configurations were tried; none beat plain hybrid retrieval on this corpus. |
+| Within-person or between-person spread for the band? | **Within-person.** Using the spread between different people to judge one person's night is a category error, whatever the numbers say. |
 
 ---
 
@@ -279,7 +284,7 @@ The reasoning, the measurements behind it and the sources are in
 These are the properties that must survive any change. Break one and you have changed what the
 system *is*.
 
-1. **Zero-LLM Passive Monitoring**: Nights are scored on a repeating interval rather than at a fixed hour, over **the sleep the watch actually recorded**, falling back to 00:00-07:00 only when it recorded none. A cron at 09:00 assumed the person was awake and synced by then; the first real subject wakes around 11:00, so their night was scored before it had finished being recorded. Robust statistics throughout: MAD scaling, empirical Bayes shrinkage toward a population centre of 62.75 bpm with a **within-person** night-to-night scale of 3.71 bpm measured on 107 people, and explained-variance subtraction. The between-person SD of 8.64 is deliberately NOT used for the band; see `docs/DESIGN-BASELINE-CENTRE.md`. On normal nights, **execution cost is zero and no language model is invoked**.
+1. **Zero-LLM Passive Monitoring**: Nights are scored on a repeating interval rather than at a fixed hour, over **the sleep the watch actually recorded**, falling back to 00:00-07:00 only when it recorded none. A cron at 09:00 assumed the person was awake and synced by then; the first real subject wakes around 11:00, so their night was scored before it had finished being recorded. Robust statistics throughout: MAD scaling, empirical Bayes shrinkage toward a population centre of 62.75 bpm (Bloomfield et al. 2024) with a **within-person** night-to-night scale, and explained-variance subtraction. The between-person SD of 8.64 from the same source is deliberately NOT used for the band, because the spread between different people is the wrong yardstick for one person's night; see `docs/DESIGN-BASELINE-CENTRE.md`. On normal nights, **execution cost is zero and no language model is invoked**.
 2. **Deterministic Emergency Safety Floor**: Phrase matching against `data/knowledge/red_flags.yaml` runs on the person's own words **before any model sees them**, and an LLM may only ever ADD a flag, never remove one. Two honest qualifications, because an earlier version of this line overstated both halves. **It does not always escalate immediately:** chest pain maps to a validated decision rule (Marburg Heart Score), so it opens that rule's questions instead of escalating on a phrase, which is the argument of Downie et al. 2013 about single red flags. Presentations with no validated history-only rule, and the unconditional gates such as collapse or crushing pain, do escalate on the spot. **And it does not bypass generative models:** tier C is an additive LLM check that runs on every free-text message. What no model can do is lower the urgency the fixed rules set.
 3. **Symptoms Are Read Over Time**: A symptom is a thing with a duration, not a keyword in one message. `symptom_observations` holds one row per symptom per night, and a run ends when the person says it has gone or after seven days of silence. It does **not** end because they went quiet for one night, and it does **not** end because their heart rate settled. Both halves of Tier B, persistence and co-occurrence, are evaluated against it.
 4. **Exact 12-Cause Bayesian Belief Engine**: Evaluates joint probabilities over all $2^{12} = 4,096$ discrete causal combinations in log-space, using peer-reviewed effect sizes and temporal onset/decay curves.
@@ -353,7 +358,7 @@ flowchart LR
 * **⌚ Phone Bridge (Health Connect Webhook)**: Ingests raw heart rate samples, step counts, and sleep stages directly from Android Health Connect over local HTTP (`:8787`) with Bearer token authentication.
 * **🤖 Live LLM Inference API**: Compatible with OpenAI, DeepSeek (`deepseek-chat`, `gpt-4o`, `gpt-4.1-mini`), Ollama, OpenRouter, or offline recorded cassettes with automatic Pydantic v2 JSON repair.
 * **💬 Telegram Companion Bot**: Pushes instant anomaly alerts and interactive symptom questionnaires with 1-tap clickable inline keyboard buttons directly to your mobile phone.
-* **📐 Hybrid Retrieval (BM25 + `BAAI/bge-small-en-v1.5` + Reciprocal Rank Fusion)**: Every clinical sentence the agent produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on screen. That check is decidable by code and deliberately narrow: it proves the quoted span exists, not that the sentence around it says what the source says. A neural forecaster was tried here and **removed on measurement**: over 7,295 cohort nights it separated illness worse than the plain baseline residual, AUC 0.586 against 0.629. See `tools/cohort/chronos.py`.
+* **📐 Hybrid Retrieval (BM25 + `BAAI/bge-small-en-v1.5` + Reciprocal Rank Fusion)**: Every clinical sentence the agent produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on screen. That check is decidable by code and deliberately narrow: it proves the quoted span exists, not that the sentence around it says what the source says. A neural forecaster was tried here and removed, because it separated illness less well than the plain baseline residual on our own data. See [`experiments/forecasting/`](experiments/forecasting/README.md).
 
 ---
 
@@ -465,8 +470,8 @@ uv run wha ingest --days 3       # Fetch & normalize live biometrics from phone 
 uv run wha nightly               # Run daily baseline calculation & anomaly detector
 uv run wha data fetch corpus     # Build the retrieval corpus, including MedlinePlus
 uv run wha data capability       # What your watch sends, and how far each channel gets
-uv run python tools/cohort/fetch.py   # The Mishra 2020 cohort, a 378 MB public download
-uv run python tools/cohort/labels.py  # Its symptom-onset labels, from the same paper
+uv run python experiments/detection/cohort/fetch.py   # The Mishra 2020 cohort, a 378 MB public download
+uv run python experiments/detection/cohort/labels.py  # Its symptom-onset labels, from the same paper
 
 # Demonstrations & Scenarios
 uv run wha demo list             # List available offline clinical replay scenarios
@@ -486,14 +491,14 @@ uv run wha eval baseline-age     # How the baseline behaves as nights accumulate
 # Two suites REFUSE rather than report, and say why when you run them:
 #   eval detection  scores detections a caller replays, and nothing in the app replays
 #                   them, so it used to print zeros as a benchmark. Detection accuracy
-#                   comes from tools/cohort/ and is published in docs/detection-results.json
+#                   comes from experiments/detection/cohort/ and is published in experiments/detection/detection-results.json
 #   eval ablation   was entirely synthetic: 32 invented participants, scores from
 #                   random.Random(42) and a hardcoded table of "effect sizes"
 
 # Cohort measurements that settled design questions
-uv run python tools/cohort/sweep.py              # Threshold and persistence sweep
-uv run python tools/cohort/yellow_persistence.py # Does a long yellow run deserve an alert?
-uv run python tools/cohort/band_width.py         # The within-person scale, and alert rates
+uv run python experiments/detection/cohort/sweep.py              # Threshold and persistence sweep
+uv run python experiments/detection/cohort/yellow_persistence.py # Does a long yellow run deserve an alert?
+uv run python experiments/detection/cohort/band_width.py         # The within-person scale, and alert rates
 
 # Conversation, corpus, and the model provider
 uv run wha tell "I have a sore throat"   # Say how you feel without waiting to be asked
@@ -579,7 +584,7 @@ src/wha/
   notify/     Telegram and other outbound channels
   audit/      The SHA-256 hash-chained log
 data/knowledge/   The clinical tables. Under change control, see below
-tools/cohort/     The measurement scripts behind every published number
+experiments/detection/cohort/     The measurement scripts behind every published number
 tests/            unit, integration, scenario, and ui (Streamlit AppTest)
 ```
 
@@ -611,7 +616,7 @@ You will hit these if you break them, so they are worth knowing up front.
 | **Add or change a red flag** | Edit `data/knowledge/red_flags.yaml`. A symptom with no evidence for a routing threshold belongs in `tracked:`, not in a tier. |
 | **Add a tool the agent can call** | Register it in `src/wha/agent/tools/`. The registry is a closed allow-list; anything not on it is refused, and the refusal is recorded. |
 | **Add a pipeline step** | Add it to `CANONICAL_PIPELINE_STEPS` in `models.py`, implement it in `service/pipeline.py`, give it copy in `ui/explain.py`, a name in `ui/components/pipeline_graph.py`, and a topic in `ui/components/how_it_works.py`. The tests will tell you which you missed. |
-| **Change a detection threshold** | Measure it first with `tools/cohort/`. Several such changes have been proposed and rejected on measurement; the table above lists them. |
+| **Change a detection threshold** | Measure it first with `experiments/detection/cohort/`. Several such changes have been proposed and rejected on measurement; the table above lists them. |
 
 ### Testing
 
@@ -637,8 +642,10 @@ that before assuming a logic error.
 * **Confounder Magnitudes**: Acute viral infections elevate nocturnal RHR by $+1.1\text{ to }+2.1\text{ bpm}$, whereas alcohol or late-night exercise can elevate RHR by $+2.4\text{ to }+6.0\text{ bpm}$. The system relies on its value-of-information policy to ask discriminating questions when biometrics alone are ambiguous.
 * **Maturity Ladder**:
   * `0-2 Nights` (`COLD`): Population prior only ($\mu=62.75$ bpm, and a **within-person**
-    night-to-night scale of $3.71$ bpm, measured on 107 people in the cohort. The
-    between-person SD of $8.64$ is deliberately NOT used here: see `docs/DESIGN-BASELINE-CENTRE.md`).
+    night-to-night scale, which is the value the detector actually uses. The
+    between-person SD of $8.64$ from Bloomfield et al. 2024 is deliberately NOT used
+    here, because the spread between different people is the wrong yardstick for one
+    person's own night: see `docs/DESIGN-BASELINE-CENTRE.md`).
   * `3-6 Nights` (`PRIOR_DOMINATED`): Shrinkage heavily weighted to population prior.
   * `7-13 Nights` (`SHRINKING`): Empirical Bayes shrinkage transitioning to personal data.
   * `14-27 Nights` (`PERSONAL`): Personal median & MAD dominate.

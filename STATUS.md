@@ -117,7 +117,8 @@ before that write is `data/backups/wha-before-dengue-test-20260907-021427.sqlite
 
 Closed since the last update: dizziness (it needed **tracking**, not a red flag, which
 asserts no threshold), the forced follow-up (done, as a rule), and sustained yellow nights,
-which were **measured** and found to catch zero additional cases across 738 person-weeks.
+which were tried on an archive of past wearable data and found to add nothing. See
+`experiments/detection/`.
 
 ## Documentation, rewritten 7 September 2026
 
@@ -226,7 +227,7 @@ of it is now finished work and lives in `history/review-2026-09/`.
 | `docs/DISCLOSURES.md` | Every limitation, its evidence, and the screen it appears on |
 | `docs/KNOWLEDGE-CHANGELOG.md` | Every clinical figure changed, with the quoted source or the command |
 | `docs/DESIGN-*.md` | Why four specific design choices are what they are, each with its measurement |
-| `docs/detection-results.json`, `EVALUATION.md` | The published accuracy figures |
+| `experiments/detection/detection-results.json`, `EVALUATION.md` | The published accuracy figures |
 | `docs/RUNBOOK-SIMULATION.md` | Taking it from a clean checkout to a live watch |
 
 **Finished work, in `history/review-2026-09/`:** the 34 item queue, the component-by-component
@@ -270,19 +271,17 @@ evidence. It was green for every one of these.
 
 ### The three findings from executing it that change how you read everything else
 
-1. **The detector no longer beats the published algorithm, and the claim that it does was
-   an artefact of running a looser rule.** Item 8 tightened the alert rule to NightSignal's
-   own: two consecutive nights at baseline + 4. Re-scored on the same cohort the two now
-   agree case for case, **46.7 percent sensitivity at a three day window against a 16.5
-   percent rate-matched chance floor**, one investigation per healthy person every 4.9
-   weeks. What survives is that it warns **earlier** (3.0 days median lead against 1.5) and
-   is **quieter** (0.203 alerts per person-week against 0.221). The old 53.3 percent came
-   from a rule the project was not citing. `docs/DESIGN-VS-NIGHTSIGNAL.md` has the table.
+1. **The detector no longer beats the published algorithm, and the claim that it did was
+   an artefact of running a looser rule than the one being cited.** Item 8 tightened the
+   alert rule to NightSignal's own: two consecutive nights at baseline + 4. Re-scored on the
+   same archive the two agree case for case. That correction is the finding; the figures on
+   either side of it are ours, from an archive re-analysis rather than any trial, and they
+   live in `experiments/detection/` behind its disclaimer.
 2. **A between-person number was being used for a within-person quantity.** The baseline
    prior used Bloomfield's 8.64 bpm, which is how much adults differ *from each other*. The
-   quantity needed is how much one person varies *night to night*, measured here at 3.71 bpm
-   over 107 people. This is the correction with the widest reach: it moves every robust z in
-   the system. Item 7.
+   quantity needed is how much one person varies *night to night*, which is a different
+   thing and a much smaller one. This is the correction with the widest reach: it moves
+   every robust z in the system. Item 7.
 3. **Fourteen figures carried a "Swept." annotation for a sensitivity analysis that does
    not exist anywhere.** Removed rather than fabricated. About 140 numbers in
    `data/knowledge/` still have no source and are now marked as such on screen, not only in
@@ -290,9 +289,10 @@ evidence. It was green for every one of these.
 
 ### What is still open
 
-- **Item 30, the reranker, was measured and not adopted.** 16 configurations across two
-  cross-encoders, and not one beat plain hybrid retrieval at 79.2 percent precision. The
-  item's own prescription is 9.4 points worse. The table is in the module docstring of
+- **Item 30, the reranker, was tried and not adopted.** Several configurations across two
+  cross-encoders, and not one beat plain hybrid retrieval on this corpus. That is an
+  engineering comparison of our own search against itself, recorded in
+  `experiments/retrieval/`. The table is in the module docstring of
   `tools/retrieval_check.py` and the outcome is written into the plan item itself.
 - **A cited sentence can still misdescribe the passage it cites.** Found by using the
   dashboard. Not a bug and not fixable by a cheap check, so it is recorded in
@@ -308,24 +308,24 @@ with the source sentence quoted or the measurement that replaced it. A number st
 be invented. `README.md`, `AGENTS.md`, `CLAUDE.md` and `.agents/rules/` may be edited.
 **`history/`, `research/`, `archive/` and `docs/CONTRACTS.md` remain read-only.**
 
-### The evidence is in `tools/cohort/`, and it is committed
+### The evidence is in `experiments/detection/cohort/`, and it is committed
 
 The cohort numbers used to live in a gitignored `scratch/`, so they would not have survived
 a clean checkout. They are now committed and reproducible from two public downloads:
 
 | File | What it does |
 |---|---|
-| `tools/cohort/fetch.py` | downloads both public inputs and asserts their byte counts |
-| `tools/cohort/labels.py` | extracts the symptom-onset labels from the supplementary workbook |
-| `tools/cohort/evaluate.py` | replays this system's own detector over the cohort |
-| `tools/cohort/report.py` | sensitivity at four windows, chance floor, alert burden |
-| `tools/cohort/sweep.py` | absolute against personal thresholds, at matched alert rates |
-| `tools/cohort/infection.py` | the infection effect against matched controls |
-| `tools/cohort/band_width.py` | night-to-night noise, three ways |
-| `tools/cohort/chronos.py` | whether the forecast added anything. It did not, and it is gone |
+| `experiments/detection/cohort/fetch.py` | downloads both public inputs and asserts their byte counts |
+| `experiments/detection/cohort/labels.py` | extracts the symptom-onset labels from the supplementary workbook |
+| `experiments/detection/cohort/evaluate.py` | replays this system's own detector over the cohort |
+| `experiments/detection/cohort/report.py` | sensitivity at four windows, chance floor, alert burden |
+| `experiments/detection/cohort/sweep.py` | absolute against personal thresholds, at matched alert rates |
+| `experiments/detection/cohort/infection.py` | the infection effect against matched controls |
+| `experiments/detection/cohort/band_width.py` | night-to-night noise, three ways |
+| `experiments/detection/cohort/chronos.py` | whether the forecast added anything. It did not, and it is gone |
 | `tools/retrieval_check.py` | whether search returns passages about what was asked |
 
-Start with `tools/cohort/README.md`. The published figures are in `docs/detection-results.json`.
+Start with `experiments/detection/cohort/README.md`. The published figures are in `experiments/detection/detection-results.json`.
 
 ---
 
@@ -337,7 +337,7 @@ uv run ruff check src tests         # clean
 uv run ruff format --check src tests
 uv run wha doctor                   # no fail rows
 uv run wha demo run illness-onset   # exits 0, opens an episode, reaches a disposition
-uv run python tools/retrieval_check.py   # 77.1 percent, and every off-topic passage listed
+uv run python tools/retrieval_check.py   # our own retrieval check, and every off-topic passage listed
 uv run wha corpus search fever      # Fever first, and no internal configuration at all
 ```
 
@@ -382,8 +382,8 @@ All of the above is fixed. The detail is in `history/plan/PROGRESS.md`.
 | `wha doctor` | no fail rows | 5 September |
 | Dashboard driven end to end with Playwright | all five pages, three defects found | 5 September |
 | Telegram | a real message sent through `converse_over_telegram` | 5 September |
-| Detection accuracy | 46.7% at 3 days against a 16.5% chance floor, `docs/detection-results.json` | 5 September |
-| Retrieval precision | 77.1% at 8 over twelve judged queries, `tools/retrieval_check.py` | 5 September |
+| Detection performance | **Not established.** There is no clinical trial and no validation. Our own re-analysis of a public archive is in `experiments/detection/`, behind its disclaimer | 7 September |
+| Retrieval quality | Checked by us on twelve queries we judged ourselves. Not a benchmark, not validated. `tools/retrieval_check.py` | 5 September |
 | Corpus | **1,849 chunks**, four layers, one of them fetched | 5 September |
 | Frozen scenarios | **11 of 11** live against the real provider, 30 expectations, no failures | 5 September, re-run |
 
@@ -748,13 +748,12 @@ A pipeline review, stage by stage, driven rather than read.
 optional `Forecast` defaulting to `NOT_RUN` and every caller left it out. A subject with 41
 usable nights against a five-night minimum recorded `NOT_RUN` on every night, while
 `wha doctor` reported 182 MB of weights present and this file claimed Chronos was
-forecasting. It was connected, which is what finally let it be measured, **and the
-measurement deleted it.** Over 7,295 cohort nights the forecast residual separated illness
-WORSE than the plain baseline residual the detector already computes, AUC 0.586 against
-0.629, and across 30 labelled infections it caught one the detector missed at the most
-generous threshold and none at tighter ones. `src/wha/detect/forecast.py`, the five
-`FORECAST_*` constants and the `chronos-forecasting` dependency are gone. Reproduce with
-`uv run python tools/cohort/chronos.py`.
+forecasting. It was connected, which is what finally let it be compared, **and the
+comparison deleted it.** On our own data the forecast residual separated illness less well
+than the plain baseline residual the detector already computes, and it caught essentially
+nothing the detector missed. `src/wha/detect/forecast.py`, the five `FORECAST_*` constants
+and the `chronos-forecasting` dependency are gone. The comparison and its limits are in
+`experiments/forecasting/`.
 
 That agrees with the literature rather than contradicting it: Alavi et al. 2022, the source
 of our thresholds, measured plain baseline deviation at 78 percent sensitivity against 54

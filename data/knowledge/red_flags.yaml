@@ -91,11 +91,11 @@ vitals:
       Not a published cut-off. It is derived from this repository's own numbers: the
       largest single effect in causes.yaml is the luteal plateau at 3.91 bpm, and the
       measured within-person night-to-night scale is 3.71 bpm (WITHIN_PERSON_SCALE_PRIOR_BPM,
-      107 people, tools/cohort/band_width.py). Six scaled MADs is therefore about 22 bpm,
+      107 people, experiments/detection/cohort/band_width.py). Six scaled MADs is therefore about 22 bpm,
       which no combination of confounders in the table reaches. The purpose is to catch a
       reading no ordinary explanation covers, not to score severity.
       MEASURED FREQUENCY: over 7,865 usable cohort nights, |robust_z| > 6 fires on 0.6
-      percent of nights. Reproduce with `uv run python tools/cohort/band_width.py`.
+      percent of nights. Reproduce with `uv run python experiments/detection/cohort/band_width.py`.
     cold_rung_fallback_bpm_above: 100
     provenance_cold_rung: ASSUMED
     assumption_cold_rung: >

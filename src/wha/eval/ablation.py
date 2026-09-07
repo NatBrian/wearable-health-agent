@@ -82,5 +82,5 @@ def run_ablation_eval(
         "contribution for the Chronos forecast after it was deleted. It is disabled "
         "rather than left printing numbers nobody measured. The measurements that ARE "
         "real are the policy suite (uv run wha eval policy), which runs the real policies "
-        "through the real belief model, and tools/cohort/ for detection accuracy."
+        "through the real belief model, and experiments/detection/cohort/ for detection accuracy."
     )

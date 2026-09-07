@@ -98,7 +98,7 @@ presented this change as a general improvement. It is not one, and saying so is 
 useful than the stronger claim.
 
 Measured on the 21 participants in the Mishra 2020 cohort who have sleep staging, scoring
-the same nights both ways (`uv run python tools/cohort/report.py`):
+the same nights both ways (`uv run python experiments/detection/cohort/report.py`):
 
 | Night-to-night wobble on the sleep window | People |
 |---|---|

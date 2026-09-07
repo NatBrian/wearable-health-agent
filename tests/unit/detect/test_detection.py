@@ -107,7 +107,7 @@ def test_only_two_consecutive_reds_flag() -> None:
     running something looser.
 
     Measured before changing it, on 30 labelled COVID-19 cases and 76 healthy people over
-    738 person-weeks (uv run python tools/cohort/sweep.py):
+    738 person-weeks (uv run python experiments/detection/cohort/sweep.py):
 
         at least one RED : 60.0 percent sensitivity, 0.272 investigations per person-week
         both RED         : 53.3 percent sensitivity, 0.198 investigations per person-week

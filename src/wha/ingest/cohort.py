@@ -23,7 +23,7 @@ def load_cohort_labels(labels_file: Path | None = None) -> dict[str, Any]:
     information, and blocker A-25 recorded it as the reason detection accuracy could not be
     measured. That turned out to be wrong: the labels are in the Mishra et al. 2020
     supplementary workbook on the same date shift as the public files, and
-    `tools/cohort/labels.py` extracts them. The blocker is closed and the YAML was never
+    `experiments/detection/cohort/labels.py` extracts them. The blocker is closed and the YAML was never
     written, so `uv run wha eval detection` failed on every machine with
 
         Cohort labels file missing at 'data/knowledge/cohort_labels.yaml'
@@ -36,17 +36,17 @@ def load_cohort_labels(labels_file: Path | None = None) -> dict[str, Any]:
         raise ConfigError(
             f"Cohort labels not found at '{path}'. They are extracted from the Mishra "
             "et al. 2020 supplementary workbook, which is a public download. Run:\n"
-            "    uv run python tools/cohort/fetch.py\n"
-            "    uv run python tools/cohort/labels.py\n"
-            "See tools/cohort/README.md. The headline detection figures are already "
-            "published in docs/detection-results.json and EVALUATION.md."
+            "    uv run python experiments/detection/cohort/fetch.py\n"
+            "    uv run python experiments/detection/cohort/labels.py\n"
+            "See experiments/detection/cohort/README.md. The headline detection figures are already "
+            "published in experiments/detection/."
         )
 
     if path.suffix == ".json":
         rows = json.loads(path.read_text(encoding="utf-8"))
         if not rows:
             raise ConfigError(f"Cohort labels at '{path}' are empty.")
-        # tools/cohort/labels.py emits a flat list, one row per participant. The eval reads
+        # experiments/detection/cohort/labels.py emits a flat list, one row per participant. The eval reads
         # a mapping under "stanford", so it is reshaped here rather than in either of them:
         # the tool's output format is what the published numbers were produced from and
         # must not drift, and the eval's shape is what its callers already expect.

@@ -1,7 +1,7 @@
 # Which data this system uses, and why not more
 
 **Status:** decided, 3 September 2026, on measurements taken from the live device and from
-the benchmark in `EVALUATION.md`.
+the simulation in `experiments/policy-simulation/`.
 
 A reasonable question when you first see this project: Health Connect defines around sixty
 kinds of health data, so why does this use seven of them? This is the answer, with the
@@ -107,10 +107,11 @@ variability while raising heart rate and respiratory rate** — the same signatu
 infection. Adding those sensors would tell you more precisely that something changed. It
 would not tell you what changed.
 
-This is measurable, and it was measured. In `EVALUATION.md`, a policy that decides on
-sensors alone scores **0.500, exactly chance**, at identifying the cause. A policy that
-asks one well-chosen question scores **0.825**. More sensors do not move the first number.
-A question does.
+A simulation of this, in `experiments/policy-simulation/`, behaves the way the argument
+predicts: deciding on sensor readings alone does no better than chance at naming the cause,
+and asking one well-chosen question does better. That simulation is self-scored and proves
+nothing about a real person, but the design argument stands on its own: more sensors tell
+you more precisely that something changed, and none of them tell you what changed it.
 
 ---
 
@@ -154,4 +155,4 @@ that could be added.
 - `research/13-galaxy-watch5-data-reality.md` — access paths and what each one exposes
 - `research/findings/F1-clinical-infection-studies.md` — the corrected figures, including
   which commonly cited claims are unsupported
-- `EVALUATION.md` — the sensor-only versus asking comparison, measured by running the code
+- `experiments/policy-simulation/` — the sensor-only versus asking comparison, self-scored

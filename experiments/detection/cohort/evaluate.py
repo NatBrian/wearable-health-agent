@@ -5,7 +5,7 @@ measured is what the product would do, and implements the published algorithm se
 so the two can be scored on the same nights.
 
 Writes `data/cohort/cohort_results.json`, which `report.py` turns into the tables in
-`EVALUATION.md`. Takes roughly twenty minutes.
+`RESULTS.md`. Takes roughly twenty minutes.
 """
 
 from __future__ import annotations
@@ -364,7 +364,7 @@ def score(alerts: list[date], case: Case | None, all_nights: list[date]) -> dict
 def main() -> int:
     if not ZIP.exists() or not LABELS.exists():
         raise SystemExit(
-            "Missing inputs. Run tools/cohort/fetch.py then tools/cohort/labels.py first."
+            "Missing inputs. Run experiments/detection/cohort/fetch.py then experiments/detection/cohort/labels.py first."
         )
 
     labels = load_labels()
@@ -432,7 +432,7 @@ def main() -> int:
 
     RESULTS.write_text(json.dumps(rows, indent=1, default=str), encoding="utf-8")
     print(f"\nwrote {RESULTS}")
-    print("Next: uv run python tools/cohort/report.py")
+    print("Next: uv run python experiments/detection/cohort/report.py")
     return 0
 
 

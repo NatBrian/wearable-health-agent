@@ -95,7 +95,7 @@ Paths that must exist are created with `mkdir(parents=True, exist_ok=True)`, nev
 - PMData: 1.4 GB, and nothing in this repository reads it
 
 So: keep archives compressed, extract selectively, convert to parquet, delete intermediates. The
-cohort lives under `data/cohort/`, fetched by `tools/cohort/fetch.py`, and all of `data/` is
+cohort lives under `data/cohort/`, fetched by `experiments/detection/cohort/fetch.py`, and all of `data/` is
 gitignored. **Never commit a dataset, a database, a parquet file or a model weight.**
 
 The 182 MB of Chronos weights that used to live in `data/model_cache/` are no longer needed: the

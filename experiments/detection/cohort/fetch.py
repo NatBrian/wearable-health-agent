@@ -1,7 +1,7 @@
 """Download the two public inputs the detection evaluation needs.
 
 Neither file is committed. Both are public and neither needs registration. See
-`tools/cohort/README.md` for what they are and why their date shifts match.
+`experiments/detection/cohort/README.md` for what they are and why their date shifts match.
 
 Sizes are asserted against the published Content-Length rather than trusted, because a
 truncated 378 MB download produces a zip that opens and is missing participants, which
@@ -66,7 +66,7 @@ def main() -> int:
     download(WEARABLES_URL, DEST / "COVID-19-Wearables.zip", WEARABLES_BYTES)
     print("Supplementary Data 1 (symptom onset dates):")
     download(LABELS_URL, DEST / "supplementary-data-1.xlsx", LABELS_BYTES)
-    print("\nNext: uv run python tools/cohort/labels.py")
+    print("\nNext: uv run python experiments/detection/cohort/labels.py")
     return 0
 
 

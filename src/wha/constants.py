@@ -127,7 +127,7 @@ MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 #
 # MEASURED, not assumed: 3.71 bpm is the median scaled MAD of 107 people's own overnight
 # readings in the Mishra 2020 cohort, over 8,508 nights. Reproduce with
-# `uv run python tools/cohort/band_width.py`, which also reports what this changes:
+# `uv run python experiments/detection/cohort/band_width.py`, which also reports what this changes:
 # the mature band narrows from 4.10 to 3.11 bpm, and the extreme heart rate rules would
 # fire on 32 of 7,079 nights rather than 9, one per 31 person-weeks rather than one per
 # 112. Recorded in docs/KNOWLEDGE-CHANGELOG.md.
@@ -139,7 +139,7 @@ MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 WITHIN_PERSON_SCALE_PRIOR_BPM = 3.71
 WITHIN_PERSON_SCALE_CITATION = (
     "measured on 107 participants and 8,508 nights of the Mishra et al. 2020 cohort, "
-    "reproducible with tools/cohort/band_width.py"
+    "reproducible with experiments/detection/cohort/band_width.py"
 )
 
 # Population prior for nocturnal RHR.
@@ -168,7 +168,7 @@ DETECT_RED_BPM = 4.0
 # so red followed by yellow fired as well, while still quoting NightSignal's sensitivity
 # as support. Measured on the cohort, the looser rule bought 6.7 points of sensitivity for
 # 37 percent more investigations on healthy people. See wha/detect/detector.py and
-# tools/cohort/sweep.py.
+# experiments/detection/cohort/sweep.py.
 DETECT_PERSISTENCE_NIGHTS = 2
 DETECT_CITATION_PLAIN = "a 2022 study published in Nature Medicine, known as NightSignal"
 DETECT_CITATION = "Alavi et al. 2022, Nature Medicine 28:175-184 (NightSignal)"
@@ -226,7 +226,7 @@ SHORT_SLEEP_HOURS = 5.5  # covariate only, never subtracted
 # one advisory paragraph that changed nothing.
 #
 # Removed on a measurement, not on taste. Across 7,295 nights of the Mishra 2020 cohort
-# (uv run python tools/cohort/chronos.py), asked whether the forecast separates illness
+# (uv run python experiments/detection/cohort/chronos.py), asked whether the forecast separates illness
 # nights from ordinary ones better than the residual the detector already has:
 #
 #   plain baseline residual : AUC 0.629
@@ -353,7 +353,7 @@ INTERRUPTION_BUDGET_CITATION = (
 #
 # The quiet band is the control, and it is the better story: the arithmetic decides an
 # interruption is not worth its cost, rather than a counter running out. Reproduce the
-# alert rate with `uv run python tools/cohort/report.py`.
+# alert rate with `uv run python experiments/detection/cohort/report.py`.
 #
 # The counter is kept anyway. It costs nothing, it is a genuine backstop, and the alert
 # rate moved when the persistence rule was tightened, so removing a safety net to save

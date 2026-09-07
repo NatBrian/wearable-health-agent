@@ -156,14 +156,14 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
 
     # 6. The evaluation cohort.
     #
-    # This looked in data/datasets/ for "stanford" and "pmdata" and reported them missing.
-    # The cohort detection accuracy is measured on now lives in data/cohort/, fetched by
-    # tools/cohort/fetch.py, and pmdata was never used by anything. Reporting a real
-    # dataset as absent because it sits under a different name is the kind of small
-    # untruth this project has had enough of.
-    # settings.data_dir is data/datasets, not data/. tools/cohort/ writes to data/cohort/,
-    # which is its parent's sibling, so this resolves from the repository root rather than
-    # from the dataset directory.
+    # The cohort the detection EXPERIMENT uses. It is not needed to run the system, and
+    # nothing in the product depends on it.
+    #
+    # This looked in data/datasets/ for "stanford" and "pmdata" and reported them
+    # missing. The cohort lives in data/cohort/, fetched by
+    # experiments/detection/cohort/fetch.py, and pmdata was never used by anything.
+    # Reporting a real dataset as absent because it sits under a different name is the
+    # kind of small untruth this project has had enough of.
     cohort_dir = Path("data") / "cohort"
     cohort_zip = cohort_dir / "COVID-19-Wearables.zip"
     cohort_labels = cohort_dir / "labels.json"
@@ -181,9 +181,9 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
                 name="cohort",
                 status="miss",
                 detail=(
-                    "not fetched. Detection accuracy is already published in EVALUATION.md "
-                    "from docs/detection-results.json; fetch only to re-measure. "
-                    "Run: uv run python tools/cohort/fetch.py"
+                    "not fetched. This is only needed to re-run the detection experiment, "
+                    "whose results and their limits are in experiments/detection/. "
+                    "Run: uv run python experiments/detection/cohort/fetch.py"
                 ),
             )
         )

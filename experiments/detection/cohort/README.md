@@ -1,11 +1,11 @@
 # Detection accuracy on real labelled data
 
-This is how the detection numbers in `EVALUATION.md` were produced. Nothing here is part of
+This is how the detection numbers in `RESULTS.md` were produced. Nothing here is part of
 the product. It imports the product's own pure functions so that what is measured is what
 the product would actually do on those nights.
 
 The project's central claim is that an overnight resting heart rate deviation is worth
-investigating. Until this was run, that claim had no evidence: `EVALUATION.md` said
+investigating. Until this was run, that claim had no evidence: `RESULTS.md` said
 detection accuracy was "not evaluated" because labelled data was missing. It was never
 missing. Both inputs are public downloads and together they take under an hour.
 
@@ -29,10 +29,10 @@ Neither file is committed. `data/cohort/` is gitignored, like everything else un
 ## Running it
 
 ```bash
-uv run python tools/cohort/fetch.py        # about 380 MB, a few minutes
-uv run python tools/cohort/labels.py       # writes data/cohort/labels.json
-uv run python tools/cohort/evaluate.py     # about 20 minutes, writes cohort_results.json
-uv run python tools/cohort/report.py       # prints the tables in EVALUATION.md
+uv run python experiments/detection/cohort/fetch.py        # about 380 MB, a few minutes
+uv run python experiments/detection/cohort/labels.py       # writes data/cohort/labels.json
+uv run python experiments/detection/cohort/evaluate.py     # about 20 minutes, writes cohort_results.json
+uv run python experiments/detection/cohort/report.py       # prints the tables in RESULTS.md
 ```
 
 `evaluate.py` is the slow one. It replays the product's baseline and detector night by

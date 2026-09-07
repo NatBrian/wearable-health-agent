@@ -62,7 +62,7 @@ CONTRACT_CONSTANTS = [
 # satisfy a list would be the exact defect this project keeps producing: something
 # defined, referenced, and never reached.
 REMOVED_FROM_THE_CODE: dict[str, str] = {
-    "FORECAST_MODEL": "Chronos removed 5 September 2026, see tools/cohort/chronos.py",
+    "FORECAST_MODEL": "Chronos removed 5 September 2026, see experiments/detection/cohort/chronos.py",
     "FORECAST_MIN_NIGHTS": "same",
     "FORECAST_Q_LO": "same",
     "FORECAST_Q_HI": "same",

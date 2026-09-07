@@ -13,7 +13,7 @@ are present" passed on a table that had one estimator in it twice.
 The forecast is now gone entirely, measured rather than argued: over 7,295 nights of the
 Mishra 2020 cohort it separated illness nights from ordinary ones WORSE than the plain
 residual (AUC 0.586 against 0.629) and caught at most one of thirty infections the
-detector missed. See `tools/cohort/chronos.py`.
+detector missed. See `experiments/detection/cohort/chronos.py`.
 """
 
 from datetime import date, timedelta

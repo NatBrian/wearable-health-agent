@@ -15,7 +15,7 @@ def test_cohort_missing_labels_is_a_hard_error_that_says_how_to_get_them(tmp_pat
     It pointed at `data/knowledge/cohort_labels.yaml`, to be authored by hand from
     supplementary information, and blocker A-25 recorded that as the reason detection
     accuracy could not be measured. That was wrong: the labels are in the Mishra et al.
-    2020 supplementary workbook and `tools/cohort/labels.py` extracts them. So the old
+    2020 supplementary workbook and `experiments/detection/cohort/labels.py` extracts them. So the old
     message told every reader to produce a file nobody was ever going to produce, and
     `uv run wha eval detection` failed on every machine.
     """
@@ -23,7 +23,7 @@ def test_cohort_missing_labels_is_a_hard_error_that_says_how_to_get_them(tmp_pat
     with pytest.raises(ConfigError, match="Cohort labels not found"):
         load_cohort_labels(missing_file)
 
-    with pytest.raises(ConfigError, match="tools/cohort/labels.py"):
+    with pytest.raises(ConfigError, match="experiments/detection/cohort/labels.py"):
         load_cohort_labels(missing_file)
 
 

@@ -93,7 +93,7 @@ def onset_for(symptoms: list[str], diagnoses: list[str]) -> str | None:
 
 def main() -> int:
     if not SOURCE.exists():
-        raise SystemExit(f"{SOURCE} is missing. Run tools/cohort/fetch.py first.")
+        raise SystemExit(f"{SOURCE} is missing. Run experiments/detection/cohort/fetch.py first.")
 
     rows = read_sheet(zipfile.ZipFile(SOURCE), SHEET)
     header = next(
@@ -131,7 +131,7 @@ def main() -> int:
     print(f"  participants listed        : {len(out)}")
     print(f"  COVID-19                   : {covid}")
     print(f"  COVID-19 with an onset date: {dated}")
-    print("\nNext: uv run python tools/cohort/evaluate.py")
+    print("\nNext: uv run python experiments/detection/cohort/evaluate.py")
     return 0
 
 

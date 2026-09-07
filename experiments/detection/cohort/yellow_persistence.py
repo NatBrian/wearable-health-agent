@@ -33,7 +33,7 @@ from wha.constants import (  # noqa: E402
 
 RESULTS = REPO / "data" / "cohort" / "cohort_results.json"
 if not RESULTS.exists():
-    raise SystemExit(f"{RESULTS} is missing. Run tools/cohort/evaluate.py first.")
+    raise SystemExit(f"{RESULTS} is missing. Run experiments/detection/cohort/evaluate.py first.")
 
 rows = json.loads(RESULTS.read_text(encoding="utf-8"))
 if "per_night" not in rows[0]:

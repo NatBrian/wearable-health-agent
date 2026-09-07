@@ -29,25 +29,28 @@ stub out a blocked module, or change a contract to unblock yourself.
 **Resolved, and now reproducible from this repository.** The Mishra 2020 wearables data is a
 public 378 MB download and the symptom onset dates are in the same paper's Supplementary
 Data 1, Supplementary Table 3, on the **same date shift** as the public files, so they join
-directly. `cohort_labels.yaml` never needed authoring; `tools/cohort/labels.py` extracts the
+directly. `cohort_labels.yaml` never needed authoring; `experiments/detection/cohort/labels.py` extracts the
 labels from the spreadsheet.
 
-**The measurement, on the system as it stands after items 7 and 8:** 46.7 percent
-sensitivity at a three day pre-symptomatic window against a **16.5 percent rate-matched
-chance floor**, and 66.7 percent against 34.2 at seven days. One investigation per healthy
-person every 4.9 weeks.
+**What it settled:** the detector, run against this archive, performs comparably to the
+published algorithm whose thresholds it borrows rather than better than it, and every
+sensitivity figure has to be read against a rate-matched chance floor because a wide enough
+window flatters any detector.
 
-An earlier figure of 53.3 percent was measured before the alert rule was tightened to the
-published one, and it is superseded rather than better. Published in `EVALUATION.md`,
-generated from `docs/detection-results.json`.
+An earlier, higher figure came from a looser alert rule than the one being cited, and is
+superseded rather than better.
+
+**The figures themselves are in `experiments/detection/`, behind its disclaimer, and are
+not repeated here.** They are a re-analysis of an archive by the author, not a trial, and
+nothing was warned, acted on or changed by them.
 
 Reproduce:
 
 ```bash
-uv run python tools/cohort/fetch.py
-uv run python tools/cohort/labels.py
-uv run python tools/cohort/evaluate.py
-uv run python tools/cohort/report.py
+uv run python experiments/detection/cohort/fetch.py
+uv run python experiments/detection/cohort/labels.py
+uv run python experiments/detection/cohort/evaluate.py
+uv run python experiments/detection/cohort/report.py
 ```
 
 The original text follows.
@@ -863,7 +866,7 @@ one person's own median and is the divisor of `robust_z`, which is a within-pers
 quantity, and the unit the two extreme heart rate rules are written in. Using one for the
 other is the same category error the contract itself was amended on 3 September to fix on
 the centre. The replacement is measured, not assumed: 3.71 bpm is the median scaled MAD of
-107 people across 8,508 nights, reproducible with `tools/cohort/band_width.py`, and the
+the archive, reproducible with `experiments/detection/cohort/band_width.py`, and the
 full working with what it changes is in `docs/KNOWLEDGE-CHANGELOG.md`.
 
 **What I need:** a one-line amendment to `docs/CONTRACTS.md`, which is read-only to me. The
@@ -883,9 +886,9 @@ along with `src/wha/detect/forecast.py`. `docs/CONTRACTS.md` still lists all fiv
 **What I think is wrong:** nothing in the code. The forecast was removed on a measurement
 rather than a preference. Over 7,295 nights of the Mishra 2020 cohort it separates illness
 nights from ordinary ones WORSE than the plain baseline residual the detector already
-computes, AUC 0.586 against 0.629, where 0.5 is no separation at all. Across 30 labelled
+computes, on our own data. Across 30 labelled
 infections it caught one the detector missed at the most generous threshold and none at
-tighter ones. Reproduce with `uv run python tools/cohort/chronos.py`.
+tighter ones. Reproduce with `uv run python experiments/detection/cohort/chronos.py`.
 
 Keeping the five constants as dead names purely to satisfy a list would be the exact
 defect this codebase keeps producing: something defined, referenced, and never reached.
@@ -1105,17 +1108,17 @@ registration, and the symptom-onset labels are in the same paper's supplementary
 same date shift as the public files, so they join directly. `cohort_labels.yaml` never needed
 authoring.
 
-**What it produced**, on 120 people and 8,508 nights, replaying this system's own detector:
-46.7 percent sensitivity at a three day pre-symptomatic window against a 16.5 percent
-rate-matched chance floor, 66.7 against 34.2 at seven days, and one investigation per healthy
-person every 4.9 weeks. Published in `EVALUATION.md` and `docs/detection-results.json`.
+**What it produced** was the first evidence of any kind about how this detector behaves on
+data from people other than the author. The figures are in `experiments/detection/`, behind
+its disclaimer, and are deliberately not repeated here: they are an archive re-analysis, not
+a trial.
 
 It also answered three questions that were being argued from theory: the step filter does
 nothing here, a personal threshold is worse than a fixed one at every matched alert rate, and the
 neural forecaster separated illness worse than the plain residual and was deleted.
 
 `data/datasets/stanford` and `pmdata` remain empty and nothing reads them. `wha data fetch
-stanford` no longer pretends to fetch anything; it names `tools/cohort/fetch.py`, which does.
+stanford` no longer pretends to fetch anything; it names `experiments/detection/cohort/fetch.py`, which does.
 
 ## contract - the pipeline models are not in it, and the drift test cannot see that
 
@@ -1341,7 +1344,7 @@ investigation opened, ever. `sweep.py` had compared "at least one RED" against "
 and never scored a yellow-persistence arm, so the behaviour was an assumption rather than a
 finding.
 
-Measured with `tools/cohort/yellow_persistence.py` on 30 labelled cases, 76 controls and 738
+Measured with `experiments/detection/cohort/yellow_persistence.py` on 30 labelled cases, 76 controls and 738
 person-weeks:
 
 ```

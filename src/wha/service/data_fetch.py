@@ -18,7 +18,7 @@ def fetch_data(target: str) -> str:
         return (
             "Chronos was removed on 5 September 2026. It separated illness worse than the "
             "baseline residual the detector already computes, measured on 7,295 nights. "
-            "See tools/cohort/chronos.py. There is nothing to fetch."
+            "See experiments/detection/cohort/chronos.py. There is nothing to fetch."
         )
 
     if target_clean == "stanford":
@@ -32,10 +32,10 @@ def fetch_data(target: str) -> str:
         # making a folder.
         return (
             "Not fetched here. The Mishra et al. 2020 cohort is a 378 MB public download "
-            "and tools/cohort/fetch.py does it, checking the byte count, with "
-            "tools/cohort/labels.py extracting the symptom-onset labels afterwards:\n"
-            "    uv run python tools/cohort/fetch.py\n"
-            "    uv run python tools/cohort/labels.py\n"
+            "and experiments/detection/cohort/fetch.py does it, checking the byte count, with "
+            "experiments/detection/cohort/labels.py extracting the symptom-onset labels afterwards:\n"
+            "    uv run python experiments/detection/cohort/fetch.py\n"
+            "    uv run python experiments/detection/cohort/labels.py\n"
             "This command previously created an empty directory and reported success."
         )
 
@@ -46,7 +46,7 @@ def fetch_data(target: str) -> str:
             "Not fetched, and nothing reads it. PMData is listed as an optional benchmark "
             "in `wha doctor` and no code in this repository loads it. This command "
             "previously created an empty directory and reported success. The cohort that "
-            "IS used is Mishra et al. 2020: see tools/cohort/README.md."
+            "IS used is Mishra et al. 2020: see experiments/detection/cohort/README.md."
         )
 
     if target_clean == "corpus":

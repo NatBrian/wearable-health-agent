@@ -538,7 +538,7 @@ documents:
 
     MEASURED, 5 September 2026, on 30 labelled COVID-19 cases and 138 matched healthy windows
     from the Mishra et al. 2020 cohort, using this system''s own compute_baseline so the answer
-    is in the units the detector works in. Reproduce with `uv run python tools/cohort/infection.py`.
+    is in the units the detector works in. Reproduce with `uv run python experiments/detection/cohort/infection.py`.
 
     EFFECT SIZE. Mean nightly elevation above the person''s own baseline across the seven
     nights BEFORE symptoms: median +1.93 bpm in cases against -0.25 bpm in matched healthy

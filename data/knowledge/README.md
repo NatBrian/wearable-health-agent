@@ -33,7 +33,7 @@ part of a weekly interruption allowance on it was the wrong trade.
 
 `cohort_labels.yaml` was listed here as pending and **it was never needed**. The labels are in the
 Mishra et al. 2020 supplementary workbook on the same date shift as the public files, and
-`tools/cohort/labels.py` extracts them into `data/cohort/labels.json`.
+`experiments/detection/cohort/labels.py` extracts them into `data/cohort/labels.json`.
 
 ---
 

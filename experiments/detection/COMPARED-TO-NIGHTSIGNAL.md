@@ -64,7 +64,7 @@ followed by a yellow one fired as well.
 
 Measured on 30 labelled COVID-19 cases and 76 people with no illness label, over 738
 person-weeks, in a window of **7 days before symptom onset to 1 day after**
-(`uv run python tools/cohort/sweep.py`).
+(`uv run python experiments/detection/cohort/sweep.py`).
 
 That is a NARROWER window than the "7 days before, 3 after" row in the results table below,
 which is why the same rule reads 53.3 percent here and 66.7 percent there. Both were called
@@ -153,7 +153,7 @@ and now the two-consecutive-RED alert rule, because all three are used as publis
 mean-of-zero-step-minutes over a clock window with an expanding streaming median, and this
 system uses a median over recorded sleep with a 28 night trailing window. What this system
 achieves is measured separately, on the same public cohort, and is published in
-`EVALUATION.md` beside a rate-matched chance floor.
+`RESULTS.md` beside a rate-matched chance floor.
 
 **Untested.** The trailing 28 night window against an expanding one. Nothing here measures
 it, and it is recorded as untested rather than assumed to be equivalent.

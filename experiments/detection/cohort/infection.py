@@ -112,7 +112,7 @@ def line(label: str, s: dict) -> str:
 
 def main() -> int:
     if not ZIP.exists():
-        raise SystemExit("Run tools/cohort/fetch.py first.")
+        raise SystemExit("Run experiments/detection/cohort/fetch.py first.")
 
     z = zipfile.ZipFile(ZIP)
     available = set(participants(z))

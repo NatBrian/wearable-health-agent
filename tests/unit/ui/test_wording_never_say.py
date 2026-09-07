@@ -112,7 +112,7 @@ def test_no_screen_or_constant_quotes_a_superseded_alert_rate() -> None:
     "once every 3.6 weeks" is 1/0.272, the alert rate under the LOOSER persistence rule
     that item 8 removed. The measured rate under the published two-consecutive-RED rule is
     0.203 per person-week, one investigation every 4.9 weeks, and that is what
-    docs/detection-results.json and data/cohort/report.txt say. The figure survived in
+    experiments/detection/detection-results.json and data/cohort/report.txt say. The figure survived in
     constants.py twice and in the Audit page's own prose, so a person reading "how often
     will this interrupt me" was given a retracted number.
 

@@ -188,8 +188,8 @@ survive.
 ## What was measured and left alone
 
 A long run of merely yellow nights opens nothing. That gap is real, and
-`tools/cohort/yellow_persistence.py` measured what closing it would buy across 30 labelled
-cases, 76 controls and 738 person-weeks: **zero additional cases** at every run length from
+`experiments/detection/cohort/yellow_persistence.py` measured what closing it would buy across 30 labelled
+cases and controls in an archive of past wearable data: **nothing additional found** at every run length from
 3 to 7 nights, for up to 5 percent more investigations on healthy people. Every case a long
 yellow run would catch is already caught by the two-red rule. Nothing changed. That is a
 finding, not a shrug, and it should not be re-argued from theory.

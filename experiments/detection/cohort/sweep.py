@@ -35,12 +35,12 @@ from wha.constants import BASELINE_MIN_NIGHTS_PERSONAL
 
 RESULTS = REPO / "data" / "cohort" / "cohort_results.json"
 if not RESULTS.exists():
-    raise SystemExit(f"{RESULTS} is missing. Run tools/cohort/evaluate.py first.")
+    raise SystemExit(f"{RESULTS} is missing. Run experiments/detection/cohort/evaluate.py first.")
 
 rows = json.loads(RESULTS.read_text(encoding="utf-8"))
 if "per_night" not in rows[0]:
     raise SystemExit(
-        "cohort_results.json predates the per-night record. Re-run tools/cohort/evaluate.py."
+        "cohort_results.json predates the per-night record. Re-run experiments/detection/cohort/evaluate.py."
     )
 
 # 7 days before onset to 1 day after. Narrower than the report's widest window, because a

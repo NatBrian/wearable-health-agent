@@ -78,9 +78,9 @@ def run_detection_eval(
     reports measured-looking zeros is worse than one that fails, because failure is
     obviously not a result and 0.0 is not obviously not one.
 
-    The real measurement exists and is reproducible: `tools/cohort/` replays this system's
+    The real measurement exists and is reproducible: `experiments/detection/cohort/` replays this system's
     own detector over 8,508 nights of the Mishra 2020 cohort, and the figures it produces
-    are published in docs/detection-results.json and EVALUATION.md. This function stays
+    are published in experiments/detection/. This function stays
     because it is a genuine benchmark harness for a caller that has the data; it just
     refuses to pretend when it does not.
     """
@@ -90,11 +90,11 @@ def run_detection_eval(
             "This suite scores detections a caller replays; it does not replay them "
             "itself, and nothing in the application does. The measured detection "
             "accuracy comes from tools/cohort:\n"
-            "    uv run python tools/cohort/fetch.py\n"
-            "    uv run python tools/cohort/labels.py\n"
-            "    uv run python tools/cohort/evaluate.py\n"
-            "    uv run python tools/cohort/report.py\n"
-            "The published figures are in docs/detection-results.json and EVALUATION.md."
+            "    uv run python experiments/detection/cohort/fetch.py\n"
+            "    uv run python experiments/detection/cohort/labels.py\n"
+            "    uv run python experiments/detection/cohort/evaluate.py\n"
+            "    uv run python experiments/detection/cohort/report.py\n"
+            "The published figures are in experiments/detection/."
         )
 
     cohort_labels = labels if labels is not None else load_cohort_labels()

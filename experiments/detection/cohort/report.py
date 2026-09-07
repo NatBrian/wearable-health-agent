@@ -1,4 +1,4 @@
-"""Turn the per-participant cohort results into the numbers EVALUATION.md publishes.
+"""Turn the per-participant cohort results into the numbers RESULTS.md publishes.
 
 Two things this does that a flattering evaluation would not:
 
@@ -21,7 +21,7 @@ REPO = Path(__file__).resolve().parents[2]
 RESULTS = REPO / "data" / "cohort" / "cohort_results.json"
 
 if not RESULTS.exists():
-    raise SystemExit(f"{RESULTS} is missing. Run tools/cohort/evaluate.py first.")
+    raise SystemExit(f"{RESULTS} is missing. Run experiments/detection/cohort/evaluate.py first.")
 
 rows = json.loads(RESULTS.read_text(encoding="utf-8"))
 
@@ -96,12 +96,12 @@ def random_sensitivity(key: str, before: int, after: int) -> float:
 # Everything printed below is also collected here and written to docs/, so
 # `wha eval-report` can render it without a second implementation of the scoring. The
 # 378 MB cohort is gitignored; this summary is small, derived and committed, so
-# EVALUATION.md still has its numbers on a clean checkout.
+# RESULTS.md still has its numbers on a clean checkout.
 SUMMARY_PATH = REPO / "docs" / "detection-results.json"
 summary: dict = {
     "source": (
         "Mishra et al. 2020, Nature Biomedical Engineering 4:1208-1220. Reproduce with "
-        "tools/cohort/fetch.py, labels.py, evaluate.py, report.py."
+        "experiments/detection/cohort/fetch.py, labels.py, evaluate.py, report.py."
     ),
     "participants": len(rows),
     "covid_cases_with_onset": len(covid),

@@ -159,7 +159,8 @@ That is worth being precise about, because it surprises people:
 
 This is not an arbitrary choice. It comes from a published study, and the looser version was
 tested against real illness data: allowing it to fire on one red night caught 2 more cases
-out of 30, at the cost of 37% more investigations on people who were perfectly fine. The
+slightly more often, at the cost of considerably more investigations into people who were
+perfectly fine. The
 long run of yellow nights was tested too, and caught **no** extra cases at all.
 
 The system also cannot judge anything until it has learned your normal from about a week of

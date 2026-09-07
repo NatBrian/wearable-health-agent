@@ -91,7 +91,7 @@ def compute_detection_for_features(
     # NightSignal's sensitivity as support for its own thresholds.
     #
     # Measured on 30 labelled COVID-19 cases and 76 healthy people over 738 person-weeks,
-    # at a seven day pre-symptomatic window (uv run python tools/cohort/sweep.py):
+    # at a seven day pre-symptomatic window (uv run python experiments/detection/cohort/sweep.py):
     #
     #   at least one RED : 60.0 percent sensitivity, 0.272 investigations per person-week
     #   both RED         : 53.3 percent sensitivity, 0.198 investigations per person-week
@@ -236,7 +236,7 @@ def detect_night(
     # night, and one advisory paragraph that changed nothing.
     #
     # Measured on 7,295 nights of the Mishra 2020 cohort (uv run python
-    # tools/cohort/chronos.py), asking whether it separates illness nights from ordinary
+    # experiments/detection/cohort/chronos.py), asking whether it separates illness nights from ordinary
     # ones better than the number the detector already has:
     #
     #   plain baseline residual : AUC 0.629

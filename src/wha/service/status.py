@@ -582,7 +582,7 @@ def check_live_production_suite() -> dict[str, Any]:
             if benchmarks_ok
             # `wha data fetch stanford` no longer pretends to fetch anything: it made an
             # empty directory and reported success, which is why this check had to exist.
-            else "Absent (run 'uv run python tools/cohort/fetch.py')",
+            else "Absent (run 'uv run python experiments/detection/cohort/fetch.py')",
         }
     )
 

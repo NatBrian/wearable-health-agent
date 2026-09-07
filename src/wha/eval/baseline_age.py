@@ -103,7 +103,7 @@ def run_baseline_age_eval(
     # One arm now, not two. The second was the same detector with a Chronos forecast
     # attached, and the forecast never set `level` or `flagged`, so the two arms computed
     # identical alerts and the "chronos_recall" column was the shrinkage column under
-    # another name. The forecast itself is gone; see tools/cohort/chronos.py.
+    # another name. The forecast itself is gone; see experiments/detection/cohort/chronos.py.
     curve_rows: list[dict[str, Any]] = []
     for n in TRUNCATION_POINTS:
         result = evaluate_truncated_history(feats, stanford_labels, n_nights=n)

@@ -502,18 +502,12 @@ meanwhile reported 182 MB of weights present, and this documentation described t
 in the present tense. That is the defect this codebase produces most often: something
 defined, referenced, and never reached.
 
-Once it was connected it could finally be measured, and the measurement is what settled it.
-Over **7,295 nights** of the Mishra 2020 cohort, scored on whether it separates illness
-nights from ordinary ones:
+Once it was connected it could finally be compared, and the comparison is what settled it.
+Scored on whether it separates illness nights from ordinary ones, the forecast residual did
+**worse** than the plain baseline residual the detector already computes, and across the
+labelled infections it caught essentially nothing the detector missed.
 
-| Signal | AUC |
-|---|---|
-| The plain baseline residual the detector already computes | **0.629** |
-| The Chronos forecast residual | 0.586 |
-
-0.5 is no separation at all. Across 30 labelled infections the forecast caught one the
-detector missed at the most generous threshold, and none at tighter ones. Reproduce with
-`uv run python tools/cohort/chronos.py`.
+The comparison, and what it is and is not worth, is in `experiments/forecasting/`.
 
 That agrees with the literature rather than contradicting it. Alavi et al. 2022, the paper
 that supplies this system's 3 and 4 bpm thresholds, compared three detectors on this exact
@@ -742,31 +736,36 @@ In the live run the belief was 0.0756, inside the band, and the policy asked
 `probe_symptoms` with an EVSI of **0.3935** against an interruption cost of 1.0, having
 beaten eight alternatives. After the answer, every remaining question fell below its cost
 and the agent stopped on its own. **The weekly budget was not what stopped it. Its own
-arithmetic was.** That is the strongest single result in the project.
+arithmetic was.** That is a worked example of the mechanism, from one run, not a result
+about anybody's health.
 
 ### Why this way?
 
-Because the two obvious alternatives are worse in ways you can measure, and the project
-measured them. From its own evaluation over 40 simulated cases:
+Because the two obvious alternatives behave badly, and a simulation of the policy shows
+where. **That simulation is self-scored**: forty synthetic cases, ground truth injected by
+this project, and a simulated person who answers every question truthfully and immediately.
+It is in `experiments/policy-simulation/` with its figures and its limits, and the figures
+are not repeated here.
 
-| Policy | Accuracy | Questions per episode |
-|---|---|---|
-| EVSI, this system | 0.675 | 0.40 |
-| Fixed probability threshold | 0.500 | 0.60 |
-| Never ask | 0.500 | 0.00 |
-| **Always ask** | **0.825** | **2.00** |
-| Ask at random | 0.525 | 0.35 |
+What the simulation shows, stated without them:
 
-**Never ask scores at chance.** That is the finding the rest of the system rests on: the
-sensor data alone carries no usable signal about which cause it is.
+- **Deciding from the sensor alone performs no better than chance** on a set built with an
+  even split of infections and mimics. That is the property the rest of the design rests on,
+  and it is a property of the simulation's construction as much as of the sensor: we chose
+  the mimics, and we chose the split.
+- **Asking every question every time is more accurate than asking selectively**, and costs
+  several times as many interruptions. This system ships the quieter policy on purpose, and
+  exposes the tuning constant in Settings so the trade belongs to the person rather than to
+  us.
+
+Neither statement is evidence that this helps a real person. No real person was involved.
 
 **Two weaknesses:**
 
-1. **Always-ask beats EVSI by 25 accuracy points.** The policy buys a large reduction in
-   questions (0.40 against 2.00 per episode) and pays a quarter of the available accuracy
-   for it. Whether that trade is right is a judgement about your tolerance for being
-   asked, and the system currently makes it for you with a single tuning constant. The
-   constant is exposed in settings, which is the right call.
+1. **Asking everything is more accurate than this policy, and it ships anyway.** The policy
+   buys a large reduction in questions and pays real accuracy for it. Whether that trade is
+   right is a judgement about somebody's tolerance for being interrupted, and the system
+   currently makes it for them with a single tuning constant.
 2. **The budget is cited from intensive care.** The two-per-week limit is justified by a
    systematic review finding that "72% to 99%" of alarms are false or non-actionable.
    That review is about **ICU bedside monitors**. Extending it to a phone notification is a
@@ -1183,43 +1182,28 @@ symptom of one of them rather than a problem of its own.**
    chest pain conversation the one cited source under an urgent escalation was "How to
    Prevent Heart Disease". Those passages were the leak in weakness 1: an answer-option
    list is a strong lexical match for a symptom query and says nothing. After the rewrite,
-   precision at 8 over twelve judged queries is **79.2%**, and the same chest pain
+   precision over the judged queries improved, and the same chest pain
    conversation now cites MedlinePlus "Chest Pain", which contains the costochondritis
    sentence the reply was built on. `uv run python tools/retrieval_check.py`.
 
 3. **There is still no reranking, and that is now a decision rather than a gap.** A
    reranker is a second, slower model that reads the query and each candidate passage
    together and re-scores them, and it is the standard fix for exactly the problem in
-   weakness 2. It was measured in **16 configurations**: two models
-   (`ms-marco-MiniLM-L-6-v2` and `BAAI/bge-reranker-base`), candidate pools of 12 and 20,
-   passage text with and without the title, and cross-encoder order both replacing the
-   hybrid order and fused with it.
+   weakness 2. Several configurations were tried across two cross-encoders, varying the
+   candidate pool, whether the passage title was included, and whether the cross-encoder
+   order replaced the hybrid order or was fused with it.
 
-   | Configuration | Precision at 8 | Cost |
-   |---|---|---|
-   | **no reranker, what ships** | **79.2%** | none |
-   | MiniLM, best of 8 configurations | 79.2% | 1.9 s/query |
-   | bge-reranker-base, best of 8 | 78.1% | 11.5 s/query |
-   | bge, exactly as the plan prescribed it | 72.9% | 21.4 s/query |
-   | MiniLM, exactly as the plan prescribed it | 69.8% | 3.4 s/query |
+   **None of them improved retrieval on this corpus**, and each added seconds per query.
+   So it is not used. That is an engineering comparison of our own search against itself,
+   on our own queries, judged by us; the configurations and their scores are in
+   `experiments/retrieval/`.
 
-   **Not one configuration beat doing nothing.** The best tied, and only when fused with
-   the ranking it was supposed to improve. Deeper pools were consistently worse, which is
-   the mechanism: 20 candidates hand the cross-encoder more off-topic material it can
-   promote, and BM25 exact-term matching on a small topical corpus is a stronger signal
-   than a model trained on MS MARCO web passages. A perfect reranker over the same pool
-   would reach 94.8%, so the headroom is real and neither model captures any of it.
-
-   This is the third component in this system measured against the obvious cleverer
-   alternative and kept because the simpler thing won, after the Chronos forecast and the
-   personal threshold.
-
-   **One correction to the numbers above.** All 16 runs and the 79.2% baseline were measured
-   on the corpus as it stood that morning. Layer 4 was then rewritten as prose too, for the
-   same reason as layer 3, and on the same twelve queries the baseline is now **77.1%**. The
-   2.1 points went on probe-evidence passages surfacing more often, because prose written for
-   a reader matches a reader's phrasing. Every reranker was compared against the corpus it
-   was measured on, so the comparison holds; the current number is the lower one.
+   **A caveat on that comparison.** Every run was scored on the corpus as it stood that
+   morning. Layer 4 was then rewritten as prose too, for the same reason as layer 3, which
+   moved the baseline: probe-evidence passages surface more often, because prose written for
+   a reader matches a reader's phrasing. Each reranker was compared against the corpus it was
+   scored on, so the comparison between them holds, but the absolute figures moved
+   afterwards. Both sets are in `experiments/retrieval/`.
 
 Two layers are also narrower than `sources.yaml` claims. **StatPearls, the real clinical
 reference layer, has never been fetched**; what the corpus calls layer 2 is three passages
@@ -1279,7 +1263,7 @@ retrieval returned exactly the right two method passages, and the reply on scree
 
 The baseline is the **median**, not the average, and that is not a quibble: the median is
 why this system does not need NightSignal's zero-step filter, which is set out in
-`docs/DESIGN-VS-NIGHTSIGNAL.md`. And 3 bpm is *elevated*; **flagging needs two consecutive
+`experiments/detection/COMPARED-TO-NIGHTSIGNAL.md`. And 3 bpm is *elevated*; **flagging needs two consecutive
 nights at 4**, which is the exact rule item 8 of the refinement plan existed to restore. The
 passage said all of this correctly. The paraphrase did not, and it was reported as grounded
 and cited, because the span the model quoted really was in the passage.
@@ -1529,11 +1513,13 @@ call took and then discarded the number.
 
 ### What the project measures today
 
-`EVALUATION.md` is generated by running the system; no number in it is written by hand. It
-compares the EVSI policy against four alternatives on 40 simulated cases, and it is honest
-about what that does not show: simulated cases, an oracle that answers truthfully and
-immediately, and a fifty-fifty split of infections and mimics that is nothing like real
-prevalence.
+`experiments/detection/RESULTS.md` is generated by running the system; no number in it is
+written by hand. It compares the EVSI policy against four alternatives on 40 **simulated**
+cases, with an oracle that answers truthfully and immediately and a fifty-fifty split of
+infections and mimics that is nothing like real prevalence.
+
+It lives under `experiments/` rather than beside this document, because a reader who meets
+it here reads it as a statement of how well the system works, and it is not one.
 
 Eleven frozen scenarios each state the disposition, escalation and question count they
 expect, and run end to end against the real model.
@@ -1551,40 +1537,37 @@ The Stanford COVID-19 wearables dataset (Mishra et al. 2020, *Nature Biomedical
 Engineering*) is public: minute-level Fitbit heart rate, steps and sleep for 120 people,
 with symptom onset and diagnosis dates for 32 COVID-positive participants published in the
 same paper's supplementary data, on the same date shift as the public files. This review
-downloaded both, replayed this system's own detector over **8,508 real nights from 120 real
-people**, and replayed the published NightSignal algorithm alongside it.
+downloaded both, replayed this system's own detector over the archive, and replayed the
+published NightSignal algorithm alongside it.
 
-**Does it find infections?** Yes, and **exactly as well as the algorithm it was derived
-from, not better**. The last column is what a detector that alerts at the same rate, but at
-random, would score. Read the table from the top: a wide window flatters everybody.
+**Does it find infections?** On that archive it performs comparably to the algorithm it was
+derived from, and **not better**. Every sensitivity figure has to be read against what a
+detector alerting at the same rate but at random would score, because a wide enough window
+flatters everybody.
 
-| Alert fired within | This system | Published NightSignal | Random, same rate |
-|---|---|---|---|
-| 3 days before onset, 1 after | 46.7% | 46.7% | 16.5% |
-| 7 days before, 3 after | 66.7% | 66.7% | 34.2% |
-| 14 days before, 7 after | 73.3% | 73.3% | 55.9% |
-| 21 days before, 7 after | 80.0% | 80.0% | 66.1% |
+**The figures are in `experiments/detection/`, behind its disclaimer, and are deliberately
+not repeated here.** They are a re-analysis of an archive by the author of this system: not
+a trial, not peer reviewed, nobody warned, nobody treated, no outcome changed. How well this
+detects illness in real use has not been established.
 
 **An earlier version of this document claimed about six points better at every window, and
 that claim was false.** It was measured while this system ran a *looser* alert rule than the
 one it was citing: two raised nights with at least one at +4, where NightSignal requires two
-consecutive nights both at +4. The looser rule bought 6.7 points of sensitivity, two cases
-in thirty, for 37 percent more investigations on people who were not ill. Tightened to the
-published rule on 5 September 2026, and the two now agree case for case. Being able to
-notice this at all required replaying both on labelled data; no amount of reading the code
-would have shown it. `docs/DESIGN-VS-NIGHTSIGNAL.md` has the full account.
+consecutive nights both at +4. The looser rule bought a little sensitivity, two cases in
+thirty, at the cost of substantially more investigations into people who were not ill.
+Tightened to the published rule on 5 September 2026, and the two now agree case for case.
 
-**Two honest claims survive**, and both come from the other design differences rather than
-from the alert rule:
+That correction is the part worth keeping, and it is a lesson about method rather than a
+result: noticing it required replaying both on labelled data, and no amount of reading the
+code would have shown it.
 
-- **It warns earlier.** Median lead time at the 7 day window is **3.0 days** against
-  NightSignal's 1.5.
-- **It is quieter.** On 76 people with no illness label at all, across 738 person-weeks, it
-  opens an investigation **once every 4.9 weeks** per person, against 4.5 for the reference:
-  150 investigations against 163.
+**Two differences survive**, and both come from design choices rather than the alert rule:
+it warns somewhat earlier, and it opens fewer investigations into people who were never ill.
+Those comparisons are also in `experiments/detection/`, and carry the same caveat.
 
-That last number also settles something. The weekly interruption budget of two, and all the
-machinery around it, is guarding against an alert rate the detector does not produce.
+That second point settles something structural: the weekly interruption budget of two, and
+all the machinery around it, is guarding against an alert rate the detector does not
+produce.
 
 The full results, the caveats, and what this does **not** show are in
 `history/review-2026-09/DESIGN-REVIEW.md` and `history/review-2026-09/EVIDENCE-LOG.md`.

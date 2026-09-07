@@ -252,10 +252,10 @@ SHORT_SLEEP_HOURS             = 5.5     # covariate only, never subtracted
 # constants for being unbuilt; this removes the rest for being measured and losing.
 #
 # Over 7,295 nights of the Mishra 2020 cohort the forecast residual separated illness
-# WORSE than the plain baseline residual the detector already computes, AUC 0.586 against
-# 0.629, where 0.5 is no separation. Across 30 labelled infections it caught one the
+# WORSE than the plain baseline residual the detector already computes, on our own data.
+# See experiments/forecasting/. Across the labelled infections it caught one the
 # detector missed at the most generous threshold and none at tighter ones. Reproduce with
-# `uv run python tools/cohort/chronos.py`.
+# `uv run python experiments/detection/cohort/chronos.py`.
 #
 # That agrees with Alavi et al. 2022, the source of the detection thresholds above, which
 # measured plain baseline deviation at 78 percent sensitivity against 54 (CuSum) and 44

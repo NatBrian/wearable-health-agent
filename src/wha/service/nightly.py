@@ -246,7 +246,7 @@ def run_data_safety_floor(
     Measured before connecting it, because this is the one change that can newly wake
     somebody at three in the morning. Across 7,079 scorable nights of the Mishra 2020
     cohort, `abs(robust_z) > 6` fires on 33 of them, which is one alert per 31
-    person-weeks. Reproduce with `uv run python tools/cohort/band_width.py`. That rate is
+    person-weeks. Reproduce with `uv run python experiments/detection/cohort/band_width.py`. That rate is
     a rare event rather than a stream, and the rules' own guidance is conditional
     same-day advice, not an ambulance.
 

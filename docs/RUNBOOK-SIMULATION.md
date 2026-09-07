@@ -19,8 +19,8 @@ uv run wha doctor
 ```
 
 `doctor` creates `data/wha.sqlite` if it is missing. Expect `cohort miss` until you run
-`tools/cohort/fetch.py`; detection accuracy is measured from that cohort and the figures are
-published in `docs/detection-results.json`. No row should say `fail`.
+`experiments/detection/cohort/fetch.py`; detection accuracy is measured from that cohort and the figures are
+published in `experiments/detection/detection-results.json`. No row should say `fail`.
 
 `wha doctor --live` is the same check plus the probes that need the network and the phone,
 in one report with one verdict. `wha check-live` is an alias for it.

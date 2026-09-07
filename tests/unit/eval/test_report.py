@@ -16,8 +16,8 @@ def test_the_detection_section_reports_the_measurement() -> None:
     paper's supplementary spreadsheet, shifted the same way as the wearable files. It took
     under an hour.
 
-    The section is now rendered from `docs/detection-results.json`, which
-    `tools/cohort/report.py` writes, so there is one implementation of the scoring and the
+    The section is now rendered from `experiments/detection/detection-results.json`, which
+    `experiments/detection/cohort/report.py` writes, so there is one implementation of the scoring and the
     378 MB cohort does not have to be present to render the report.
     """
     markdown = render_markdown({})
@@ -42,7 +42,7 @@ def test_the_detection_section_says_how_to_produce_it_when_it_is_missing(
     markdown = render_markdown({})
 
     assert "Not measured in this checkout" in markdown
-    assert "tools/cohort/fetch.py" in markdown
+    assert "experiments/detection/cohort/fetch.py" in markdown
 
 
 def test_report_contains_measured_policy_numbers(tmp_path: Path) -> None:
