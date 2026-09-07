@@ -52,17 +52,30 @@ RAW = REPO_ROOT / "docs" / "demo" / "footage-raw"
 BASE = "http://localhost:8501"
 API = "http://localhost:8500"
 WIDTH, HEIGHT = 1920, 1080
-ZOOM = 1.5
+
+# Page zoom, per scene. 1.5 gives the 1280 wide layout the pre-flight checked, which reads
+# well for prose screens.
+#
+# The RECORD screen is the exception and it films at 1.0. Its step grid is a fixed number
+# of columns, so narrowing the effective width narrows every card: at 1.5 the labels wrap
+# character by character, "Subtra ct what is explai ned", which looks like a broken page
+# rather than a dense one. At full width the cards are wide enough for their labels and
+# the grid is the clearest single image in the film.
+DEFAULT_ZOOM = 1.5
+RECORD_ZOOM = 1.0
 
 from timeline import DAYS
 
+
 # Hidden while filming, never in the product: the developer menu and the "running" spinner
 # that flickers in the corner of every take.
-FILM_CSS = f"""
+def film_css(zoom: float) -> str:
+    return f"""
 [data-testid="stToolbar"], [data-testid="stStatusWidget"], #MainMenu,
 [data-testid="stDecoration"] {{ display: none !important; }}
-html {{ zoom: {ZOOM}; }}
+html {{ zoom: {zoom}; }}
 """
+
 
 SCROLLER = """
     document.querySelector('[data-testid="stAppScrollToBottomContainer"]')
@@ -82,12 +95,13 @@ class Stage:
     seconds of runtime rather than anything a viewer pays.
     """
 
-    def __init__(self, page: Page) -> None:
+    def __init__(self, page: Page, zoom: float = DEFAULT_ZOOM) -> None:
         self.page = page
+        self.css = film_css(zoom)
 
     def open(self, path: str, settle: float = 4.0) -> Stage:
         self.page.goto(f"{BASE}{path}", wait_until="networkidle")
-        self.page.add_style_tag(content=FILM_CSS)
+        self.page.add_style_tag(content=self.css)
         self.page.wait_for_timeout(int(settle * 1000))
         self.top()
         return self
@@ -144,7 +158,7 @@ class Stage:
     def click(self, selector: str, wait: float = 3.0) -> Stage:
         self.page.click(selector)
         self.page.wait_for_timeout(int(wait * 1000))
-        self.page.add_style_tag(content=FILM_CSS)
+        self.page.add_style_tag(content=self.css)
         return self
 
     def click_text(self, text: str, wait: float = 3.0) -> Stage:
@@ -154,7 +168,7 @@ class Stage:
             print(f"      (could not click {text!r}: {type(e).__name__})")
             return self
         self.page.wait_for_timeout(int(wait * 1000))
-        self.page.add_style_tag(content=FILM_CSS)
+        self.page.add_style_tag(content=self.css)
         return self
 
     def say(self, text: str, wait_for_reply: float = 25.0) -> Stage:
@@ -165,7 +179,7 @@ class Stage:
         self.page.wait_for_timeout(900)
         self.page.keyboard.press("Enter")
         self.page.wait_for_timeout(int(wait_for_reply * 1000))
-        self.page.add_style_tag(content=FILM_CSS)
+        self.page.add_style_tag(content=self.css)
         return self
 
 
@@ -180,6 +194,7 @@ class Scene:
     act: Callable[[Stage], None]
     note: str = ""
     tags: tuple[str, ...] = field(default_factory=tuple)
+    zoom: float = DEFAULT_ZOOM
 
 
 def snapshot_for(day: date) -> Path:
@@ -305,6 +320,7 @@ SCENES: tuple[Scene, ...] = (
         date(2026, 9, 13),
         scene_control_loop,
         "the 21 steps, colour coded by which machine ran them",
+        zoom=RECORD_ZOOM,
     ),
     Scene(
         3,
@@ -312,6 +328,7 @@ SCENES: tuple[Scene, ...] = (
         date(2026, 9, 13),
         scene_one_number,
         "the sleep window and the one number it produces",
+        zoom=RECORD_ZOOM,
     ),
     Scene(
         4,
@@ -319,6 +336,7 @@ SCENES: tuple[Scene, ...] = (
         date(2026, 9, 13),
         scene_your_normal,
         "the baseline, and the refusal to judge before it knows you",
+        zoom=RECORD_ZOOM,
     ),
     Scene(
         6,
@@ -347,6 +365,7 @@ SCENES: tuple[Scene, ...] = (
         date(2026, 9, 13),
         scene_agent_wakes,
         "the investigation opens, and the decision to ask",
+        zoom=RECORD_ZOOM,
     ),
     Scene(
         12,
@@ -368,6 +387,7 @@ SCENES: tuple[Scene, ...] = (
         date(2026, 9, 14),
         scene_audit,
         "the journal and the hash chain",
+        zoom=RECORD_ZOOM,
     ),
     Scene(
         15,
@@ -507,7 +527,7 @@ def record(scene: Scene) -> Path:
                 record_video_size={"width": WIDTH, "height": HEIGHT},
             )
             page = context.new_page()
-            scene.act(Stage(page))
+            scene.act(Stage(page, scene.zoom))
             page.wait_for_timeout(1500)
             video = page.video
             context.close()
