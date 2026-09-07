@@ -1570,7 +1570,7 @@ all the machinery around it, is guarding against an alert rate the detector does
 produce.
 
 The full results, the caveats, and what this does **not** show are in
-`history/review-2026-09/DESIGN-REVIEW.md` and `history/review-2026-09/EVIDENCE-LOG.md`.
+`archive/review-2026-09/DESIGN-REVIEW.md` and `archive/review-2026-09/EVIDENCE-LOG.md`.
 
 ---
 

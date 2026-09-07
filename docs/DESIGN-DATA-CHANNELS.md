@@ -52,11 +52,11 @@ explained by an infection". Supporting them would be work for no gain.
 ### Three of them would genuinely help, and this device does not record them
 
 Heart rate variability, respiratory rate and skin temperature are the channels
-`history/prior-research/13-galaxy-watch5-data-reality.md` identifies as the strongest published feature
+`archive/prior-research/13-galaxy-watch5-data-reality.md` identifies as the strongest published feature
 set for illness detection. All three are absent here:
 
 - **Skin temperature.** Samsung exposes it from **Galaxy Watch 6 onward**
-  (`history/PROPOSAL.md` section 4.7). The device in use is a Watch 5. It will never arrive.
+  (`archive/PROPOSAL.md` section 4.7). The device in use is a Watch 5. It will never arrive.
 - **Heart rate variability and respiratory rate.** Not recorded by this watch, either
   because the feature is switched off or because it needs a manual reading that is not
   being taken.
@@ -152,7 +152,7 @@ that could be added.
 - Mason et al. 2022, *Scientific Reports* — AUC 0.770 to 0.819 with dermal temperature
 - Goodale et al. 2019, *J Med Internet Res* 21(4):e13404, n=193 — luteal phase moves heart
   rate, respiratory rate and heart rate variability in the infection direction
-- `history/prior-research/13-galaxy-watch5-data-reality.md` — access paths and what each one exposes
-- `history/prior-research/findings/F1-clinical-infection-studies.md` — the corrected figures, including
+- `archive/prior-research/13-galaxy-watch5-data-reality.md` — access paths and what each one exposes
+- `archive/prior-research/findings/F1-clinical-infection-studies.md` — the corrected figures, including
   which commonly cited claims are unsupported
 - `experiments/policy-simulation/` — the sensor-only versus asking comparison, self-scored

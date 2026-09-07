@@ -1,15 +1,18 @@
-# history/ is FINISHED WORK. Nothing here describes the present.
+# archive/ is FINISHED WORK. Nothing here describes the present.
 
-Everything in this directory records how this system was designed and built. It is kept because
-the reasoning is worth having and because several of its warnings turned out to describe real
-defects. **None of it is a task list, a specification, or a description of what the code does
-now.** If it disagrees with `STATUS.md`, `STATUS.md` is right.
+Everything in this directory records how this system was designed and built. It is kept
+because the reasoning is worth having, and because several of its warnings turned out to
+describe real defects. **None of it is a task list, a specification, or a description of
+what the code does now.** If anything here disagrees with `README.md`, `README.md` is right.
+
+**This folder was called `history/` until 7 September 2026.** Documents inside it still
+refer to each other by that name. Read `history/x` as `archive/x`.
 
 | You want | Read |
 |---|---|
-| Where the project stands | **`STATUS.md`** at the repository root |
-| What is open right now | **`BLOCKERS.md`** at the repository root |
-| The rules you work under | **`CLAUDE.md`** and **`AGENTS.md`** at the repository root |
+| What this project is, and where everything lives | **`README.md`** at the repository root |
+| The rules you work under | **`AGENTS.md`** at the repository root |
+| What the system cannot do | **`docs/DISCLOSURES.md`** |
 | Schemas, models, constants, service signatures | **`docs/CONTRACTS.md`** |
 
 ## What is in here
@@ -39,11 +42,12 @@ the code runs.
 `plan/02-contracts.md` used to live here and is now `docs/CONTRACTS.md`, because the source code
 cites it by name and it is still binding.
 
-## This is not `archive/`
+## One warning about `prior-generation/`
 
-`archive/` holds an **earlier, weaker generation** of this project, including figures that were
-found under audit to be fabricated. Never read it as fact. This directory is different: it is the
-real design history of the current system, accurate for the moment it was written.
+`prior-generation/` holds an **earlier, weaker attempt** at this project, including figures
+that an audit found to be fabricated. Never read it as fact. The rest of this directory is
+different: it is the real design history of the current system, accurate for the moment each
+document was written.
 
 **All of this directory is read-only.**
 

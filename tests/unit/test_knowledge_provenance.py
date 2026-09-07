@@ -1,5 +1,5 @@
 """
-`history/` and `research/` are deliberately excluded. They record what was believed when
+`archive/` and `research/` are deliberately excluded. They record what was believed when
 they were written, and editing a frozen record is its own kind of rewriting.
 """
 

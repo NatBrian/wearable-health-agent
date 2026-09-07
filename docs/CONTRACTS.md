@@ -9,8 +9,8 @@
 > You do not need to read it end to end. Find the boundary you are touching, and check it
 > still describes what you are about to do.
 
-> **BINDING, AND NOW CHECKED.** This was `history/plan/02-contracts.md` and moved here on 4 September
-> 2026, when the rest of the build plan was retired to `history/`. It moved rather than being
+> **BINDING, AND NOW CHECKED.** This was `archive/plan/02-contracts.md` and moved here on 4 September
+> 2026, when the rest of the build plan was retired to `archive/`. It moved rather than being
 > retired because the source code cites it by name in `constants.py`, `models.py`,
 > `agent/nodes.py`, `eval/policy_oracle.py` and `service/episode_lifecycle.py`.
 >

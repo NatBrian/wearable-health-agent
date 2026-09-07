@@ -10,7 +10,7 @@
 > name the screen, it is not disclosed yet.
 >
 > This is also the live record of what the system cannot do. It replaced `BLOCKERS.md`,
-> which is now in `history/`.
+> which is now in `archive/`.
 
 Every clinical design decision in this system is either backed by a citation or explicitly
 recorded as unevidenced, and **each one is stated on screen as well as in this repository**.

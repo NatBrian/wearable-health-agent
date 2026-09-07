@@ -71,7 +71,7 @@ BEFORE running it, and halts on the first day that does something else. A simula
 watch and then describe afterwards always looks like it worked, because the description
 gets written to fit what happened. This one halted five times, and four of those were
 defects in the product rather than in the timeline. They are listed in
-`history/session-logs-2026-09/superpowers/plans/2026-09-07-demo-film.md`.
+`archive/session-logs-2026-09/superpowers/plans/2026-09-07-demo-film.md`.
 
 ## What is real and what is simulated
 

@@ -27,5 +27,5 @@ sentence shown with a citation can still misdescribe the passage it cites: the c
 proves the quoted span exists in the source, not that the sentence around it is a fair reading, so
 where the two differ **the passage is the one to believe**.
 
-The original mechanism-level discussion is in [`history/PROPOSAL.md`](history/PROPOSAL.md) section
+The original mechanism-level discussion is in [`archive/PROPOSAL.md`](archive/PROPOSAL.md) section
 2.5, which is finished work and superseded in fourteen documented ways.

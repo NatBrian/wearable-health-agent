@@ -47,7 +47,7 @@ It is not a medical device and it does not diagnose. See [DISCLAIMER.md](DISCLAI
 - A complete demo timeline is committed and can be opened in one command, below.
 - A 28 minute walkthrough film of the whole system is in [`docs/demo/`](docs/demo/README.md).
 
-If you are asked to "continue" with no further detail, **ask what is wanted**. `history/` is
+If you are asked to "continue" with no further detail, **ask what is wanted**. `archive/` is
 full of documents that look like plans and every one of them describes work that has ended.
 
 ---
@@ -98,9 +98,7 @@ architecture.
 | `tools/` | The mock watch, the retrieval check, and `demo_film/` which built the demo and the film | **Live** |
 | `experiments/` | **Our own experiments, and NOT evidence of anything.** Detection re-analysis, a self-scored policy simulation, a retrieval comparison, a deleted forecaster. Every folder carries a disclaimer | **Live, but read the disclaimer first** |
 | `data/corpus/` | Fetched MedlinePlus text and embeddings. Not authored here, not committed | Fetch only |
-| `history/` | **Finished work. Describes nothing about the present.** Old plans, the build log, the September review, and this project's own session logs | **Read-only.** Never a queue |
-| `archive/` | An older database and a stray patch, both ignored by git | Dead |
-| `scratch/` | Local working files. Nothing reads it, nothing imports from it | Dead |
+| `archive/` | **Finished work. Describes nothing about the present.** Old plans, the build log, the September review, and this project's own session logs | **Read-only.** Never a queue |
 
 ### The documents, and which of them you must write to
 
@@ -144,7 +142,7 @@ The rest are reference:
 | **Work on the agent's reasoning** | `ARCHITECTURE.md` Parts 8 to 11, and `src/wha/agent/` |
 | **Work on retrieval or grounding** | `ARCHITECTURE.md` Parts 13 and 14, and `src/wha/retrieve/` |
 | **Re-cut or re-record the film** | `docs/demo/README.md` |
-| **Understand why a past decision was made** | `history/session-logs-2026-09/superpowers/` holds the specs and plans, each explaining the reasoning at the time |
+| **Understand why a past decision was made** | `archive/session-logs-2026-09/superpowers/` holds the specs and plans, each explaining the reasoning at the time |
 
 ### Where in ARCHITECTURE.md
 
@@ -167,19 +165,22 @@ It is 19 parts and about 85 KB. Read the part you need, not the file.
 
 ---
 
-## Local files a clone will not have, and whether they matter
+## Local files a clone will not have
 
-Several large folders exist only on the machine this was built on. **None of them is needed
-to run the system.** This table is here so nobody has to work out what is safe to remove.
+Two large files live only on the machine this was built on, and **neither is needed to run
+the system**.
 
 | Path | Size | What it is | Safe to delete? |
 |---|---|---|---|
-| `data/backups/` | 2.2 GB | Database copies taken before each destructive step during the build | **Yes.** Nothing reads it, and the work it protected is finished and committed |
-| `scratch/` | 450 MB | Logs, one-off analysis scripts, intermediate databases | **Yes.** Nothing in `src`, `tests` or `tools` reads it |
-| `data/cohort/` | 368 MB | The public Mishra et al. 2020 dataset, for the detection experiment | **Yes.** Re-downloadable with `experiments/detection/cohort/fetch.py` |
-| `data/demo-snapshots/` | 303 MB | A database snapshot per day of the demo timeline | **Yes, if you will not re-film a scene.** Re-creating them costs model calls and the agent would word its replies differently |
-| `archive/dbs/` | 270 MB | Two databases from early September | **Yes.** Superseded |
 | `data/wha.sqlite` | 213 MB | **The owner's real watch data.** Subject `me` | **NO. Never delete or overwrite this** |
+| `data/corpus/` | 32 MB | Fetched MedlinePlus text and its embeddings | Yes, but retrieval stops working until you re-run the fetch above |
+
+About 3.6 GB of build leftovers were removed on 7 September 2026: database backups, a
+scratch directory, the cohort dataset, the demo snapshots and two superseded databases.
+None was tracked by git, so a clone was never going to have them. The cohort comes back with
+`uv run python experiments/detection/cohort/fetch.py` if you want to re-run the detection
+experiment.
+
 | `data/demo_film.sqlite` | 22 MB | The finished demo timeline | **No,** and it is committed. Not reproducible: rebuilding costs model calls and produces different wording |
 
 ---

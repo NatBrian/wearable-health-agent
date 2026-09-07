@@ -71,8 +71,8 @@ data/sim_state.json
 serve.log
 mockwatch.log
 
-# --- Review session scratch space (analysis scripts, downloaded cohort data, notes). ---
-# Not part of the product. Nothing here is imported by src/.
+# --- Review session scratch space. Deleted 7 September 2026; kept ignored in case a
+# future session recreates one. Nothing here is ever imported by src/.
 scratch/
 
 # --- The demo film's intermediates. ---

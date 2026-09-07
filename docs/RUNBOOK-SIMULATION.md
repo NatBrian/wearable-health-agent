@@ -184,7 +184,7 @@ That harness is worth reading even if you never make a film, because it does one
 runbook does not: **it writes down what each day is predicted to do before running it, and
 halts on the first day that does something else.** It halted five times, and four of those
 were defects in the product rather than in the timeline. See
-`history/session-logs-2026-09/superpowers/plans/2026-09-07-demo-film.md`.
+`archive/session-logs-2026-09/superpowers/plans/2026-09-07-demo-film.md`.
 
 ## Resetting
 

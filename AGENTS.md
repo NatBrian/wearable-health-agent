@@ -7,7 +7,7 @@ the same rules whichever tool loaded it.
 **Read `README.md` first** for what this project is, where everything lives and what to
 read for the goal you have been given. Then read this. Then start.
 
-> **The project is finished.** There is no task queue. `history/` is full of documents that
+> **The project is finished.** There is no task queue. `archive/` is full of documents that
 > look like plans and every one describes a job that has ended. If you are asked to
 > "continue" with no further detail, **ask what is wanted** rather than inventing work.
 
@@ -38,7 +38,7 @@ from a published source with the citation adjacent AND about a population the cl
 to, or an operating parameter of this system, which is a fact about the code rather than a
 claim about health. **Anything this project measured about itself is neither**, and belongs
 in `experiments/` behind its disclaimer. Two tests enforce this. See `experiments/README.md`
-for why, and `history/session-logs-2026-09/superpowers/plans/2026-09-07-claims-cleanup.md`
+for why, and `archive/session-logs-2026-09/superpowers/plans/2026-09-07-claims-cleanup.md`
 for what went wrong when it was not enforced.
 
 **4. `data/knowledge/` is under change control.** A clinical figure there, or in
