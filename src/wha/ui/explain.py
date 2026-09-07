@@ -106,12 +106,22 @@ TEXT: dict[str, str] = {
         "Nothing to do. Too little of the night was measured to judge it, so nothing was "
         "concluded either way."
     ),
+    # Does NOT say why the investigation opened, because this string cannot know.
+    #
+    # It used to say "because your readings were clearly raised on more than one night in
+    # a row", which is only one of the three ways an investigation starts: the detector
+    # flagging two consecutive nights, the person reporting a symptom, and a recurrence
+    # linked to a recent one. Reporting a fever on a green night opened an investigation
+    # and this sentence then told the person their readings had been raised, three lines
+    # under a heading saying they were in their usual range.
+    #
+    # Naming the real cause needs the screen to be told which one it was, and it is not.
+    # Until it is, saying less is the honest option: everything below is true of all three.
     "level.investigating": (
-        "This is being looked into now. The system opened an investigation because your "
-        "readings were clearly raised on more than one night in a row. It will ask you "
-        "something if your answer would change what it concludes, and it will also ask "
-        "how you are getting on if you have told it about a symptom and not said it had "
-        "settled, whether or not the answer would change anything."
+        "This is being looked into now. It will ask you something if your answer would "
+        "change what it concludes, and it will also ask how you are getting on if you "
+        "have told it about a symptom and not said it had settled, whether or not the "
+        "answer would change anything."
     ),
     "safety.no_local_guidance": (
         "This system has no guidance about any specific illness, including ones that are "
