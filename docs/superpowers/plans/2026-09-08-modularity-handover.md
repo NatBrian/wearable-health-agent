@@ -161,7 +161,7 @@ Most of what was planned here already exists. `README.md` gained "Where things l
         The two console entries are Streamlit's own `_stcore/health` and `host-config`
         probes 404ing because the page was deep-linked rather than clicked into, and they
         appear on an unmodified checkout too
-- [ ] E.5 Open the PR
+- [x] E.5 PR opened: https://github.com/NatBrian/wearable-health-agent/pull/2
 
 ---
 
