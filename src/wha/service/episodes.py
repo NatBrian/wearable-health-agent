@@ -58,6 +58,7 @@ _STAGE_DESCRIPTIONS: dict[str, str] = {
     "review": "Human clinician or supervisor review checkpoint",
 }
 
+
 def _canonical_stages() -> list[tuple[str, str]]:
     """The stages the Trace tab renders, in the order the graph runs them.
 

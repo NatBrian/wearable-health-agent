@@ -139,14 +139,28 @@ Most of what was planned here already exists. `README.md` gained "Where things l
 
 ### Step E: Verify
 
-- [ ] E.1 Full suite `-n auto`. **Must equal the Step 0 baseline exactly, zero failures.**
-- [ ] E.2 `uv run ruff check src tests`
-- [ ] E.3 Read the whole diff. Confirm no logic line under `src/` changed outside the four
-      intended edits
-- [ ] E.4 **Drive the real dashboard.** Open the pipeline view on a real episode and read
-      what the screen says. Step B changes how the audit view learns which steps ran, and
-      that is exactly the kind of change that passes every test and breaks a page. This is
-      not optional; it is rule 6
+- [x] E.1 Full suite: **803 passed, 2 skipped, 0 failed** against a baseline of 785 passed,
+      2 skipped. The difference is exactly the 18 tests added here: 7 in `test_steps.py`,
+      5 in `test_retriever_protocol.py`, 6 in `test_layering.py`. Every test that passed
+      before this branch still passes, and the arithmetic accounts for every new one
+- [x] E.2 `uv run ruff check src tests`: all checks passed
+- [x] E.3 Whole diff read. Twenty files under `src/`, of which twelve are the split. The
+      only edits that are not movement are the four intended ones: the `PRELOAD_TOOLS` and
+      trace-translation calls in `pipeline.py`, the descriptions split in `episodes.py`, the
+      protocol swap in `tools/impl.py`, and three type annotations in `repository.py`
+- [x] E.4 **Drove the real dashboard**, on the committed seventeen day demo timeline
+      (`tools/demo_film/serve_demo.py`), which contains three linked investigations.
+      - All eleven agentic and user step labels render on the pipeline view, read off the
+        page rather than inferred: "Open an investigation" through "Send and save"
+      - All ten nights with an episode were read back through the API. Two episodes report
+        every agentic step as `ran`; the third reports `ask=skipped`,
+        `answer=not_applicable`, `deliver=skipped`, which is a real difference correctly
+        reported and proves the translation is not passing everything through blindly
+      - The Trace tab stages return all eight names with their original descriptions
+      - Today, History and The record were opened and read. No error markers on any page.
+        The two console entries are Streamlit's own `_stcore/health` and `host-config`
+        probes 404ing because the page was deep-linked rather than clicked into, and they
+        appear on an unmodified checkout too
 - [ ] E.5 Open the PR
 
 ---
@@ -202,6 +216,33 @@ the import would succeed, and the suite re-run. Four tests failed, including
 A test that passes and cannot fail is worth nothing, and this is a repository where "the
 failure reported success" is the documented recurring defect shape.
 
+### 4. Running the suite in a fresh worktree needs two things a clone does not have
+
+Neither is a defect, and both cost time to work out from a failure that looks like one.
+`data/corpus/` is 32 MB and gitignored, and without it `test_knowledge_corpus.py` fails in a
+way that reads like a retrieval bug. `.env` is gitignored too. Copy both from the main
+checkout, or run `uv run wha data fetch corpus`.
+
+## What was deliberately not done
+
+Named here so the next person does not have to work out whether these were missed or
+decided.
+
+- **The two import cycles are not broken.** `agent` with `service` and `notify` with
+  `service`. Breaking them means moving `symptoms`, `settings` and `episode_lifecycle` into
+  a lower layer, which is code four people are about to work in. They are named with their
+  reasons in `tests/unit/test_layering.py` instead, and an eighth upward import fails.
+- **No user-facing copy moved.** `STEP_NAMES`, `explain.TEXT` and `TOPIC_STEPS` stay in the
+  dashboard. Whoever builds the React client copies them across. Moving 63 strings behind
+  the API would have been a larger change than the whole of this branch, for a benefit that
+  only arrives when that client is written.
+- **`_agent_steps_from_evidence` keeps its node names as literals.** Explained under
+  finding 2.
+- **`models.py` and `constants.py` were not split**, though they are the files parallel work
+  will actually collide in. Splitting them would touch 71 and 54 importers respectively, and
+  the collision is a merge problem rather than an architectural one. It is documented in the
+  README instead, under "Working on this at the same time as somebody else".
+
 ## Blockers found
 
-_None yet._
+_None. Nothing in this branch required a decision that was not already made._
