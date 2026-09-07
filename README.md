@@ -55,8 +55,9 @@ time were made real rather than assumed: the agent's eight nodes are one file ea
 declares its own step names in one place instead of having them copied into four, retrieval
 sits behind a protocol, and the dependencies between packages are checked by a test. Nothing
 the system does changed. See **Working on this at the same time as somebody else** below
-before starting, and `docs/superpowers/plans/2026-09-08-modularity-handover.md` for why each
-one was done.
+before starting, and
+`archive/session-logs-2026-09/superpowers/plans/2026-09-08-modularity-handover.md` for why
+each one was done.
 
 ---
 
