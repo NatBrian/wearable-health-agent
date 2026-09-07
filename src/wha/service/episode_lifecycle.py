@@ -286,6 +286,22 @@ def check_close_conditions(
     if row is None or row["state"] == "CLOSED":
         return None
 
+    # A person is looking at this conclusion right now. Do not close it under them.
+    #
+    # A pending QUESTION is already handled below, because it is a row in `interactions`.
+    # A pending REVIEW is a parked graph interrupt and nothing here was looking for it, so
+    # a quiet run closed an investigation as LIKELY_BENIGN while its draft was waiting to
+    # be checked. The review then vanished: no decision in the audit trail, and no
+    # `closed_unreviewed` either, leaving a record that showed a review requested and
+    # never resolved.
+    #
+    # This is the second time a background job has walked through this checkpoint. The
+    # first resumed the interrupt with a hardcoded "approve" and the record said a human
+    # had done it. Nothing gets stuck by refusing here: REVIEW_TIMEOUT_HOURS still releases
+    # the draft, and that path records that nobody approved it.
+    if row["state"] == "AWAITING_HUMAN_REVIEW":
+        return None
+
     opened = date.fromisoformat(row["opened_on"])
     today = local_today()
     # The night an episode closes ON comes from the data, not from the clock the code

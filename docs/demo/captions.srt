@@ -1,0 +1,99 @@
+1
+00:01:19,250 --> 00:01:23,750
+So the design splits in two.
+
+2
+00:01:23,750 --> 00:01:28,250
+A cheap monitor that watches every night and uses no AI.
+
+3
+00:01:28,250 --> 00:01:32,750
+And an agent that wakes up only when there is something worth explaining.
+
+4
+00:02:17,500 --> 00:02:22,000
+Every night the system runs the same twenty one steps.
+
+5
+00:02:22,000 --> 00:02:26,500
+The screen you are looking at is the real record of one of them.
+
+6
+00:04:32,750 --> 00:04:37,250
+A hard training session late in the evening.
+
+7
+00:04:37,250 --> 00:04:41,750
+It barely moves the night, and nothing is said.
+
+8
+00:04:41,750 --> 00:04:46,250
+A heavier drinking night than usual. Now the night is amber.
+
+9
+00:04:46,250 --> 00:04:50,750
+Amber does not raise an alarm. That is a decision, and it was measured.
+
+10
+00:05:43,750 --> 00:05:48,250
+And the line it works against was not chosen by anybody.
+
+11
+00:05:48,250 --> 00:05:52,750
+Missing an illness is set at nine times worse than a false alarm.
+
+12
+00:05:52,750 --> 00:05:57,250
+One divided by one plus nine gives ten percent. The threshold falls out of that.
+
+13
+00:06:55,500 --> 00:07:00,000
+Every clinical sentence has to quote words that appear in a real source.
+
+14
+00:07:00,000 --> 00:07:04,500
+If it cannot, the sentence is removed, or flagged in amber as unsourced.
+
+15
+00:07:34,500 --> 00:07:39,000
+Fever reported yesterday. Vomiting reported today.
+
+16
+00:07:39,000 --> 00:07:43,500
+Neither one alone changes anything.
+
+17
+00:07:43,500 --> 00:07:48,000
+Together they do, and the system now reads them together.
+
+18
+00:07:48,000 --> 00:07:52,500
+See a doctor today. Decided by code, before the AI was asked.
+
+19
+00:08:32,250 --> 00:08:36,750
+The heart rate settles. The person says the fever has gone.
+
+20
+00:08:36,750 --> 00:08:41,250
+The investigation does not close.
+
+21
+00:09:21,000 --> 00:09:25,500
+Chest pain is not handled by spotting the words chest pain.
+
+22
+00:09:25,500 --> 00:09:30,000
+The AI asks five specific questions. Then code, not the AI, scores the answers.
+
+23
+00:09:30,000 --> 00:09:34,500
+And when the picture is one the rule was never tested on,
+
+24
+00:09:34,500 --> 00:09:39,000
+such as pain right now with sweating or fainting,
+
+25
+00:09:39,000 --> 00:09:43,500
+the rule is not allowed to run at all. That is an emergency, with no questions.

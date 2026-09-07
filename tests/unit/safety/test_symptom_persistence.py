@@ -571,3 +571,46 @@ def test_a_resolution_after_the_symptom_is_read_as_a_retraction(text, expected):
         f"{text!r} should record fever as {expected}, got {found.get('rf_fever')!r}. "
         f"All flags: {found}"
     )
+
+
+def test_a_quiet_run_does_not_close_an_episode_waiting_on_a_person(conn):
+    """The human checkpoint must not be closed out from under the person.
+
+    Found on 7 September 2026 by building the demo film. The agent drafted its conclusion,
+    parked in AWAITING_HUMAN_REVIEW and asked the person to check it. Two green nights
+    later the time-based close fired, closed the investigation as LIKELY_BENIGN, and the
+    review simply vanished: no decision in the audit trail, and no `closed_unreviewed`
+    either, so the record showed a review requested and never resolved.
+
+    `check_close_conditions` guarded only on state == 'CLOSED'. A pending QUESTION was
+    already handled, because that is a row in `interactions`; a pending REVIEW is a parked
+    graph interrupt and had nothing looking for it.
+
+    This is the second time a background job has walked through this checkpoint. The first
+    time it resumed the interrupt with a hardcoded "approve" and the record said a human
+    had done it. Nothing is stuck by this: `REVIEW_TIMEOUT_HOURS` still releases the draft,
+    and that path records that nobody approved it.
+    """
+    today = local_today()
+    episode_id = open_or_append_episode(conn, "s", today - timedelta(days=4))
+    conn.execute(
+        "UPDATE episodes SET step_count = 6, state = 'AWAITING_HUMAN_REVIEW' "
+        "WHERE episode_id = ?",
+        (episode_id,),
+    )
+    for offset in (1, 0):
+        conn.execute(
+            "INSERT OR REPLACE INTO detections (subject_id, night_date, level, flagged, "
+            "residual_bpm, reasons_json) VALUES ('s', ?, 'GREEN', 0, 0.0, '[]')",
+            ((today - timedelta(days=offset)).isoformat(),),
+        )
+    conn.commit()
+
+    assert check_close_conditions(conn, episode_id) is None, (
+        "a quiet run closed an investigation that was waiting for a person to review its "
+        "conclusion, so the checkpoint was skipped and nothing recorded that it had been"
+    )
+    state = conn.execute(
+        "SELECT state FROM episodes WHERE episode_id = ?", (episode_id,)
+    ).fetchone()["state"]
+    assert state == "AWAITING_HUMAN_REVIEW"

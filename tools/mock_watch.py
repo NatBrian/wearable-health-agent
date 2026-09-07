@@ -37,7 +37,12 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from wha.ingest.synthetic import Synthetic  # noqa: E402
 from wha.models import Scenario  # noqa: E402
 
-STATE_PATH = REPO_ROOT / "data" / "sim_state.json"
+# The cursor survives between invocations here. `WHA_MOCK_STATE` lets a second timeline
+# run without trampling the first: the parked simulation owns data/sim_state.json, and the
+# demo film owns its own file. Unset, this is exactly what it always was.
+STATE_PATH = Path(
+    os.environ.get("WHA_MOCK_STATE") or (REPO_ROOT / "data" / "sim_state.json")
+)
 
 # The synthetic generator anchors its window at a UTC instant and works backwards.
 # 08:00 UTC is 16:00 in Singapore, safely after the night it labels, so the night of
