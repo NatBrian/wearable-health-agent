@@ -35,6 +35,7 @@ dev = [
     "ruff",
     "freezegun",
     "pypdf>=6.16.2",
+    "playwright>=1.62.0",
 ]
 
 [project.scripts]
