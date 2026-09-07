@@ -78,11 +78,27 @@ Closed since the last update: dizziness (it needed **tracking**, not a red flag,
 asserts no threshold), the forced follow-up (done, as a rule), and sustained yellow nights,
 which were **measured** and found to catch zero additional cases across 738 person-weeks.
 
+## Documentation, rewritten 7 September 2026
+
+`README.md` was rewritten for somebody arriving cold: a document map, a one-page version of
+the architecture, a **"design decisions, and why"** section naming the six questions already
+settled by measurement so they are not re-argued, and a **"working on this codebase"** section
+listing the rules that are enforced by tests rather than by convention. Nothing was dropped;
+every heading and paragraph from the old version was checked mechanically.
+
+`USER-GUIDE.md` is **new**, for the person whose health this is, with seven screenshots taken
+from the running system. It documents three things that were nowhere before: when the AI
+actually fires, how Telegram works end to end, and how to tell a sourced reply from an
+unsourced one.
+
+The four screenshots `README.md` used until now are superseded (the record screen went from
+20 steps to 21) and are in `history/screenshots-2026-09-06/`.
+
 Verified on 7 September 2026, all re-run rather than remembered:
 
 | Check | Result |
 |---|---|
-| `uv run pytest -n auto` | **736 passed, 1 skipped**, about five minutes |
+| `uv run pytest -n auto` | **756 passed, 1 skipped**, about four minutes |
 | `uv run ruff check src tests` | clean |
 | `uv run ruff format --check src tests` | clean |
 | `uv run wha doctor` | no `fail` rows |

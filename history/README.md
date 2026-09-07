@@ -21,6 +21,7 @@ now.** If it disagrees with `STATUS.md`, `STATUS.md` is right.
 | `PROPOSAL.md` | The narrative design document written before the plan. **Superseded in fourteen documented ways** and never a thing to build from. Kept because it is the written artefact for the course |
 | `plan/` | The 67-task build plan, its component designs, and the frozen build log `PROGRESS.md` |
 | `review-2026-09/` | The end-to-end review of 4 and 5 September 2026, its work queue, and the audit of that queue. All four described a job that is now finished; see the table below |
+| `screenshots-2026-09-06/` | The four dashboard screenshots that `README.md` used until 7 September 2026, superseded when the record screen went from 20 steps to 21. The current ones are in `docs/screenshots/` |
 
 ## `review-2026-09/`, and why an audit is in here too
 
