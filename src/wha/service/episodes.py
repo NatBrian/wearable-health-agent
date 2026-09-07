@@ -6,9 +6,11 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from wha.agent.steps import AGENT_NODES, pipeline_steps_that_ran
 from wha.clock import local_today, now_utc
 from wha.db import connect, to_iso
 from wha.db.migrations import apply_schema
+from wha.errors import ConfigError
 from wha.models import (
     Answer,
     AnswerOption,
@@ -34,23 +36,47 @@ from wha.models import (
 )
 from wha.policy.probes import load_probes
 
-# One entry per node in `wha.agent.graph`, in execution order, and NOTHING ELSE. The Trace
-# tab renders this list, so a name here that the graph does not have is shown to a person as
-# a stage of their own investigation that is permanently pending. "measure" was exactly that:
+# What the Trace tab says each stage does. One entry per node in `wha.agent.graph`, and
+# NOTHING ELSE, because a name here that the graph does not have is shown to a person as a
+# stage of their own investigation that is permanently pending. "measure" was exactly that:
 # `node_measure` was deleted, this list was not updated, and the Trace tab went on
 # advertising "Request spot resting heart rate or overnight wear" for a limb that no longer
 # existed, explaining its absence with "No spot reading was requested". Found by opening the
 # tab, 5 September 2026.
-CANONICAL_STAGES = [
-    ("preload", "Fetch preloaded nightly features, baselines, and quality metrics"),
-    ("investigate", "Query closed T1 tools for clinical context and evidence"),
-    ("believe", "Enumerate exact 4096-state joint belief over 12 causes"),
-    ("decide", "Select EVSI-optimal action and evaluate veto policy"),
-    ("ask", "Prompt user for targeted symptom/exposure probe"),
-    ("conclude", "Draft structured clinical outcome with bounded differential"),
-    ("critique", "Verify deterministic claim grounding and strip ungrounded assertions"),
-    ("review", "Human clinician or supervisor review checkpoint"),
-]
+#
+# The names are no longer written out here. They are read from `wha.agent.steps`, which is
+# where the agent declares them, so the drift above cannot recur: a node renamed in the
+# graph and not described here fails a test instead of a reader.
+_STAGE_DESCRIPTIONS: dict[str, str] = {
+    "preload": "Fetch preloaded nightly features, baselines, and quality metrics",
+    "investigate": "Query closed T1 tools for clinical context and evidence",
+    "believe": "Enumerate exact 4096-state joint belief over 12 causes",
+    "decide": "Select EVSI-optimal action and evaluate veto policy",
+    "ask": "Prompt user for targeted symptom/exposure probe",
+    "conclude": "Draft structured clinical outcome with bounded differential",
+    "critique": "Verify deterministic claim grounding and strip ungrounded assertions",
+    "review": "Human clinician or supervisor review checkpoint",
+}
+
+def _canonical_stages() -> list[tuple[str, str]]:
+    """The stages the Trace tab renders, in the order the graph runs them.
+
+    Refuses to load rather than rendering a blank row. A node with no description here
+    would reach a person as an unexplained stage of their own investigation, which is the
+    same defect as the "measure" one above wearing different clothes.
+    """
+    undescribed = [node for node in AGENT_NODES if node not in _STAGE_DESCRIPTIONS]
+    if undescribed:
+        raise ConfigError(
+            f"These agent nodes have no Trace tab description: {undescribed}. "
+            "Add one to _STAGE_DESCRIPTIONS in service/episodes.py. A node declared in "
+            "wha.agent.steps and not described here would be shown to a person as a blank "
+            "stage of their own investigation."
+        )
+    return [(node, _STAGE_DESCRIPTIONS[node]) for node in AGENT_NODES]
+
+
+CANONICAL_STAGES = _canonical_stages()
 
 
 def get_pending_interaction(
@@ -556,7 +582,7 @@ def _pipeline_stages(trace: dict[str, Any]) -> list[PipelineStage]:
     An episode with no trace record predates this and is reported PENDING rather than
     SKIPPED, because "we did not write it down" is not the same claim as "it did not run".
     """
-    ran = set(trace.get("nodes_ran", []))
+    ran = pipeline_steps_that_ran(trace.get("nodes_ran", []))
     tool_calls = list(trace.get("tool_calls", []))
 
     stages: list[PipelineStage] = []

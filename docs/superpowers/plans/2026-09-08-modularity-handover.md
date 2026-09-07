@@ -93,17 +93,17 @@ No copy moves. `STEP_NAMES`, `explain.TEXT` and `TOPIC_STEPS` stay exactly where
 they get copy-pasted into React later. `CANONICAL_PIPELINE_STEPS` in `models.py` is
 untouched, because it is the public contract the dashboard is keyed to.
 
-- [ ] B.1 New `src/wha/agent/steps.py` holding three things and nothing else:
+- [x] B.1 New `src/wha/agent/steps.py` holding three things and nothing else:
       `AGENT_NODES`, `NODE_TO_PIPELINE_STEP` (identity today), `PRELOAD_TOOLS`
-- [ ] B.2 `service/pipeline.py` reads all three instead of hardcoding them. The SQL stays
+- [x] B.2 `service/pipeline.py` reads all three instead of hardcoding them. The SQL stays
       in the service; only the vocabulary moves to the agent
-- [ ] B.3 Test: every value in `NODE_TO_PIPELINE_STEP` is a real `step_id` in
+- [x] B.3 Test: every value in `NODE_TO_PIPELINE_STEP` is a real `step_id` in
       `CANONICAL_PIPELINE_STEPS`
-- [ ] B.4 Test: every node registered in `build_agent_graph` appears in `AGENT_NODES` and in
+- [x] B.4 Test: every node registered in `build_agent_graph` appears in `AGENT_NODES` and in
       the map, so adding a node without mapping it fails the build
-- [ ] B.5 Update the "Add a pipeline step" row in `README.md`
-- [ ] B.6 Targeted: `uv run pytest tests/unit/service tests/unit/api tests/ui -n auto`
-- [ ] B.7 Commit
+- [x] B.5 Update the "Add a pipeline step" row in `README.md`
+- [x] B.6 Targeted: `uv run pytest tests/unit/service tests/unit/api tests/ui -n auto`
+- [x] B.7 Commit
 
 ### Step C: `Retriever` protocol
 
@@ -173,6 +173,34 @@ opposite of what the tests require.
 boundaries". It is now aimed at `docs/CODE-CONVENTIONS.md` rather than at `README.md`:
 correct the three rules to what is true, and make the enforcement claim true by writing
 `tests/unit/test_layering.py`.
+
+### 2. The node names were written out four times, not three
+
+Found while wiring Step B. Besides `CANONICAL_PIPELINE_STEPS` and the hardcoded set in
+`_agent_steps_from_evidence`, `service/episodes.py` held `CANONICAL_STAGES`: a second
+complete copy of all eight node names, driving the Trace tab.
+
+Its own comment records the defect this causes. `node_measure` was deleted, that list was
+not updated, and the Trace tab went on advertising a stage of the reader's own investigation
+as permanently pending. It was found by opening the tab on 5 September 2026, not by a test.
+
+The names now come from `AGENT_NODES`; only the descriptions stay in `episodes.py`, because
+they are prose and prose stays where it is. A node with no description raises `ConfigError`
+at import rather than rendering a blank row.
+
+**One thing is deliberately left alone.** `_agent_steps_from_evidence` still writes node
+names as string literals, because each is tied to a specific piece of stored evidence
+("a stored belief means believe and decide both ran") and turning that into a table would
+obscure the reasoning. They are covered indirectly: `test_steps.py` fails if the graph gains
+or renames a node, which is exactly when those literals would go stale.
+
+### 3. The new tests were proved by breaking the code, not by watching them pass
+
+A phantom `measure` node was added to `AGENT_NODES`, described in `_STAGE_DESCRIPTIONS` so
+the import would succeed, and the suite re-run. Four tests failed, including
+`test_the_graph_registers_exactly_the_nodes_declared_here`. The injection was then reverted.
+A test that passes and cannot fail is worth nothing, and this is a repository where "the
+failure reported success" is the documented recurring defect shape.
 
 ## Blockers found
 

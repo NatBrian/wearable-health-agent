@@ -742,7 +742,8 @@ You will hit these if you break them, so they are worth knowing up front.
 | **Add a question the agent can ask** | Add a probe to `data/knowledge/probes.yaml` with its answer slots and likelihood rows. The policy scores it automatically. |
 | **Add or change a red flag** | Edit `data/knowledge/red_flags.yaml`. A symptom with no evidence for a routing threshold belongs in `tracked:`, not in a tier. |
 | **Add a tool the agent can call** | Register it in `src/wha/agent/tools/`. The registry is a closed allow-list; anything not on it is refused, and the refusal is recorded. |
-| **Add a pipeline step** | Add it to `CANONICAL_PIPELINE_STEPS` in `models.py`, implement it in `service/pipeline.py`, give it copy in `ui/explain.py`, a name in `ui/components/pipeline_graph.py`, and a topic in `ui/components/how_it_works.py`. The tests will tell you which you missed. |
+| **Add a pipeline step** | A step a person can see. Add it to `CANONICAL_PIPELINE_STEPS` in `models.py`, implement it in `service/pipeline.py`, give it copy in `ui/explain.py`, a name in `ui/components/pipeline_graph.py`, and a topic in `ui/components/how_it_works.py`. The tests will tell you which you missed. |
+| **Rename, split or add an agent node** | Not the same job as the row above, and much smaller. `src/wha/agent/steps.py` is the only file that has to change: name the node in `AGENT_NODES` and map it onto the public step it reports as in `NODE_TO_PIPELINE_STEP`. Several nodes may map to one step, which is how the agent is restructured without any screen moving. Describe it in `_STAGE_DESCRIPTIONS` in `service/episodes.py` for the Trace tab. `tests/unit/agent/test_steps.py` fails if the graph and that file disagree |
 | **Change a detection threshold** | Measure it first with `experiments/detection/cohort/`. Several such changes have been proposed and rejected on measurement; the table above lists them. |
 
 ### Testing
