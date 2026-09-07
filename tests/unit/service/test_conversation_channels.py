@@ -106,3 +106,45 @@ def test_a_notifier_failure_never_breaks_the_conversation(tmp_path) -> None:
         result = send_message(subject_id="me", text="I fainted", conn=conn)
 
     assert result.urgency == "urgent"
+
+
+def test_the_escalation_that_reaches_the_phone_is_written_down(tmp_path) -> None:
+    """The most urgent message this system sends was the one it did not record.
+
+    Found on 7 September 2026 while building the demo film. Questions and outcomes each
+    write a `notifications` row when they go out. `_push_escalation` sent straight to the
+    notifier, so "you should see a doctor today" arrived on somebody's phone leaving no
+    trace that it had been delivered: nothing in `notifications`, nothing in the audit
+    trail.
+
+    The DECISION was recorded, on the conversation turn, with its urgency and the flags
+    behind it. What was missing is the DELIVERY, which is the half a person or a clinician
+    would actually want evidenced, because "nobody told me" and "you were told" are
+    answered by different rows.
+
+    The record screen says everything this system does is written down as it happens.
+    """
+    conn = connect(tmp_path / "c.sqlite")
+    apply_schema(conn)
+
+    notifier = MagicMock()
+    notifier.channel = "telegram"
+    reply = ConversationReply(text="You should see a doctor today.", urgency="same_day")
+
+    with (
+        patch("wha.service.conversation.respond", return_value=reply),
+        patch("wha.notify.get_notifier", return_value=notifier),
+    ):
+        send_message(subject_id="me", text="I have a fever and I am vomiting", conn=conn)
+
+    assert notifier.send.called, "the escalation never reached the phone"
+
+    rows = conn.execute(
+        "SELECT kind, channel, status FROM notifications WHERE subject_id = 'me'"
+    ).fetchall()
+    assert rows, (
+        "an escalation was delivered to the person's phone and nothing recorded that it "
+        "had been"
+    )
+    assert rows[0]["kind"] == "ESCALATION"
+    assert rows[0]["status"] == "SENT"

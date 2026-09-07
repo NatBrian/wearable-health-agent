@@ -13,6 +13,7 @@ from wha.agent.conversation import ConversationReply, load_transcript, respond
 from wha.agent.conversation import established_urgency as _established_urgency
 from wha.clock import now_utc
 from wha.db.connection import connect
+from wha.db.iso import to_iso
 from wha.db.migrations import apply_schema
 from wha.retrieve.attribution import ATTRIBUTION_NOTE, is_external, source_label
 
@@ -273,27 +274,63 @@ def send_message(
             age_years=age_years,
         )
         if notify_on_escalation and reply.urgency is not None and reply.urgency != before:
-            _push_escalation(subject_id, reply)
+            _push_escalation(subject_id, reply, connection)
         return reply
     finally:
         if close:
             connection.close()
 
 
-def _push_escalation(subject_id: str, reply: ConversationReply) -> None:
-    """Tell the phone that the urgency changed. Never raises into the conversation."""
+def _push_escalation(
+    subject_id: str,
+    reply: ConversationReply,
+    conn: sqlite3.Connection | None = None,
+) -> None:
+    """Tell the phone that the urgency changed, and write down that we did.
+
+    Never raises into the conversation.
+
+    THE RECORD MATTERS AS MUCH AS THE MESSAGE. Questions and outcomes each wrote a
+    `notifications` row when they went out; an escalation sent straight to the notifier
+    and recorded nothing, so the most urgent thing this system ever says to somebody,
+    "you should see a doctor today", was the one message that left no trace of having
+    been delivered.
+
+    The DECISION was always recorded, on the conversation turn, with its urgency and the
+    flags behind it. The DELIVERY was not, and that is the half that answers "nobody told
+    me". The record screen says everything this system does is written down as it happens.
+    """
     try:
         from wha.notify import get_notifier
         from wha.notify.protocol import MessageKind
 
-        get_notifier().send(
+        notifier = get_notifier()
+        notifier.send(
             recipient_id=subject_id,
             kind=MessageKind.ESCALATION,
             text=format_for_telegram(reply),
         )
     except Exception:  # noqa: BLE001
         # A transport failure must not stop the conversation or lose the reply. The
-        # urgency is already recorded on the turn, so the dashboard still shows it.
+        # urgency is already recorded on the turn, so the dashboard still shows it, and
+        # nothing is recorded as delivered that was not.
+        return
+
+    if conn is None:
+        return
+    try:
+        from wha.agent.repository import EpisodeRepository
+
+        EpisodeRepository(conn).record_notification(
+            interaction_id=f"esc_{subject_id}_{to_iso(now_utc())}",
+            recipient=subject_id,
+            kind="ESCALATION",
+            channel=getattr(notifier, "channel", "none"),
+            extra={"urgency": reply.urgency, "flags": list(reply.triggered_flags or [])},
+        )
+    except Exception:  # noqa: BLE001
+        # Recording is best effort in the same direction as the send: never lose the
+        # conversation over bookkeeping.
         return
 
 
