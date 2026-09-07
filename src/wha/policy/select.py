@@ -303,7 +303,7 @@ def determine_disposition(
     # probability, and the episode panel marks it, so a night the watch cannot vouch for
     # still shows the watch at the top of the list.
     #
-    # What remains unfixed is recorded in BLOCKERS.md: a sensor-dominated night concludes
+    # What remains unfixed is recorded in docs/DISCLOSURES.md: a sensor-dominated night concludes
     # LIKELY_ILLNESS with no headline saying the reading is doubtful.
     #
     # INSUFFICIENT_DATA is therefore reachable from the COLD rung only, which is the branch

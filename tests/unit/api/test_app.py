@@ -119,7 +119,7 @@ def test_the_documented_endpoint_count_matches_the_app() -> None:
     # a record written in September 2026 was accurate then, and rewriting it so a test
     # passes would turn the history into fiction.
     documents = [
-        repo / "STATUS.md",
+        repo / "README.md",
         repo / "docs" / "ARCHITECTURE.md",
     ]
 
@@ -174,7 +174,7 @@ def test_no_document_quotes_a_policy_accuracy_the_eval_did_not_produce() -> None
     # and watching the test pass anyway.
     searched = list(repo.glob("docs/*.md")) + [
         repo / "README.md",
-        repo / "STATUS.md",
+        repo / "README.md",
         repo / "AGENTS.md",
         repo / "EVALUATION.md",
     ]

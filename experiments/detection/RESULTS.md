@@ -110,14 +110,14 @@ opens fewer investigations on people who were never ill:
 Reproduce all of it: `Mishra et al. 2020, Nature Biomedical Engineering 4:1208-1220. Reproduce with experiments/detection/cohort/fetch.py, labels.py, evaluate.py, report.py.`
 
 Every deviation from the algorithm these thresholds come from is listed, with the
-evidence for each, in `docs/DESIGN-VS-NIGHTSIGNAL.md`.
+evidence for each, in `experiments/detection/COMPARED-TO-NIGHTSIGNAL.md`.
 
 ### The alert rule was chosen on this data, not assumed
 
 Item 8 of the refinement plan asked for the threshold sweep to sit next to these
 numbers. It is one table and it is the argument for the rule above, so rather than
 duplicate it into a generated file where it would drift, here is what it says and
-where it lives in full: `docs/DESIGN-VS-NIGHTSIGNAL.md`, reproducible with
+where it lives in full: `experiments/detection/COMPARED-TO-NIGHTSIGNAL.md`, reproducible with
 `uv run python experiments/detection/cohort/sweep.py`.
 
 Window: 7 days before symptom onset to 1 day after, which is NARROWER than the

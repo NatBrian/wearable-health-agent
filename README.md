@@ -1,6 +1,6 @@
 # Wearable Health Agent (WHA)
 
-> **Agentic early-warning, physiological anomaly detection, and exact causal attribution for
+> **Agentic early-warning, physiological anomaly detection, and causal attribution for
 > consumer wearable data.**
 
 Your smartwatch can tell that something changed. It cannot tell you what changed it.
@@ -13,48 +13,174 @@ badly, had a stressful day, were vaccinated on Tuesday, or are in the luteal pha
 menstrual cycle. **To an optical sensor on the wrist these look nearly identical, and they
 demand opposite responses.**
 
-**WHA solves this by decoupling continuous passive monitoring from episodic agentic
-investigation.** A cheap, boring, always-on monitor watches your nights using ordinary
-statistics and no AI at all. Only when it sees something worth explaining does a bounded AI
-agent wake up, gather evidence, weigh the possible causes, and decide whether asking you a
-question is worth interrupting you for.
+**WHA decouples continuous passive monitoring from episodic agentic investigation.** A cheap,
+boring, always-on monitor watches your nights using ordinary statistics and no AI at all.
+Only when it sees something worth explaining does a bounded AI agent wake up, gather
+evidence, weigh the possible causes, and decide whether asking you a question is worth
+interrupting you for.
 
 ---
 
-## Start here: which document do you want?
+## What this is not
 
-| If you are... | Read |
+**This has never been tested on a patient.** There is no clinical trial behind it, no peer
+review and no validation against any medical outcome. Nobody has been warned by it, treated
+because of it, or helped by it. It is a two week student project.
+
+**How well it detects illness in real use is not known.** Where you see a number in this
+repository it is either from a published source with its citation beside it, or an operating
+parameter of the code. Anything this project measured about itself lives in
+[`experiments/`](experiments/README.md) behind a disclaimer, and is not evidence that any of
+this works.
+
+It is not a medical device and it does not diagnose. See [DISCLAIMER.md](DISCLAIMER.md).
+
+---
+
+## Current state, as of 7 September 2026
+
+**The project is finished.** There is no task queue, and nothing is waiting on anybody.
+
+- The whole suite passes, `ruff` is clean on `src` and `tests`, `wha doctor` reports no
+  failures.
+- The dashboard has five screens and was driven end to end through a seventeen day illness.
+- A complete demo timeline is committed and can be opened in one command, below.
+- A 28 minute walkthrough film of the whole system is in [`docs/demo/`](docs/demo/README.md).
+
+If you are asked to "continue" with no further detail, **ask what is wanted**. `history/` is
+full of documents that look like plans and every one of them describes work that has ended.
+
+---
+
+## Setting it up from a clean checkout
+
+```bash
+uv sync                                   # install. ALWAYS uv, never bare python
+cp .env.example .env                      # then fill in the values it lists
+uv run wha data fetch corpus              # REQUIRED. ~32 MB, see below
+uv run wha doctor                         # should report no `fail` rows
+```
+
+**The corpus fetch is not optional.** `data/corpus/` holds the MedlinePlus passages the
+agent is allowed to quote, plus their embeddings. It is about 32 MB, it is deliberately not
+committed, and **retrieval cannot run without it**. Which release is in use, and its
+SHA-256, are recorded in `data/knowledge/corpus-sources.json`.
+
+Nothing else needs downloading to run the system. The cohort dataset under `data/cohort/` is
+only needed to re-run the detection experiment, and `wha doctor` will report it as `miss`
+without it, which is expected and harmless.
+
+### Look at a working system immediately
+
+```bash
+uv run python tools/demo_film/serve_demo.py     # then http://localhost:8501
+```
+
+This opens a committed seventeen day timeline: quiet nights, an illness, a relapse, a
+recovery, three linked investigations, every question asked and answered, an escalation, and
+the audit trail behind all of it. It shifts the clock so the newest night reads as "last
+night" however long from now you run it, serves a copy so browsing cannot alter the
+committed timeline, and runs without the scheduler so nothing moves while you look.
+
+**It is the fastest way to understand what this system does.** Use it before reading the
+architecture.
+
+---
+
+## The repository, folder by folder
+
+| Path | What it is | Status |
+|---|---|---|
+| `src/wha/` | **The system.** All of it | **Live** |
+| `tests/` | The suite. You may add, never weaken | **Live** |
+| `data/knowledge/` | The clinical tables: causes, probes, red flags, triage rules. Every number carries its own provenance | **Live, under change control.** See rule 4 in `AGENTS.md` |
+| `docs/` | The design documents, contracts and disclosures | **Live** |
+| `tools/` | The mock watch, the retrieval check, and `demo_film/` which built the demo and the film | **Live** |
+| `experiments/` | **Our own experiments, and NOT evidence of anything.** Detection re-analysis, a self-scored policy simulation, a retrieval comparison, a deleted forecaster. Every folder carries a disclaimer | **Live, but read the disclaimer first** |
+| `data/corpus/` | Fetched MedlinePlus text and embeddings. Not authored here, not committed | Fetch only |
+| `history/` | **Finished work. Describes nothing about the present.** Old plans, the build log, the September review, and this project's own session logs | **Read-only.** Never a queue |
+| `archive/` | An older database and a stray patch, both ignored by git | Dead |
+| `scratch/` | Local working files. Nothing reads it, nothing imports from it | Dead |
+
+### The documents, and which of them you must write to
+
+Three documents are **obligations**, not reference reading. You do not need to read them
+cover to cover, but if you do the matching thing you must add to them, and a test will fail
+if you do not.
+
+| Document | You must write to it when |
 |---|---|
-| **A person using the system** | **[USER-GUIDE.md](USER-GUIDE.md)**. How to read the dashboard, what the colours mean, when the AI messages you, and what to do about it. Written for a non-technical reader, with screenshots. |
-| **Picking up development** | This file, then **[STATUS.md](STATUS.md)** (what is true *right now*), then **[BLOCKERS.md](BLOCKERS.md)** (what is open). |
-| **Changing anything clinical** | **[docs/DISCLOSURES.md](docs/DISCLOSURES.md)** and **[docs/KNOWLEDGE-CHANGELOG.md](docs/KNOWLEDGE-CHANGELOG.md)**, before you touch `data/knowledge/`. |
-| **Trying to understand the whole design** | **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**: 19 parts, end to end. The short version is [below](#the-short-version-of-the-architecture). |
-| **Wondering how well it works** | **[experiments/README.md](experiments/README.md)**. The short answer is that it has not been established: there is no clinical trial and no validation behind this project. |
-| **An AI agent working in this repo** | **[CLAUDE.md](CLAUDE.md)** and **[AGENTS.md](AGENTS.md)** for the working rules. |
+| `docs/KNOWLEDGE-CHANGELOG.md` | You change any clinical figure in `data/knowledge/` or `constants.py` |
+| `docs/DISCLOSURES.md` | You add or discover a limitation. Every one names the screen that shows it |
+| `docs/CONTRACTS.md` | You change a schema, model, constant or service signature. **Three tests compare it against the code on every run** |
 
-### The full document map
+The rest are reference:
 
-| Document | What it is for |
+| Document | What it answers |
 |---|---|
-| [STATUS.md](STATUS.md) | **The only file guaranteed to describe the present.** Read it first, every time. |
-| [BLOCKERS.md](BLOCKERS.md) | Open problems and decisions, and what was measured about each. |
-| [USER-GUIDE.md](USER-GUIDE.md) | The end-to-end guide for the person whose health this is. |
-| [EVALUATION.md](EVALUATION.md) | Benchmark results, regenerated by `uv run wha eval-report`. |
-| [DISCLAIMER.md](DISCLAIMER.md) | What this is not. Rendered on the dashboard's Home page. |
-| [HANDOVER.md](HANDOVER.md) | Notes for somebody taking the project over cold. |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The full system in 19 parts, each answering "what does this do, why does it exist, how does it work". |
-| [docs/CONTRACTS.md](docs/CONTRACTS.md) | Schemas, models, constants, service signatures. **Three tests compare it against the code on every run**, so it cannot drift. |
-| [docs/DISCLOSURES.md](docs/DISCLOSURES.md) | Every limitation, its evidence, and which screen shows it. This project's rule is that a limitation living only in a markdown file is not disclosed at all. |
-| [docs/KNOWLEDGE-CHANGELOG.md](docs/KNOWLEDGE-CHANGELOG.md) | Every change to a clinical number, with the source sentence quoted for it. |
-| [docs/CORPUS-VERIFICATION.md](docs/CORPUS-VERIFICATION.md) | Every figure checked against the paper it cites, and what did not hold up. |
-| [docs/DESIGN-SYMPTOM-TIMELINE.md](docs/DESIGN-SYMPTOM-TIMELINE.md) | Why symptoms are read over time, and why a settled heart rate does not mean somebody recovered. |
-| [docs/DESIGN-BASELINE-CENTRE.md](docs/DESIGN-BASELINE-CENTRE.md) | Why the band uses a within-person scale, not a between-person one. |
-| [docs/DESIGN-SLEEP-WINDOW.md](docs/DESIGN-SLEEP-WINDOW.md) | Why the night is measured over recorded sleep rather than a clock window. |
-| [docs/DESIGN-DATA-CHANNELS.md](docs/DESIGN-DATA-CHANNELS.md) | Which of Health Connect's ~60 data types are used, and why not the rest. |
-| [experiments/detection/COMPARED-TO-NIGHTSIGNAL.md](experiments/detection/COMPARED-TO-NIGHTSIGNAL.md) | How this compares to the published algorithm it takes its thresholds from. |
-| [docs/RESEARCH-AGENTIC-TRIAGE.md](docs/RESEARCH-AGENTIC-TRIAGE.md) | The literature behind the agent design. |
-| [docs/RUNBOOK-SIMULATION.md](docs/RUNBOOK-SIMULATION.md) | How to run a production-mimic simulation with the mock watch. |
-| [docs/demo/README.md](docs/demo/README.md) | The demo film: what is in it, what is real, and how to rebuild it from scratch. |
+| [AGENTS.md](AGENTS.md) | **The rules.** Read this before writing any code |
+| [docs/CODE-CONVENTIONS.md](docs/CODE-CONVENTIONS.md) | Type hints, naming, module boundaries |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The whole system in 19 parts. Routed by part below, do not read it cold |
+| [docs/RESEARCH-AGENTIC-TRIAGE.md](docs/RESEARCH-AGENTIC-TRIAGE.md) | Every clinical citation, with what it studied and what it justifies |
+| [USER-GUIDE.md](USER-GUIDE.md) | The product, for the person whose health it is |
+| [docs/demo/README.md](docs/demo/README.md) | The demo timeline and the film |
+| [experiments/README.md](experiments/README.md) | What we measured ourselves, and why it is not evidence |
+| [docs/RUNBOOK-SIMULATION.md](docs/RUNBOOK-SIMULATION.md) | Running a simulated timeline with the mock watch |
+| [docs/CORPUS-VERIFICATION.md](docs/CORPUS-VERIFICATION.md) | Every corpus figure checked against its paper |
+| `docs/DESIGN-*.md` | Four decisions argued at length: the sleep window, the baseline centre, the symptom timeline, which data channels are used |
+
+---
+
+## I want to do X. What do I read?
+
+| Goal | Read, in this order |
+|---|---|
+| **Understand what it does** | Run `serve_demo.py` above and click through it. Then this file's architecture section |
+| **Fix a bug** | `AGENTS.md`, then the relevant `ARCHITECTURE.md` part below. **Reproduce it in the running dashboard first**, because a green suite proves very little here |
+| **Add a feature** | `AGENTS.md`, `docs/CODE-CONVENTIONS.md`, `docs/CONTRACTS.md` for the boundary you are touching |
+| **Change a clinical number** | `AGENTS.md` rule 4, then `docs/KNOWLEDGE-CHANGELOG.md` for the format. You need a quotable source or a committed measurement |
+| **Change what the screen says** | `src/wha/ui/explain.py` holds the copy. UI copy may contain no digits, and the dashboard may not import from `wha.service`. Tests enforce both |
+| **Add or change a safety rule** | `data/knowledge/red_flags.yaml`, `src/wha/safety/`, and `ARCHITECTURE.md` Part 12. The floor may only ever raise urgency |
+| **Work on the agent's reasoning** | `ARCHITECTURE.md` Parts 8 to 11, and `src/wha/agent/` |
+| **Work on retrieval or grounding** | `ARCHITECTURE.md` Parts 13 and 14, and `src/wha/retrieve/` |
+| **Re-cut or re-record the film** | `docs/demo/README.md` |
+| **Understand why a past decision was made** | `history/session-logs-2026-09/superpowers/` holds the specs and plans, each explaining the reasoning at the time |
+
+### Where in ARCHITECTURE.md
+
+It is 19 parts and about 85 KB. Read the part you need, not the file.
+
+| Part | Subject |
+|---|---|
+| 1 to 2 | Getting data off the watch, and storage |
+| 3 to 4 | The sleep window, and turning a night into one number |
+| 5 to 6 | The personal baseline, and deciding a night is worth looking at |
+| 7 | The forecaster that was removed, and why |
+| 8 | The Bayesian belief over twelve causes |
+| 9 | The EVSI policy: deciding whether to interrupt somebody |
+| 10 to 11 | The agent graph, and its tools |
+| 12 | **The deterministic safety floor** |
+| 13 to 14 | Retrieval, the corpus, and grounding |
+| 15 | The conversation |
+| 16 to 17 | The HTTP boundary, the dashboard, and Telegram |
+| 18 to 19 | The audit trail, and what is actually known about accuracy |
+
+---
+
+## Local files a clone will not have, and whether they matter
+
+Several large folders exist only on the machine this was built on. **None of them is needed
+to run the system.** This table is here so nobody has to work out what is safe to remove.
+
+| Path | Size | What it is | Safe to delete? |
+|---|---|---|---|
+| `data/backups/` | 2.2 GB | Database copies taken before each destructive step during the build | **Yes.** Nothing reads it, and the work it protected is finished and committed |
+| `scratch/` | 450 MB | Logs, one-off analysis scripts, intermediate databases | **Yes.** Nothing in `src`, `tests` or `tools` reads it |
+| `data/cohort/` | 368 MB | The public Mishra et al. 2020 dataset, for the detection experiment | **Yes.** Re-downloadable with `experiments/detection/cohort/fetch.py` |
+| `data/demo-snapshots/` | 303 MB | A database snapshot per day of the demo timeline | **Yes, if you will not re-film a scene.** Re-creating them costs model calls and the agent would word its replies differently |
+| `archive/dbs/` | 270 MB | Two databases from early September | **Yes.** Superseded |
+| `data/wha.sqlite` | 213 MB | **The owner's real watch data.** Subject `me` | **NO. Never delete or overwrite this** |
+| `data/demo_film.sqlite` | 22 MB | The finished demo timeline | **No,** and it is committed. Not reproducible: rebuilding costs model calls and produces different wording |
 
 ---
 
@@ -92,7 +218,7 @@ question is worth interrupting you for.
                                                                    └─────────────────────────┘
 ```
 
-> **Project status:** see **[STATUS.md](STATUS.md)** for what works, what does not, and
+> **Project status:** see the current state near the top of this file for what works, and
 > what still needs a human decision.
 
 ---
@@ -483,7 +609,7 @@ uv run wha episode step <id>     # Manually advance an episode cycle
 uv run wha belief explain        # Output exact mathematical marginals over 12 causes
 
 # Evaluation
-uv run wha eval-report           # Run the offline suites and write EVALUATION.md
+uv run wha eval-report           # Run the offline suites, writes into experiments/detection/
 uv run wha eval policy           # Real policies through the real belief model
 uv run wha eval adversarial      # Prompt-injection containment over 15 cases
 uv run wha eval baseline-age     # How the baseline behaves as nights accumulate
@@ -557,7 +683,7 @@ screen drifts away from the code that uses it.*
 * **⚙️ Settings (`/Settings`)**: Every field the application accepts, each saying what it
   changes about the system's behaviour, connection tests, and deletion.
 
-Benchmark results are not a dashboard page. They live in [EVALUATION.md](EVALUATION.md),
+Benchmark results are not a dashboard page. They live in [experiments/detection/](experiments/detection/README.md),
 regenerated by `uv run wha eval-report`, because they are evidence for someone assessing
 the system rather than something a person checking their own health acts on.
 
@@ -677,7 +803,7 @@ Fetched from outside, and not redistributed here:
 
 * **MedlinePlus health topics** (National Library of Medicine, attribution-only). About 1,000 English topics, fetched with `uv run wha data fetch corpus`. This is the only material the agent can cite that describes a condition in general rather than describing this person. Which release is in use, with its SHA-256, is recorded in **`data/knowledge/corpus-sources.json`**. Fetched text is untrusted and is scanned for prompt injection before the model sees it, exactly like any other retrieved passage.
 
-Two layers `sources.yaml` names are still narrower than the design says: StatPearls has never been fetched, and the Singapore care-pathway material exists only as the wording already in `red_flags.yaml`. **The second is now a settled decision rather than a gap:** the corpus deliberately carries no illness-specific guidance, and the cost of that is disclosed on screen. See `STATUS.md` and `BLOCKERS.md`.
+Two layers `sources.yaml` names are still narrower than the design says: StatPearls has never been fetched, and the Singapore care-pathway material exists only as the wording already in `red_flags.yaml`. **The second is now a settled decision rather than a gap:** the corpus deliberately carries no illness-specific guidance, and the cost of that is disclosed on screen. See `docs/DISCLOSURES.md`.
 
 The agent may cite these and nothing else. There is no open web search, and it cannot write clinical text of its own: an assertion whose quoted span is not verbatim in a cited passage is either stripped or labelled on screen as coming from the model's own knowledge. That check proves the span exists; it does not prove the sentence around it describes the source correctly, and `docs/ARCHITECTURE.md` Part 14 shows a real case where it did not. Every figure in the authored corpus was checked against the paper it cites; what held up and what did not is in **`docs/CORPUS-VERIFICATION.md`**, and every clinical figure that was changed, with the source sentence quoted for it, is in **`docs/KNOWLEDGE-CHANGELOG.md`**.
 

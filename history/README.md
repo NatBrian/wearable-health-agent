@@ -46,3 +46,25 @@ found under audit to be fabricated. Never read it as fact. This directory is dif
 real design history of the current system, accurate for the moment it was written.
 
 **All of this directory is read-only.**
+
+---
+
+## Added 7 September 2026, when the project finished
+
+The repository was reorganised so that somebody arriving with no context reads `README.md`
+and nothing else to start. These files were live during the build and describe work that has
+ended. **Nothing here describes the present.**
+
+| Moved here | What it was | Why it is not live |
+|---|---|---|
+| `session-logs-2026-09/STATUS.md` | The running "what is true right now" file, updated every session | The project is finished. `README.md` carries the current state now, and two files claiming to describe the present is how they drift apart |
+| `session-logs-2026-09/BLOCKERS.md` | Open problems and what was measured about each | Every entry is closed. The live record of what this system cannot do is `docs/DISCLOSURES.md`, which is enforced by tests |
+| `session-logs-2026-09/HANDOVER.md` | Notes for somebody taking the project over cold | Superseded by `README.md`, which is now written for exactly that reader |
+| `session-logs-2026-09/superpowers/` | Specs and implementation plans for the September work: the dashboard overhaul, the symptom timeline, the demo film, the claims cleanup | Each plan describes a job that is done. They are worth reading for WHY a thing was built, never as a queue of work |
+| `prior-research/` | The research done before any code was written: problem formulation, unknowns, landscape, decision gates | The decisions it fed are made and are recorded where they apply |
+| `prior-generation/` | An earlier attempt at this project, from 30 August 2026, and its research | A different project that this one replaced |
+
+**The reading rule for this whole folder has not changed.** It is a record, not a queue. If
+anything here disagrees with `README.md`, `README.md` is right. If you are asked to
+"continue" with no further detail, ask what is wanted rather than mining these files for
+work that was finished months ago.

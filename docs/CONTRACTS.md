@@ -1,6 +1,15 @@
 # Contracts
 
-> **BINDING, AND NOW CHECKED.** This was `plan/02-contracts.md` and moved here on 4 September
+> ## Three tests compare this file against the code on every run.
+>
+> Schemas, models, constants and service signatures. **If you change any of them, you change
+> this file too, or the suite fails.** That is deliberate: this document is cited by name
+> from the source, and a contract that drifts from the code is worse than no contract.
+>
+> You do not need to read it end to end. Find the boundary you are touching, and check it
+> still describes what you are about to do.
+
+> **BINDING, AND NOW CHECKED.** This was `history/plan/02-contracts.md` and moved here on 4 September
 > 2026, when the rest of the build plan was retired to `history/`. It moved rather than being
 > retired because the source code cites it by name in `constants.py`, `models.py`,
 > `agent/nodes.py`, `eval/policy_oracle.py` and `service/episode_lifecycle.py`.
@@ -47,7 +56,7 @@ Dependency groups in `pyproject.toml`, so a resolution conflict in one area cann
 
 Exact versions resolve once via `uv lock` and are committed as `uv.lock`.
 
-> **If `uv lock` fails to resolve, record the conflict in `BLOCKERS.md`.** Do not remove a
+> **If `uv lock` fails to resolve, record the conflict in `docs/DISCLOSURES.md`.** Do not remove a
 > dependency and do not drop the `numpy>=2` floor.
 
 **There is no probabilistic-graphical-model library.** The belief model is exact enumeration over

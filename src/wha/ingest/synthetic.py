@@ -163,7 +163,7 @@ class Synthetic:
                         #
                         # The cost of this is that simulated illness is flat rather than
                         # rising, and rising is what distinguishes infection from the
-                        # luteal phase in causes.yaml. See BLOCKERS.md, illness-onset.
+                        # luteal phase in causes.yaml. See docs/DISCLOSURES.md, illness-onset.
                         idx = min(nights_since + PEAK_INDEX, len(prof) - 1)
                         weight = prof[idx]
                         amplitude = float(inj.get("amplitude_bpm", 1.60))

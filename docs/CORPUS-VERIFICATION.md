@@ -103,7 +103,7 @@ means, late luteal against follicular, those are +0.45 C and +0.47 breaths per m
 
 Neither channel is ingested by this system and neither number enters any computation, so
 this is a citation-accuracy defect rather than a clinical one. `causes.yaml` is read-only
-to the agent, so it was not edited. Recorded in `BLOCKERS.md` for a human.
+to the agent, so it was not edited. Recorded in `docs/DISCLOSURES.md` for a human.
 
 **3. Mishica et al. 2022 is eleven adolescent endurance athletes.**
 The quotation the code relies on is verbatim and correct. The cohort is n=11, aged 16 +/- 1,

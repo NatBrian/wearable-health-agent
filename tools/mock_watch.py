@@ -54,7 +54,7 @@ ANCHOR_HOUR_UTC = 8
 # The illness amplitudes are MEASURED, not guessed. The generator rounds every minute to a
 # whole bpm, so an amplitude does not arrive intact in the nightly RHR: against a mature
 # 61.35 bpm baseline, 4.6 moves RHR 61 -> 65 for a 3.65 bpm residual, which is below
-# DETECT_RED_BPM = 4.0. That is the same arithmetic plan/BLOCKERS.md records for the
+# DETECT_RED_BPM = 4.0. That is the same arithmetic plan/docs/DISCLOSURES.md records for the
 # no-response-timeout fixture. `flagged` additionally needs DETECT_PERSISTENCE_NIGHTS = 2
 # consecutive elevated nights with at least one RED among them, so an amplitude that only
 # ever reaches YELLOW opens no episode and the agent never runs.

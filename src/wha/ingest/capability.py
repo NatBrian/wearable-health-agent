@@ -67,7 +67,7 @@ RECOGNISED_CHANNELS: tuple[ChannelStatus, ...] = (
         "Blood oxygen",
         False,
         "Stored and shown, but causes.yaml has no likelihood for it, so it cannot move "
-        "the conclusion. See BLOCKERS.md.",
+        "the conclusion. See docs/DISCLOSURES.md.",
     ),
     ChannelStatus(
         "distance",

@@ -58,7 +58,7 @@ CONTRACT_CONSTANTS = [
 # Constants docs/CONTRACTS.md still lists that the code deliberately no longer has.
 #
 # The contract is read-only, so it cannot be amended here, and the disagreement is
-# recorded in BLOCKERS.md instead of being hidden. Keeping these as dead names purely to
+# recorded in docs/DISCLOSURES.md instead of being hidden. Keeping these as dead names purely to
 # satisfy a list would be the exact defect this project keeps producing: something
 # defined, referenced, and never reached.
 REMOVED_FROM_THE_CODE: dict[str, str] = {
@@ -82,7 +82,7 @@ def test_the_only_missing_contract_constants_are_the_ones_deliberately_removed()
     Chronos was removed on a measurement: over 7,295 nights it separated illness worse
     than the residual the detector already computes, AUC 0.586 against 0.629. Its five
     constants went with it. docs/CONTRACTS.md still lists them and is read-only, so this
-    names exactly which entries the code no longer honours, and BLOCKERS.md asks for the
+    names exactly which entries the code no longer honours, and docs/DISCLOSURES.md asks for the
     amendment.
     """
     for name in REMOVED_FROM_THE_CODE:

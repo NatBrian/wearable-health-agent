@@ -153,7 +153,7 @@ policy nodes entirely.
 
 ## Known limitations of the simulation
 
-Recorded in full in `BLOCKERS.md`:
+Recorded in full in `docs/DISCLOSURES.md`:
 
 - An **OBSERVE decision is never revisited.** Once the policy chooses to wait, the belief
   does not move again on later nights; the episode exits through the deterministic
@@ -184,7 +184,7 @@ That harness is worth reading even if you never make a film, because it does one
 runbook does not: **it writes down what each day is predicted to do before running it, and
 halts on the first day that does something else.** It halted five times, and four of those
 were defects in the product rather than in the timeline. See
-`docs/superpowers/plans/2026-09-07-demo-film.md`.
+`history/session-logs-2026-09/superpowers/plans/2026-09-07-demo-film.md`.
 
 ## Resetting
 

@@ -1,5 +1,21 @@
 # Changes to the clinical knowledge files
 
+> ## You do not need to read this file. You need to WRITE to it.
+>
+> This is the record of every clinical figure that has changed, and why. It is an
+> obligation, not reference reading: **if you change any number in `data/knowledge/` or any
+> clinical constant in `src/wha/constants.py`, you add an entry here**, with the old value,
+> the new value, and either the sentence quoted from the source or the command that
+> reproduces the measurement.
+>
+> The format is obvious from any entry below. Read one, then write yours. You do not have to
+> read the rest.
+>
+> The rule this enforces is rule 4 in `AGENTS.md`. A clinical number that moves without
+> evidence is the single worst thing that can happen in this repository, because it becomes
+> a retrievable, citable passage and the citation makes it look more trustworthy rather than
+> less.
+
 `data/knowledge/` and the clinical constants in `src/wha/constants.py` are under change
 control. The rule exists because a wrong number in them becomes a retrievable, citable
 passage, and the citation makes it look more trustworthy rather than less.
@@ -128,7 +144,7 @@ and a research cohort is healthier than a general population. It is a starting g
 stops mattering once the person's own nights arrive, which is what a prior is for.
 
 **`docs/CONTRACTS.md` line 149 now disagrees with the code** and says the scale shrinks
-from `POP_PRIOR_RHR_SD_BPM`. The contract is not edited here. Recorded in `BLOCKERS.md`.
+from `POP_PRIOR_RHR_SD_BPM`. The contract is not edited here. Recorded in `docs/DISCLOSURES.md`.
 
 ---
 
@@ -170,7 +186,7 @@ model, not written by a person. The `Swept` claims are separately false: the onl
 the codebase is `COST_WEIGHT_SWEEP` in `src/wha/eval/policy_oracle.py`, which ranges over
 `POLICY_COST_PER_INTERRUPT` and nothing else. No effect size and no likelihood row in
 either file has ever been varied by any code here. The claim is the same shape as the one
-`STATUS.md` already records against `POLICY_COST_PER_INTERRUPT`, which was annotated
+`README.md` already records against `POLICY_COST_PER_INTERRUPT`, which was annotated
 "Swept" and had never been swept, repeated fourteen more times.
 
 **No figure changed.** This entry moves no number. It removes claims about where numbers

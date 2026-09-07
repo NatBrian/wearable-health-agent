@@ -293,7 +293,7 @@ class DifferentialItem(BaseModel):
     # `st.bar_chart` re-sorted the categories alphabetically on top of that, discarding the
     # ranking entirely. Carrying the number is what lets the chart show what the panel
     # claims to show. `docs/CONTRACTS.md` is read-only and does not list this field; the
-    # disagreement is recorded in BLOCKERS.md, as it is for the other three.
+    # disagreement is recorded in docs/DISCLOSURES.md, as it is for the other three.
     moved: float = 0.0
 
 

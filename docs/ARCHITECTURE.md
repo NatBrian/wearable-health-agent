@@ -534,7 +534,7 @@ method sounds more advanced**, and the only reason that could be checked is that
 comparison was run on labelled data rather than argued from first principles.
 
 `docs/CONTRACTS.md` is read-only and still lists the five removed constants; the
-disagreement is recorded in `BLOCKERS.md` and enumerated in
+disagreement is recorded in `docs/DISCLOSURES.md` and enumerated in
 `tests/unit/test_contracts.py::REMOVED_FROM_THE_CODE` rather than papered over.
 
 ---

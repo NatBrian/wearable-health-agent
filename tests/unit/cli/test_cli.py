@@ -240,7 +240,7 @@ def test_demo_run_completes_offline(tmp_path: Path) -> None:
 
     Exercised on alcohol-night because the exit code now reports whether the frozen
     expectations were met, and illness-onset currently cannot meet its own: see
-    BLOCKERS.md. Using a scenario that genuinely passes keeps a zero exit code a
+    docs/DISCLOSURES.md. Using a scenario that genuinely passes keeps a zero exit code a
     real signal rather than a weakened assertion.
     """
     db_file = tmp_path / "demo_offline.sqlite"

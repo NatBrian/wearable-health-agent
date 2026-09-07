@@ -1,5 +1,17 @@
 # What is disclosed, and where
 
+> ## This is an obligation, not a reference document.
+>
+> Every limitation this system has, the evidence for it, and **the screen where the person
+> is told**. This project's rule is that a limitation living only in a markdown file is not
+> disclosed at all.
+>
+> **If you find or add a limitation, it goes here, and it goes on a screen.** If you cannot
+> name the screen, it is not disclosed yet.
+>
+> This is also the live record of what the system cannot do. It replaced `BLOCKERS.md`,
+> which is now in `history/`.
+
 Every clinical design decision in this system is either backed by a citation or explicitly
 recorded as unevidenced, and **each one is stated on screen as well as in this repository**.
 A limitation that lives only in a markdown file is not disclosed to the person using the
@@ -110,7 +122,7 @@ transparency.
 - `docs/RESEARCH-AGENTIC-TRIAGE.md` — the evidence behind the conversation, the triage
   redesign and the clinician handover: why keyword matching was replaced, what a frontier
   model may and may not say here, and what remains unevidenced.
-- `BLOCKERS.md` — the decisions deliberately left to a human, including whether the
+- `docs/DISCLOSURES.md` — the decisions deliberately left to a human, including whether the
   step at seven nights should be smoothed and whether one population mean is the right
   cold-start prior across ages and sexes.
 
