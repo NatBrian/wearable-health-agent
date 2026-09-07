@@ -7,26 +7,67 @@
 
 ## THERE IS WORK IN PROGRESS. READ THIS BEFORE ANYTHING ELSE.
 
-This replaces the "the work is finished" banner that stood here until 6 September. It is no
-longer true. A dashboard overhaul and a live simulation are both in flight, and three
-decisions are waiting on the user.
+**A demo film is being made, and building it has found six defects in the product.** The
+plan and the running list of findings are in
+`docs/superpowers/plans/2026-09-07-demo-film.md`, the design in
+`docs/superpowers/specs/2026-09-07-demo-film-design.md`. Read the findings table before
+touching the safety floor or the symptom timeline.
 
-**A production-mimic simulation is running.** Subject `sim` holds a continuous history to
-9 September 2026: 28 mock nights generated at the user's own resting rate, then their seven
-real nights carried over from subject `me` as raw readings and scored by the real nightly
-job, then three raised nights on the 7th, 8th and 9th. An investigation, `ep_20445aee7610`,
-is OPEN, opened on the 8th, with one question asked and answered ("I feel a bit dizzy") and
-two escalations sent to a real phone.
+**A seventeen day timeline has been built and every day matched its prediction.** Subject
+`demo`, in `data/demo_film.sqlite`, which is NOT `data/demo.sqlite` (that belongs to the
+eleven frozen scenarios). 27 generated prologue nights, then the seven usable real nights
+copied read-only out of `me`, then 7 to 23 September: an illness, a relapse, a recovery and
+a chest pain conversation. Snapshots after every day are in `data/demo-snapshots/`.
 
-**Rules that hold while it runs:**
+**Rebuild or re-film it with:**
 
-- Subject `me` holds the user's real watch data. Never write to it. `.env` points at `sim`.
-- The mock watch serves `data/sim_state.json`, cursor at 2026-09-09, window one night. It
-  clamps to that window, so the scheduler's catch-up ingest cannot fabricate a month of
-  synthetic nights over the carried-over real ones. That clamp is load-bearing.
-- Backups of the database before each destructive step are in `data/backups/`.
-- Advance a night with `uv run python tools/mock_watch.py day --scenario <name>`, and only
-  when the user asks. They have been explicit about that.
+```bash
+uv run python tools/demo_film/serve_watch.py            # terminal 1
+uv run python tools/demo_film/build.py --stage seed     # terminal 2
+uv run python tools/demo_film/build.py --stage story    # hits the real model
+uv run python tools/demo_film/preflight.py              # look at the frames
+uv run python tools/demo_film/film.py                   # record the live scenes
+uv run python tools/demo_film/cards.py && uv run python tools/demo_film/assemble.py
+```
+
+`build.py` states each day's predicted outcome BEFORE running it and halts on the first
+mismatch. That is the point of it: a simulation described afterwards always looks like it
+worked. It halted five times, and four of those were real defects.
+
+**Rules that hold while this runs:**
+
+- Subject `me` holds the user's real watch data. The film opens it READ-ONLY, once.
+- The parked `sim` simulation is untouched. `tools/mock_watch.py` now honours
+  `WHA_MOCK_STATE`, so the film has its own cursor file and cannot trample it.
+- `WHA_CLOCK_OFFSET_DAYS` shifts the whole system's idea of today. It is unset in
+  production, `wha doctor` reports it as a warning when it is not, and `build.py` clears it
+  when it exits.
+
+## What building the film found, in the product
+
+Six defects, none of which the test suite could have caught, and two of them in code
+written on 7 September to fix a different silence.
+
+1. **The symptom follow-up fired ten times in three minutes**, consumed the whole
+   conversation depth budget in one tick and closed an investigation as UNRESOLVED on its
+   second day. On a real phone that is ten notifications.
+   `SYMPTOM_FOLLOWUP_MIN_NIGHTS_APART` was declared, documented and read by nothing, and
+   the per-episode cap could not cover for it because follow-up rows are keyed by night, so
+   the number it reads is pinned at one all day.
+2. **Saying "I feel better" recorded MORE symptoms than saying nothing.**
+   `observe_and_check` wrote every id in `triggered_flags`, which deliberately includes
+   flags carried from earlier nights, so every message re-asserted every symptom still in
+   the window and a symptom could never expire.
+3. **"The fever has gone" was read as a report of fever.** The negation guard only looked
+   backwards, so "no fever" worked and the commonest way of saying a symptom stopped did
+   not.
+4. **A quiet run closed an investigation while a person was reviewing its conclusion.**
+   The human checkpoint was skipped and nothing recorded that it had been.
+5. **The escalation that reaches the phone was not written down.** "You should see a
+   doctor today" arrived on a real phone leaving no trace of delivery, in a system whose
+   record screen says everything it does is written down as it happens.
+6. **`README.md` promised an Audit Journal page that does not exist**, and `EVALUATION.md`
+   carried the same stale name from its generator.
 
 ## 7 SEPTEMBER 2026: the symptom timeline landed. Two of those three decisions are closed.
 

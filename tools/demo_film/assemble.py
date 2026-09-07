@@ -35,6 +35,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "tools" / "demo_film" / "script.yaml"
 CARD_DIR = REPO_ROOT / "docs" / "demo" / "cards"
+STILL_DIR = REPO_ROOT / "docs" / "demo" / "telegram"
 FOOTAGE_DIR = REPO_ROOT / "docs" / "demo" / "footage"
 OUT_DIR = REPO_ROOT / "docs" / "demo"
 
@@ -180,6 +181,19 @@ def build_segments(script: dict, work: Path) -> list[Segment]:
                     captions = ()
                 else:
                     missing_footage.append(f"chapter {cid}: {shot.name}")
+
+            # Telegram stills. Real messages this build sent to a real phone, held on
+            # screen long enough to read rather than flashed past.
+            for order, entry in enumerate(chapter.get("stills") or []):
+                name, hold = entry
+                still = STILL_DIR / f"{name}.png"
+                if not still.is_file():
+                    print(f"   chapter {cid}: no still {still.name}")
+                    continue
+                clip = work / f"{cid:02d}-1s{order}-still.mp4"
+                still_to_clip(still, float(hold), clip)
+                segments.append(Segment(clip, float(hold), "still", cid, captions))
+                captions = ()
 
             card_png = CARD_DIR / f"{cid:02d}-{slug}.png"
             if card_png.is_file():

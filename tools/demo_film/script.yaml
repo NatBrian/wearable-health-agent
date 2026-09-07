@@ -194,8 +194,13 @@ acts:
 
       - id: 11
         title: "On your phone, and still there two days later"
-        form: stills+live
+        form: stills
         seconds: 70
+        # Real messages this build sent to a real phone, captured from the bot chat.
+        stills:
+          - [telegram-question, 9]
+          - [telegram-escalation, 12]
+          - [telegram-outcome, 9]
         captions:
           - "The question arrives on Telegram, and can be answered from there."
           - "The investigation is then parked, and picked up days later where it left off."
@@ -224,8 +229,10 @@ acts:
 
       - id: 13
         title: "Two symptoms, two different nights"
-        form: live+card
+        form: live+card+stills
         seconds: 100
+        stills:
+          - [telegram-escalation, 10]
         captions:
           - "Fever reported yesterday. Vomiting reported today."
           - "Neither one alone changes anything."
