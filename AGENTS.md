@@ -64,26 +64,67 @@ rewrite history. No co-author line, no tool name, no em-dash anywhere.
 
 ```
 1. Read README.md, then this file.
-2. Research before deciding. Every clinical or agentic design choice needs a citation,
-   or an explicit written statement that nothing settles it.
-3. Do the work.
-4. Run the suite and ruff ONCE, at the end, not after every edit.
-5. Then USE THE PRODUCT. See below. This is not optional.
-6. Commit, with the reasoning in the message. Never push.
+2. RESEARCH before deciding. Every clinical or agentic design choice needs a citation,
+   or an explicit written statement that nothing settles it. Never reason a medical
+   choice from first principles when a study exists.
+3. PLAN before building. Write down what you are going to do and why, and get it agreed
+   before you write code. For anything larger than a one-line fix, write it to a file.
+4. Do the work.
+5. Run the suite and ruff ONCE, at the end, not after every edit.
+6. Then USE THE PRODUCT. See below. This is not optional.
+7. Commit, with the reasoning in the message. Never push.
 ```
 
-**A green suite proves almost nothing here.** Every serious defect in this project was found
-by using the dashboard, never by reading code and never by running tests. Full suites have
-passed while a page crashed on load, while the safety floor was unreachable, while four
-subsystems had never once executed, and while an import error made the Today page
-unopenable.
+**Steps 2 and 3 are not ceremony, and skipping them is how this project has gone wrong.**
+This is a medical system: a design choice made from intuition rather than a source is a
+clinical claim nobody checked, and it will end up on a screen somebody trusts. A plan
+written down before the work can be argued with, which is the whole point; a plan
+reconstructed afterwards is a description of whatever happened.
 
-**Finish by driving the real interface as an ordinary person would**, on the real pages, and
-read what the screen actually says.
+Every substantial change to this system went research, then a written spec, then a plan,
+then the build. Those documents are in `archive/session-logs-2026-09/superpowers/`, and they
+are worth reading as examples of the expected shape, never as a queue of work.
 
 `uv run python tools/demo_film/serve_demo.py` opens a complete seventeen day timeline with
 an illness, a relapse and a recovery already in it, so there is always something real to
 look at.
+
+---
+
+## How this project fails
+
+Every one of these happened here. They share a shape: **the failure reported success.** The
+suite was green, the exit code was zero, the output looked right. Normal instincts do not
+catch this, so it is written down.
+
+**A green suite proves almost nothing.** Every serious defect in this project was found by
+using the dashboard, never by reading code and never by running tests. Full suites have
+passed while a page crashed on load, while the safety floor was unreachable, while four
+subsystems had never once executed, and while an import error made the Today page
+unopenable. **Finish by driving the real interface as an ordinary person would**, on the
+real pages, and read what the screen actually says.
+
+**Write down what should happen before you run it.** A run you watch and then describe
+afterwards always looks like it worked, because the description gets written to fit what
+happened. The demo build states each day's expected outcome first and halts on the first
+mismatch, and that caught four defects no test could have. If you are about to run something
+whose result you will have to judge, judge it in advance.
+
+**Look at the artefact, not the exit code.** A scene was filmed against the wrong date and
+looked entirely correct. A film was encoded twice with captions four times too large, both
+times exiting zero. Open the file. Read the frame. Query the database.
+
+**Verify the absence, not just the silence.** A defect was reported here that did not exist,
+because the grep behind it searched two directories and not the third. Before concluding
+something is missing, check that you looked where it would be.
+
+**Make it a rule only a test can enforce.** A misapplied citation was found and corrected in
+one file, then reintroduced two days later in another by somebody who had not read that
+file. A correction that lives only where it was made does not survive contact with new
+prose. If it matters, it is a test.
+
+**Try the expensive thing on a cheap sample.** A half hour render was burned twice to find a
+font size that a ten second slice would have shown immediately.
 
 ---
 
