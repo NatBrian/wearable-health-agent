@@ -162,12 +162,8 @@ _ALLOWED_HISTORYLESS = {
     # The documented fallback inside node_ask, taken only when there is no database
     # connection, and logged when it is.
     #
-    # This said "agent/nodes.py" until 8 September 2026, when that file was split into a
-    # package. The entry is written against the one module that holds the call, not the
-    # package, because an exemption that names a directory grows silently as files are
-    # added to it. When the split landed this test failed and named `agent/nodes/ask.py`
-    # as the single offender, which is how the replacement below was chosen rather than
-    # guessed.
+    # Names the single module holding the call, not the package: an exemption that names a
+    # directory would widen as files are added to it.
     "agent/nodes/ask.py",
     # The layer being called, not a caller.
     "safety/tier_c.py",

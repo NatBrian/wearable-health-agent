@@ -1,31 +1,21 @@
-"""What the agent calls its own steps, and what the rest of the system calls them.
+"""The agent's node names, and the public pipeline steps they report as.
 
-Written 8 September 2026, because the agent's node names were also, silently, a public
-interface. They were spelled out in three places that no test compared: the agentic entries
-of ``CANONICAL_PIPELINE_STEPS`` in ``models.py``, ``CANONICAL_STAGES`` in
-``service/episodes.py``, and a hardcoded set inside ``_agent_steps_from_evidence`` in
-``service/pipeline.py``. Renaming a node therefore broke two screens, and neither the graph
-nor the suite would say so.
+The graph's node names are a public interface: the audit view and the Trace tab both render
+them. This module is the single place they are declared, so that restructuring the agent
+does not require edits in ``models.py``, ``service/pipeline.py`` and ``service/episodes.py``,
+which previously each held their own copy.
 
-That drift has already reached a person once. ``node_measure`` was deleted and
-``CANONICAL_STAGES`` was not updated, so the Trace tab went on advertising a stage of the
-reader's own investigation that no longer existed and reported it permanently pending. It
-was found by opening the tab, not by a test.
+It holds names only: no queries, no rendering, no behaviour. ``service/pipeline.py`` keeps
+its SQL and ``service/episodes.py`` keeps its stage descriptions, and both read the names
+from here.
 
-This module is the one place the vocabulary lives. It holds names and nothing else: no
-queries, no rendering, no behaviour. ``service/pipeline.py`` keeps its SQL and
-``service/episodes.py`` keeps its prose; they read the names from here.
+**To restructure the agent**, change this file first. Rename, split or add nodes and map each
+onto the public step it reports as; ``NODE_TO_PIPELINE_STEP`` keeps the two vocabularies
+independent, so the screens are unaffected.
 
-**If you are restructuring the agent**, for instance into several agents, this is the file
-to change first. Rename, split or add nodes, map each one onto the public step it reports
-as, and the audit view and the dashboard keep working without being touched.
-``NODE_TO_PIPELINE_STEP`` is what makes the two vocabularies independent: it is the identity
-mapping today only because nothing has yet needed it not to be.
-
-Two tests hold this together. One checks that every value in ``NODE_TO_PIPELINE_STEP`` is a
-real step in ``CANONICAL_PIPELINE_STEPS``; the other checks that the nodes registered in
-``build_agent_graph`` are exactly ``AGENT_NODES``, so a node added to the graph and not
-named here fails the build rather than a screen.
+``tests/unit/agent/test_steps.py`` checks that every mapped step exists in
+``CANONICAL_PIPELINE_STEPS`` and that the nodes registered in ``build_agent_graph`` are
+exactly ``AGENT_NODES``, so a node added to the graph but not declared here fails the build.
 """
 
 # The graph's nodes, in execution order. `deliver` is deliberately absent: it is a pipeline
@@ -43,9 +33,9 @@ AGENT_NODES: tuple[str, ...] = (
     "review",
 )
 
-# Which public pipeline step each node reports as. The identity mapping is not an accident
-# waiting to be simplified away: it is the seam. Splitting `investigate` into three nodes
-# means adding three rows here that all point at "investigate", and no screen changes.
+# Which public pipeline step each node reports as. The mapping is currently the identity,
+# but it is the seam and should not be simplified away: splitting `investigate` into three
+# nodes means three rows here all pointing at "investigate", and no screen changes.
 NODE_TO_PIPELINE_STEP: dict[str, str] = {
     "preload": "preload",
     "investigate": "investigate",
@@ -75,10 +65,9 @@ PRELOAD_TOOLS: frozenset[str] = frozenset(
 def pipeline_steps_that_ran(node_names: object) -> set[str]:
     """Translate the node names in an episode trace into public pipeline step ids.
 
-    A name that is not a known node is dropped rather than passed through. Traces are
-    written by whichever version of the graph was running at the time, so an old episode can
-    name a node that no longer exists, and showing a person a step of their own
-    investigation that the system can no longer explain is worse than showing them nothing.
+    Unknown names are dropped rather than passed through. A trace is written by whichever
+    version of the graph produced it, so an older episode may name a node that no longer
+    exists, and the screens cannot describe a step the system no longer has.
     """
     if not isinstance(node_names, (list, tuple, set, frozenset)):
         return set()

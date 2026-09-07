@@ -21,25 +21,21 @@ class Embedder(Protocol):
 
 @runtime_checkable
 class Retriever(Protocol):
-    """What the agent needs from a search index, and nothing more.
+    """What the agent requires of a search index, and nothing more.
 
-    Added 8 September 2026. `HybridIndex` was imported by name outside this package, so
-    replacing retrieval meant matching a class rather than implementing an interface. This
-    is that interface: one method, structurally satisfied by `HybridIndex` as it already
-    stands, so nothing about the current implementation changed to introduce it.
+    Implement this to replace retrieval. `HybridIndex` satisfies it structurally, so no
+    change to the current implementation was needed to introduce it.
 
-    **The contract that actually matters is the return type, not this signature.**
-    `RetrievalResult` carries `chunk_id`, `doc_id`, `title`, `text` and `source_url`, and
-    `enforce_grounding` in `retrieve/grounding.py` uses them to strip any clinical sentence
-    the model wrote that no retrieved passage supports. A replacement index that returns a
-    different shape has not swapped the search; it has disabled the claim-to-source check,
-    and it will do so quietly. Keep the shape.
+    **The binding contract is the return type, not the signature.** `enforce_grounding` in
+    `retrieve/grounding.py` reads `chunk_id`, `doc_id`, `title`, `text` and `source_url`
+    from `RetrievalResult` to strip clinical sentences that no retrieved passage supports.
+    An index returning a different shape disables that check without raising, so keep the
+    shape. `tests/unit/retrieve/test_retriever_protocol.py` pins the fields it depends on.
 
     `runtime_checkable` is required because `tool_retrieve_clinical_evidence` uses
-    `isinstance` to tell an index from the episode database. That form of check only tests
-    that a `query` attribute exists, which is safe here for one reason worth stating:
-    `EpisodeRepository`, the other thing that reaches that line, has no `query` method. A
-    test holds that true.
+    `isinstance` to distinguish an index from the episode database. That check only tests
+    for a `query` attribute, which is safe because `EpisodeRepository` has none; a test
+    holds that true.
     """
 
     def query(

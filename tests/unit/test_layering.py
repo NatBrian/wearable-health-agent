@@ -1,27 +1,14 @@
-"""Which parts of this system are allowed to know about which other parts.
+"""Enforces the module boundaries described in `docs/CODE-CONVENTIONS.md`.
 
-Written 8 September 2026, before the repository was handed to people working on it in
-parallel. `docs/CODE-CONVENTIONS.md` had a "Module boundaries" section that opened with
-"These are enforced by a lint rule, not by good intentions", and all three of its rules were
-false: it said the dashboard may import only from `service/`, when a test forbids exactly
-that; it said `db/` is the only module that imports `sqlite3`, when 22 files outside `db/`
-do; and there was no lint rule. `ruff.toml` sets a line length and two per-file ignores.
+The risk this guards against is not a single bad import. It is two subsystems gradually
+growing a dependency nobody decided on, which is discovered only when concurrent work on
+both is merged. A new edge between packages is a design decision, so it fails here until it
+is declared.
 
-That is worse than having no rule at all. An agent handed this repository reads the
-convention and does the opposite of what the suite requires.
+The two existing import cycles are not forbidden. They are declared with their call sites,
+and a new one fails.
 
-So the boundary is a test, and the convention document now describes what this file checks.
-The shape is borrowed from `tests/ui/test_ui_boundary.py`, which is the one boundary in the
-repository that was already real.
-
-**What this is for.** Four workstreams are about to run at once: replacing the dashboard,
-restructuring the agent, reshaping retrieval, changing how investigations open. The risk is
-not that someone writes a bad import. It is that two subsystems quietly grow a dependency
-nobody decided on, and the coupling is only discovered when the two teams try to merge. A
-new edge between packages is a design decision, so it fails here and has to be written down.
-
-**This does not forbid the cycles that exist.** It names them, with their reasons, and fails
-on the eighth.
+Shape borrowed from `tests/ui/test_ui_boundary.py`.
 """
 
 import ast
@@ -159,13 +146,12 @@ DECLARED_EDGES: dict[str, set[str]] = {
     "ui": {"api", "models"},
 }
 
-# The two places where something low reaches back up into `service`, each with the reason it
-# is allowed and the file it is allowed in. Both are held open by function-local imports,
-# which is the convention's own definition of a deliberate break rather than a tangle.
+# The files that import `service` from below it, each with the reason. All are function-local
+# imports, which `docs/CODE-CONVENTIONS.md` permits only to break a cycle.
 #
-# Neither is a good thing. They are the honest state of the code, written down so that they
-# are a known list of seven rather than an invisible property. If you are the person who
-# removes one, delete its entry and this test will hold you to it.
+# Both cycles mark a boundary in the wrong place and are candidates for removal. Declaring
+# them here keeps the set bounded. When one is removed, delete its entry: a stale entry fails
+# the last test in this file.
 ALLOWED_UPWARD_IMPORTS: dict[str, str] = {
     # The conversation can open an investigation, read a person's profile, and record a
     # symptom. Those are application concerns, and the agent reaches up for them rather
@@ -211,9 +197,8 @@ def test_the_dependency_graph_is_the_one_that_was_decided_on() -> None:
 
 
 def test_the_dashboard_reaches_the_application_only_through_the_api() -> None:
-    """Stated here as well as in tests/ui/test_ui_boundary.py, because it is the boundary
-    that decides whether the dashboard can be replaced at all, and the convention document
-    got it backwards for long enough to matter.
+    """Also covered by tests/ui/test_ui_boundary.py, and repeated here because it is the
+    boundary that decides whether the dashboard can be replaced at all.
     """
     edges, _ = _import_graph()
     assert edges["ui"] <= {"api", "models"}, (
@@ -230,11 +215,10 @@ def test_nothing_in_the_application_imports_the_dashboard() -> None:
 
 
 def test_the_only_cycles_are_the_ones_written_down() -> None:
-    """Two pairs, seven imports. The eighth fails here.
+    """Two known pairs. A third fails here.
 
-    A cycle usually means a boundary is in the wrong place, and both of these do. They are
-    not being fixed today, because breaking them moves code that four people are about to
-    work on. They are named instead, which is the difference between debt and a surprise.
+    Removing either means moving `symptoms`, `settings` and `episode_lifecycle` into a lower
+    layer. Until then they are declared rather than undocumented.
     """
     edges, _ = _import_graph()
     found = {
@@ -247,19 +231,18 @@ def test_the_only_cycles_are_the_ones_written_down() -> None:
 
     assert found == expected, (
         f"unexpected import cycles: {sorted(found - expected)}. "
-        "A cycle means two parts of the system each need the other, which is almost always "
-        "a boundary in the wrong place. Move the shared thing down rather than importing "
+        "A cycle means two packages each depend on the other, which usually indicates a "
+        "boundary in the wrong place. Move the shared code down rather than importing "
         "upwards."
     )
 
 
 def test_every_upward_import_is_declared_and_function_local() -> None:
-    """The rule that keeps the two cycles from spreading.
+    """Keeps the two cycles from spreading.
 
-    A module-level import upwards would be a hard dependency and would deadlock the import
-    order. A function-local one is a deliberate break, and `docs/CODE-CONVENTIONS.md` allows
-    it only for that reason. Checking the position rather than trusting the convention is
-    the point of this file existing.
+    A module-level upward import is a hard dependency and would break the import order. A
+    function-local one is a deliberate cycle break, which is the only form
+    `docs/CODE-CONVENTIONS.md` permits.
     """
     _, sites = _import_graph()
     upward = [s for s in sites if s[1] == "service" and s[0] in {"agent", "notify"}]
@@ -282,10 +265,10 @@ def test_every_upward_import_is_declared_and_function_local() -> None:
 
 
 def test_no_allowed_upward_import_is_stale() -> None:
-    """An exemption for a file that no longer reaches upwards is an exemption nobody reads.
+    """An entry for a file that no longer imports upwards is misleading and should go.
 
-    The safety allowlist in tests/unit/safety/test_symptom_persistence.py went stale exactly
-    this way when the file it named was split, so the same check is applied here.
+    The allowlist in tests/unit/safety/test_symptom_persistence.py went stale this way when
+    the file it named was split, so the same check applies here.
     """
     _, sites = _import_graph()
     reaching = {s[2] for s in sites if s[1] == "service" and s[0] in {"agent", "notify"}}

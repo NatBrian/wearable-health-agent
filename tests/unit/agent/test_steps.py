@@ -1,13 +1,9 @@
 """The agent's node names are a public interface, so they are checked like one.
 
-They were written out in four places that nothing compared: the agentic entries of
-`CANONICAL_PIPELINE_STEPS`, `CANONICAL_STAGES` in `service/episodes.py`, a hardcoded set in
-`service/pipeline.py`, and the graph itself. The drift that gap allows has already reached a
-person once, when `node_measure` was deleted and the Trace tab went on advertising the stage
-to readers as permanently pending.
-
-`wha.agent.steps` is now the one place the names live. These tests are what make that true
-rather than merely intended.
+They are rendered by the audit view and the Trace tab, and were previously written out
+separately in `models.py`, `service/pipeline.py` and `service/episodes.py`. These tests hold
+`wha.agent.steps` and the compiled graph in agreement, so a node that is renamed, split or
+added cannot go missing from a screen.
 """
 
 from wha.agent.graph import build_agent_graph
@@ -38,12 +34,12 @@ def test_every_node_is_mapped() -> None:
 
 
 def test_the_graph_registers_exactly_the_nodes_declared_here() -> None:
-    """The check that makes the rest of this file worth anything.
+    """The central check in this file.
 
-    Adding a node to the graph without naming it here would leave it invisible to the
-    pipeline view: the investigation would run a step that no screen could report. Reading
-    the compiled graph rather than the source means the assertion cannot be satisfied by
-    updating a list and forgetting the wiring, or the reverse.
+    A node added to the graph but not declared is invisible to the pipeline view: the
+    investigation runs a step no screen can report. Reading the compiled graph rather than
+    the source means the assertion cannot be satisfied by updating the declaration and
+    forgetting the wiring, or the reverse.
     """
     graph = build_agent_graph()
     registered = {name for name in graph.nodes if not name.startswith("__")}
@@ -69,11 +65,10 @@ def test_agent_nodes_are_all_agentic_steps() -> None:
 def test_a_trace_naming_a_node_that_no_longer_exists_is_dropped() -> None:
     """Traces outlive the graph that wrote them.
 
-    An episode investigated by an older graph can name a node this one does not have.
-    Showing a person a step of their own investigation that the system can no longer
-    explain is worse than showing them nothing, so it is dropped rather than passed
-    through. "measure" is the real example: `node_measure` was deleted on 5 September 2026
-    and episodes recorded before that still name it.
+    An episode investigated by an older graph can name a node this one does not have, and
+    the screens cannot describe a step the system no longer has, so it is dropped rather
+    than passed through. `node_measure` is the existing case: it was deleted on 5 September
+    2026 and episodes recorded before that still name it.
     """
     assert pipeline_steps_that_ran(["preload", "measure", "believe"]) == {
         "preload",

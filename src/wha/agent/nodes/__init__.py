@@ -1,14 +1,11 @@
 """Graph execution nodes for preloading, investigation, belief, decision, asking, measuring, and outcome lifecycle.
 
-One module per node. This was a single 1,534 line file until 8 September 2026, which was
-fine while one person worked on it and became the worst merge surface in the repository the
-moment more than one did. Nothing moved between nodes in the split and no logic changed;
-the file was sliced by line range rather than retyped.
+One module per node, split from a single file on 8 September 2026 with no change to any
+node's behaviour.
 
-The names below are re-exported because `wha.agent.graph`, `wha.agent.__init__` and eleven
-tests import them from here. A node's own module is the place to patch it: patching
-`wha.agent.nodes.interrupt` no longer reaches anything, because `interrupt` is resolved in
-`nodes.ask` and `nodes.review`, where it is now defined.
+The names below are re-exported for `wha.agent.graph`, `wha.agent.__init__` and the tests
+that import them from here. Patch a node in its own module: `interrupt` is resolved in
+`nodes.ask` and `nodes.review`, not in this package.
 """
 
 from wha.agent.nodes.ask import node_ask

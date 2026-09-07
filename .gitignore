@@ -96,3 +96,8 @@ data/demo-snapshots/
 # The finished timeline is the point of the demo. Re-running the build would cost model
 # calls and would produce different text, so this database is not reproducible and is
 # committed rather than regenerated.
+
+# Claude Code's own working directory, including any git worktrees it creates under
+# .claude/worktrees/. Those are full checkouts with their own .venv and run to gigabytes.
+# Nothing here belongs to the project.
+.claude/

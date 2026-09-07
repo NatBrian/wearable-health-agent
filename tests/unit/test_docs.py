@@ -1,6 +1,7 @@
 """Tests for documentation integrity and CLI command validity in README."""
 
 import re
+import subprocess
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -47,13 +48,26 @@ def test_no_prose_this_project_maintains_has_an_em_dash() -> None:
     a heading.
 
     archive/ is excluded on purpose: it is a record of finished work and is not rewritten.
+
+    IT ASKS GIT which files exist rather than walking the directory. The first version
+    walked the tree and skipped a hand written list of directory names, so it failed once
+    on a package README inside a directory the list did not name, and passed on the next
+    run. A test that depends on what happens to be lying around the working directory is
+    not testing this repository, and one that passes on a retry is worse than none,
+    because it teaches you to retry.
     """
     root = Path(__file__).resolve().parents[2]
-    skip = {"archive", ".venv", "node_modules", ".git"}
+    listing = subprocess.run(
+        ["git", "ls-files", "-z", "*.md"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
     checked = [
-        p for p in root.rglob("*.md") if not any(part in skip for part in p.relative_to(root).parts)
+        root / name for name in listing.split("\0") if name and not name.startswith("archive/")
     ]
-    assert checked, "found no markdown to check, which means the walk is wrong"
+    assert checked, "git listed no markdown, which means this is not asking git properly"
 
     dash = chr(0x2014)
     offenders = [

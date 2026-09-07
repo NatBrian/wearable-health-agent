@@ -7,13 +7,8 @@ function.
 
 ## Module boundaries
 
-**Corrected 8 September 2026.** This section used to open with "These are enforced by a lint
-rule, not by good intentions" and then state three rules, all of which were false, including
-one that was the exact reverse of what the suite requires. There was no lint rule either:
-`ruff.toml` sets a line length, a target version and two per-file ignores. Documented
-boundaries that nothing checks drift, and this repository's own rule is that a rule worth
-having is a test. So the rules below are now the ones two tests actually enforce, and this
-section describes them rather than the other way round.
+These are enforced by `tests/unit/test_layering.py` and `tests/ui/test_ui_boundary.py`.
+Breaking one is a blocker, not a judgement call.
 
 ```
 ui/       may import ONLY from api/ and models.py, and reaches the application over HTTP
@@ -24,25 +19,23 @@ db/       owns connections, schema and migrations
 config, constants, errors, models    depend on nothing, and everything depends on them
 ```
 
-**No part of the application imports `ui/`.** The arrow points one way, so the system runs
-headless and the dashboard is replaceable. No business logic in `ui/`; if a screen needs a
-computation it belongs in `service/` and reaches the screen through `api/`.
+**Nothing in the application imports `ui/`.** The dependency points one way, so the system
+runs headless and the dashboard is replaceable. No business logic in `ui/`: if a screen needs
+a computation it belongs in `service/` and reaches the screen through `api/`. No SQL in
+`ui/` either.
 
 **A dependency between two packages is a design decision.** Every one that exists is listed
 in `DECLARED_EDGES` in `tests/unit/test_layering.py`, and creating a new one fails that test
-until you add it. This is deliberate friction: it is there so that coupling two subsystems
-is something somebody chose, and so that other people working in parallel find out.
+until it is added there. The friction is intentional: coupling two subsystems should be a
+choice somebody made, and visible to anyone working in the other one.
 
-**Two import cycles exist**, `agent` with `service` and `notify` with `service`, held open by
-seven function-local imports. They are listed with their reasons in `ALLOWED_UPWARD_IMPORTS`
-in the same file, which also enforces that an upward import stays inside the function that
-needs it. An eighth fails. Both cycles mean a boundary is in the wrong place, and neither is
-pretended otherwise.
+**Two import cycles exist:** `agent` with `service`, and `notify` with `service`. Both are
+held open by function-local imports, listed with their reasons in `ALLOWED_UPWARD_IMPORTS`.
+A new one fails the test. Each cycle marks a boundary in the wrong place and is a candidate
+for removal, not a pattern to copy.
 
-**`sqlite3` is not confined to `db/`.** This section claimed it was; 22 files across
-`service/`, `agent/`, `detect/`, `features/`, `ingest/` and `audit/` import it. `db/` owns
-connection handling, schema and migrations, and query text lives with the code that needs
-it. Do not write new SQL in `ui/`; a test forbids it there.
+**`sqlite3` is not confined to `db/`.** `db/` owns connection handling, schema and
+migrations; query text lives with the code that needs it.
 
 ---
 

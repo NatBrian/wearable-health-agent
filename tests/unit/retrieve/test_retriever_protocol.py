@@ -1,9 +1,8 @@
-"""Retrieval is swapped by implementing an interface, not by matching a class name.
+"""Retrieval is replaced by implementing an interface, not by matching a class name.
 
-`HybridIndex` was imported by name in `agent/tools/impl.py`, which made BM25-plus-embeddings
-the shape of the seam rather than an implementation behind it. `Retriever` is that seam. It
-is one method, and `HybridIndex` satisfied it before it was written, which is why
-introducing it changed no behaviour.
+`Retriever` is a single method. These tests cover the two things a replacement can get
+wrong: failing to satisfy the protocol, and returning a result shape that the grounding
+check silently depends on.
 """
 
 import sqlite3

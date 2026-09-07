@@ -62,9 +62,8 @@ _STAGE_DESCRIPTIONS: dict[str, str] = {
 def _canonical_stages() -> list[tuple[str, str]]:
     """The stages the Trace tab renders, in the order the graph runs them.
 
-    Refuses to load rather than rendering a blank row. A node with no description here
-    would reach a person as an unexplained stage of their own investigation, which is the
-    same defect as the "measure" one above wearing different clothes.
+    Refuses to load rather than rendering a blank row: a node with no description here
+    would reach the reader as an unexplained stage of their own investigation.
     """
     undescribed = [node for node in AGENT_NODES if node not in _STAGE_DESCRIPTIONS]
     if undescribed:

@@ -807,10 +807,8 @@ def _agent_steps_from_evidence(conn: sqlite3.Connection, episode_id: str) -> set
     ]
     if tools:
         # The five fixed reads are the preload set. Anything else was chosen by the model
-        # inside the investigation loop. The set itself belongs to the agent and is read
-        # from `wha.agent.steps`, because it was written out twice, here and in the node
-        # that performs the reads, and a tool added to preload would have been counted here
-        # as evidence that the model had chosen it.
+        # inside the investigation loop. The set is read from `wha.agent.steps` so that a
+        # tool added to preload is not counted here as evidence that the model chose it.
         ran.add("preload")
         if set(tools) - PRELOAD_TOOLS:
             ran.add("investigate")

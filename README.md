@@ -3,6 +3,12 @@
 > **Agentic early-warning, physiological anomaly detection, and causal attribution for
 > consumer wearable data.**
 
+
+
+https://github.com/user-attachments/assets/80ddc8ef-3f70-4fe5-9877-78938f91dcd4
+
+
+
 Your smartwatch can tell that something changed. It cannot tell you what changed it.
 
 Consumer smartwatches detect that something in your body changed: a raised overnight resting
@@ -34,30 +40,6 @@ parameter of the code. Anything this project measured about itself lives in
 this works.
 
 It is not a medical device and it does not diagnose. See [DISCLAIMER.md](DISCLAIMER.md).
-
----
-
-## Current state, as of 8 September 2026
-
-**The build is finished, and the repository is now open to more than one person.** There is
-still no task queue: nothing here is waiting to be picked up, and if you are asked to
-"continue" with no further detail, **ask what is wanted**. `archive/` is full of documents
-that look like plans and every one of them describes work that has ended.
-
-- The whole suite passes, `ruff` is clean on `src` and `tests`, `wha doctor` reports no
-  failures.
-- The dashboard has five screens and was driven end to end through a seventeen day illness.
-- A complete demo timeline is committed and can be opened in one command, below.
-- A 28 minute walkthrough film of the whole system is in [`docs/demo/`](docs/demo/README.md).
-
-**What changed on 8 September.** The boundaries several people would work across at the same
-time were made real rather than assumed: the agent's eight nodes are one file each, the agent
-declares its own step names in one place instead of having them copied into four, retrieval
-sits behind a protocol, and the dependencies between packages are checked by a test. Nothing
-the system does changed. See **Working on this at the same time as somebody else** below
-before starting, and
-`archive/session-logs-2026-09/superpowers/plans/2026-09-08-modularity-handover.md` for why
-each one was done.
 
 ---
 
@@ -494,10 +476,10 @@ flowchart LR
     end
 ```
 
-* **⌚ Phone Bridge (Health Connect Webhook)**: Ingests raw heart rate samples, step counts, and sleep stages directly from Android Health Connect over local HTTP (`:8787`) with Bearer token authentication.
-* **🤖 Live LLM Inference API**: Compatible with OpenAI, DeepSeek (`deepseek-chat`, `gpt-4o`, `gpt-4.1-mini`), Ollama, OpenRouter, or offline recorded cassettes with automatic Pydantic v2 JSON repair.
-* **💬 Telegram Companion Bot**: Pushes instant anomaly alerts and interactive symptom questionnaires with 1-tap clickable inline keyboard buttons directly to your mobile phone.
-* **📐 Hybrid Retrieval (BM25 + `BAAI/bge-small-en-v1.5` + Reciprocal Rank Fusion)**: Every clinical sentence the agent produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on screen. That check is decidable by code and deliberately narrow: it proves the quoted span exists, not that the sentence around it says what the source says. A neural forecaster was tried here and removed, because it separated illness less well than the plain baseline residual on our own data. See [`experiments/forecasting/`](experiments/forecasting/README.md).
+* **Phone Bridge (Health Connect Webhook)**: Ingests raw heart rate samples, step counts, and sleep stages directly from Android Health Connect over local HTTP (`:8787`) with Bearer token authentication.
+* **Live LLM Inference API**: Compatible with OpenAI, DeepSeek (`deepseek-chat`, `gpt-4o`, `gpt-4.1-mini`), Ollama, OpenRouter, or offline recorded cassettes with automatic Pydantic v2 JSON repair.
+* **Telegram Companion Bot**: Pushes instant anomaly alerts and interactive symptom questionnaires with 1-tap clickable inline keyboard buttons directly to your mobile phone.
+* **Hybrid Retrieval (BM25 + `BAAI/bge-small-en-v1.5` + Reciprocal Rank Fusion)**: Every clinical sentence the agent produces must **quote a span that is verbatim in a retrieved passage**, or it is stripped or labelled on screen. That check is decidable by code and deliberately narrow: it proves the quoted span exists, not that the sentence around it says what the source says. A neural forecaster was tried here and removed, because it separated illness less well than the plain baseline residual on our own data. See [`experiments/forecasting/`](experiments/forecasting/README.md).
 
 ---
 
@@ -678,19 +660,19 @@ background. Every number on screen says what it is, where it came from, and what
 it; the wording lives in one module and carries no figures, because a number typed into a
 screen drifts away from the code that uses it.*
 
-* **📅 Today (`/Today`)**: Anything needing you first, then last night as a level, a plain
+* **Today (`/Today`)**: Anything needing you first, then last night as a level, a plain
   sentence, three numbers each with its explanation, and what happens next. Chat with
   citations that open to the whole passage with the quoted span marked. One control copies a
   summary for a clinician.
-* **📊 History (`/History`)**: One chart with a caption naming every element on it, and six
+* **History (`/History`)**: One chart with a caption naming every element on it, and six
   columns rather than eleven. Everything else is behind one toggle.
-* **🔍 The record (`/The_record`)**: The night drawn as **21** numbered clickable steps,
+* **The record (`/The_record`)**: The night drawn as **21** numbered clickable steps,
   coloured by which machine ran them, for **every** night rather than only investigated ones.
   Each step opens to what it did, why it exists, the arithmetic in words, and its sources:
   all twelve causes with their probabilities, every question the policy weighed and what each
   was worth, the symptoms you have reported and for how long, and the tamper-evident log
   beside it. A step with no recorded time shows none.
-* **⚙️ Settings (`/Settings`)**: Every field the application accepts, each saying what it
+* **Settings (`/Settings`)**: Every field the application accepts, each saying what it
   changes about the system's behaviour, connection tests, and deletion.
 
 Benchmark results are not a dashboard page. They live in [experiments/detection/](experiments/detection/README.md),
@@ -741,47 +723,47 @@ You will hit these if you break them, so they are worth knowing up front.
 - **Every free-text call into the safety floor must pass the symptom history.** An AST check
   enforces it, because that exact wire was missing for the life of the project and no
   behavioural test could see it.
-- **A new dependency between two packages fails the build until it is declared.** Every one
-  that exists is listed in `tests/unit/test_layering.py`. Two import cycles are named there
-  with their reasons; an eighth upward import fails.
-- **The agent's node names and the graph must agree.** `src/wha/agent/steps.py` declares
-  them and `tests/unit/agent/test_steps.py` compares that against the compiled graph, so a
-  node added or renamed cannot go missing from the audit view.
+- **A new dependency between two packages fails the build until it is declared** in
+  `tests/unit/test_layering.py`, which also holds the two known import cycles to their
+  documented call sites.
+- **The agent's node names must match the graph.** `src/wha/agent/steps.py` declares them
+  and `tests/unit/agent/test_steps.py` compares that against the compiled graph, so a node
+  that is added or renamed cannot go missing from the audit view.
 
-### Working on this at the same time as somebody else
+### Working in parallel
 
-Four things are shared by everything, so they are where parallel work collides. Changing one
-is not wrong, but say so in the pull request, because somebody else is probably in the same
-file:
+Each major subsystem sits behind a boundary that a test enforces, so the four largest pieces
+of work can proceed independently.
 
-| Shared surface | Why it collides |
-|---|---|
-| `src/wha/models.py` | Imported by 71 files. Every workstream eventually adds a field |
-| `src/wha/constants.py` | Imported by 54. Also under change control: a clinical figure here needs `docs/KNOWLEDGE-CHANGELOG.md` |
-| `data/schema.sql` | Four tests compare it to `docs/CONTRACTS.md`, so a column is never a local change |
-| `docs/CONTRACTS.md` | The obligation the three above all lead back to |
-
-The seams that let the big workstreams proceed without touching each other:
-
-| If you are... | Start at | What holds it together |
+| Workstream | Start at | Boundary that holds it |
 |---|---|---|
 | Replacing the dashboard | `src/wha/api/client.py` and the 34 endpoints behind it | `tests/ui/test_ui_boundary.py`. No screen may reach past the API |
-| Restructuring the agent | `src/wha/agent/steps.py`, then `src/wha/agent/nodes/` | `tests/unit/agent/test_steps.py`. Map new nodes onto existing public steps and no screen moves |
-| Replacing retrieval | The `Retriever` protocol in `src/wha/retrieve/index.py` | `tests/unit/retrieve/test_retriever_protocol.py`. Keep the `RetrievalResult` shape or you disable the grounding check |
-| Changing when an investigation opens | `src/wha/service/episode_lifecycle.py` | It is already independent of the agent. The detector does not know episodes exist |
+| Restructuring the agent | `src/wha/agent/steps.py`, then `src/wha/agent/nodes/` | `tests/unit/agent/test_steps.py`. Map new nodes onto existing public steps and no screen changes |
+| Replacing retrieval | The `Retriever` protocol in `src/wha/retrieve/index.py` | `tests/unit/retrieve/test_retriever_protocol.py`. Keep the `RetrievalResult` shape, which the grounding check depends on |
+| Changing when an investigation opens | `src/wha/service/episode_lifecycle.py` | Already independent of the agent. The detector has no knowledge of episodes |
+
+Four files are shared by everything and are where concurrent work overlaps. Changing one is
+routine, but flag it in the pull request:
+
+| Shared surface | Why |
+|---|---|
+| `src/wha/models.py` | Imported by 71 files |
+| `src/wha/constants.py` | Imported by 54, and under change control: a clinical figure here also needs `docs/KNOWLEDGE-CHANGELOG.md` |
+| `data/schema.sql` | Four tests compare it against `docs/CONTRACTS.md`, so a column is never a local change |
+| `docs/CONTRACTS.md` | The obligation the three above lead back to |
 
 ### How to make common changes
 
 | You want to... | Do this |
 |---|---|
-| **Change the retrieval, or replace it** | Implement the `Retriever` protocol in `src/wha/retrieve/index.py`: one method, `query`. Nothing outside the package names `HybridIndex`. **Keep returning `RetrievalResult` with its fields.** `enforce_grounding` reads `chunk_id`, `title`, `text` and `source_url` off those results to strip clinical sentences no passage supports, so a different shape does not swap the search, it disables the claim-to-source check, and it does so without erroring. |
+| **Change or replace the retrieval** | Implement the `Retriever` protocol in `src/wha/retrieve/index.py`: one method, `query`. Nothing outside the package refers to `HybridIndex` by name. **Keep returning `RetrievalResult` with its existing fields:** `enforce_grounding` reads `chunk_id`, `title`, `text` and `source_url` from those results to strip clinical sentences no passage supports, and a different shape disables that check silently. |
 | **Change the AI model or provider** | Set `WHA_LLM_PROVIDER`, `WHA_LLM_BASE_URL`, `WHA_LLM_MODEL` and `WHA_LLM_API_KEY` in `.env`, or use the Settings screen. Anything OpenAI-compatible works. Prompts live in `src/wha/llm/prompts`. |
 | **Add or change a cause** | Edit `data/knowledge/causes.yaml`. Every number needs a provenance label and a derivation. Record it in `docs/KNOWLEDGE-CHANGELOG.md` with the source sentence quoted. |
 | **Add a question the agent can ask** | Add a probe to `data/knowledge/probes.yaml` with its answer slots and likelihood rows. The policy scores it automatically. |
 | **Add or change a red flag** | Edit `data/knowledge/red_flags.yaml`. A symptom with no evidence for a routing threshold belongs in `tracked:`, not in a tier. |
 | **Add a tool the agent can call** | Register it in `src/wha/agent/tools/`. The registry is a closed allow-list; anything not on it is refused, and the refusal is recorded. |
-| **Add a pipeline step** | A step a person can see. Add it to `CANONICAL_PIPELINE_STEPS` in `models.py`, implement it in `service/pipeline.py`, give it copy in `ui/explain.py`, a name in `ui/components/pipeline_graph.py`, and a topic in `ui/components/how_it_works.py`. The tests will tell you which you missed. |
-| **Rename, split or add an agent node** | Not the same job as the row above, and much smaller. `src/wha/agent/steps.py` is the only file that has to change: name the node in `AGENT_NODES` and map it onto the public step it reports as in `NODE_TO_PIPELINE_STEP`. Several nodes may map to one step, which is how the agent is restructured without any screen moving. Describe it in `_STAGE_DESCRIPTIONS` in `service/episodes.py` for the Trace tab. `tests/unit/agent/test_steps.py` fails if the graph and that file disagree |
+| **Add a pipeline step** | A step visible to the reader. Add it to `CANONICAL_PIPELINE_STEPS` in `models.py`, implement it in `service/pipeline.py`, give it copy in `ui/explain.py`, a name in `ui/components/pipeline_graph.py`, and a topic in `ui/components/how_it_works.py`. The tests will tell you which you missed. |
+| **Rename, split or add an agent node** | A smaller job than the row above. Name the node in `AGENT_NODES` in `src/wha/agent/steps.py` and map it to the public step it reports as in `NODE_TO_PIPELINE_STEP`; several nodes may map to one step, which is how the agent is restructured without any screen changing. Add a Trace tab description in `_STAGE_DESCRIPTIONS` in `service/episodes.py`. `tests/unit/agent/test_steps.py` fails if the graph and that declaration disagree. |
 | **Change a detection threshold** | Measure it first with `experiments/detection/cohort/`. Several such changes have been proposed and rejected on measurement; the table above lists them. |
 
 ### Testing
@@ -860,4 +842,4 @@ The agent may cite these and nothing else. There is no open web search, and it c
 
 ## Disclaimer
 
-This software is a research prototype and personal health intelligence system. It is **not an FDA/CE-certified medical device**, does not provide formal medical diagnoses, and must not be used as a substitute for professional medical care or emergency services. If you experience severe chest pain, shortness of breath, or emergency symptoms, seek immediate professional medical attention.
+This software is a research prototype and personal health intelligence system. It is **not a medical device**, does not provide formal medical diagnoses, and must not be used as a substitute for professional medical care or emergency services. If you experience severe chest pain, shortness of breath, or emergency symptoms, seek immediate professional medical attention.
