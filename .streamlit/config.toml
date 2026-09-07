@@ -1,0 +1,12 @@
+# Dashboard configuration.
+#
+# This is a single user application that runs on the person's own machine. Streamlit's
+# default toolbar offers "Deploy", which publishes the app to Streamlit Cloud and is
+# meaningless here, next to a developer menu. Neither belongs on a health screen, and the
+# Deploy button in particular invites somebody to put their own health data on the public
+# internet with two clicks.
+#
+# "viewer" keeps the menu a viewer can use and drops the developer and deploy items.
+[client]
+toolbarMode = "viewer"
+showErrorDetails = "full"

@@ -1,0 +1,25 @@
+{
+  "name": "alcohol-night",
+  "description": "One elevated night, resolving the next. The system must NOT open a persistent episode, because a single night is not an alert.",
+  "days": 30,
+  "base_bpm": 61.0,
+  "seed": 23,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "alcohol",
+      "day": 29,
+      "amplitude_bpm": 3.4
+    }
+  ],
+  "oracle": {
+    "probe_alcohol": "three"
+  },
+  "expect": {
+    "disposition": null,
+    "flagged_on_day": null,
+    "asks_at_least": 0,
+    "escalates": false,
+    "note": "Single YELLOW night. Persistence requires a run, so no episode opens at all."
+  }
+}

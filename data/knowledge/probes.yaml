@@ -1,0 +1,225 @@
+# probes.yaml
+#
+# WHAT to find out. Selected by arithmetic, never by the model.
+#
+# A probe is NOT a question. It is a cause to resolve, an answer space, and a cited
+# likelihood. The model writes the actual sentence, freely and in context. Only the
+# ANSWER SLOTS are fixed, because that is what the likelihood table is defined over.
+#
+# TWO LIKELIHOOD ROWS, NOT TWELVE. A probe about drinking depends on whether the person
+# drank, not on whether they also happen to be stressed. That is the parameter reduction
+# the binary belief model bought, and it removes precisely the rows that would otherwise
+# be fabricated.
+#
+# WARNING ON PROVENANCE. Almost every likelihood here is ASSUMED. No published
+# measurement exists of how accurately a person reports drinking, stress or sleep to an
+# app when prompted the next morning. The research corpus says so directly: the
+# answer-reliability tables are "essentially unmeasured", and the medical test-selection
+# literature "transfers the mathematics cleanly and the measurement discipline not at
+# all". A model asked to cite these will search, find nothing, and produce a confident
+# number anyway. Better data does not fix this, because the measurement does not exist.
+#
+# THE DIRECTION THESE ROWS ERR IN. A flatter `present` row makes a question look less
+# informative, which lowers its EVSI and makes the system interrupt LESS. That is the
+# safer direction to be wrong in, because over-stating informativeness makes it
+# interrupt more, which is the failure this project exists to fix. Whether each row is
+# actually flat enough is unmeasured, because the measurement above does not exist.
+#
+# NOTE ON QUOTING. Option ids "no" and "yes" are QUOTED because YAML 1.1 parses bare
+# no/yes/on/off as booleans. Unquoted, the id becomes False and the slot silently
+# breaks. Any new option id that could read as a boolean must be quoted.
+#
+# interruption_cost is RELATIVE. A one-off setup question is cheaper than a recurring
+# one, because it is asked once and then becomes a modelled covariate.
+
+schema_version: "1.0"
+
+probes:
+
+  - probe_id: probe_symptoms
+    target_cause: infection
+    interruption_cost: 1.0
+    fallback_text: "How are you feeling?"
+    answer_space:
+      - {option_id: none,   label: "Nothing unusual"}
+      - {option_id: throat, label: "Throat or nose"}
+      - {option_id: fever,  label: "Feverish or chills"}
+      - {option_id: aches,  label: "Aches or heavy limbs"}
+      - {option_id: other,  label: "Something else"}
+    likelihood:
+      present: {none: 0.15, throat: 0.30, fever: 0.25, aches: 0.20, other: 0.10}
+      absent:  {none: 0.80, throat: 0.07, fever: 0.03, aches: 0.05, other: 0.05}
+    provenance: ASSUMED
+    assumption: >
+      Symptoms carry the discriminating information sensors lack, so this is usually the
+      highest-value probe. The `present` row allows 15 percent for a genuinely
+      pre-symptomatic infection, which is the regime the whole project targets, so this
+      probe is deliberately NOT decisive on its own.
+
+  - probe_id: probe_alcohol
+    target_cause: alcohol
+    interruption_cost: 1.0
+    fallback_text: "Did you have any alcohol last night?"
+    # TWO OPTIONS, not four. This offered "None", "1 to 2", "3 to 4" and "5 or more", and
+    # the belief model has a single on-off alcohol switch, so all three drinking answers
+    # did exactly the same thing. The question spent a whole interruption collecting a
+    # detail nothing could use, and implied a precision the model does not have.
+    #
+    # Scaling the effect by the reported amount was the alternative and is not taken. The
+    # paper supports dose dependence, but no published figure maps "3 to 4 drinks" to a
+    # number of beats, so building it would mean inventing exactly the kind of number this
+    # file is not allowed to contain. The free text is still recorded, so the detail is not
+    # lost; it simply does not pretend to feed the arithmetic.
+    answer_space:
+      - {option_id: none, label: "None"}
+      - {option_id: "yes", label: "Yes"}
+    likelihood:
+      present: {none: 0.10, "yes": 0.90}
+      absent:  {none: 0.92, "yes": 0.08}
+    provenance: ASSUMED
+    assumption: >
+      Under-reporting is well documented in the general self-report literature but has not
+      been quantified for a next-morning app prompt. The 10 percent "none" given present
+      encodes both under-reporting and recall error. The two rows are the previous four
+      with the three drinking options summed, which is the only merge that leaves the
+      belief unchanged for anyone who would have answered any of them.
+
+  - probe_id: probe_exertion
+    target_cause: exertion
+    interruption_cost: 0.8
+    fallback_text: "Did you do anything physically hard yesterday that your watch might have missed?"
+    answer_space:
+      - {option_id: none,  label: "No"}
+      - {option_id: light, label: "Something light"}
+      - {option_id: hard,  label: "Yes, hard"}
+      - {option_id: late,  label: "Yes, and late in the evening"}
+    likelihood:
+      present: {none: 0.08, light: 0.17, hard: 0.40, late: 0.35}
+      absent:  {none: 0.85, light: 0.11, hard: 0.03, late: 0.01}
+    provenance: ASSUMED
+    assumption: >
+      Recall for hard exercise is better than for alcohol, so `present` is sharper and the
+      cost is slightly lower. The question exists only because step-based devices miss
+      swimming, cycling and resistance work.
+
+  - probe_id: probe_sleep_quality
+    target_cause: sleep_restriction
+    interruption_cost: 0.9
+    fallback_text: "How was your sleep last night?"
+    answer_space:
+      - {option_id: normal, label: "Normal"}
+      - {option_id: short,  label: "Short, by choice"}
+      - {option_id: broken, label: "Broken or restless"}
+      - {option_id: unwell, label: "Poor because I felt unwell"}
+    likelihood:
+      present: {normal: 0.12, short: 0.38, broken: 0.35, unwell: 0.15}
+      absent:  {normal: 0.82, short: 0.08, broken: 0.08, unwell: 0.02}
+    provenance: ASSUMED
+    assumption: >
+      The fourth option exists because the sensor cannot distinguish "chose to stay up"
+      from "woke feeling awful", and that distinction is the whole reason to ask.
+
+  - probe_id: probe_stress
+    target_cause: stress
+    interruption_cost: 1.0
+    fallback_text: "Anything unusually stressful going on at the moment?"
+    answer_space:
+      - {option_id: none, label: "Not really"}
+      - {option_id: some, label: "Somewhat"}
+      - {option_id: lots, label: "Yes, a lot"}
+    likelihood:
+      present: {none: 0.15, some: 0.45, lots: 0.40}
+      absent:  {none: 0.78, some: 0.19, lots: 0.03}
+    provenance: ASSUMED
+    assumption: >
+      Self-reported stress is subjective and its relationship to the physiological effect
+      is loose, so this probe is deliberately less decisive than its base rate would
+      suggest. Only three slots, because finer gradations are not meaningfully reported.
+
+
+  - probe_id: probe_vaccination
+    target_cause: vaccination
+    interruption_cost: 0.6
+    fallback_text: "Have you had a vaccination in the last few days?"
+    answer_space:
+      - {option_id: "no",  label: "No"}
+      - {option_id: "yes", label: "Yes"}
+    likelihood:
+      present: {"no": 0.03, "yes": 0.97}
+      absent:  {"no": 0.99, "yes": 0.01}
+    provenance: ASSUMED
+    assumption: >
+      The one probe where the assumption is close to safe. The event is discrete, recent,
+      memorable and perfectly known, so a binary answer carries close to a full bit. Cost
+      is low because the question is trivially easy to answer.
+
+  - probe_id: probe_travel
+    target_cause: travel
+    interruption_cost: 0.6
+    fallback_text: "Have you flown or changed time zone in the last week?"
+    answer_space:
+      - {option_id: "no",    label: "No"}
+      - {option_id: short,   label: "Yes, a short trip"}
+      - {option_id: tz,      label: "Yes, and a time-zone change"}
+    likelihood:
+      present: {"no": 0.04, short: 0.36, tz: 0.60}
+      absent:  {"no": 0.97, short: 0.02, tz: 0.01}
+    provenance: ASSUMED
+    assumption: >
+      Recall is near-perfect for travel, so `present` is sharp. Rarely worth asking,
+      because the base rate is low and the expected value of sample information will
+      usually be near zero. It exists so the arithmetic can decide that, rather than the
+      option being absent.
+
+  # probe_cycle was here and is RETIRED, 5 September 2026.
+  #
+  # It asked "do you menstruate, and when did your last period start". The first half is a
+  # standing fact about a person, not a fact about tonight, and it is now collected once
+  # in Settings where it costs no interruption at all. The second half was never used: the
+  # luteal cause is a plain on-off in the belief model and `cycle_last_period_start` was
+  # read by nothing.
+  #
+  # Retiring it frees an interruption from the weekly allowance and removes the only probe
+  # whose answer had nowhere to go: `luteal_applicable` was never passed by any caller, so
+  # the cause sat at exactly 0.0 through every episode and answering this question changed
+  # nothing. An already-recorded answer is still honoured, in
+  # `wha.agent.nodes._cycle_applicability`, so nobody who answered it is asked again.
+
+  - probe_id: probe_medication
+    target_cause: medication
+    interruption_cost: 0.4
+    one_time: true
+    fallback_text: "Have you started, stopped or missed any regular medication recently?"
+    answer_space:
+      - {option_id: "no",    label: "No"}
+      - {option_id: started, label: "Started something new"}
+      - {option_id: stopped, label: "Stopped or missed a dose"}
+    likelihood:
+      present: {"no": 0.05, started: 0.50, stopped: 0.45}
+      absent:  {"no": 0.96, started: 0.02, stopped: 0.02}
+    provenance: ASSUMED
+    assumption: >
+      Asked once at setup and then only on a suspected change. Recall for starting a
+      medication is good; recall for a missed dose is worse, which the split encodes.
+
+
+# ---------------------------------------------------------------------------
+# NO PROBE EXISTS FOR: recovery_tail, sensor_artifact, unexplained.
+#
+#   recovery_tail    resolvable from SYSTEM STATE. The system knows it closed an illness
+#                    episode six weeks ago. Asking would be redundant.
+#   sensor_artifact  resolvable from DATA QUALITY signatures. And users generally do not
+#                    know whether they wore the device correctly, so the answer would
+#                    carry very little information.
+#   unexplained      not a thing that can be asked about.
+#
+# That is deliberate. A probe with near-zero expected value of sample information would
+# never be selected anyway, and including one would only invite the impression that the
+# bank is a menu the model picks from. It is not.
+# ---------------------------------------------------------------------------
+#
+# OPERATOR REVIEW: every likelihood row above is ASSUMED. That is nine probes and
+# roughly thirty numbers. They are the rows with no citation behind them, and they are
+# the ones worth five minutes of your attention. Everything in causes.yaml is either
+# cited or has its derivation written out.
+# ---------------------------------------------------------------------------

@@ -1,0 +1,23 @@
+{
+  "name": "cold-start",
+  "description": "Two usable nights total. The system must refuse rather than guess.",
+  "days": 2,
+  "base_bpm": 64.0,
+  "seed": 53,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "illness",
+      "start_day": 1,
+      "amplitude_bpm": 6.0
+    }
+  ],
+  "expect": {
+    "disposition": "INSUFFICIENT_DATA",
+    "rung": "COLD",
+    "asks_at_least": 0,
+    "opens_episode": false,
+    "escalates": false,
+    "note": "A 6 bpm rise against a population prior is NOT enough to act on at two nights. The ladder gate must hold even when the signal looks obvious."
+  }
+}

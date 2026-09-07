@@ -1,0 +1,74 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Caption,Segoe UI Semibold,46,&H00FFFFFF,&H000000FF,&H00000000,&H99000000,0,0,0,0,100,100,0,0,3,14,0,2,160,160,72,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+
+Dialogue: 0,0:01:19.25,0:01:23.75,Caption,,0,0,0,,So the design splits in two.
+Dialogue: 0,0:01:23.75,0:01:28.25,Caption,,0,0,0,,A cheap monitor that watches every night and uses no AI.
+Dialogue: 0,0:01:28.25,0:01:32.75,Caption,,0,0,0,,And an agent that wakes up only when there is something worth explaining.
+Dialogue: 0,0:02:28.72,0:02:33.22,Caption,,0,0,0,,Every night the system runs the same twenty one steps.
+Dialogue: 0,0:02:33.22,0:02:37.72,Caption,,0,0,0,,The screen you are looking at is the real record of one of them.
+Dialogue: 0,0:03:59.65,0:04:04.15,Caption,,0,0,0,,A night is not a clock window. It is the sleep your watch actually recorded.
+Dialogue: 0,0:04:04.15,0:04:08.65,Caption,,0,0,0,,Sleep from midnight to seven would miss a shift worker entirely.
+Dialogue: 0,0:04:08.65,0:04:13.15,Caption,,0,0,0,,The number that matters is the lowest sustained heart rate while you slept.
+Dialogue: 0,0:06:18.98,0:06:23.48,Caption,,0,0,0,,This is a real person, over a month.
+Dialogue: 0,0:06:23.48,0:06:27.98,Caption,,0,0,0,,Green means this night looked like your normal.
+Dialogue: 0,0:06:27.98,0:06:32.48,Caption,,0,0,0,,Nothing has happened yet, and nothing needed to be said.
+Dialogue: 0,0:07:23.03,0:07:27.53,Caption,,0,0,0,,A hard training session late in the evening.
+Dialogue: 0,0:07:27.53,0:07:32.03,Caption,,0,0,0,,It barely moves the night, and nothing is said.
+Dialogue: 0,0:07:32.03,0:07:36.53,Caption,,0,0,0,,A heavier drinking night than usual. Now the night is amber.
+Dialogue: 0,0:07:36.53,0:07:41.03,Caption,,0,0,0,,Amber does not raise an alarm. That is a deliberate choice.
+Dialogue: 0,0:08:42.30,0:08:46.80,Caption,,0,0,0,,The first red night.
+Dialogue: 0,0:08:46.80,0:08:51.30,Caption,,0,0,0,,No alert. An alarm needs two raised nights in a row.
+Dialogue: 0,0:08:51.30,0:08:55.80,Caption,,0,0,0,,The person mentions feeling dizzy, without being asked.
+Dialogue: 0,0:08:55.80,0:09:00.30,Caption,,0,0,0,,Dizziness is recorded, and on its own it raises nothing.
+Dialogue: 0,0:09:00.30,0:09:04.80,Caption,,0,0,0,,There is no trustworthy figure for how long dizziness must last to matter.
+Dialogue: 0,0:09:04.80,0:09:09.30,Caption,,0,0,0,,So the system tracks it and does not pretend to know.
+Dialogue: 0,0:09:51.83,0:09:56.33,Caption,,0,0,0,,So being more worried does not mean being asked more.
+Dialogue: 0,0:09:56.33,0:10:00.83,Caption,,0,0,0,,Past a certain point it stops asking and starts telling you to get seen.
+Dialogue: 0,0:11:03.58,0:11:08.08,Caption,,0,0,0,,Second red night in a row. Now an investigation opens.
+Dialogue: 0,0:11:08.08,0:11:12.58,Caption,,0,0,0,,This is the first time in eleven days the AI has done anything.
+Dialogue: 0,0:11:12.58,0:11:17.08,Caption,,0,0,0,,It weighs twelve possible causes, and it asks one question.
+Dialogue: 0,0:11:17.08,0:11:21.58,Caption,,0,0,0,,Watch the list of causes rearrange after a single answer.
+Dialogue: 0,0:11:21.58,0:11:26.08,Caption,,0,0,0,,Every reply the model produces is checked against a strict shape before anything acts on it.
+Dialogue: 0,0:11:50.83,0:11:53.83,Caption,,0,0,0,,The question arrives on Telegram, and can be answered from there.
+Dialogue: 0,0:11:53.83,0:11:56.83,Caption,,0,0,0,,The investigation is then parked, and picked up days later where it left off.
+Dialogue: 0,0:11:56.83,0:11:59.83,Caption,,0,0,0,,It remembers across the waiting, which is what makes it an agent and not a chat window.
+Dialogue: 0,0:12:49.13,0:12:53.63,Caption,,0,0,0,,Every clinical sentence has to quote words that appear in a real source.
+Dialogue: 0,0:12:53.63,0:12:58.13,Caption,,0,0,0,,If it cannot, the sentence is removed, or flagged in amber as unsourced.
+Dialogue: 0,0:14:08.92,0:14:13.42,Caption,,0,0,0,,Fever reported yesterday. Vomiting reported today.
+Dialogue: 0,0:14:13.42,0:14:17.92,Caption,,0,0,0,,Neither one alone changes anything.
+Dialogue: 0,0:14:17.92,0:14:22.42,Caption,,0,0,0,,Together they do, and the system now reads them together.
+Dialogue: 0,0:14:22.42,0:14:26.92,Caption,,0,0,0,,See a doctor today. Decided by code, before the AI was asked.
+Dialogue: 0,0:15:45.68,0:15:50.18,Caption,,0,0,0,,Every step, every source, every decision, with the time it happened.
+Dialogue: 0,0:15:50.18,0:15:54.68,Caption,,0,0,0,,Each entry is sealed with a fingerprint of the entry before it.
+Dialogue: 0,0:15:54.68,0:15:59.18,Caption,,0,0,0,,Change any one of them and the chain stops matching.
+Dialogue: 0,0:16:29.23,0:16:33.73,Caption,,0,0,0,,The heart rate settles. The person says the fever has gone.
+Dialogue: 0,0:16:33.73,0:16:38.23,Caption,,0,0,0,,The investigation does not close.
+Dialogue: 0,0:17:43.50,0:17:47.88,Caption,,0,0,0,,The AI drafted its conclusion and stopped to have it checked.
+Dialogue: 0,0:17:47.88,0:17:52.25,Caption,,0,0,0,,It does not get to publish that on its own.
+Dialogue: 0,0:17:52.25,0:17:56.62,Caption,,0,0,0,,The next day the fever returns, and the person rejects the draft.
+Dialogue: 0,0:17:56.62,0:18:01.00,Caption,,0,0,0,,The investigation stays open, because a person said so.
+Dialogue: 0,0:18:01.00,0:18:05.38,Caption,,0,0,0,,Days later, recovered, they read the final one and approve it.
+Dialogue: 0,0:18:05.38,0:18:09.75,Caption,,0,0,0,,It never worked out what caused this, and it closes saying exactly that.
+Dialogue: 0,0:18:09.75,0:18:14.12,Caption,,0,0,0,,Not an all clear. It does not have one to give.
+Dialogue: 0,0:18:14.12,0:18:18.50,Caption,,0,0,0,,And it says so out loud. An investigation that ends in silence reads as reassurance.
+Dialogue: 0,0:19:10.12,0:19:14.62,Caption,,0,0,0,,Chest pain is not handled by spotting the words chest pain.
+Dialogue: 0,0:19:14.62,0:19:19.12,Caption,,0,0,0,,The AI asks five specific questions. Then code, not the AI, scores the answers.
+Dialogue: 0,0:20:25.73,0:20:30.23,Caption,,0,0,0,,And when the picture is one the rule was never tested on,
+Dialogue: 0,0:20:30.23,0:20:34.73,Caption,,0,0,0,,such as pain right now with sweating or fainting,
+Dialogue: 0,0:20:34.73,0:20:39.23,Caption,,0,0,0,,the rule is not allowed to run at all. That is an emergency, with no questions.
+Dialogue: 0,0:21:25.95,0:21:30.45,Caption,,0,0,0,,The AI is now pointed at an address that does not answer.
+Dialogue: 0,0:21:30.45,0:21:34.95,Caption,,0,0,0,,The monitor still scores the night. The safety checks still run.
+Dialogue: 0,0:21:34.95,0:21:39.45,Caption,,0,0,0,,The question still goes out, in plain prepared words.
+Dialogue: 0,0:21:39.45,0:21:43.95,Caption,,0,0,0,,The screen says so, rather than pretending.
+Dialogue: 0,0:21:43.95,0:21:48.45,Caption,,0,0,0,,An outage in the AI must never be able to hide somebody's illness.

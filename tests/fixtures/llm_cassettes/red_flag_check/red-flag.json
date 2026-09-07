@@ -1,0 +1,18 @@
+{
+  "prompt_id": "red_flag_check",
+  "prompt_version": "1",
+  "scenario": "red-flag",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "suspected_flag_ids": [
+      "rf_chest_pain"
+    ],
+    "reason": "Describes chest pressure in figurative language the rule list also matches."
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

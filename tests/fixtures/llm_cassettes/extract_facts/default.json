@@ -1,0 +1,15 @@
+{
+  "prompt_id": "extract_facts",
+  "prompt_version": "1",
+  "scenario": "default",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "facts": []
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

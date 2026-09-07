@@ -1,0 +1,23 @@
+{
+  "prompt_id": "write_question",
+  "prompt_version": "1",
+  "scenario": "default",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "text": "Your resting heart rate has been above your usual range. How are you feeling?",
+    "option_labels": [
+      "Nothing unusual",
+      "Throat or nose",
+      "Feverish or chills",
+      "Aches or heavy limbs",
+      "Something else"
+    ],
+    "rationale": "Fallback wording. Neutral, no leading language."
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

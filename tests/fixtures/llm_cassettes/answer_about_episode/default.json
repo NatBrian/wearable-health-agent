@@ -1,0 +1,18 @@
+{
+  "prompt_id": "answer_about_episode",
+  "prompt_version": "1",
+  "scenario": "default",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "text": "I cannot answer that from this episode's evidence.",
+    "citations": [],
+    "refused": true,
+    "refusal_reason": "No stored passage in this episode supports an answer."
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

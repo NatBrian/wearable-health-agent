@@ -1,0 +1,23 @@
+{
+  "prompt_id": "extract_facts",
+  "prompt_version": "1",
+  "scenario": "red-flag",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "facts": [
+      {
+        "field": "symptom_chest_pressure",
+        "value": true,
+        "evidence_span": "feels like an elephant is sitting on my chest",
+        "source_ref": "interaction:1",
+        "confidence": "stated"
+      }
+    ]
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

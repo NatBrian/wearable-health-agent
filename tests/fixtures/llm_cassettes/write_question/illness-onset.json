@@ -1,0 +1,23 @@
+{
+  "prompt_id": "write_question",
+  "prompt_version": "1",
+  "scenario": "illness-onset",
+  "origin": "AUTHORED_FIXTURE",
+  "model_id": "authored-fixture",
+  "response": {
+    "text": "Your resting heart rate has been about 5 bpm above your normal for two nights, and there is no workout on record for last night. How are you feeling?",
+    "option_labels": [
+      "Nothing unusual",
+      "Throat or nose",
+      "Feverish or chills",
+      "Aches or heavy limbs",
+      "Something else"
+    ],
+    "rationale": "Symptoms carry the discriminating information the sensors lack. The wording states what was observed so the question does not arrive unexplained."
+  },
+  "usage": {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "latency_ms": 0
+  }
+}

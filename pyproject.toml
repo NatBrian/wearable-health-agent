@@ -1,0 +1,51 @@
+[project]
+name = "wha"
+version = "0.1.0"
+description = "Wearable health early warning agent"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.9,<3",
+    "pandas>=2.2,<3",
+    "numpy>=2.0,<3",
+    "scipy>=1.14,<2",
+    "httpx>=0.27,<1",
+    "typer>=0.12,<1",
+    "python-dotenv>=1,<2",
+    "apscheduler>=3.10,<4",
+    "sentence-transformers>=3,<5",
+    "langgraph>=1.2,<2",
+    "langgraph-checkpoint-sqlite>=3.1,<4",
+    "rank-bm25>=0.2,<1",
+    "lxml>=5,<7",
+    "streamlit>=1.40,<2",
+    # Imported directly by the episode panel, which needs sort=None on an ordinal axis to
+    # stop st.bar_chart re-sorting the movement ranking alphabetically. Streamlit already
+    # pulls it in; declared explicitly because the code imports it by name.
+    "altair>=5,<7",
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.30,<1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8,<9",
+    "pytest-xdist",
+    "ruff",
+    # Records the demo film. tools/demo_film/film.py and preflight.py drive a real browser
+    # against the running dashboard; nothing in src/ or tests/ imports it.
+    "playwright>=1.62.0",
+]
+
+[project.scripts]
+wha = "wha.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+# The interface tests run the real Streamlit scripts through AppTest, which is why the
+# suite is slow: each one starts a script run. They are independent, so they parallelise
+# cleanly under `-n auto`.
+addopts = "-q"

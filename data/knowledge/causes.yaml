@@ -1,0 +1,393 @@
+# causes.yaml
+#
+# The twelve candidate causes of a nocturnal resting heart rate deviation.
+#
+# FIELDS
+#   base_rate        P(this cause is present on any given night). A PLAIN BASE RATE.
+#                    Not P(cause | a flag fired). The residual likelihood does that
+#                    work generatively. Getting this backwards inflates infection
+#                    roughly twentyfold.
+#   effect_mean_bpm  Expected contribution to nocturnal resting heart rate when present.
+#   effect_sd_bpm    Between-person spread of that contribution.
+#   profile          Contribution weight by nights since the episode opened. The LAST
+#                    VALUE REPEATS for anything beyond its length.
+#   evidence_grade   A controlled/experimental, B large observational, C small/pilot,
+#                    D company blog or unquantified.
+#   provenance       CITED   a published number, with its source and n
+#                    DERIVED computed from published numbers, derivation shown
+#                    ASSUMED no published value exists. States the assumption and the
+#                            direction it is conservative in.
+#
+# THE PROFILE IS WHAT DISCRIMINATES. Alcohol contributes on night one and stops;
+# infection rises across nights; the luteal plateau lasts about twelve. A single-night
+# model cannot separate alcohol from early infection at all.
+#
+# Anchor for the whole design: median weekly RHR fluctuation within a person is about
+# 3 bpm (Quer et al.), which is why a 3 to 4 bpm threshold is meaningful rather than
+# arbitrary, and why several confounders below are LARGER than the infection signal.
+
+schema_version: "1.0"
+
+causes:
+
+  - cause: infection
+    label: "Infection-like immune activation"
+    base_rate: 0.038
+    effect_mean_bpm: 1.60
+    effect_sd_bpm: 1.75
+    profile: [0.5, 0.8, 1.0, 1.0, 0.9, 0.7, 0.5, 0.3, 0.0]
+    evidence_grade: B
+    provenance: DERIVED
+    derivation: >
+      MEASURED, 5 September 2026, on 30 labelled COVID-19 cases and 138 matched healthy
+      windows from the Mishra et al. 2020 cohort, using this system's own compute_baseline
+      so the answer is in the units the detector works in. Reproduce with
+      `uv run python experiments/detection/cohort/infection.py`.
+
+      EFFECT SIZE. Mean nightly elevation above the person's own baseline across the seven
+      nights BEFORE symptoms: median +1.93 bpm in cases against -0.25 bpm in matched
+      healthy windows of the same width, a difference of +2.18 bpm. At n=22 cases the
+      standard error of that difference is about 0.85 bpm, so the interval runs roughly
+      +0.5 to +3.9. The stored 1.60 sits inside it and is kept, unchanged, rather than
+      moved to a point estimate the data cannot separate from it.
+
+      A control is essential and its absence is what made an earlier review of this file
+      wrong. Taking the highest night in a window is biased upward, so an illness peak
+      means nothing beside a healthy window scored the same way.
+
+      TWO REGIMES, ONE NUMBER. The same measurement gives about +5.0 bpm for windows
+      SPANNING symptom onset, against +2.18 before it. This row captures the
+      pre-symptomatic regime, which is the one the system exists to act in, and
+      understates the symptomatic one by roughly a factor of two. Recorded rather than
+      fixed, because the day-by-day medians are too noisy at n≈22 to fit a shape to:
+      adjacent days swing between 0.0 and +3.0 bpm.
+
+      SPREAD. effect_sd_bpm was 1.00 with no source. The between-person spread of the
+      mean pre-symptomatic elevation is SD 3.75 bpm in cases against 3.32 in controls;
+      the excess attributable to how differently an infection lands, under an independence
+      assumption, is 1.75 bpm. That assumption and the n=22 sample both make it imprecise,
+      and it is quoted here rather than dressed up.
+
+      BASE RATE. Was 0.025 with no source, meaning about nine days of infection a year.
+      CDC, About Common Cold, updated 19 February 2026: "Every year in the United States,
+      adults have an average of two to three colds", and "Colds usually last less than a
+      week". The low end of that is 2 x 7 = 14 days, which is 0.038 of days. Taken at the
+      low end deliberately, and it remains a FLOOR: it counts colds only, and every other
+      infection is additional.
+    profile_source: >
+      Onset 1 to 3 days before symptom awareness; red-alert clusters average 4.3 days in
+      COVID-positive participants against 1.9 in negatives; a prolonged tail follows.
+      The rising then falling shape encodes that. The day-by-day measurement above is
+      consistent with the shape and too noisy to refine it.
+    citation: >
+      Natarajan, Su and Heneghan, Front Physiol 2022;13:898251, n=7,200: "elevated during
+      symptom onset, with average peak increases relative to the baseline of 1.8% (3.4%)
+      for females (males)". Those percentages were previously credited to Mishra et al.
+      2020, which does not contain them. Alavi et al., Nat Med 2022;28:175-84, n=3,318,
+      and Radin et al., JAMA Netw Open 2021;4(7):e2115959, n=234, for the pre-symptomatic
+      timing. CDC, About Common Cold, for the base rate. The effect size and spread stored
+      here are measured on the Mishra et al. 2020 cohort rather than taken from any of
+      them; see the derivation.
+    note: >
+      THE MOST IMPORTANT NUMBER IN THE PROJECT, and it is SMALLER than alcohol, evening
+      exercise and the luteal phase. Detection works at all only because it is
+      within-person, multi-channel and sustained across nights. That is not a defect in
+      the number: a flagged night is usually noise, and the belief model is right to say
+      infection is unlikely on any one of them.
+
+  - cause: alcohol
+    label: "Alcohol"
+    base_rate: 0.299
+    effect_mean_bpm: 2.60
+    effect_sd_bpm: 1.10
+    profile: [1.0, 0.15, 0.0]
+    evidence_grade: B
+    # RELABELLED CITED -> DERIVED, 5 September 2026. The citation below already said in
+    # its own words that 2.60 "is not what the paper measured", and the row was labelled
+    # CITED anyway. A row is only as sourced as its weakest load-bearing number, which is
+    # the rule the episode panel already applies when it marks a cause "not measured", and
+    # applying it here moves this row down a grade.
+    provenance: DERIVED
+    derivation: >
+      WHAT COMES STRAIGHT FROM THE PAPER: the base rate. Alcohol was consumed on 29.9
+      percent of person-days in the same cohort, which is base_rate 0.299 unchanged.
+      WHAT IS DERIVED: effect_mean_bpm 2.60. The paper reports +2.8 bpm in females and
+      +2.4 in males for the contrast between one drink ABOVE a person's own average and
+      one drink BELOW it, a two-drink span. The midpoint of 2.8 and 2.4 is 2.60, used here
+      for "drank last night" because the span brackets it. It is not a per-drink effect
+      and the paper does not report one.
+      WHAT IS NEITHER: effect_sd_bpm 1.10. No between-person spread for this contrast is
+      published. NO EVIDENCE FOUND; assumed, and set narrow, which understates how much
+      alcohol can explain and so makes the system MORE likely to investigate rather than
+      less.
+    citation: >
+      Grosicki et al., PLOS Digit Health 2026;5(3):e0001284. n=20,968, 5,109,185
+      person-days, within-person. Base rate: alcohol consumed on 29.9 percent of
+      person-days in the same cohort.
+      WHAT THE 2.8 AND 2.4 FIGURES ACTUALLY ARE, corrected 5 September 2026: they are the
+      contrast between ONE DRINK ABOVE a person's own average and ONE DRINK BELOW it, a
+      two-drink span, not the effect of drinking against not drinking. Reading them as
+      per-drink and taking the midpoint gives 2.60, which this row uses. That is a
+      defensible figure for "drank last night" only because the span brackets it; it is
+      not what the paper measured, and it is stated here rather than left to be inferred.
+    profile_source: >
+      Struven et al., Nutrients 2025;17(9):1470, n=40, prospective controlled exposure:
+      nocturnal RHR returns to near baseline on the first alcohol-free night.
+    note: >
+      On night one this EXCEEDS the infection signal. It is separable only by duration,
+      which is exactly what the profile encodes, and by asking.
+
+  - cause: exertion
+    label: "Unrecorded or under-recorded exertion"
+    base_rate: 0.080
+    effect_mean_bpm: 2.91
+    effect_sd_bpm: 1.50
+    profile: [1.0, 0.25, 0.0]
+    evidence_grade: B
+    provenance: DERIVED
+    derivation: >
+      Effect size CITED: Leota et al., Nat Commun 2025;16:3297, n=14,689, 4,084,354
+      person-nights. The paper reports incremental contrasts between adjacent strain
+      levels; high strain against no exercise is their sum: 1.58 bpm at -6h, 1.87 at -4h,
+      2.91 at -2h, 5.59 at sleep onset. A session ending 0 to 2 hours before sleep takes
+      the value at the edge of that band furthest from sleep onset, +2.91 bpm, which is
+      the smallest figure the paper supports for the band. This entry said 4.14, which
+      appears nowhere in that table. Its twin in constants.py was corrected on 4 September
+      2026 and this one was missed. See docs/KNOWLEDGE-CHANGELOG.md.
+      Base rate is DERIVED and uncertain: recorded sessions are already subtracted by the
+      detector, so this cause means UNRECORDED exertion only, that is swimming, cycling,
+      resistance work with a step-based device, or a device that was off. Estimated as a
+      minority of the roughly 69 percent of adults meeting activity guidelines, on a
+      minority of their active nights.
+    citation: "Leota et al., Nat Commun 2025;16:3297."
+    note: >
+      Semantics matter here. The recorded kind was already removed as explained variance.
+      This is what the device missed.
+
+  - cause: sleep_restriction
+    label: "Short or fragmented sleep"
+    base_rate: 0.348
+    effect_mean_bpm: 1.00
+    effect_sd_bpm: 0.80
+    profile: [1.0, 0.4, 0.0]
+    evidence_grade: C
+    provenance: ASSUMED
+    assumption: >
+      Base rate is CITED at 34.8 percent of US adults habitually sleeping under 7 hours
+      (Liu et al., MMWR 2016;65(6):137-41). The EFFECT SIZE is assumed. The published
+      wearable literature quantifies the HRV effect (rMSSD SMD -0.24, and the authors
+      caution it may be limited to specific conditions) but not a reliable bpm effect on
+      nocturnal heart rate. It is set SMALL, which understates how much short sleep
+      explains and therefore leaves more residual attributed to other causes.
+    citation: >
+      Liu et al., MMWR 2016;65(6):137-41 for the base rate.
+      Zhang et al., Front Neurol 2025;16:1556784, 11 studies n=549, for the HRV effect.
+    note: >
+      This is why short sleep is a COVARIATE and is never subtracted by the detector.
+      Subtracting an uncertain quantity would manufacture confidence.
+
+  - cause: stress
+    label: "Acute psychological stress"
+    base_rate: 0.350
+    effect_mean_bpm: 1.50
+    effect_sd_bpm: 1.20
+    profile: [0.8, 1.0, 1.0, 1.0, 1.0, 0.8, 0.6, 0.4, 0.0]
+    evidence_grade: B
+    provenance: DERIVED
+    derivation: >
+      The association is CITED: Bloomfield et al., PLOS Digit Health 2024;3(4):e0000473,
+      n=525, odds of moderate-to-high perceived stress rise by OR 1.036 per bpm of RHR.
+      The MAGNITUDE IN BPM is derived, because the paper reports an odds ratio rather than
+      a mean shift. Inverting an OR of 1.036 across the observed stress prevalence gives
+      an effect on the order of 1 to 2 bpm. Midpoint taken, with a wide SD.
+      Base rate is derived DOWNWARD from the paper's 64 percent of student-weeks reporting
+      moderate-to-high stress, because a student cohort in an exam term is not a general
+      adult population and a week-level rate is not a night-level one.
+    citation: "Bloomfield et al., PLOS Digit Health 2024;3(4):e0000473, n=525, Oura."
+    note: >
+      THE WORST MIMIC. Raises heart rate and respiratory rate and lowers HRV, the same
+      directions as infection, over the same timescale, and there is no validated sensor
+      discriminator. Not separable without asking.
+
+  - cause: luteal
+    label: "Luteal phase of the menstrual cycle"
+    base_rate: 0.450
+    base_rate_if_not_applicable: 0.0
+    effect_mean_bpm: 3.91
+    effect_sd_bpm: 1.20
+    profile: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]
+    evidence_grade: B
+    # RELABELLED CITED -> DERIVED, 5 September 2026. The effect size genuinely is the
+    # paper's, but two of the four numbers in this row are not, and the row carries one
+    # label for all of them.
+    provenance: DERIVED
+    derivation: >
+      WHAT COMES STRAIGHT FROM THE PAPER: effect_mean_bpm 3.91. Goodale reports late
+      luteal against follicular at +3.91 bpm, P<.001, read off the paper's own phase means.
+      WHAT IS DERIVED: base_rate 0.450. The paper gives roughly 12 to 14 luteal days per
+      28-day cycle; 13/28 is 0.464, rounded down to 0.45. The paper does not state a base
+      rate.
+      WHAT IS NEITHER: effect_sd_bpm 1.20. NO EVIDENCE FOUND. Goodale reports the mean
+      contrast, not a between-person spread of it. Assumed, and set narrow for the same
+      reason as alcohol: a narrow spread understates how much this explains away, and the
+      luteal phase is the largest benign effect in this table.
+    citation: >
+      Goodale et al., J Med Internet Res 2019;21(4):e13404. n=193 participants, 708
+      analysed cycles, wrist-worn overnight. Late luteal versus follicular: heart rate
+      +3.91 bpm (P<.001), wrist skin temperature +0.45 C, respiratory rate +0.47/min.
+      Base rate: roughly 12 to 14 luteal days per 28-day cycle.
+      CORRECTED 2026-09-04. This read +0.44 C and +0.60/min. Read off the paper's own
+      phase means, late luteal against follicular: wrist skin temperature 34.32 - 33.87 =
+      +0.45 C, respiratory rate 17.04 - 16.57 = +0.47 breaths/min. The heart rate figure
+      of +3.91, which is the only one this system computes with, was and is exactly right
+      (60.47 - 56.56). Neither corrected channel is ingested by this build, so this was a
+      citation defect and not a clinical one. See docs/KNOWLEDGE-CHANGELOG.md.
+    note: >
+      LARGER than the infection signal, and it moves every channel in the infection
+      direction on roughly 45 percent of days. A system that ignores cycle phase is
+      systematically less accurate for around half the population. If the subject has
+      indicated this is not applicable, base_rate_if_not_applicable is used and the cause
+      is inert.
+
+  - cause: vaccination
+    label: "Vaccine reactogenicity"
+    base_rate: 0.022
+    effect_mean_bpm: 1.52
+    effect_sd_bpm: 0.90
+    profile: [0.6, 1.0, 0.8, 0.4, 0.2, 0.0]
+    evidence_grade: B
+    provenance: DERIVED
+    derivation: >
+      Effect size CITED: Quer et al., npj Digit Med 2022;5:49, n=5,674. Mean RHR increase
+      +1.52 bpm (95% CI 1.42-1.63) after dose two, peaking day 2, back to baseline by day
+      6. Base rate DERIVED: roughly two reactogenic doses per year affecting about four
+      nights each, over 365 nights.
+    citation: "Quer et al., npj Digit Med 2022;5:49. Gepner et al., Commun Med 2022;2:27."
+    note: >
+      Physiologically it IS an immune response, the same effector pathway as infection, so
+      no sensor separation exists or should be expected. But it is the CHEAPEST confounder
+      to resolve: the event is discrete, recent, memorable and perfectly known, so one
+      binary question carries close to a full bit.
+
+  - cause: travel
+    label: "Travel, time-zone change or altitude"
+    base_rate: 0.020
+    effect_mean_bpm: 1.50
+    effect_sd_bpm: 1.50
+    profile: [1.0, 1.0, 0.8, 0.6, 0.4, 0.2, 0.0]
+    evidence_grade: D
+    provenance: ASSUMED
+    assumption: >
+      The SLEEP effects are well quantified (Willoughby et al., Sleep 2025;48(7):zsaf077,
+      64,847 trips from 57,240 users: night-before-travel total sleep time down 17.9 to
+      61.9 minutes, timing not recovered within 15 days). But that paper reports NO
+      heart-rate result, and no wearable study quantifying a travel effect on nocturnal
+      RHR was found. Both mean and SD are assumed, with a WIDE SD so this cause
+      explains little on its own.
+    citation: "Willoughby et al., Sleep 2025;48(7):zsaf077, for the sleep effects only."
+    note: >
+      Altitude is folded in here. Altitude WOULD be separable by blood oxygen, but that
+      channel is not available on this data path, so it is not.
+
+  - cause: medication
+    label: "Medication started, stopped or missed"
+    base_rate: 0.010
+    effect_mean_bpm: 0.00
+    effect_sd_bpm: 4.00
+    profile: [1.0]
+    evidence_grade: B
+    provenance: DERIVED
+    derivation: >
+      A mean of ZERO with a very WIDE SD, because the direction of the effect is not
+      fixed. Beta blockers LOWER resting heart rate by 8 to 14 bpm across dose
+      quintiles (Gullestad et al., MERIT-HF, JACC 2005). Stimulants and anticholinergic
+      antihistamines RAISE it. The SD spans both directions.
+    citation: "Gullestad et al., JACC 2005;45(4):525-30, MERIT-HF."
+    note: >
+      Mostly a BASELINE problem rather than an acute one: chronic medication shifts where
+      the baseline sits and is invisible to a deviation detector once it re-converges. The
+      dangerous cases are starting, stopping or a missed dose. Beta blockers additionally
+      BLUNT the response to infection, which is a false-negative risk rather than a
+      false-positive one, and is stated as a limitation.
+
+  - cause: recovery_tail
+    label: "Still recovering from an earlier illness"
+    base_rate: 0.020
+    effect_mean_bpm: 1.50
+    effect_sd_bpm: 1.50
+    profile: [1.0]
+    evidence_grade: B
+    # RELABELLED CITED -> DERIVED, 5 September 2026, and this row was the weakest of the
+    # three. Radin supports the DURATION and nothing else in it: not the base rate, not
+    # the effect size, not the spread.
+    provenance: DERIVED
+    derivation: >
+      WHAT COMES STRAIGHT FROM THE PAPER: the recovery window only. Radin reports resting
+      heart rate not returning to baseline until roughly 79 days after symptom onset,
+      which is RECOVERY_TAIL_DAYS in constants.py and is what decides whether this cause
+      applies at all.
+      WHAT IS NEITHER CITED NOR DERIVED: all three numbers in this row.
+      base_rate 0.020, effect_mean_bpm 1.50 and effect_sd_bpm 1.50 are NO EVIDENCE FOUND.
+      Radin reports that 13.7 percent remained more than 5 bpm above baseline beyond 133
+      days, which bounds the tail but gives no mean for the population inside the window.
+      All three are assumed and set small, so this cause explains away as little as
+      possible and the system investigates rather than attributing a rise to convalescence.
+    citation: >
+      Radin et al., JAMA Netw Open 2021;4(7):e2115959. n=234 COVID-positive versus 641
+      symptomatic negative. Resting heart rate did not return to baseline until roughly
+      79 days after symptom onset; 13.7 percent remained more than 5 bpm above baseline
+      for over 133 days. Sleep recovered at day 24, steps at day 32.
+    note: >
+      Resolvable from SYSTEM STATE, not from sensors and not by asking. The base rate here
+      is the unconditional default; the belief model raises it sharply when a closed
+      illness episode exists within the published tail window.
+
+  - cause: sensor_artifact
+    label: "Sensor artifact or poor wear"
+    base_rate: 0.050
+    effect_mean_bpm: 0.00
+    effect_sd_bpm: 3.00
+    profile: [1.0]
+    evidence_grade: B
+    provenance: DERIVED
+    derivation: >
+      Mean zero because artifact is directionally unbiased at the nightly-median level.
+      SD derived from measured device error: consumer wrist devices under-read by about
+      6 bpm overall and up to 16 bpm under motion, and a 2025 validation reports a minimum
+      detectable change of 19.57 bpm in a motion-affected population.
+    citation: >
+      Gorny et al., JMIR Mhealth Uhealth 2017;5(10):e157.
+      Reithe et al., Biomed Eng Online 2025;24:22.
+    note: >
+      Largely diagnosable from data-quality signatures rather than from asking: coverage
+      gaps, implausible values, a single-channel step change with no corroboration.
+
+  - cause: unexplained
+    label: "None of the above"
+    base_rate: 0.020
+    effect_mean_bpm: 0.00
+    effect_sd_bpm: 3.00
+    profile: [1.0]
+    evidence_grade: D
+    provenance: ASSUMED
+    assumption: >
+      A leak term by construction. Wide and unbiased so that it absorbs residuals no named
+      cause explains, rather than forcing the mass onto a cause that does not fit.
+    note: >
+      A FIRST-CLASS CAUSE, not a dustbin. It rising is the correct behaviour when the
+      evidence fits nothing, and it is what makes a closed set of twelve defensible. When
+      it dominates, the episode closes as UNRESOLVED.
+
+# ---------------------------------------------------------------------------
+# ROWS THE OPERATOR SHOULD REVIEW: every ASSUMED field, and the two DERIVED
+# magnitudes that rest on an inversion rather than a reported mean.
+#
+#   sleep_restriction  effect_mean_bpm, effect_sd_bpm      ASSUMED
+#   travel             effect_mean_bpm, effect_sd_bpm      ASSUMED
+#   unexplained        effect_sd_bpm                       ASSUMED
+#   exertion           base_rate                           DERIVED, uncertain
+#   stress             base_rate, effect_mean_bpm          DERIVED from an odds ratio
+#   infection          effect_mean_bpm                     DERIVED, re-verified 2026-09
+#
+# Everything else quotes a study with thousands to tens of thousands of participants.
+# ---------------------------------------------------------------------------

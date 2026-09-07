@@ -1,0 +1,9 @@
+line-length = 100
+target-version = "py312"
+
+[lint.per-file-ignores]
+# Streamlit derives the sidebar label for the entry point and for each page from the
+# file name, so these are capitalised deliberately. Renaming them to satisfy the module
+# naming rule would put "app" and "1_today" in front of the user.
+"src/wha/ui/Home.py" = ["N999"]
+"src/wha/ui/pages/*.py" = ["N999"]

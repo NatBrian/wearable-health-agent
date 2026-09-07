@@ -1,0 +1,38 @@
+{
+  "name": "budget-exhausted",
+  "description": "A third flagged episode in the same week. The budget must hold.",
+  "days": 30,
+  "base_bpm": 59.0,
+  "seed": 97,
+  "timezone": "Asia/Singapore",
+  "injections": [
+    {
+      "kind": "illness",
+      "start_day": 20,
+      "amplitude_bpm": 4.3,
+      "nights": 3
+    },
+    {
+      "kind": "alcohol",
+      "day": 25,
+      "amplitude_bpm": 4.1
+    },
+    {
+      "kind": "alcohol",
+      "day": 26,
+      "amplitude_bpm": 4.0
+    },
+    {
+      "kind": "stress",
+      "start_day": 28,
+      "amplitude_bpm": 4.2,
+      "nights": 3
+    }
+  ],
+  "prior_budget_used": 2,
+  "expect": {
+    "asks_at_least": 0,
+    "escalates": false,
+    "note": "With the week's budget spent, the policy returns OBSERVE with a recorded reason. BudgetExhausted is logged and is NOT raised to the user."
+  }
+}

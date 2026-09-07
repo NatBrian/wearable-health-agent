@@ -1,0 +1,310 @@
+# red_flags.yaml
+#
+# The deterministic safety floor.
+#
+# Runs BEFORE the agent, on every flagged night and every free-text answer. Plain code.
+# It cannot be reasoned past because it is not reasoning.
+#
+# POSTURE: BALANCED, not over-sensitive. A stream of unnecessary escalations is itself
+# the alarm-fatigue failure this project exists to fix. But "balanced" taken literally
+# would leave a hole, so:
+#
+#   TIER A   one is enough           the ambulance list. Nobody wants a second opinion
+#   TIER B   two or more, or persistence beyond a stated duration
+#   TRACKED  recorded over time, escalates on nothing, asked about rather than forgotten
+#   VITALS   alongside tier A, in robust z against the person's own baseline
+#   TIER C   the model, ADDITIVE ONLY, in code elsewhere. It may add a flag, never remove
+#
+# CORRECTION, 7 SEPTEMBER 2026. Until this date the second line above was HALF FICTION.
+# `check_red_flags_deterministic` takes a `symptom_history` argument that NO PRODUCTION
+# CALLER EVER PASSED, so the persistence half never once fired for any of the six symptoms
+# below that carry a persist_nights value: `history.get(id, 1)` was always 1, and 1 is
+# never greater than 2, 3 or 4. Verified by running five nights of a worsening fever
+# through the floor and getting five refusals to escalate. "Two or more co-occurring" was
+# separately implemented as two or more IN THE SAME MESSAGE, so a fever on Monday and
+# vomiting on Tuesday scored as two unrelated singletons. Both halves now work, against
+# the symptom_observations timeline. The numbers below did not change; they simply began
+# to be read.
+#
+# THE MODEL CAN ONLY MAKE THIS LOUDER, NEVER QUIETER. Rules and model are combined by
+# SET UNION, in code, not by a prompt instruction.
+#
+# This file is not a diagnostic instrument. It is a routing rule for a consumer wellness
+# tool, deliberately simple, with a language model as the backstop for phrasing it misses.
+
+schema_version: "1.0"
+
+tier_a:
+  # One match is enough. Immediate ESCALATE(urgent), bypassing the agent entirely.
+
+  - id: rf_chest_pain
+    match: ["chest pain", "chest pressure", "chest tightness", "pain in my chest",
+            "tight chest", "crushing", "elephant on my chest", "band around my chest"]
+    guidance: "Chest pain or pressure needs assessment now. Call 995 or go to an A&E."
+    rationale: "Cannot be excluded from wearable data, and it is time-critical."
+
+  - id: rf_breathless_at_rest
+    match: ["can't breathe", "cannot breathe", "short of breath at rest",
+            "breathless sitting", "gasping", "struggling to breathe",
+            "breathless just lying"]
+    guidance: "Breathlessness at rest needs assessment now. Call 995 or go to an A&E."
+    rationale: "Distinguish from exertional breathlessness, which is tier B."
+
+  - id: rf_confusion
+    match: ["confused", "disoriented", "can't think straight", "slurred",
+            "not making sense", "drowsy and confused"]
+    guidance: "New confusion needs assessment now. Call 995."
+    rationale: "A recognised marker of serious systemic illness across many conditions."
+
+  - id: rf_syncope
+    match: ["fainted", "passed out", "blacked out", "nearly fainted",
+            "about to pass out", "lost consciousness"]
+    guidance: "Fainting or near-fainting needs assessment now. Call 995 or go to an A&E."
+    rationale: "Cardiac and volume causes cannot be excluded here."
+
+  - id: rf_meningism
+    match: ["stiff neck", "neck stiffness", "can't touch chin to chest",
+            "light hurts my eyes", "photophobia"]
+    requires_also: ["fever"]
+    guidance: "A stiff neck with fever needs assessment now. Go to an A&E."
+    rationale: >
+      The one tier-A rule with a conjunction, because a stiff neck alone is usually
+      musculoskeletal. With fever it is not something to wait on.
+
+  - id: rf_bleeding
+    match: ["bleeding that won't stop", "coughing up blood", "vomiting blood",
+            "blood in my stool", "black stool"]
+    guidance: "Uncontrolled or unexplained bleeding needs assessment now. Go to an A&E."
+    rationale: "Time-critical and outside anything this system can assess."
+
+vitals:
+  # Alongside tier A. Expressed in robust z against the PERSON'S OWN baseline, because
+  # 95 bpm means different things for different people.
+  - id: rf_rhr_extreme_high
+    robust_z_above: 6.0
+    guidance: >
+      Your overnight resting heart rate is far outside your own usual range. If you feel
+      unwell with this, seek medical advice today.
+    rationale: "Six robust standard deviations is well beyond any confounder in the table."
+    provenance: DERIVED
+    derivation: >
+      Not a published cut-off. It is derived from this repository's own numbers: the
+      largest single effect in causes.yaml is the luteal plateau at 3.91 bpm, and the
+      measured within-person night-to-night scale is 3.71 bpm (WITHIN_PERSON_SCALE_PRIOR_BPM,
+      107 people, experiments/detection/cohort/band_width.py). Six scaled MADs is therefore about 22 bpm,
+      which no combination of confounders in the table reaches. The purpose is to catch a
+      reading no ordinary explanation covers, not to score severity.
+      MEASURED FREQUENCY: over 7,865 usable cohort nights, |robust_z| > 6 fires on 0.6
+      percent of nights. Reproduce with `uv run python experiments/detection/cohort/band_width.py`.
+    cold_rung_fallback_bpm_above: 100
+    provenance_cold_rung: ASSUMED
+    assumption_cold_rung: >
+      NO EVIDENCE FOUND for this exact number in this context. 100 bpm is the conventional
+      resting tachycardia boundary in general clinical use, but no source was fetched and
+      verified for it here, and none is claimed. It applies only below the SHRINKING rung,
+      where no personal range exists, and it can only RAISE urgency. Conservative direction:
+      a wide bound fires rarely, so the risk it carries is a missed reading rather than a
+      false alarm. Marked unevidenced on the dashboard.
+    cold_rung_note: >
+      Below the SHRINKING rung there is no established personal range, so a wide absolute
+      bound is used and the message says the baseline is still forming.
+
+  - id: rf_rhr_extreme_low
+    robust_z_below: -6.0
+    guidance: >
+      Your overnight resting heart rate is unusually low for you. If you feel faint or
+      unwell, seek medical advice today.
+    rationale: >
+      Included because relative bradycardia is a documented phase of some infections and
+      because beta blockade plus illness is a real combination.
+    provenance: DERIVED
+    derivation: >
+      The mirror of rf_rhr_extreme_high, derived the same way and from the same two
+      numbers. Symmetric by construction rather than by a separate finding.
+    cold_rung_fallback_bpm_below: 40
+    provenance_cold_rung: ASSUMED
+    assumption_cold_rung: >
+      NO EVIDENCE FOUND for this exact number in this context. 40 bpm is a conventional
+      marked-bradycardia boundary in general clinical use; no source was fetched and
+      verified for it here, and none is claimed. Trained endurance athletes sleep below it
+      routinely, which is why it can only raise urgency and the wording asks how the person
+      feels rather than naming a condition. Marked unevidenced on the dashboard.
+
+tier_b:
+  # TWO OR MORE co-occurring, OR one persisting beyond persist_nights.
+  # ESCALATE(same_day). This is where "balanced" lives.
+
+  - id: rf_fever
+    match: ["fever", "feverish", "temperature", "burning up", "chills", "shivering"]
+    persist_nights: 3
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights a fever should
+      persist before it is worth a same-day appointment, and none is claimed here. Three nights is the shortest window in this tier because fever is the tier B sign most associated with the infections this system exists to catch.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
+    guidance: "See a doctor today."
+
+  - id: rf_body_aches
+    match: ["aching all over", "body aches", "muscle aches", "everything hurts"]
+    persist_nights: 4
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights body aches should
+      persist before it is worth a same-day appointment, and none is claimed here. Four nights, longer than fever, because aches follow ordinary exertion far more often than they follow illness.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
+
+  - id: rf_severe_fatigue
+    match: ["exhausted", "can't get out of bed", "no energy at all",
+            "wiped out", "completely drained"]
+    persist_nights: 4
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights severe fatigue should
+      persist before it is worth a same-day appointment, and none is claimed here. Four nights, because fatigue has the widest set of benign explanations of anything in this tier.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
+
+  - id: rf_poor_intake
+    match: ["can't eat", "not eating", "can't keep fluids down", "no appetite at all"]
+    persist_nights: 2
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights an inability to eat or keep fluids down should
+      persist before it is worth a same-day appointment, and none is claimed here. Two nights, the shortest available, because dehydration compounds daily and is the tier B sign that deteriorates fastest without care.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
+
+  - id: rf_exertional_breathlessness
+    match: ["out of breath on the stairs", "breathless walking",
+            "short of breath when I move"]
+    persist_nights: 2
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights breathlessness on exertion should
+      persist before it is worth a same-day appointment, and none is claimed here. Two nights, because this overlaps with presentations on the urgent list and the cost of waiting is higher than the cost of asking.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
+
+  - id: rf_persistent_vomiting
+    match: ["vomiting", "throwing up", "being sick repeatedly"]
+    persist_nights: 2
+    provenance: ASSUMED
+    assumption: >
+      NO EVIDENCE FOUND. No study was located that measures how many nights repeated vomiting should
+      persist before it is worth a same-day appointment, and none is claimed here. Two nights, for the same reason as poor intake: fluid loss compounds daily.
+      Conservative direction: a SHORTER window escalates sooner, so the error this carries
+      is an unnecessary appointment rather than a missed one. Marked unevidenced on the
+      dashboard.
+
+tracked:
+  # RECORDED OVER TIME, NEVER ESCALATED ON. Added 7 September 2026.
+  #
+  # This section exists because of a question the tier structure could not answer.
+  # A person reported feeling dizzy, it got worse over the following nights, and the
+  # system recorded nothing and asked nothing, because dizziness is in no tier. The two
+  # available answers were both wrong: putting it in a tier asserts a routing threshold
+  # no source supports, and leaving it out entirely produces silence while somebody
+  # deteriorates.
+  #
+  # Tracking is a much weaker claim than escalating, and it needs no clinical threshold.
+  # It says only: you told us about this, so we will remember it and ask you about it.
+  # A tracked symptom counts toward NOTHING in tier B's arithmetic. What it does:
+  #   * it stops an investigation closing as "probably nothing" while it is outstanding
+  #   * it gives the follow-up rule something to ask about
+  # Neither of those makes a clinical claim, which is exactly why this is the right home
+  # for a symptom with no evidence base for routing.
+  #
+  # DELIBERATELY NOT LISTED HERE: severe abdominal pain. It is a WHO and CDC dengue
+  # warning sign and would be defensible in tier B, and it is being held out ON PURPOSE
+  # as a live test of whether the agent can recognise the significance of a symptom
+  # nobody has hand-coded for it. Pre-registered prediction, 7 September 2026: it will
+  # fail, because corpus.yaml contains the word "dengue" zero times and a grounded claim
+  # requires verbatim containment in a retrieved passage. Recorded before running it.
+
+  - id: sx_dizziness
+    match: ["dizzy", "dizziness", "light-headed", "lightheaded", "light headed",
+            "room is spinning", "woozy", "off balance", "unsteady on my feet"]
+    label: "dizziness or light-headedness"
+    rationale: >
+      NO ROUTING EVIDENCE, and none is claimed. No source was found that says how many
+      nights of dizziness in an otherwise well person warrants same-day care, which is
+      why this is not a tier B rule with a persist_nights value invented to fill the gap.
+      Severe or sudden dizziness with fainting is already covered by rf_syncope in tier A.
+      What is recorded here is the ordinary kind, so that it can be followed up rather
+      than forgotten.
+
+tier_b_guidance: >
+  Two or more of these together, or one that has not settled, is worth a same-day
+  appointment. A polyclinic or a GP is appropriate. Go to an A&E if you develop any of
+  the urgent signs listed above.
+
+outcome_guidance:
+  # WHEN TO SEEK CARE, on the episode outcome. SELECTED, never written.
+  #
+  # This used to be free text from the language model, and it was the only text in the
+  # system that went through no check at all. A live run produced "Seek care if fever
+  # persists beyond 72 hours or exceeds 103 degrees F (39.4 C)". Both thresholds came out
+  # of the model. They happen to be close to mainstream advice, which is luck rather than
+  # sourcing, and is why this kind of error is hard to catch by reading.
+  #
+  # A number filter was considered and rejected. It cannot tell 103 from 39.4 inside
+  # "103 degrees F (39.4 C)", it deletes whole sentences on any number it does not
+  # recognise, and stripping every criterion made the node raise and the episode die.
+  # Nothing is generated now, so there is nothing to guard.
+  #
+  # These two lines are not new clinical content. They are the tier A and tier B lists
+  # above, summarised: chest pain, breathlessness at rest, fainting and confusion are
+  # rf_chest_pain, rf_breathless_at_rest, rf_syncope and rf_confusion; fever and body
+  # aches are rf_fever and rf_body_aches, and "see a doctor today" is rf_fever's own
+  # guidance. They were previously DEFAULT_ESCALATION_CRITERIA in
+  # src/wha/safety/output_checks.py and are moved here unchanged, so that every
+  # care-pathway sentence lives in one file and the corpus can cite all of them.
+  #
+  # ALWAYS PRESENT, on every outcome including LIKELY_BENIGN. A benign conclusion is the
+  # one a person is most likely to act on by doing nothing, so it is the one that most
+  # needs the boundary stated.
+  default:
+    - "Seek urgent medical attention (call 995 or go to an A&E) if you develop chest pain, shortness of breath at rest, fainting, or sudden confusion."
+    - "See a doctor today if you have a high fever that does not settle or co-occurring severe body aches."
+
+negation_guards:
+  # Deliberately simple. A phrase preceding a match within this many words suppresses it.
+  window_words: 4
+  phrases: ["no", "not", "without", "denies", "haven't had", "never had",
+            "no more", "free of", "gone", "resolved"]
+  note: >
+    Kept simple ON PURPOSE. A real parser here would be over-engineering a layer that
+    already has a backstop: tier C, the language model, catches what this misses, and it
+    can only ADD a flag. Failing open in the safe direction is the correct trade.
+
+always:
+  # Applied to every outcome regardless of disposition, including LIKELY_BENIGN.
+  # "that's reassuring" was written straight into a live reply about chest pain, with no
+  # amber marker, and passed every check. It is not an all-clear in form, which is why a
+  # list built from all-clear phrasings missed it, and why a person reads it as one anyway.
+  # Recorded in the review as one of the phrases that must not survive; added 5 September
+  # 2026 after an audit found it still passing.
+  never_say: ["you are fine", "you're fine", "nothing to worry about", "definitely not",
+              "it's nothing", "no need to worry", "that's reassuring",
+              "that is reassuring", "thats reassuring"]
+  always_include_escalation_criteria: true
+  note: >
+    THE SYSTEM NEVER OUTPUTS "YOU ARE FINE". Its disposition set includes UNRESOLVED and
+    INSUFFICIENT_DATA, and every output carries explicit criteria for when to seek care
+    regardless of what it concluded.
+
+# ---------------------------------------------------------------------------
+# OPERATOR REVIEW: the tier-A list, the two vitals thresholds, and the tier-B
+# persist_nights values. Those encode a judgement about YOUR health, in a tool you will
+# actually use, and they are the only place in this project where a wrong number has a
+# real-world consequence rather than a metric consequence.
+#
+# The phrasing lists are not exhaustive and are not meant to be. Tier C is the backstop.
+# ---------------------------------------------------------------------------

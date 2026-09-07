@@ -1,0 +1,14 @@
+{
+  "medlineplus": {
+    "snapshot_date": "2026-09-04",
+    "url": "https://medlineplus.gov/xml/mplus_topics_compressed_2026-09-04.zip",
+    "sha256": "a14b5cd9444e180dcd0146bf0f619591227d1b9e69d268863d63b7328b1b7072",
+    "fetched_at_utc": "2026-09-05T06:33:58.587705+00:00",
+    "topics_total": 2033,
+    "topics_kept": 1015,
+    "bytes_downloaded": 4767160,
+    "licence": "Free, no registration, attribution only",
+    "attribution": "MedlinePlus, National Library of Medicine, National Institutes of Health. Free to use with attribution.",
+    "note": "The raw release is kept out of version control under data/corpus/. This file records which snapshot the corpus was built from, so a citation can be traced to a specific release rather than to whatever the site served that day."
+  }
+}

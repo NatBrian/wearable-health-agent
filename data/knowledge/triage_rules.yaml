@@ -1,0 +1,294 @@
+# triage_rules.yaml
+#
+# Validated clinical decision rules that can be run from history alone.
+# TRANSCRIBED FROM PUBLISHED RULES. Not authored, not invented, not tuned.
+# Every item, weight and threshold below is copied from the cited paper.
+#
+# WHY THIS FILE EXISTS
+#
+# red_flags.yaml matches phrases. Someone typing "chest pain" was routed straight to an
+# ambulance, which is not what a clinician does and not what the evidence supports.
+# Sutaria et al., BMC Health Serv Res 2025;25:1263, defines a red flag as an "additional
+# relevant symptom that would be SOUGHT to exclude serious illness". Sought, not awaited.
+# That paper measured online symptom checkers seeking only 36.9 percent of relevant red
+# flags against 71.8 percent for primary care physicians. THAT is the paper that supports
+# this design directly: it is about symptom checkers, which is what this is.
+#
+# Downie et al., BMJ 2013;347:f7095, reviewed red flags systematically and found that
+# "many red flags in current guidelines provide virtually no change in probability ... or
+# have untested diagnostic accuracy", that individually most were uninformative, and that
+# COMBINATIONS carried the information single features did not.
+#
+# READ DOWNIE WITH ITS POPULATION ATTACHED. It is a review of red flags for CANCER AND
+# FRACTURE IN LOW BACK PAIN. The quotation is accurate and the finding is general in
+# spirit, but it was not measured on chest pain or on any presentation this system routes.
+# It is quoted here as the reason to distrust a single matched phrase, which is what it
+# actually shows, and Sutaria carries the argument for what to do instead.
+#
+# THE DIVISION OF LABOUR, WHICH IS THE POINT
+#
+#   The language model ELICITS the items, in natural conversation, robustly, in whatever
+#   words the person uses.
+#   This file's arithmetic DECIDES.
+#
+# The model may raise urgency at any time. It can never lower it by reasoning. Urgency
+# falls only when a rule below returns a lower band from items the person actually gave.
+#
+
+schema_version: "1.0"
+
+# ---------------------------------------------------------------------------
+# UNCONDITIONAL. No questions, no rule, no delay.
+#
+# These are the presentations where asking anything is itself the harm, and where no
+# history-only rule has been validated. Marburg's own contraindication is "do not use in
+# an emergency setting", so the moment a presentation looks like one, no score runs.
+# ---------------------------------------------------------------------------
+unconditional:
+  reason: >
+    Delay is the harm here and no validated history-only rule covers these. Escalate
+    immediately, ask nothing first. This is the conservative direction and is deliberate.
+  gates:
+    - id: gate_ongoing_severe
+      label: "The problem is happening right now and is severe"
+      description: >
+        Pain or breathlessness present at this moment and described as severe, crushing,
+        or the worst it has been.
+    - id: gate_collapse
+      label: "Collapse, fainting or loss of consciousness"
+    - id: gate_cannot_speak
+      label: "Cannot speak in full sentences, or is struggling to breathe at rest"
+    - id: gate_autonomic
+      label: "Cold sweat, vomiting, or a feeling of impending doom alongside the pain"
+      description: >
+        Autonomic features accompanying chest pain. Named because they are part of what
+        Marburg's contraindication means by clinically unstable, not because this file
+        supplies an accuracy figure for them.
+
+# ---------------------------------------------------------------------------
+# WHICH PHRASE MATCH LEADS TO WHICH PRESENTATION
+#
+# red_flags.yaml still does what it is good at: noticing that a subject has come up. What
+# it may no longer do is decide. A rule id below that maps to a presentation with a
+# validated rule opens a discriminator conversation instead of an escalation. Anything not
+# listed here has no validated history-only rule and stays an unconditional escalation.
+# ---------------------------------------------------------------------------
+flag_presentations:
+  rf_chest_pain: chest_pain
+
+# ---------------------------------------------------------------------------
+# MARBURG HEART SCORE
+#
+# Bösner S, Haasenritter J, Becker A, et al. Ruling out coronary artery disease in
+# primary care: development and validation of a simple prediction rule.
+# CMAJ 2010;182(12):1295-1300.
+#   Derivation and validation on 1,199 consecutive patients aged 35 and over presenting
+#   with chest pain across 74 German primary care practices.
+#   AUC 0.87 (95% CI 0.83-0.91) derivation, 0.90 (0.87-0.93) validation.
+#   Cut-off 3: sensitivity 87.1% (79.9-94.2), specificity 80.8% (77.6-83.9).
+#
+# Haasenritter J, Bösner S, Vaucher P, et al. Ruling out coronary heart disease in
+# primary care: external validation of a clinical prediction rule.
+# Br J Gen Pract 2012;62(599):e415-21.
+#
+# Also evaluated against telephone triage for chest pain in out-of-hours primary care,
+# which is the same remote history-only situation this system is in.
+# ---------------------------------------------------------------------------
+rules:
+  - id: marburg_heart_score
+    applies_to: chest_pain
+    label: "Marburg Heart Score"
+    citation: >
+      Bösner S et al., CMAJ 2010;182(12):1295-1300. External validation Haasenritter J
+      et al., Br J Gen Pract 2012;62(599):e415-21.
+    citation_plain: >
+      a 2010 study of 1,199 people with chest pain across 74 general practices, and an
+      independent check of it in 2012
+    performance:
+      cutoff: 3
+      sensitivity: 0.871
+      specificity: 0.808
+      auc_validation: 0.90
+    # The rule was developed for people aged 35 and over. Below that it was never tested,
+    # so it does not run and the presentation stays unconditional.
+    minimum_age_years: 35
+    contraindication: >
+      Do not use in an emergency setting. No decision rule should trump clinical gestalt,
+      and anyone with chest pain who is clinically unstable warrants urgent assessment
+      regardless of score. Encoded above as the unconditional gates, which are checked
+      first and stop this rule from running at all.
+    items:
+      - id: mhs_age_sex
+        points: 1
+        question_intent: >
+          Whether the person is a woman aged 65 or over, or a man aged 55 or over.
+        label: "Female 65 or over, or male 55 or over"
+      - id: mhs_known_vascular
+        points: 1
+        question_intent: >
+          Whether they have already been diagnosed with coronary artery disease, a stroke
+          or transient ischaemic attack, or peripheral arterial disease.
+        label: "Known coronary, cerebrovascular or peripheral vascular disease"
+      - id: mhs_worse_with_exercise
+        points: 1
+        question_intent: >
+          Whether the pain gets worse when they exert themselves, such as walking uphill
+          or climbing stairs.
+        label: "Pain worse with exercise"
+      - id: mhs_reproducible_by_palpation
+        points: 1
+        # Scored on the NEGATIVE, as published. The stored answer is the literal answer to
+        # the question asked, "does pressing reproduce it", and `inverted` says that a NO
+        # is what earns the point. Naming the item after the scored condition instead
+        # would invert the meaning of every stored answer, which is a defect waiting to
+        # happen in a file whose whole purpose is to be checkable against a paper.
+        inverted: true
+        question_intent: >
+          Does pressing firmly on the painful spot with their fingers reproduce the same
+          pain? A YES scores zero. A NO scores one.
+        label: "Pain not reproducible by pressing on the chest wall"
+      - id: mhs_patient_assumes_cardiac
+        points: 1
+        question_intent: >
+          Whether the person themselves believes this pain is coming from their heart.
+        label: "The person assumes the pain is cardiac"
+    bands:
+      - max_score: 2
+        urgency: same_day
+        # The published interpretation is that unstable coronary disease is highly
+        # unlikely, NPV about 98 percent, and outpatient evaluation is appropriate. This
+        # file does not translate that into "you are fine". It translates it into a
+        # same-day appointment rather than an ambulance, which is the action the rule
+        # supports, and the wording still names what would change it.
+        meaning: >
+          Coronary disease is an unlikely explanation for this pain. The published
+          negative predictive value at this score is about 98 percent. A same-day
+          appointment with a doctor is the appropriate step, not an emergency department.
+      - min_score: 3
+        urgency: urgent
+        meaning: >
+          Coronary disease cannot be ruled out from what you have described. This needs
+          urgent assessment today.
+
+# ---------------------------------------------------------------------------
+# BLOOD OXYGEN, AS A THRESHOLD RULE AND NOT AS BELIEF EVIDENCE
+#
+# The watch reports blood oxygen. The question was whether to give it a likelihood in
+# causes.yaml, so it could move the belief across the twelve causes. It does not get one,
+# for a reason that is about evidence rather than caution:
+#
+#   NO PUBLISHED STUDY relates a wearable blood oxygen reading to any of those causes.
+#   Writing that number would be inventing clinical content, which is the one thing this
+#   build must not do. Reviews of wearables for SARS-CoV-2 note that comparative work on
+#   the incremental value of SpO2 over heart rate alone is limited.
+#
+# What DOES exist is a threshold, from an authority, for action rather than for cause:
+#
+#   NHS England's COVID Oximetry @home pathway: 92 percent or less means attend an
+#   emergency department within the hour or call 999; 93 or 94 percent means contact 111
+#   or a GP. The upper bound of 94 to 98 is the British Thoracic Society's target range
+#   for oxygen therapy in adults.
+#
+#   NOT WHO. This block said "WHO guidance, as reported in the wearable SpO2 literature"
+#   until 5 September 2026, and WHO does not publish these levels; its January 2021
+#   guidance recommends USING home pulse oximetry and stops there. Crediting a specific
+#   numeric threshold to the wrong body is the same class of error as inventing it,
+#   because a reader who goes to check will not find it. The correction is recorded 28
+#   lines below and in docs/KNOWLEDGE-CHANGELOG.md, and this sentence is the one a reader
+#   of this file actually reaches first, so it is corrected here too rather than left
+#   standing above its own retraction.
+#
+# And the case for using it at all is real. "Silent hypoxia" is documented in COVID: blood
+# oxygen can fall while the person still feels well, which is precisely the pre-symptomatic
+# window this whole system exists to catch. Heart rate alone cannot see it.
+#
+# So it belongs here, in the deterministic floor, as a cited threshold that raises urgency,
+# rather than in the belief model as an invented likelihood.
+#
+# TWO LIMITS, BOTH BINDING AND BOTH DISCLOSED.
+#
+# 1. ACCURACY. Consumer pulse oximetry has a root-mean-square error of roughly 4 percent,
+#    and melanin is misread as oxygenated haemoglobin, so readings are biased HIGH in
+#    darker skin: pooled mean bias 0.70 percent light, 0.27 medium, 1.27 dark (systematic
+#    review and meta-analysis, J Med Internet Res 2024;26:e62769). Occult hypoxaemia went
+#    undetected roughly three times more often in Black patients during COVID. Biased high
+#    means a real fall can be missed, so this rule can produce false negatives and must
+#    never be read as an all-clear. The FDA issued skin-tone subgroup guidance in January
+#    2025.
+#
+# 2. SAMPLING. A single spot reading is not a night. This rule therefore requires a
+#    sustained overnight measurement, not one number, and does not run at all without one.
+#    The device can record blood oxygen continuously during sleep, but that has to be
+#    switched on in the phone app; with it off, only occasional spot checks arrive and this
+#    rule stays dormant and says so.
+# ---------------------------------------------------------------------------
+oxygen:
+  citation: >
+    CORRECTED 5 September 2026. These levels were credited to the World Health
+    Organization. They are not WHO's.
+    They are NHS England's COVID Oximetry @home pathway: a reading of 92 percent or less
+    means attend an emergency department within the hour or call 999; 93 or 94 percent
+    means contact 111 or a GP. The British Thoracic Society's target range for oxygen
+    therapy in adults is 94 to 98 percent, which is where the upper band comes from. WHO's
+    January 2021 guidance recommends USING home pulse oximetry; it is not the source of
+    these numbers.
+    POPULATION CAVEAT, and it is the important one: that pathway is written for people
+    ALREADY DIAGNOSED with COVID-19 and being monitored at home. It is not a screening rule
+    for somebody who is well. Using it here is using a rule outside the population it was
+    written for, which is why this can only RAISE urgency and never lower it, and why it
+    says "get a proper reading taken" rather than naming a condition.
+    Accuracy and skin pigmentation: Singh et al., systematic review and meta-analysis,
+    J Med Internet Res 2024;26:e62769.
+  citation_plain: >
+    NHS England's home oximetry pathway for people with COVID-19, the British Thoracic
+    Society's target range, and a 2024 review of how accurate these sensors are
+  # Minimum readings inside the sleep window before the rule may run at all. One spot
+  # check is not a night, and this system already refuses to judge a night measured over
+  # too little.
+  min_overnight_readings: 10
+  bands:
+    - max_percent: 92
+      urgency: urgent
+      meaning: >
+        Your overnight blood oxygen readings sat at or below 92 percent. Published
+        guidance treats a level below 93 percent as needing medical attention rather than
+        home care. This is a consumer sensor and not a medical one, so this is a reason to
+        get a proper reading taken today, not a diagnosis.
+    - max_percent: 94
+      urgency: same_day
+      meaning: >
+        Your overnight blood oxygen sat below the level published guidance treats as
+        comfortable for home care. Worth speaking to a doctor today and having it measured
+        properly.
+  never_reassure: >
+    A reading above the threshold is NOT an all-clear, for three reasons.
+    First, these sensors OVERESTIMATE oxygen saturation, so a real fall reads as a smaller
+    one. Singh et al. 2024 found that overestimation "for both light and dark skin
+    pigmentation", which means it applies to everybody rather than only to darker skin as
+    this text previously said. That same review concludes the overestimation "may not be
+    clinically relevant", and that qualification is stated here rather than left out.
+    Second, the thresholds come from a pathway for people already diagnosed with COVID-19,
+    not from a screening rule for somebody who is well.
+    Third, this is a consumer wrist sensor and not a medical one.
+    Nothing here should stop anyone who feels unwell from seeking care.
+
+# ---------------------------------------------------------------------------
+# WHERE NO VALIDATED HISTORY-ONLY RULE WAS FOUND
+#
+# Searched September 2026. Every candidate rule for these presentations requires an ECG,
+# blood tests or a physical examination that a person cannot perform on themselves:
+# the Canadian Syncope Risk Score and the San Francisco Syncope Rule both need an ECG;
+# sepsis scores such as NEWS2 and qSOFA need blood pressure, respiratory rate and
+# temperature, of which this device measures none; the Ottawa subarachnoid haemorrhage
+# rule needs examination findings.
+#
+# These therefore stay unconditional escalations. That is the conservative direction and
+# it is a limitation, not a design win: it means the system will over-escalate on these,
+# and it says so on screen.
+# ---------------------------------------------------------------------------
+no_validated_rule:
+  - syncope
+  - meningism
+  - gastrointestinal_bleeding
+  - new_confusion
+  - breathlessness_at_rest
