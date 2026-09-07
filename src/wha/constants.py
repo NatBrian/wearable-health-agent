@@ -126,7 +126,7 @@ MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 # true if the standard deviation is the person's own.
 #
 # MEASURED, not assumed: 3.71 bpm is the median scaled MAD of 107 people's own overnight
-# readings in the Mishra 2020 cohort, over 8,508 nights. Reproduce with
+# readings in an archive of past wearable data. Reproduce with
 # `uv run python experiments/detection/cohort/band_width.py`, which also reports what this changes:
 # the mature band narrows from 4.10 to 3.11 bpm, and the extreme heart rate rules would
 # fire on 32 of 7,079 nights rather than 9, one per 31 person-weeks rather than one per
@@ -138,8 +138,9 @@ MAD_TO_SD_FACTOR = 1.4826  # scaled MAD -> sd-equivalent
 # the person's own nights arrive, which is exactly what a prior is for.
 WITHIN_PERSON_SCALE_PRIOR_BPM = 3.71
 WITHIN_PERSON_SCALE_CITATION = (
-    "measured on 107 participants and 8,508 nights of the Mishra et al. 2020 cohort, "
-    "reproducible with experiments/detection/cohort/band_width.py"
+    "derived by this project from an archive of past wearable readings, not from a "
+    "clinical study, and reproducible with experiments/detection/cohort/band_width.py. "
+    "See experiments/README.md for what that is and is not worth."
 )
 
 # Population prior for nocturnal RHR.
@@ -167,7 +168,7 @@ DETECT_RED_BPM = 4.0
 # nights. This build used to flag on two consecutive raised nights with at least ONE red,
 # so red followed by yellow fired as well, while still quoting NightSignal's sensitivity
 # as support. Measured on the cohort, the looser rule bought 6.7 points of sensitivity for
-# 37 percent more investigations on healthy people. See wha/detect/detector.py and
+# considerably more investigations into healthy people. See wha/detect/detector.py and
 # experiments/detection/cohort/sweep.py.
 DETECT_PERSISTENCE_NIGHTS = 2
 DETECT_CITATION_PLAIN = "a 2022 study published in Nature Medicine, known as NightSignal"
@@ -225,12 +226,10 @@ SHORT_SLEEP_HOURS = 5.5  # covariate only, never subtracted
 # time-series foundation model, 182 MB of weights and a prediction every night, produced
 # one advisory paragraph that changed nothing.
 #
-# Removed on a measurement, not on taste. Across 7,295 nights of the Mishra 2020 cohort
-# (uv run python experiments/detection/cohort/chronos.py), asked whether the forecast separates illness
-# nights from ordinary ones better than the residual the detector already has:
-#
-#   plain baseline residual : AUC 0.629
-#   Chronos forecast_z      : AUC 0.586
+# Removed on a comparison, not on taste. Against an archive of past wearable readings
+# the forecast residual separated illness LESS well than the plain baseline residual
+# the detector already computes. That is an engineering comparison run by this
+# project, not clinical evidence; it is recorded in experiments/forecasting/.
 #
 # An AUC of 0.5 is no separation, so the forecast separates illness WORSE than the number
 # already on hand. The two correlate at 0.73, so it is measuring something slightly
@@ -307,9 +306,9 @@ UTILITY_CORRECT = 0.0
 # split evenly between infections and benign mimics presenting identically:
 #
 #   weight   accuracy   interruptions per episode
-#     0.05     0.825          0.80
-#     0.10     0.725          0.55
-#     0.15     0.675          0.40
+#   Lowering it buys accuracy by asking more often, and raising it buys quiet by
+#   asking less. The sweep behind that trade is a self-scored simulation and lives
+#   in experiments/policy-simulation/, not here.
 #     0.30     0.600          0.25      <- previous value
 #     0.50     0.525          0.05
 #     1.00     0.500          0.00      (degenerates to never asking)
@@ -345,8 +344,8 @@ INTERRUPTION_BUDGET_CITATION = (
 )
 # WHAT ACTUALLY KEEPS THIS SYSTEM QUIET, measured rather than assumed.
 #
-# It is not this counter. Across 76 healthy people and 738 person-weeks of the Mishra 2020
-# cohort the system opens an investigation once every 4.9 weeks and asks at most one
+# It is not this counter. In everything this project has run, the system opens an
+# investigation rarely enough that the weekly allowance is never approached.
 # question per investigation, so two a week is never approached. In a live run with the
 # whole allowance unspent the agent asked one question and stopped, because after the
 # answer the EVSI of every remaining probe had fallen below its interruption cost.
@@ -359,10 +358,9 @@ INTERRUPTION_BUDGET_CITATION = (
 # rate moved when the persistence rule was tightened, so removing a safety net to save
 # nothing is not a trade worth making.
 INTERRUPTION_BUDGET_NOTE = (
-    "This counter has never bound in measurement. Over 738 person-weeks the system opened "
-    "an investigation once every 4.9 weeks and asked at most one question in each, so the "
-    "weekly allowance of 2 was never reached. What keeps it quiet is the EVSI arithmetic "
-    "deciding a question is worth less than the cost of asking it."
+    "This counter has never been reached in anything this project has run. What keeps the "
+    "system quiet is the arithmetic deciding a question is worth less than the cost of "
+    "asking it, not this cap. The cap is a backstop."
 )
 
 # How many turns a conversation the person is already in may run to.

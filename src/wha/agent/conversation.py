@@ -600,6 +600,11 @@ def respond(
     # instead of an escalation. Downie et al. 2013 (BMJ 347:f7095) found single red flags
     # mostly uninformative and combinations informative; this is that finding in code.
     #
+    # READ WITH ITS POPULATION ATTACHED, as safety/triage.py already says: that review is
+    # about red flags for cancer and fracture in LOW BACK PAIN, and its odds do not
+    # transfer to anything this system routes. It is cited for the shape of the finding,
+    # that one matched phrase is weak and a combination is not, and for nothing else.
+    #
     # Flags with no validated rule still escalate on the spot. That includes every tier B
     # rule and both vitals rules, none of which map to a presentation, so narrowing this
     # to chest pain does not quietly disarm the rest of the floor.

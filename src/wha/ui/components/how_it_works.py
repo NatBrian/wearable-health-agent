@@ -209,11 +209,9 @@ the cost of interrupting you, it stays quiet.
 
 **That arithmetic is what keeps this quiet, not a cap.** There is also a hard limit of
 **{config()["INTERRUPTION_BUDGET_PER_WEEK"]} unsolicited questions a week**, and it has
-never been reached. Measured across 76 people and 738 weeks of real wearable data, this
-system opens an investigation about once every 4.9 weeks and asks at most one question in
-each. In a run with the whole weekly allowance unspent it asked one question and stopped,
-because after your answer every remaining question was worth less than the cost of asking
-it.
+never been reached in anything this project has run. In a test run with the whole weekly
+allowance unspent it asked one question and stopped, because after the answer every
+remaining question was worth less than the cost of asking it.
 
 The cap stays as a backstop. It is just not the reason you are rarely asked anything.
 

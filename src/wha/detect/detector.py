@@ -90,13 +90,13 @@ def compute_detection_for_features(
     # followed by YELLOW fired too, and nothing said so while the project quoted
     # NightSignal's sensitivity as support for its own thresholds.
     #
-    # Measured on 30 labelled COVID-19 cases and 76 healthy people over 738 person-weeks,
+    # Compared on an archive of past wearable data, in experiments/detection/,
     # at a seven day pre-symptomatic window (uv run python experiments/detection/cohort/sweep.py):
     #
     #   at least one RED : 60.0 percent sensitivity, 0.272 investigations per person-week
     #   both RED         : 53.3 percent sensitivity, 0.198 investigations per person-week
     #
-    # The looser rule bought 6.7 points, which is two cases in thirty, for 37 percent more
+    # The looser rule found a little more, two cases in thirty, for considerably more
     # investigations on healthy people. Every investigation opened on a healthy person is a
     # chance to interrupt them for nothing, and the tighter rule is the one the cited paper
     # actually measured, so this is both quieter and honestly sourced.
@@ -235,12 +235,10 @@ def detect_night(
     # 182 MB of weights, a deep learning framework as a dependency, a prediction every
     # night, and one advisory paragraph that changed nothing.
     #
-    # Measured on 7,295 nights of the Mishra 2020 cohort (uv run python
-    # experiments/detection/cohort/chronos.py), asking whether it separates illness nights from ordinary
-    # ones better than the number the detector already has:
-    #
-    #   plain baseline residual : AUC 0.629
-    #   Chronos forecast_z      : AUC 0.586
+    # Compared against an archive of past wearable readings, in experiments/forecasting/:
+    # the forecast residual separated illness LESS well than the plain baseline
+    # residual this detector already computes. An engineering comparison run by this
+    # project, not clinical evidence.
     #
     # An AUC of 0.5 is no separation at all, so the forecast separates illness WORSE than
     # the residual. It is not a duplicate, the two correlate at 0.73, so it measures

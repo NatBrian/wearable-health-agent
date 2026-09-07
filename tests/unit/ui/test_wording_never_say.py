@@ -123,7 +123,9 @@ def test_no_screen_or_constant_quotes_a_superseded_alert_rate() -> None:
     from pathlib import Path as _Path
 
     repo = _Path(__file__).resolve().parents[3]
-    results = _json.loads((repo / "docs" / "detection-results.json").read_text(encoding="utf-8"))
+    results = _json.loads(
+        (repo / "experiments" / "detection" / "detection-results.json").read_text(encoding="utf-8")
+    )
     weeks = results["alert_burden"]["wha_clock"]["one_every_weeks"]
     current = f"{weeks:.1f} weeks"
     superseded = f"{results['alert_burden']['nightsignal']['one_every_weeks']:.1f} weeks"

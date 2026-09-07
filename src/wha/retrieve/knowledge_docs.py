@@ -140,10 +140,10 @@ def generate_layer_2_method_docs() -> list[CorpusDocument]:
                 f"The {POP_PRIOR_RHR_SD_BPM} bpm standard deviation in that same paper is "
                 "how much 525 different people differ from EACH OTHER. The width of this "
                 "band is how much ONE person differs from THEMSELVES between nights, "
-                "which was measured at "
-                f"{WITHIN_PERSON_SCALE_PRIOR_BPM} bpm across 107 participants and 8,508 "
-                "nights of the Mishra et al. 2020 cohort. Using the first for the second "
-                "made every band about a third too wide."
+                "which is a different and much smaller quantity. This system derives it "
+                "from an archive of past wearable readings rather than from a clinical "
+                "study. Using the first number for the second made every band about a "
+                "third too wide."
             ),
         )
     )
