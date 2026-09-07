@@ -516,7 +516,7 @@ WHA_LLM_MODEL=deepseek-chat                      # or gpt-4o, gpt-4.1-mini
 WHA_LLM_API_KEY=sk-your-api-key-here
 
 # --- Health Connect Phone Bridge ---
-WHA_BRIDGE_URL=http://192.168.198.181:8787
+WHA_BRIDGE_URL=http://192.168.1.42:8787          # your phone's address on your own network
 WHA_BRIDGE_TOKEN=your-phone-bridge-bearer-token
 
 # --- Telegram Mobile Notifications ---

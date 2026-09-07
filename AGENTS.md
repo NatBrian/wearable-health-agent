@@ -55,8 +55,14 @@ quoted sentence or the command that reproduces it. If neither settles it, it is 
 **5. Always `uv run`.** Never bare `python`, never bare `pip`. On this machine `python`
 resolves to an unrelated project's virtual environment and imports fail confusingly.
 
-**6. Commit locally when work is done and verified. Never `git push`.** Never force, never
-rewrite history. No co-author line, no tool name, no em-dash anywhere.
+**6. Commit when work is done and verified, and push to the working branch.** Two things
+you may never do: **force-push**, and **rewrite history that has already been pushed**.
+Somebody else may have pulled it. If a rewrite looks necessary, that is a question for the
+person you are working with, not a decision to make.
+
+Commit messages say why, not what. No co-author line, no tool name, no em-dash anywhere.
+The default branch is `main` and the work lives on `feat/agentic-early-warning-system`;
+do not merge one into the other without being asked.
 
 ---
 
@@ -72,7 +78,7 @@ rewrite history. No co-author line, no tool name, no em-dash anywhere.
 4. Do the work.
 5. Run the suite and ruff ONCE, at the end, not after every edit.
 6. Then USE THE PRODUCT. See below. This is not optional.
-7. Commit, with the reasoning in the message. Never push.
+7. Commit with the reasoning in the message, and push. Never force, never rewrite.
 ```
 
 **Steps 2 and 3 are not ceremony, and skipping them is how this project has gone wrong.**
