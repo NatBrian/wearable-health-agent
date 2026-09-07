@@ -8,6 +8,7 @@ from wha.constants import (
     EPISODE_MAX_STEPS,
     INTERRUPTION_BUDGET_PER_WEEK,
     SYMPTOM_FOLLOWUP_MAX_PER_EPISODE,
+    SYMPTOM_FOLLOWUP_MIN_NIGHTS_APART,
 )
 from wha.models import BaselineRung
 
@@ -78,6 +79,7 @@ def check_episode_caps_gate(nights_in_episode: int, steps_in_episode: int) -> Ga
 def check_symptom_followup_gates(
     has_pending_interaction: bool,
     episode_followups_sent: int,
+    followup_sent_tonight: bool = False,
 ) -> GateResult:
     """The gates a symptom follow-up must clear, which are fewer than a probe's.
 
@@ -94,6 +96,13 @@ def check_symptom_followup_gates(
       answering one and having the other silently time out.
     * A per-episode cap on follow-ups, so this cannot become a nightly alarm. Alarm
       fatigue is a real harm and this project cites it in its own constants.
+    * ONE PER NIGHT, whatever else happens. Added 7 September 2026 after the rule fired
+      ten times in three minutes. `SYMPTOM_FOLLOWUP_MIN_NIGHTS_APART` had been declared
+      in constants.py, documented as exactly this, and read by nothing. The per-episode
+      cap could not cover for it: follow-up interactions are keyed by night, so every
+      repeat inside one night upserts into a single row and the number the cap reads
+      stays at one. The cap was never wrong. Its input could not reach the value that
+      trips it.
 
     WHICH DO NOT, and why:
 
@@ -109,6 +118,14 @@ def check_symptom_followup_gates(
         return GateResult(
             allowed=False,
             reason="Another interaction is already pending with user",
+        )
+    if followup_sent_tonight:
+        return GateResult(
+            allowed=False,
+            reason=(
+                f"A symptom follow-up has already been sent tonight "
+                f"(at most {SYMPTOM_FOLLOWUP_MIN_NIGHTS_APART} per night)"
+            ),
         )
     if episode_followups_sent >= SYMPTOM_FOLLOWUP_MAX_PER_EPISODE:
         return GateResult(

@@ -40,6 +40,7 @@ def select_action(
     unanswered_questions: int = 0,
     outstanding_symptom: str | None = None,
     episode_followups_sent: int = 0,
+    followup_sent_tonight: bool = False,
 ) -> Action:
     """Select the next policy action following the deterministic 6-step contract.
 
@@ -106,6 +107,7 @@ def select_action(
         follow_up_gate = check_symptom_followup_gates(
             has_pending_interaction=has_pending_interaction,
             episode_followups_sent=episode_followups_sent,
+            followup_sent_tonight=followup_sent_tonight,
         )
         follow_up = next((p for p in all_probes if p.probe_id == SYMPTOM_FOLLOWUP_PROBE_ID), None)
         if follow_up_gate.allowed and follow_up is not None:

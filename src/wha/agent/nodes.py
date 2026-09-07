@@ -530,6 +530,7 @@ def node_decide(
     # without a database.
     outstanding_symptom: str | None = None
     followups_sent = 0
+    followup_sent_tonight = False
     conn = getattr(db, "conn", None)
     if conn is not None and subject_id:
         try:
@@ -546,6 +547,17 @@ def node_decide(
                 (episode_id, SYMPTOM_FOLLOWUP_PROBE_ID),
             ).fetchone()
             followups_sent = int(row["n"]) if row else 0
+            # And whether one has already gone out TONIGHT. The count above cannot answer
+            # that: follow-up rows are keyed by night, so ten follow-ups on one night are
+            # one row and `followups_sent` sits at 1 all day. Reading the same key the ask
+            # node writes is what makes this exact rather than approximate.
+            followup_sent_tonight = (
+                conn.execute(
+                    "SELECT 1 FROM interactions WHERE id = ? LIMIT 1",
+                    (f"int_{episode_id}_{SYMPTOM_FOLLOWUP_PROBE_ID}_{local_today().isoformat()}",),
+                ).fetchone()
+                is not None
+            )
         except Exception:
             # Never let this cost the episode its decision. A failure here means the
             # follow-up does not fire, which is the behaviour that existed before it, so
@@ -572,6 +584,7 @@ def node_decide(
         # Overrides the arithmetic. See select_action step 3b.
         outstanding_symptom=outstanding_symptom,
         episode_followups_sent=followups_sent,
+        followup_sent_tonight=followup_sent_tonight,
     )
 
     client = llm_client or get_llm_client()
