@@ -100,7 +100,10 @@ class Stage:
         self.css = film_css(zoom)
 
     def open(self, path: str, settle: float = 4.0) -> Stage:
-        self.page.goto(f"{BASE}{path}", wait_until="networkidle")
+        print(f"      open {path}")
+        # `networkidle` never settles on a page holding a websocket open, and Streamlit
+        # holds one. `load` plus a deliberate settle is both faster and reliable.
+        self.page.goto(f"{BASE}{path}", wait_until="load", timeout=45000)
         self.page.add_style_tag(content=self.css)
         self.page.wait_for_timeout(int(settle * 1000))
         self.top()
@@ -162,6 +165,7 @@ class Stage:
         return self
 
     def click_text(self, text: str, wait: float = 3.0) -> Stage:
+        print(f"      click {text!r}")
         try:
             self.page.get_by_text(text, exact=False).first.click(timeout=8000)
         except Exception as e:  # noqa: BLE001
@@ -173,6 +177,7 @@ class Stage:
 
     def say(self, text: str, wait_for_reply: float = 25.0) -> Stage:
         """Type into the chat the way a person does, then wait for the real reply."""
+        print(f"      say {text[:50]!r}")
         box = self.page.get_by_placeholder("Say anything, or ask a question")
         box.click()
         box.type(text, delay=45)
@@ -527,6 +532,8 @@ def record(scene: Scene) -> Path:
                 record_video_size={"width": WIDTH, "height": HEIGHT},
             )
             page = context.new_page()
+            page.set_default_timeout(15000)
+            page.set_default_navigation_timeout(45000)
             scene.act(Stage(page, scene.zoom))
             page.wait_for_timeout(1500)
             video = page.video

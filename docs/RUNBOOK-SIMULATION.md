@@ -158,12 +158,33 @@ Recorded in full in `BLOCKERS.md`:
 - An **OBSERVE decision is never revisited.** Once the policy chooses to wait, the belief
   does not move again on later nights; the episode exits through the deterministic
   quiet-run or elapsed-nights close instead.
-- **Episode dates come from the wall clock**, so `closed_on` will read as today's real
+- ~~**Episode dates come from the wall clock**, so `closed_on` will read as today's real
   date while night dates run ahead. The `EPISODE_MAX_NIGHTS` close arm cannot fire under
-  forward simulation. The quiet-run arm works normally.
+  forward simulation.~~ **FIXED 7 September 2026.** `WHA_CLOCK_OFFSET_DAYS` shifts the
+  whole system's idea of today, not just the night labels, so episode dates, audit rows,
+  the review timeout and the date handed to the model in its own prompt all move together.
+  Every close arm can fire. Unset in production, and `wha doctor` reports it as a warning
+  when it is not. See `src/wha/clock.py`.
 - The generator emits **four of the seven channels** the real watch sends. Blood oxygen,
   distance and calories are absent, so the dashboard shows fewer tiles than in Phase 2.
   Blood oxygen has no likelihood in `causes.yaml` and could not move the belief anyway.
+
+## A second timeline, without disturbing this one
+
+`tools/mock_watch.py` honours `WHA_MOCK_STATE`, so a second simulation can keep its own
+cursor file instead of overwriting `data/sim_state.json`. The demo film uses this:
+
+```bash
+uv run python tools/demo_film/serve_watch.py    # its own state, its own database
+uv run python tools/demo_film/build.py --stage seed
+uv run python tools/demo_film/build.py --stage story
+```
+
+That harness is worth reading even if you never make a film, because it does one thing this
+runbook does not: **it writes down what each day is predicted to do before running it, and
+halts on the first day that does something else.** It halted five times, and four of those
+were defects in the product rather than in the timeline. See
+`docs/superpowers/plans/2026-09-07-demo-film.md`.
 
 ## Resetting
 
