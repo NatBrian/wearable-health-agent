@@ -2,7 +2,7 @@
 
 import hashlib
 import re
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 import numpy as np
 from rank_bm25 import BM25Okapi
@@ -16,6 +16,40 @@ class Embedder(Protocol):
 
     def embed_texts(self, texts: list[str]) -> np.ndarray:
         """Embed a list of strings into a normalized 2D numpy array (N, D)."""
+        ...
+
+
+@runtime_checkable
+class Retriever(Protocol):
+    """What the agent needs from a search index, and nothing more.
+
+    Added 8 September 2026. `HybridIndex` was imported by name outside this package, so
+    replacing retrieval meant matching a class rather than implementing an interface. This
+    is that interface: one method, structurally satisfied by `HybridIndex` as it already
+    stands, so nothing about the current implementation changed to introduce it.
+
+    **The contract that actually matters is the return type, not this signature.**
+    `RetrievalResult` carries `chunk_id`, `doc_id`, `title`, `text` and `source_url`, and
+    `enforce_grounding` in `retrieve/grounding.py` uses them to strip any clinical sentence
+    the model wrote that no retrieved passage supports. A replacement index that returns a
+    different shape has not swapped the search; it has disabled the claim-to-source check,
+    and it will do so quietly. Keep the shape.
+
+    `runtime_checkable` is required because `tool_retrieve_clinical_evidence` uses
+    `isinstance` to tell an index from the episode database. That form of check only tests
+    that a `query` attribute exists, which is safe here for one reason worth stating:
+    `EpisodeRepository`, the other thing that reaches that line, has no `query` method. A
+    test holds that true.
+    """
+
+    def query(
+        self,
+        query_str: str,
+        top_k: int = RETRIEVE_TOP_K,
+        layer: int | list[int] | None = None,
+        metadata_filter: dict[str, Any] | None = None,
+    ) -> list[RetrievalResult]:
+        """Return passages matching the query, best first."""
         ...
 
 

@@ -107,16 +107,16 @@ untouched, because it is the public contract the dashboard is keyed to.
 
 ### Step C: `Retriever` protocol
 
-- [ ] C.1 `@runtime_checkable` `Retriever` protocol in `retrieve/index.py`, one method:
+- [x] C.1 `@runtime_checkable` `Retriever` protocol in `retrieve/index.py`, one method:
       `query(query_str, top_k, layer, metadata_filter) -> list[RetrievalResult]`
-- [ ] C.2 `agent/tools/impl.py` imports `Retriever` instead of `HybridIndex`.
+- [x] C.2 `agent/tools/impl.py` imports `Retriever` instead of `HybridIndex`.
       Note: line 275 is a real `isinstance` check. `EpisodeRepository` has no `query`
       method, so the protocol check cannot misfire on the db object it discriminates
       against. Confirm that again after the change
-- [ ] C.3 `EpisodeRepository.retrieval_index` typed `Retriever | None` instead of `Any`
-- [ ] C.4 Test: `HybridIndex` satisfies `Retriever`
-- [ ] C.5 Targeted: `uv run pytest tests/unit/retrieve tests/unit/agent -n auto`
-- [ ] C.6 Commit
+- [x] C.3 `EpisodeRepository.retrieval_index` typed `Retriever | None` instead of `Any`
+- [x] C.4 Test: `HybridIndex` satisfies `Retriever`
+- [x] C.5 Targeted: `uv run pytest tests/unit/retrieve tests/unit/agent -n auto`
+- [x] C.6 Commit
 
 ### Step D: Write down and enforce the boundaries
 

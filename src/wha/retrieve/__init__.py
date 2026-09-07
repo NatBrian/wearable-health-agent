@@ -18,6 +18,7 @@ from wha.retrieve.index import (
     DefaultSentenceTransformerEmbedder,
     Embedder,
     HybridIndex,
+    Retriever,
 )
 from wha.retrieve.models import (
     Chunk,
@@ -39,6 +40,7 @@ __all__ = [
     "GeneratedClaim",
     "HybridIndex",
     "RetrievalResult",
+    "Retriever",
     "SourceManifestEntry",
     "build_corpus_manifest",
     "chunk_document",
