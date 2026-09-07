@@ -124,18 +124,18 @@ Most of what was planned here already exists. `README.md` gained "Where things l
 "Rules enforced by tests, not by convention", "How to make common changes" and "Testing";
 `AGENTS.md` gained "How this project fails". Only the parallel-work gaps remain.
 
-- [ ] D.1 `tests/unit/test_layering.py`: an AST import-direction check over all packages,
+- [x] D.1 `tests/unit/test_layering.py`: an AST import-direction check over all packages,
       in the shape of `tests/ui/test_ui_boundary.py`. The seven existing cycle imports are
       allowlisted **by path with a written reason each**, the way `_ALLOWED_HISTORYLESS`
       already does. This does not break the cycles. It makes them a named list of seven and
       fails the build on the eighth
-- [ ] D.2 `README.md`: the layer order, and the shared hot spots (`models.py` with 71
+- [x] D.2 `README.md`: the layer order, and the shared hot spots (`models.py` with 71
       importers, `constants.py` with 54, and `data/schema.sql`) with the instruction to
       announce changes to them
-- [ ] D.3 `README.md`: correct "The project is finished... nothing is waiting on anybody",
+- [x] D.3 `README.md`: correct "The project is finished... nothing is waiting on anybody",
       which is about to be false
-- [ ] D.4 `README.md`: a "Change the retrieval" row in "How to make common changes"
-- [ ] D.5 Commit
+- [x] D.4 `README.md`: a "Change the retrieval" row in "How to make common changes"
+- [x] D.5 Commit
 
 ### Step E: Verify
 

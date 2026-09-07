@@ -37,9 +37,12 @@ It is not a medical device and it does not diagnose. See [DISCLAIMER.md](DISCLAI
 
 ---
 
-## Current state, as of 7 September 2026
+## Current state, as of 8 September 2026
 
-**The project is finished.** There is no task queue, and nothing is waiting on anybody.
+**The build is finished, and the repository is now open to more than one person.** There is
+still no task queue: nothing here is waiting to be picked up, and if you are asked to
+"continue" with no further detail, **ask what is wanted**. `archive/` is full of documents
+that look like plans and every one of them describes work that has ended.
 
 - The whole suite passes, `ruff` is clean on `src` and `tests`, `wha doctor` reports no
   failures.
@@ -47,8 +50,13 @@ It is not a medical device and it does not diagnose. See [DISCLAIMER.md](DISCLAI
 - A complete demo timeline is committed and can be opened in one command, below.
 - A 28 minute walkthrough film of the whole system is in [`docs/demo/`](docs/demo/README.md).
 
-If you are asked to "continue" with no further detail, **ask what is wanted**. `archive/` is
-full of documents that look like plans and every one of them describes work that has ended.
+**What changed on 8 September.** The boundaries several people would work across at the same
+time were made real rather than assumed: the agent's eight nodes are one file each, the agent
+declares its own step names in one place instead of having them copied into four, retrieval
+sits behind a protocol, and the dependencies between packages are checked by a test. Nothing
+the system does changed. See **Working on this at the same time as somebody else** below
+before starting, and `docs/superpowers/plans/2026-09-08-modularity-handover.md` for why each
+one was done.
 
 ---
 
@@ -732,11 +740,40 @@ You will hit these if you break them, so they are worth knowing up front.
 - **Every free-text call into the safety floor must pass the symptom history.** An AST check
   enforces it, because that exact wire was missing for the life of the project and no
   behavioural test could see it.
+- **A new dependency between two packages fails the build until it is declared.** Every one
+  that exists is listed in `tests/unit/test_layering.py`. Two import cycles are named there
+  with their reasons; an eighth upward import fails.
+- **The agent's node names and the graph must agree.** `src/wha/agent/steps.py` declares
+  them and `tests/unit/agent/test_steps.py` compares that against the compiled graph, so a
+  node added or renamed cannot go missing from the audit view.
+
+### Working on this at the same time as somebody else
+
+Four things are shared by everything, so they are where parallel work collides. Changing one
+is not wrong, but say so in the pull request, because somebody else is probably in the same
+file:
+
+| Shared surface | Why it collides |
+|---|---|
+| `src/wha/models.py` | Imported by 71 files. Every workstream eventually adds a field |
+| `src/wha/constants.py` | Imported by 54. Also under change control: a clinical figure here needs `docs/KNOWLEDGE-CHANGELOG.md` |
+| `data/schema.sql` | Four tests compare it to `docs/CONTRACTS.md`, so a column is never a local change |
+| `docs/CONTRACTS.md` | The obligation the three above all lead back to |
+
+The seams that let the big workstreams proceed without touching each other:
+
+| If you are... | Start at | What holds it together |
+|---|---|---|
+| Replacing the dashboard | `src/wha/api/client.py` and the 34 endpoints behind it | `tests/ui/test_ui_boundary.py`. No screen may reach past the API |
+| Restructuring the agent | `src/wha/agent/steps.py`, then `src/wha/agent/nodes/` | `tests/unit/agent/test_steps.py`. Map new nodes onto existing public steps and no screen moves |
+| Replacing retrieval | The `Retriever` protocol in `src/wha/retrieve/index.py` | `tests/unit/retrieve/test_retriever_protocol.py`. Keep the `RetrievalResult` shape or you disable the grounding check |
+| Changing when an investigation opens | `src/wha/service/episode_lifecycle.py` | It is already independent of the agent. The detector does not know episodes exist |
 
 ### How to make common changes
 
 | You want to... | Do this |
 |---|---|
+| **Change the retrieval, or replace it** | Implement the `Retriever` protocol in `src/wha/retrieve/index.py`: one method, `query`. Nothing outside the package names `HybridIndex`. **Keep returning `RetrievalResult` with its fields.** `enforce_grounding` reads `chunk_id`, `title`, `text` and `source_url` off those results to strip clinical sentences no passage supports, so a different shape does not swap the search, it disables the claim-to-source check, and it does so without erroring. |
 | **Change the AI model or provider** | Set `WHA_LLM_PROVIDER`, `WHA_LLM_BASE_URL`, `WHA_LLM_MODEL` and `WHA_LLM_API_KEY` in `.env`, or use the Settings screen. Anything OpenAI-compatible works. Prompts live in `src/wha/llm/prompts`. |
 | **Add or change a cause** | Edit `data/knowledge/causes.yaml`. Every number needs a provenance label and a derivation. Record it in `docs/KNOWLEDGE-CHANGELOG.md` with the source sentence quoted. |
 | **Add a question the agent can ask** | Add a probe to `data/knowledge/probes.yaml` with its answer slots and likelihood rows. The policy scores it automatically. |
