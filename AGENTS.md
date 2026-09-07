@@ -55,14 +55,16 @@ quoted sentence or the command that reproduces it. If neither settles it, it is 
 **5. Always `uv run`.** Never bare `python`, never bare `pip`. On this machine `python`
 resolves to an unrelated project's virtual environment and imports fail confusingly.
 
-**6. Commit when work is done and verified, and push to the working branch.** Two things
-you may never do: **force-push**, and **rewrite history that has already been pushed**.
-Somebody else may have pulled it. If a rewrite looks necessary, that is a question for the
-person you are working with, not a decision to make.
+**6. Commit when work is done and verified, and push.** Two things you may never do:
+**force-push**, and **rewrite history that has already been pushed**. Somebody else may
+have pulled it. If a rewrite looks necessary, that is a question for the person you are
+working with, not a decision to make.
+
+`main` is the default branch and holds everything. Work on a branch off it and open a pull
+request; the ruleset on `main` restricts direct updates, so a merge needs the admin
+override and is the repository owner's call rather than yours.
 
 Commit messages say why, not what. No co-author line, no tool name, no em-dash anywhere.
-The default branch is `main` and the work lives on `feat/agentic-early-warning-system`;
-do not merge one into the other without being asked.
 
 ---
 
