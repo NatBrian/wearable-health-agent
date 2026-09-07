@@ -55,12 +55,13 @@ class Segment:
     captions: tuple[str, ...] = ()
 
 
-def ffmpeg(*args: str) -> None:
+def ffmpeg(*args: str, cwd: Path | None = None) -> None:
     result = subprocess.run(
         ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args],
         capture_output=True,
         text=True,
         check=False,
+        cwd=cwd,
     )
     if result.returncode != 0:
         raise SystemExit(f"ffmpeg failed:\n{' '.join(args)}\n{result.stderr[-2000:]}")
@@ -356,33 +357,27 @@ def main() -> int:
         if args.no_captions or srt.stat().st_size == 0:
             shutil.copyfile(silent, final)
         else:
-            # Run from the subtitle file's own directory. An absolute Windows path inside
-            # a filter argument has to be escaped twice and fails quietly when it is not.
-            staged = work / "captions.srt"
-            shutil.copyfile(srt, staged)
-            staged = work / "captions.ass"
-            shutil.copyfile(ass, staged)
-            subprocess.run(
-                [
-                    "ffmpeg",
-                    "-hide_banner",
-                    "-loglevel",
-                    "error",
-                    "-y",
-                    "-i",
-                    str(silent),
-                    "-vf",
-                    "ass=captions.ass",
-                    "-c:v",
-                    "libx264",
-                    "-preset",
-                    "medium",
-                    "-crf",
-                    "18",
-                    str(final),
-                ],
+            # Run from the subtitle directory. An absolute Windows path inside a filter
+            # argument has to be escaped twice and fails quietly when it is not.
+            shutil.copyfile(srt, work / "captions.srt")
+            shutil.copyfile(ass, work / "captions.ass")
+            # Through the same helper as everything else, which CAPTURES stderr and
+            # reports it. A bare subprocess.run(check=True) here swallowed ffmpeg's
+            # message and raised a CalledProcessError carrying nothing but the exit code,
+            # which said only that a half hour render had failed for an unstated reason.
+            ffmpeg(
+                "-i",
+                str(silent),
+                "-vf",
+                "ass=captions.ass",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "medium",
+                "-crf",
+                "18",
+                str(final),
                 cwd=work,
-                check=True,
             )
 
         total = probe_seconds(final)
