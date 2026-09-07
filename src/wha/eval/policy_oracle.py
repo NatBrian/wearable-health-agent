@@ -7,10 +7,11 @@ that no policy had ever produced, wrote them to ``data/eval/policy.json``, and s
 them in the dashboard behind a button labelled "Run Policy Suite".
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+from wha.clock import now_utc
 from wha.constants import POLICY_COST_PER_INTERRUPT
 from wha.models import (
     Action,
@@ -247,7 +248,7 @@ def run_policy_eval(
 
     result = EvaluationResult(
         suite="policy",
-        generated_at_utc=datetime.now(UTC),
+        generated_at_utc=now_utc(),
         metrics=metrics,
         tables={
             "injection_heatmap": heatmap_rows,

@@ -16,10 +16,11 @@ episode was opened for.
 import json
 import sqlite3
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+from wha.clock import now_utc
 from wha.db.audit_chain import append_audit as append_audit_row
 from wha.db.connection import connect
 from wha.db.iso import to_iso
@@ -326,7 +327,7 @@ class EpisodeRepository:
             (
                 episode_id,
                 seq,
-                to_iso(datetime.now(UTC)),
+                to_iso(now_utc()),
                 trigger,
                 json.dumps({str(k): float(v) for k, v in belief.marginals.items()}),
                 float(belief.p_illness),
@@ -378,7 +379,7 @@ class EpisodeRepository:
                 float(interruption_cost),
                 json.dumps(rejected or []),
                 channel,
-                to_iso(datetime.now(UTC)),
+                to_iso(now_utc()),
                 initiation,
             ),
         )
@@ -447,8 +448,8 @@ class EpisodeRepository:
                 channel,
                 kind,
                 json.dumps({"interaction_id": interaction_id, **(extra or {})}),
-                to_iso(datetime.now(UTC)),
-                to_iso(datetime.now(UTC)),
+                to_iso(now_utc()),
+                to_iso(now_utc()),
             ),
         )
         self._conn.commit()
@@ -525,7 +526,7 @@ class EpisodeRepository:
                ON CONFLICT(episode_id) DO UPDATE SET
                  payload_json = excluded.payload_json,
                  updated_at_utc = excluded.updated_at_utc""",
-            (episode_id, json.dumps(payload, default=str), to_iso(datetime.now(UTC))),
+            (episode_id, json.dumps(payload, default=str), to_iso(now_utc())),
         )
         self._conn.commit()
 
@@ -556,7 +557,7 @@ class EpisodeRepository:
         payload["nodes_ran"] = sorted(ran | {stage})
         self._conn.execute(
             "UPDATE episode_traces SET payload_json = ?, updated_at_utc = ? WHERE episode_id = ?",
-            (json.dumps(payload, default=str), to_iso(datetime.now(UTC)), episode_id),
+            (json.dumps(payload, default=str), to_iso(now_utc()), episode_id),
         )
         self._conn.commit()
 
@@ -643,7 +644,7 @@ class EpisodeRepository:
                       answered_at_utc  = ?,
                       status           = 'ANSWERED'
                 WHERE id = ? AND status = 'PENDING'""",
-            (option_id, free_text, to_iso(datetime.now(UTC)), interaction_id),
+            (option_id, free_text, to_iso(now_utc()), interaction_id),
         )
         # The episode was parked AWAITING_USER; the answer releases it.
         self._conn.execute(
@@ -660,7 +661,7 @@ class EpisodeRepository:
             """UPDATE interactions
                   SET answered_at_utc = ?, status = 'DECLINED'
                 WHERE id = ? AND status = 'PENDING'""",
-            (to_iso(datetime.now(UTC)), interaction_id),
+            (to_iso(now_utc()), interaction_id),
         )
         self._conn.commit()
 

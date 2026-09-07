@@ -107,9 +107,7 @@ def select_action(
             has_pending_interaction=has_pending_interaction,
             episode_followups_sent=episode_followups_sent,
         )
-        follow_up = next(
-            (p for p in all_probes if p.probe_id == SYMPTOM_FOLLOWUP_PROBE_ID), None
-        )
+        follow_up = next((p for p in all_probes if p.probe_id == SYMPTOM_FOLLOWUP_PROBE_ID), None)
         if follow_up_gate.allowed and follow_up is not None:
             probe_model = Probe(
                 probe_id=follow_up.probe_id,

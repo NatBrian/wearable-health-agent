@@ -30,9 +30,9 @@ mention my fever" are different facts and only one of them is reassuring.
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
-from wha.clock import local_date_of, local_today
+from wha.clock import local_date_of, local_today, now_utc
 from wha.constants import SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS, SYMPTOM_RUN_GAP_DAYS
 from wha.db.iso import from_iso, to_iso
 from wha.safety.models import RedFlagsConfig, SafetyCheckResult
@@ -116,7 +116,7 @@ def record_symptoms(
     if not found:
         return {}
 
-    now = to_iso(datetime.now(UTC))
+    now = to_iso(now_utc())
     for flag_id, present in found.items():
         conn.execute(
             """INSERT INTO symptom_observations

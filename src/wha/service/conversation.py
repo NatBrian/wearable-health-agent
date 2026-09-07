@@ -11,6 +11,7 @@ from typing import Any
 
 from wha.agent.conversation import ConversationReply, load_transcript, respond
 from wha.agent.conversation import established_urgency as _established_urgency
+from wha.clock import now_utc
 from wha.db.connection import connect
 from wha.db.migrations import apply_schema
 from wha.retrieve.attribution import ATTRIBUTION_NOTE, is_external, source_label
@@ -127,7 +128,7 @@ def get_conversation_sessions(
     # happens in ordinary use too whenever somebody asks about a night late in the evening.
     # A person typing a question and watching nothing appear is the worst outcome here, so
     # a live session wins over the boundary.
-    now = datetime.now(UTC)
+    now = now_utc()
     live_after = now - gap
 
     kept = []

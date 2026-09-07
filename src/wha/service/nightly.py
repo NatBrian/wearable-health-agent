@@ -4,9 +4,9 @@ import json
 import sqlite3
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 from wha.audit.monitor import record_data_safety_escalation
+from wha.clock import local_date_of, now_utc
 from wha.config import get_settings
 from wha.constants import INGEST_STALE_REFUSE_HOURS
 from wha.db import apply_schema, connect
@@ -101,8 +101,7 @@ def _should_escalate_again(
 def parse_date_range(range_str: str | None, tz_name: str = "Asia/Singapore") -> tuple[date, date]:
     """Parse a range string 'YYYY-MM-DD:YYYY-MM-DD' or single date, or default to last 7 nights."""
     if range_str is None:
-        local_today = datetime.now(ZoneInfo(tz_name)).date()
-        end_d = local_today
+        end_d = local_date_of(now_utc(), tz_name)
         start_d = end_d - timedelta(days=6)
         return start_d, end_d
 

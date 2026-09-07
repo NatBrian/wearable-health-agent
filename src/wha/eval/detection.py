@@ -2,12 +2,12 @@
 
 import random
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from wha.clock import now_utc
 from wha.detect.baselines import detect_random, detect_trivial
 from wha.errors import ConfigError
 from wha.eval.metrics import (
@@ -197,7 +197,7 @@ def run_detection_eval(
 
     result = EvaluationResult(
         suite="detection",
-        generated_at_utc=datetime.now(UTC),
+        generated_at_utc=now_utc(),
         metrics=metrics,
         tables={
             "contingency": [

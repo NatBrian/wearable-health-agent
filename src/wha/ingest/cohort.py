@@ -8,6 +8,7 @@ from typing import Any, Literal
 import pandas as pd
 import yaml
 
+from wha.clock import now_utc
 from wha.config import get_settings
 from wha.errors import ConfigError
 from wha.models import RawPayload
@@ -134,11 +135,9 @@ class CohortReplay:
         body_json = json.dumps(body, sort_keys=True, separators=(",", ":"))
         sha256 = hashlib.sha256(body_json.encode("utf-8")).hexdigest()
 
-        from datetime import UTC, datetime
-
         return RawPayload(
             subject_id=subj,
-            fetched_at_utc=datetime.now(UTC),
+            fetched_at_utc=now_utc(),
             source_kind=self.source_kind,
             sha256=sha256,
             body=body,

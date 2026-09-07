@@ -1,10 +1,12 @@
 """Diagnostic doctor checks across database, knowledge, bridge, llm, and models."""
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 from wha.belief import load_causes
+from wha.clock import OFFSET_ENV_VAR, clock_offset_days, local_today
 from wha.config import get_settings
 from wha.db import apply_schema, connect
 from wha.detect.baseline import rung_for
@@ -26,6 +28,36 @@ def run_doctor(db_path: Path | None = None) -> list[DoctorItem]:
     settings = get_settings()
     target_db = db_path if db_path is not None else settings.db_path
     items: list[DoctorItem] = []
+
+    # 0. The clock. This is deliberately the first row, because every row under it is
+    # dated by it. A shifted clock is legitimate while a demo timeline is being built and
+    # is never legitimate in production, so it is reported rather than hidden.
+    offset = clock_offset_days()
+    raw = os.environ.get(OFFSET_ENV_VAR, "").strip()
+    if offset:
+        items.append(
+            DoctorItem(
+                name="clock",
+                status="warn",
+                detail=(
+                    f"SHIFTED by {offset:+d} days, so today reads {local_today()}. "
+                    f"Set by {OFFSET_ENV_VAR}. Unset it before trusting anything below."
+                ),
+            )
+        )
+    elif raw:
+        items.append(
+            DoctorItem(
+                name="clock",
+                status="warn",
+                detail=(
+                    f"{OFFSET_ENV_VAR} is set to {raw!r}, which is not a whole number of "
+                    f"days and is being ignored. Today reads {local_today()}."
+                ),
+            )
+        )
+    else:
+        items.append(DoctorItem(name="clock", status="ok", detail=f"today is {local_today()}"))
 
     # 1. Database check (creates and initializes if missing)
     try:

@@ -6,10 +6,11 @@ The Chronos comparison this used to carry is gone with the forecast itself, remo
 set to True.
 """
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+from wha.clock import now_utc
 from wha.detect.baseline import compute_baseline
 from wha.detect.detector import compute_detection_for_features
 from wha.eval.metrics import (
@@ -131,7 +132,7 @@ def run_baseline_age_eval(
 
     result = EvaluationResult(
         suite="baseline-age",
-        generated_at_utc=datetime.now(UTC),
+        generated_at_utc=now_utc(),
         metrics=metrics,
         tables={"baseline_age_curve": curve_rows},
         figures=[],

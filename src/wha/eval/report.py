@@ -11,10 +11,10 @@ caveats that matter more than the figures.
 """
 
 import json
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from wha.clock import now_utc
 from wha.models import EvaluationResult
 
 _POLICY_LABELS = {
@@ -70,7 +70,7 @@ def _format_frontier(rows: list[dict[str, Any]]) -> list[str]:
 
 def render_markdown(results: dict[str, EvaluationResult]) -> str:
     """Build the full report from whichever suites have results."""
-    generated = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    generated = now_utc().strftime("%Y-%m-%d %H:%M UTC")
 
     lines: list[str] = [
         "# Evaluation",

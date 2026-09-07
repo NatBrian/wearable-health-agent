@@ -1,6 +1,5 @@
 """Ingestion service for pulling, storing, and normalising wearable data."""
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +15,7 @@ from wha.constants import (
 # wha.constants by the CLI, which is only permitted to import from config and service.
 # It matches the startup catch up so both routes give the same result from one watch.
 DEFAULT_INGEST_DAYS = STARTUP_CATCHUP_DAYS
+from wha.clock import now_utc
 from wha.db import apply_schema, connect
 from wha.errors import SourceUnavailable
 from wha.ingest.live_bridge import LiveBridge
@@ -39,7 +39,7 @@ def run_ingest(
     apply_schema(conn)
 
     # Ensure subject exists
-    now_utc = datetime.now(UTC).isoformat()
+    fetched_at = now_utc().isoformat()
     conn.execute(
         """
         INSERT OR IGNORE INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)
@@ -50,7 +50,7 @@ def run_ingest(
             subj,
             "live" if settings.bridge_url else "synthetic",
             settings.timezone,
-            now_utc,
+            fetched_at,
         ),
     )
     conn.commit()

@@ -27,13 +27,13 @@ validated rule are put in front of the model as the most useful thing it can ask
 import json
 import sqlite3
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from wha.audit.monitor import record_conversation_turn
-from wha.clock import local_today
+from wha.clock import local_today, now_utc
 from wha.constants import (
     CONVERSATION_MAX_TURNS,
     CONVERSATION_SESSION_GAP_HOURS,
@@ -151,7 +151,7 @@ def record_turn(
             json.dumps(triggered_flags or []),
             asked_item_id,
             presentation,
-            to_iso(datetime.now(UTC)),
+            to_iso(now_utc()),
         ),
     )
     conn.commit()
@@ -299,7 +299,7 @@ def urgency_state(conn: sqlite3.Connection, subject_id: str) -> dict[str, Any]:
     days_ago = None
     if set_on:
         try:
-            days_ago = (datetime.now(UTC) - from_iso(set_on)).days
+            days_ago = (now_utc() - from_iso(set_on)).days
         except (TypeError, ValueError):
             days_ago = None
 
@@ -397,7 +397,7 @@ def save_rule_answers(
                 answer.item_id,
                 1 if answer.answer else 0,
                 answer.quote,
-                to_iso(datetime.now(UTC)),
+                to_iso(now_utc()),
             ),
         )
     conn.commit()

@@ -1,8 +1,9 @@
 """Nightly feature computation and storage orchestration."""
 
 import sqlite3
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 
+from wha.clock import now_utc
 from wha.db import to_iso, transaction
 from wha.features.covariates import (
     derive_exercise_offset,
@@ -87,7 +88,7 @@ def compute_night(conn: sqlite3.Connection, subject_id: str, night_date: date) -
         rhr_window_source=window.source,
     )
 
-    now_str = to_iso(datetime.now(UTC))
+    now_str = to_iso(now_utc())
     with transaction(conn):
         conn.execute(
             """

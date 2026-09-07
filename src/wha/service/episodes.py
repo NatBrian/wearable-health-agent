@@ -2,11 +2,11 @@
 
 import json
 import sqlite3
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
-from wha.clock import local_today
+from wha.clock import local_today, now_utc
 from wha.db import connect, to_iso
 from wha.db.migrations import apply_schema
 from wha.models import (
@@ -191,7 +191,7 @@ def submit_answer(
             # Answering on closed episode is no-op
             return
 
-        now_str = datetime.now(UTC).isoformat()
+        now_str = now_utc().isoformat()
         actual_int_id = int_row["id"]
         # The ask node parks the episode AWAITING_USER; answering releases it so the next
         # tick advances the graph.
@@ -240,7 +240,7 @@ def submit_measurement_done(
         if m_row is None or m_row["status"] != "PENDING":
             return
 
-        now_str = datetime.now(UTC).isoformat()
+        now_str = now_utc().isoformat()
         res_json = json.dumps({"value": value, "satisfied": True, "ts_utc": now_str})
         conn.execute(
             """UPDATE measurements
@@ -858,7 +858,7 @@ def _persist_outcome(conn: sqlite3.Connection, episode_id: str, draft: Any) -> N
             episode_id,
             str(payload.get("schema_version", "1.0")),
             json.dumps(payload),
-            to_iso(datetime.now(UTC)),
+            to_iso(now_utc()),
         ),
     )
 

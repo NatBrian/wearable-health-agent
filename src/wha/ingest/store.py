@@ -2,8 +2,8 @@
 
 import json
 import sqlite3
-from datetime import UTC, datetime
 
+from wha.clock import now_utc
 from wha.db import to_iso, transaction
 from wha.ingest.base import NormalisedData, normalise
 from wha.models import RawPayload
@@ -16,7 +16,7 @@ def ensure_subject_exists(
     timezone: str = "Asia/Singapore",
 ) -> None:
     """Ensure subject record exists in the subjects table."""
-    now_str = to_iso(datetime.now(UTC))
+    now_str = to_iso(now_utc())
     conn.execute(
         """
         INSERT OR IGNORE INTO subjects (subject_id, label, source_kind, timezone, created_at_utc)

@@ -3,10 +3,10 @@
 import hashlib
 import json
 import os
-from datetime import UTC, datetime
 
 import httpx
 
+from wha.clock import now_utc
 from wha.errors import SourceUnavailable
 from wha.models import RawPayload
 
@@ -77,7 +77,7 @@ class LiveBridge:
 
                         canonical_text = json.dumps(body, sort_keys=True, separators=(",", ":"))
                         sha256 = hashlib.sha256(canonical_text.encode("utf-8")).hexdigest()
-                        now = datetime.now(UTC)
+                        now = now_utc()
 
                         return RawPayload(
                             subject_id=subject_id,

@@ -21,9 +21,10 @@ Two rules keep the record worth reading:
 
 import sqlite3
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
+from wha.clock import now_utc
 from wha.constants import (
     BASELINE_MIN_NIGHTS_PERSONAL,
     DETECT_PERSISTENCE_NIGHTS,
@@ -39,7 +40,7 @@ def _event(subject_id: str, actor: str, operation: str, **kwargs: Any) -> AuditE
     return AuditEvent(
         event_id=f"evt_{uuid.uuid4().hex[:12]}",
         subject_id=subject_id,
-        timestamp_utc=datetime.now(UTC),
+        timestamp_utc=now_utc(),
         actor=actor,  # type: ignore[arg-type]
         operation=operation,  # type: ignore[arg-type]
         **kwargs,

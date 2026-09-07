@@ -3,9 +3,9 @@
 import os
 import sqlite3
 import uuid
-from datetime import UTC, datetime
 from pathlib import Path
 
+from wha.clock import now_utc
 from wha.db import connect
 from wha.db.audit_chain import append_audit
 from wha.db.iso import from_iso, to_iso
@@ -91,7 +91,7 @@ def update_settings(
         audit_ev = AuditEvent(
             event_id=f"audit_set_{uuid.uuid4().hex[:12]}",
             subject_id=subject_id,
-            timestamp_utc=datetime.now(UTC),
+            timestamp_utc=now_utc(),
             actor="human",
             operation="settings",
             input={"patch": patch_dict},
@@ -264,7 +264,7 @@ def update_subject_profile(
                 if value is not None
             }
         )
-        now = to_iso(datetime.now(UTC))
+        now = to_iso(now_utc())
         conn.execute(
             """INSERT INTO subject_profile
                  (subject_id, age_years, sex, known_vascular_disease, menstruates,
@@ -299,7 +299,7 @@ def update_subject_profile(
             AuditEvent(
                 event_id=f"evt_{uuid.uuid4().hex[:12]}",
                 subject_id=subject_id,
-                timestamp_utc=datetime.now(UTC),
+                timestamp_utc=now_utc(),
                 actor="human",
                 operation="settings",
                 output={

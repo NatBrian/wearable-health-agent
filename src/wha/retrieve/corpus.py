@@ -1,12 +1,12 @@
 """Corpus loading, manifest creation, and Layer 4 generator from causes.yaml."""
 
 import hashlib
-from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
 
 from wha.belief.causes import load_causes
+from wha.clock import now_utc
 from wha.constants import CHUNK_TARGET_TOKENS
 from wha.retrieve.models import Chunk, CorpusDocument, CorpusManifest, SourceManifestEntry
 
@@ -166,7 +166,7 @@ def build_corpus_manifest(
     chunk_target_tokens: int = CHUNK_TARGET_TOKENS,
 ) -> CorpusManifest:
     """Build manifest with licence, doc counts, and checksums."""
-    now_utc = datetime.now(UTC).isoformat()
+    fetched_at = now_utc().isoformat()
 
     layers_dict: dict[int, list[CorpusDocument]] = {}
     for d in docs:
@@ -194,7 +194,7 @@ def build_corpus_manifest(
 
     return CorpusManifest(
         manifest_version="1.0",
-        created_at_utc=now_utc,
+        created_at_utc=fetched_at,
         chunk_count=len(chunks),
         chunk_target_tokens=chunk_target_tokens,
         sources=entries,

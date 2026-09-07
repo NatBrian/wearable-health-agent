@@ -27,10 +27,10 @@ import re
 import urllib.request
 import zipfile
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from xml.etree import ElementTree
 
+from wha.clock import now_utc
 from wha.retrieve.models import CorpusDocument
 
 INDEX_URL = "https://medlineplus.gov/xml.html"
@@ -194,7 +194,7 @@ def fetch(target_dir: Path | None = None, timeout: float = 120.0) -> Snapshot:
         snapshot_date=snapshot_date,
         url=url,
         sha256=digest,
-        fetched_at_utc=datetime.now(UTC).isoformat(),
+        fetched_at_utc=now_utc().isoformat(),
         topics_total=total,
         topics_kept=len(docs),
         bytes_downloaded=len(payload),

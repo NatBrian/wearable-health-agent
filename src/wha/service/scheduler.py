@@ -12,7 +12,7 @@ from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
 from wha.audit.monitor import review_requested_at
-from wha.clock import local_today
+from wha.clock import local_today, now_utc
 from wha.config import get_settings
 from wha.constants import (
     ANSWER_TIMEOUT_HOURS,
@@ -55,7 +55,7 @@ def safe_job_wrapper(job_name: str, fn: Callable[[], Any], db_path: Path | None 
                 component="scheduler",
                 ok=True,
                 detail=f"Job '{job_name}' completed successfully.",
-                checked_at_utc=datetime.now(UTC),
+                checked_at_utc=now_utc(),
                 severity="ok",
             ),
             db_path=db_path,
@@ -67,7 +67,7 @@ def safe_job_wrapper(job_name: str, fn: Callable[[], Any], db_path: Path | None 
                 component="scheduler",
                 ok=False,
                 detail=f"Job '{job_name}' failed: {exc}",
-                checked_at_utc=datetime.now(UTC),
+                checked_at_utc=now_utc(),
                 severity="error",
             ),
             db_path=db_path,
@@ -81,7 +81,7 @@ def run_episode_tick(db_path: Path | None = None) -> dict[str, Any]:
     conn = connect(db_path) if db_path is not None else connect()
     apply_schema(conn)
 
-    now = datetime.now(UTC)
+    now = now_utc()
     answer_cutoff = now - timedelta(hours=ANSWER_TIMEOUT_HOURS)
     meas_cutoff = now - timedelta(hours=MEASUREMENT_TIMEOUT_HOURS)
 
@@ -303,7 +303,7 @@ def _resume_value(conn: Any, episode_id: str, pending: Any) -> dict[str, Any] | 
             return None
         if requested.tzinfo is None:
             requested = requested.replace(tzinfo=UTC)
-        if datetime.now(UTC) - requested >= timedelta(hours=REVIEW_TIMEOUT_HOURS):
+        if now_utc() - requested >= timedelta(hours=REVIEW_TIMEOUT_HOURS):
             return {"timed_out": True}
         return None
 
@@ -418,7 +418,7 @@ def create_scheduler(db_path: Path | None = None) -> BackgroundScheduler:
         func=lambda: safe_job_wrapper(
             "startup_catchup", lambda: run_startup_catchup(db_path=db_path), db_path=db_path
         ),
-        trigger=DateTrigger(run_date=datetime.now(UTC) + timedelta(seconds=1)),
+        trigger=DateTrigger(run_date=now_utc() + timedelta(seconds=1)),
         id="startup_catchup",
         name="First-run catch up: pull and process what is already on the watch",
         max_instances=1,

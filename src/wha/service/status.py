@@ -3,12 +3,13 @@
 import os
 import sqlite3
 import time
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import httpx
 
+from wha.clock import now_utc
 from wha.config import get_settings
 from wha.constants import (
     INGEST_STALE_REFUSE_HOURS,
@@ -75,7 +76,7 @@ def get_system_status(
         close_conn = True
 
     try:
-        now_utc = datetime.now(UTC)
+        checked_at = now_utc()
         components: list[ComponentStatus] = []
 
         # 1. Database
@@ -84,7 +85,7 @@ def get_system_status(
                 component="database",
                 ok=True,
                 detail="SQLite operational",
-                checked_at_utc=now_utc,
+                checked_at_utc=checked_at,
                 severity="ok",
             )
         )
@@ -119,7 +120,7 @@ def get_system_status(
         bridge_ok = True
         bridge_detail = "Bridge data current"
         if last_ingest_utc is not None:
-            hours_since = (now_utc - last_ingest_utc).total_seconds() / 3600.0
+            hours_since = (checked_at - last_ingest_utc).total_seconds() / 3600.0
             if hours_since > INGEST_STALE_REFUSE_HOURS:
                 bridge_severity = "error"
                 bridge_ok = False
@@ -139,7 +140,7 @@ def get_system_status(
                 component="bridge",
                 ok=bridge_ok,
                 detail=bridge_detail,
-                checked_at_utc=now_utc,
+                checked_at_utc=checked_at,
                 severity=bridge_severity,
             )
         )
@@ -157,7 +158,7 @@ def get_system_status(
                 component="scheduler",
                 ok=sched_ok,
                 detail=sched_detail,
-                checked_at_utc=now_utc,
+                checked_at_utc=checked_at,
                 severity=sched_severity,
             )
         )
@@ -174,7 +175,7 @@ def get_system_status(
                 component="llm",
                 ok=True,
                 detail=llm_detail,
-                checked_at_utc=now_utc,
+                checked_at_utc=checked_at,
                 severity="ok",
             )
         )
@@ -189,7 +190,7 @@ def get_system_status(
                 component="telegram",
                 ok=True,
                 detail=tg_detail,
-                checked_at_utc=now_utc,
+                checked_at_utc=checked_at,
                 severity="ok",
             )
         )
@@ -200,7 +201,7 @@ def get_system_status(
                 component="datasets",
                 ok=True,
                 detail="Knowledge sources loaded",
-                checked_at_utc=now_utc,
+                checked_at_utc=checked_at,
                 severity="ok",
             )
         )
@@ -236,7 +237,7 @@ def get_system_status(
             rung = BaselineRung.COLD
 
         # Errors in last 24h
-        cutoff_24h = (now_utc - timedelta(hours=24)).isoformat()
+        cutoff_24h = (checked_at - timedelta(hours=24)).isoformat()
         row_err = conn.execute(
             "SELECT COUNT(*) as count FROM system_status WHERE subject_id = ? AND ok = 0 AND ts_utc >= ?",
             (subject_id, cutoff_24h),

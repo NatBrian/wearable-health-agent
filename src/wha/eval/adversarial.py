@@ -1,9 +1,9 @@
 """Adversarial evaluation suite testing prompt injection containment and attack surface resilience."""
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from wha.clock import now_utc
 from wha.models import EvaluationResult
 from wha.safety.injection import scan_untrusted
 from wha.safety.outbound import validate_text_content
@@ -243,7 +243,7 @@ def run_adversarial_eval(
 
     result = EvaluationResult(
         suite="adversarial",
-        generated_at_utc=datetime.now(UTC),
+        generated_at_utc=now_utc(),
         metrics=metrics,
         tables={
             "cases": cases_results,

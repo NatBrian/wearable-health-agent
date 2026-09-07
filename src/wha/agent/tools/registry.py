@@ -4,12 +4,12 @@ import json
 import time
 import uuid
 from collections.abc import Callable
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from wha.clock import local_date_of, local_today
+from wha.clock import local_date_of, local_today, now_utc
 from wha.errors import PermissionDenied
 from wha.models import AuditEvent, ControlTier
 
@@ -90,7 +90,7 @@ class ToolContext(BaseModel):
     subject_id: str
     episode_id: str | None = None
     step_index: int | None = None
-    now_utc: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    now_utc: datetime = Field(default_factory=now_utc)
     tool_call_count: int = 0
     expansion_attempts: int = 0
     audit_events: list[AuditEvent] = Field(default_factory=list)

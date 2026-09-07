@@ -2,9 +2,9 @@
 
 import json
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 
+from wha.clock import now_utc
 from wha.errors import ConfigError
 from wha.eval.detection import run_detection_eval
 from wha.models import EvaluationResult
@@ -57,7 +57,7 @@ def get_evaluation_results(suite: str, eval_dir: Path | None = None) -> Evaluati
 
     return EvaluationResult(
         suite=suite,
-        generated_at_utc=datetime.now(UTC),
+        generated_at_utc=now_utc(),
         metrics={},
         tables={},
         figures=[],
