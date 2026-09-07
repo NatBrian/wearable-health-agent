@@ -143,8 +143,7 @@ def test_the_escalation_that_reaches_the_phone_is_written_down(tmp_path) -> None
         "SELECT kind, channel, status FROM notifications WHERE subject_id = 'me'"
     ).fetchall()
     assert rows, (
-        "an escalation was delivered to the person's phone and nothing recorded that it "
-        "had been"
+        "an escalation was delivered to the person's phone and nothing recorded that it had been"
     )
     assert rows[0]["kind"] == "ESCALATION"
     assert rows[0]["status"] == "SENT"

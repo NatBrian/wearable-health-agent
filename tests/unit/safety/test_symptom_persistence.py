@@ -521,8 +521,7 @@ def test_a_message_only_records_symptoms_that_are_in_it(conn):
         f"from the history. Tonight was recorded as {written}"
     )
     assert written.get("rf_fever") != 1, (
-        "the sentence says the fever has GONE, so recording it as present is backwards: "
-        f"{written}"
+        f"the sentence says the fever has GONE, so recording it as present is backwards: {written}"
     )
     assert before, "the fixture should have written some history to read back"
 
@@ -594,8 +593,7 @@ def test_a_quiet_run_does_not_close_an_episode_waiting_on_a_person(conn):
     today = local_today()
     episode_id = open_or_append_episode(conn, "s", today - timedelta(days=4))
     conn.execute(
-        "UPDATE episodes SET step_count = 6, state = 'AWAITING_HUMAN_REVIEW' "
-        "WHERE episode_id = ?",
+        "UPDATE episodes SET step_count = 6, state = 'AWAITING_HUMAN_REVIEW' WHERE episode_id = ?",
         (episode_id,),
     )
     for offset in (1, 0):
