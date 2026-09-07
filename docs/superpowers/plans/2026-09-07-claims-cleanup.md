@@ -93,7 +93,37 @@ from wine or a hard evening session, so the system asks rather than guesses; one
 treated differently from several together; a heart rate that settles is not treated as
 recovery.
 
-## Progress
+## What was done
 
-Tracked in the session task list. Nine tasks, from the inventory through to re-cutting the
-film and running the suite.
+| # | Task | Outcome |
+|---|---|---|
+| 1 | Inventory | 20 live files carried a figure of ours. Table above |
+| 2 | `experiments/` | Created, with a disclaimer at the top of the folder and of each sub-folder |
+| 3 | Move the artefacts | `EVALUATION.md`, `detection-results.json`, the NightSignal comparison and `tools/cohort/` moved. **The generator's output path moved too**, or `wha eval-report` would have put the claim back at the root |
+| 4 | Documents | README, STATUS, BLOCKERS, USER-GUIDE, ARCHITECTURE, DISCLOSURES, the design docs. Decisions kept, figures removed |
+| 5 | The Downie transfer | The repository had **already** corrected this on 5 September: `safety/triage.py` says the review is about low back pain. The film card reintroduced it, and one code comment lacked the caveat |
+| 6 | Screens and comments | The dashboard told a user the system interrupts once every 4.9 weeks "measured across 76 people". A **corpus passage** the agent can quote carried the same problem |
+| 7 | The cards | Card 5 deleted. Cards 1, 7, 9, 12, 13, 19, 20, 21 rewritten. Cards 15 and 17 now name their sources on screen |
+| 8 | Tests | Two: no card and no screen may quote a figure of ours, and the film must state that it has never been tested on a patient |
+| 9 | Re-cut and verify | Cards re-rendered, film re-cut, suite run |
+
+## What this cost, and what it bought
+
+Act V of the film lost most of its content, and the detection headline that was the
+project's most quotable result is gone from everything a viewer or reader meets.
+
+What replaced it is a chapter that says the system has never been tested on a patient,
+that nobody has been warned or treated or helped by it, and that how well it works is not
+known. For a health project with no trial behind it, that is the stronger chapter, and it
+is the only one that is true.
+
+## The thing worth remembering
+
+The repository had already made this exact mistake once and corrected it. On 5 September
+somebody noticed that Downie et al. was being quoted without its population and fixed it in
+`safety/triage.py` and the changelog. Two days later a film card quoted the same review's
+odds as though they were about fever and vomiting.
+
+A correction that lives only in the file where it was made does not survive contact with
+somebody writing new prose elsewhere. That is why the rule is now a test rather than a
+paragraph.
