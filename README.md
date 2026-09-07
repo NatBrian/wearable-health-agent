@@ -110,7 +110,7 @@ if you do not.
 |---|---|
 | `docs/KNOWLEDGE-CHANGELOG.md` | You change any clinical figure in `data/knowledge/` or `constants.py` |
 | `docs/DISCLOSURES.md` | You add or discover a limitation. Every one names the screen that shows it |
-| `docs/CONTRACTS.md` | You change a schema, model, constant or service signature. **Three tests compare it against the code on every run** |
+| `docs/CONTRACTS.md` | You change a schema, model, constant or service signature. **Four tests compare it against the code on every run**: its models, its schema, its constant values and its dependency table |
 
 The rest are reference:
 
@@ -418,13 +418,16 @@ system *is*.
 5. **Arithmetic Value-of-Information Policy**: Decides whether to stay silent (`OBSERVE`), ask a targeted symptom question (`ASK`), or draft a differential (`CONCLUDE`) strictly via **Expected Value of Sample Information (EVSI) minus Interruption Cost**. The LLM cannot decide to interrupt or spam the patient on its own. **One deliberate override exists:** an outstanding symptom forces a follow-up regardless of EVSI, because EVSI cannot see somebody deteriorating. It may not bypass a pending question or its per-episode cap; it may bypass the weekly interruption budget, because a budget exists to stop the system pestering a *well* person and must not be able to gag somebody who has said they feel unwell. The spot-check limb (`MEASURE`) was deleted on 5 September 2026: it rested on three numbers with no source and asked the noisier instrument to adjudicate the less noisy one.
 6. **Fail-Closed Data Quality Gates**: Requires $\ge 180\text{ minutes}$ (3 hours) of nocturnal sensor coverage and refuses biometrics older than 72 hours. The system never fabricates heart rates or invents missing data.
 7. **Strict Outbound Safety & Grounding**: Outbound messages pass 6 deterministic checks (length, control characters, URL whitelisting, slot matching, callback sizes). All clinical assertions are strictly grounded against cited medical literature in `data/knowledge/`.
-8. **Cryptographic Immutability**: Every tool call, Bayesian update, human interaction, and LLM reasoning step is logged with **SHA-256 cryptographic hash chaining** into SQLite for tamper-evident clinical auditability.
+8. **Tamper-Evident Audit Chain**: Every tool call, Bayesian update, human interaction, and LLM reasoning step is logged with **SHA-256 cryptographic hash chaining** into SQLite for tamper-evident clinical auditability.
 
 ---
 
 ## Failure-Mode Philosophy & Fault Tolerance
 
-In medical software engineering (IEC 62304 / ISO 14971), **an auxiliary model outage must never block a safety-critical health alert.** The system enforces strict graceful degradation:
+**An auxiliary model outage must never block a health alert.** That is the principle the
+degradation paths below are built on. It is not a compliance claim: this project has not been
+assessed against IEC 62304, ISO 14971 or any other standard, and is not a medical device. See
+[DISCLAIMER.md](DISCLAIMER.md).
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -489,24 +492,14 @@ flowchart LR
 
 ---
 
-## Quickstart
+## Configuring and running it
 
-### 1. Prerequisites & Installation
+**The setup steps are [above](#setting-it-up-from-a-clean-checkout), and that is the only
+place they live.** This section is the reference for what goes in `.env`, what `wha doctor`
+prints, and what the server does once it is up. It used to repeat the setup and left out the
+corpus fetch, so somebody following it got a system whose retrieval could not run.
 
-Requires **Python 3.12** and [`uv`](https://github.com/astral-sh/uv):
-
-```bash
-# Clone the repository
-git clone https://github.com/NatBrian/wearable-health-agent.git
-cd wearable-health-agent
-
-# Install dependencies and sync virtual environment
-uv sync
-```
-
-> **Always use `uv run`.** A bare `python` may resolve to a different virtual environment.
-
-### 2. Configure Environment (`.env`)
+### The environment file (`.env`)
 
 Create or edit `.env` in the repository root:
 
@@ -532,7 +525,7 @@ WHA_TELEGRAM_BOT_TOKEN=123456789:ABCDefghIJKlmnoPQRstuvw
 WHA_TELEGRAM_CHAT_ID=your-telegram-chat-id
 ```
 
-### 3. Run Unified System Diagnostics (`wha doctor`)
+### Diagnostics (`wha doctor`)
 
 WHA provides two diagnostic modes:
 
@@ -544,21 +537,28 @@ uv run wha doctor
 uv run wha doctor --live
 ```
 
-**Live Verification Output:**
+**What it prints**, copied from a real run on 7 September 2026:
 ```text
+clock           ok     today is 2026-09-07
 database        ok     data\wha.sqlite, schema v9, 72 nights, 2 subjects
 knowledge       ok     causes.yaml 12 rows, probes.yaml 8 rows
 bridge          ok     configured at http://127.0.0.1:8788 (auth token configured: True)
 llm             ok     provider=openai_compatible, model=deepseek-chat (key configured: True)
 telegram        ok     chat id and token configured
-cohort          ok     Mishra 2020 wearables and labels present in data/cohort
-baseline        info   subject 'sim': 41 usable nights, rung MATURE
+cohort          miss   not fetched. This is only needed to re-run the detection experiment,
+                       whose results and their limits are in experiments/detection/.
+baseline        info   subject 'sim': 38 usable nights, rung MATURE
 ```
+
+`cohort miss` is the expected state; nothing in the running system uses that dataset. The
+`clock` row is the one to read before you trust any date on screen: it says `today is` and
+then a date, and if that date is not today, `WHA_CLOCK_OFFSET_DAYS` is set and you are
+looking at the demo timeline rather than at now.
 
 Any row can read `fail`, and `wha doctor` exits non-zero if one does. `--live` additionally
 opens the bridge, the model provider and the Telegram bot, and reports the round trip in ms.
 
-### 4. Launch Web Dashboard & Background Scheduler
+### The dashboard and the background scheduler
 
 ```bash
 uv run wha serve --port 8501
@@ -766,7 +766,16 @@ that before assuming a logic error.
 ## Identifiability Boundaries & Clinical Reality
 
 * **Autonomic Response vs. Etiology**: Wearable optical sensors observe host autonomic nervous system changes (tachycardia, reduced vagal tone), not circulating pathogens. WHA cannot differentiate Influenza A from COVID-19 without self-reported symptoms or rapid antigen test results.
-* **Confounder Magnitudes**: Acute viral infections elevate nocturnal RHR by $+1.1\text{ to }+2.1\text{ bpm}$, whereas alcohol or late-night exercise can elevate RHR by $+2.4\text{ to }+6.0\text{ bpm}$. The system relies on its value-of-information policy to ask discriminating questions when biometrics alone are ambiguous.
+* **Confounder Magnitudes**: The everyday causes move the overnight resting rate about as
+  far as an infection does, and often further, which is the whole reason the system asks
+  rather than assumes. **Alcohol**: +2.8 bpm in females and +2.4 in males across a two-drink
+  span, within-person (Grosicki et al., PLOS Digit Health 2026;5(3):e0001284, n=20,968).
+  **Late exercise**: +1.58 bpm for a session ending 6 hours before sleep, rising to +5.59 at
+  sleep onset (Leota et al., Nat Commun 2025;16:3297, n=14,689). **Infection**: average peak
+  increases over baseline of 1.8 percent in females and 3.4 percent in males (Natarajan, Su
+  and Heneghan, Front Physiol 2022;13:898251, n=7,200). The figures the detector uses, how
+  each was derived from these papers and which parts are not from them, are in
+  `data/knowledge/causes.yaml`, with the working shown on every row.
 * **Maturity Ladder**:
   * `0-2 Nights` (`COLD`): Population prior only ($\mu=62.75$ bpm, and a **within-person**
     night-to-night scale, which is the value the detector actually uses. The

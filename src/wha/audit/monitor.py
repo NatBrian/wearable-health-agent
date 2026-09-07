@@ -56,7 +56,7 @@ def record_ingest(
 ) -> None:
     """Note that data arrived. Silent unless something NEWER than last time arrived.
 
-    "A check that found nothing new does not appear" is what the Audit page tells the
+    "A check that found nothing new does not appear" is what The record screen tells the
     reader, and it was not true. This stayed quiet only when zero rows were written, and
     re-pulling the same window rewrites the same rows, so a poll every thirty minutes
     produced an entry every thirty minutes. The live log held five entries minutes apart
@@ -328,7 +328,7 @@ def record_conversation_turn(
 ) -> None:
     """Put the conversation in the tamper-evident record.
 
-    The Audit page says "everything this system does is written down as it happens". After
+    The record screen says "everything this system does is written down as it happens". After
     the conversation was added it recorded ingest, night scoring and the agent's tool calls
     and nothing else, so the exchange in which a person described chest pain and was routed
     to a doctor left no trace on the page whose entire purpose is to be checkable.
@@ -549,7 +549,7 @@ def record_data_safety_escalation(
     """Record a safety rule that fired on the DATA rather than on what the person said.
 
     Every escalation this system had ever raised came from free text. These three rules
-    read the night itself, and until they were connected the Audit page could never show a
+    read the night itself, and until they were connected the audit trail could never show a
     person a decision made about them that they had not triggered by typing something.
     """
     append_audit(
@@ -590,7 +590,7 @@ def record_notification_sent(
 
     `notify` is one of the ten operations the contract reserves and nothing had ever
     written one, so the record could not show that a question reached anybody. The
-    `notifications` table knew, but the Audit page reads the audit chain, and that page is
+    `notifications` table knew, but the screen reads the audit chain, and that screen is
     the one that claims everything this system does is written down.
 
     The message text is recorded. It is what the person received, it is the system's own

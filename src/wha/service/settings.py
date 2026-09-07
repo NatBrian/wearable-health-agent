@@ -248,7 +248,7 @@ def update_subject_profile(
     Setting an age changes whether the Marburg Heart Score is applied at all, and setting
     whether the person menstruates switches a cause in the belief model on or off. Both are
     decisions about how this system will reason about someone's health, so they belong in
-    the record the Audit page shows, under the `settings` operation the contract reserves.
+    the record The record screen shows, under the `settings` operation the contract reserves.
     """
     close_conn = False
     if conn is None:

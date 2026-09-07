@@ -43,7 +43,7 @@ should not have been made.
 
 ---
 
-## 2026-09-05 — `causes.yaml`, the infection row
+## 2026-09-05. `causes.yaml`, the infection row
 
 The most consequential row in the file. Four changes, one deliberate non-change.
 
@@ -95,7 +95,7 @@ system adds least.
 
 ---
 
-## 2026-09-05 — `constants.py`, the band's width no longer borrows a between-person spread
+## 2026-09-05. `constants.py`, the band's width no longer borrows a between-person spread
 
 **Changed:** the quantity `compute_baseline` shrinks `scale_bpm` toward, from
 `POP_PRIOR_RHR_SD_BPM = 8.64` to a new `WITHIN_PERSON_SCALE_PRIOR_BPM = 3.71`.
@@ -148,7 +148,7 @@ from `POP_PRIOR_RHR_SD_BPM`. The contract is not edited here. Recorded in `docs/
 
 ---
 
-## 2026-09-05 — `causes.yaml`, `exertion.effect_mean_bpm`
+## 2026-09-05. `causes.yaml`, `exertion.effect_mean_bpm`
 
 **Changed:** `4.14` to `2.91`.
 
@@ -174,7 +174,7 @@ system's own utilities prefer.
 
 ---
 
-## 2026-09-05 — every file, the authorship header
+## 2026-09-05. every file, the authorship header
 
 **Changed:** every `Authored by a human` and equivalent claim removed. `READ ONLY` kept.
 Also removed: fourteen "Swept." annotations across `causes.yaml` and `probes.yaml`, the
@@ -202,7 +202,7 @@ numbers are `ASSUMED`. A file-level label cannot be true of a file that contains
 
 ---
 
-## 2026-09-04 — `causes.yaml`, luteal citation string
+## 2026-09-04. `causes.yaml`, luteal citation string
 
 **Changed:** wrist skin temperature `+0.44 C` to `+0.45 C`, respiratory rate `+0.60/min` to
 `+0.47/min`.
@@ -226,7 +226,7 @@ do not match the paper, which undermines every figure beside them.
 
 ---
 
-## 2026-09-04 — `constants.py`, `EXERCISE_EFFECT_BPM`
+## 2026-09-04. `constants.py`, `EXERCISE_EFFECT_BPM`
 
 **Changed:** `{"0-2h": 4.14, "2-4h": 2.91, "4-6h": 1.58}` to
 `{"0-2h": 2.91, "2-4h": 1.87, "4-6h": 1.58}`.
@@ -280,7 +280,7 @@ cannot rot again, and the snapshot actually used is recorded with its SHA-256 in
 
 ---
 
-## 2026-09-05 — `probes.yaml`, the alcohol question drops to two options
+## 2026-09-05. `probes.yaml`, the alcohol question drops to two options
 
 **Changed:** `probe_alcohol.answer_space` from `None / 1 to 2 / 3 to 4 / 5 or more` to
 `None / Yes`, and the likelihood rows from four columns to two, summing the three drinking
@@ -304,7 +304,7 @@ passes three instead. Both are about the mechanism, not about a particular count
 
 ---
 
-## 2026-09-05 — `causes.yaml`, what the alcohol figures actually measure
+## 2026-09-05. `causes.yaml`, what the alcohol figures actually measure
 
 **Changed:** the `citation` block. No figure moved.
 
@@ -315,7 +315,7 @@ and taking the midpoint gives the stored 2.60. That is defensible for "drank las
 only because the span brackets it, and the file now says so rather than leaving a reader
 to infer a measurement the paper did not make.
 
-## 2026-09-05 — `triage_rules.yaml`, the blood oxygen thresholds were credited to WHO
+## 2026-09-05. `triage_rules.yaml`, the blood oxygen thresholds were credited to WHO
 
 **Changed:** the attribution and the caveats on `spo2_home_thresholds`. The numbers
 themselves, 92 and 94 percent, did not move.
@@ -348,7 +348,7 @@ is now stated rather than left out because it weakens the point.
 
 ---
 
-## 2026-09-05 — `triage_rules.yaml`, Downie is quoted with its population attached
+## 2026-09-05. `triage_rules.yaml`, Downie is quoted with its population attached
 
 **Changed:** a comment, not a number, and it is here because the comment is what justifies
 the design.
@@ -366,7 +366,7 @@ still worth quoting. Quoting it without its population is not.
 
 ---
 
-## 2026-09-05 — `red_flags.yaml`, `outcome_guidance` added
+## 2026-09-05. `red_flags.yaml`, `outcome_guidance` added
 
 **Changed:** two lines of care-pathway text moved into this file. **No new clinical content.**
 
@@ -386,7 +386,7 @@ generated now, so there is nothing left to guard.
 
 ---
 
-## 2026-09-05 — `probes.yaml`, `probe_cycle` retired
+## 2026-09-05. `probes.yaml`, `probe_cycle` retired
 
 **Changed:** one question removed. **No figure changed.**
 
@@ -404,7 +404,7 @@ model at all: no production caller passed the cycle fact into `update_belief`, s
 clamped at 0.0 on every live run. Asking for something that changes nothing is the worst
 possible use of an interruption budget.
 
-## 2026-09-05 — `red_flags.yaml`, every safety number now says where it came from
+## 2026-09-05. `red_flags.yaml`, every safety number now says where it came from
 
 **Changed:** provenance labels added to eleven numbers. **No number moved.**
 
@@ -433,7 +433,7 @@ renders the table with a warning naming how many of them have no published sourc
 strips one label and asserts loading fails, because a guard that has never fired proves
 nothing.
 
-## 2026-09-05 — `causes.yaml`, the last three CITED rows were not cited
+## 2026-09-05. `causes.yaml`, the last three CITED rows were not cited
 
 **Changed:** `provenance` on alcohol, luteal and recovery_tail, from CITED to DERIVED, each
 with a `derivation` naming which of its numbers comes from the paper and which does not.

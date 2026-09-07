@@ -10,11 +10,12 @@ the policy, the agent graph and Telegram all run exactly as they do with the rea
 
 ---
 
-## Phase 1 — a fresh start
+## Phase 1. A fresh start
 
 ```bash
 uv sync
-cp .env.example .env          # then fill it in; see the table below
+cp .env.example .env               # then fill it in; see the table below
+uv run wha data fetch corpus       # REQUIRED, about 32 MB. Retrieval cannot run without it
 uv run wha doctor
 ```
 
@@ -36,7 +37,7 @@ The `.env` values that matter:
 | `WHA_BRIDGE_URL` | **the phone in Phase 2, the mock in Phase 4** |
 | `WHA_TELEGRAM_*` | bot token and chat id; without both, the system falls back to `NullNotifier` and asks nobody |
 
-## Phase 2 — the real watch
+## Phase 2. The real watch
 
 Turn the phone hotspot on. `WHA_BRIDGE_URL` must be the Wi-Fi gateway address.
 
@@ -61,7 +62,7 @@ enough history to hide it. A neural forecaster used to decline here too; it was 
 are history: they build your baseline and can never raise an alert, so a first sync cannot
 open an investigation into a night from before you owned the system.
 
-## Phase 3 — start the system
+## Phase 3. Start the system
 
 ```bash
 uv run wha serve
@@ -75,7 +76,7 @@ Night scoring runs on an interval rather than at a fixed hour, because a night i
 over the sleep the watch recorded and that is not finished at any particular clock time. A
 night settles as soon as its sleep has synced, whether the person wakes at 07:00 or 13:00.
 
-## Phase 4 — the mock watch
+## Phase 4. The mock watch
 
 Point the bridge at the local mock instead of the phone:
 
@@ -136,7 +137,7 @@ against a mature 61.35 bpm baseline, 4.6 moves RHR 61 → 65 for a 3.65 bpm resi
 the 4.0 RED threshold. `flagged` additionally needs **two consecutive RED nights**, the published NightSignal
 rule. It was "two elevated nights with a RED among them" until item 8 on 5 September 2026. The sweep behind these numbers is in `tools/mock_watch.py`.
 
-To combine causes on one night — an elevation the agent has to explain away — schedule
+To combine causes on one night, an elevation the agent has to explain away, schedule
 them by date:
 
 ```bash

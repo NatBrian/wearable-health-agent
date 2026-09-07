@@ -110,7 +110,7 @@ The quotation the code relies on is verbatim and correct. The cohort is n=11, ag
 cross-country skiers and biathletes. That is a narrow basis for a general claim about
 sleep being the quieter measurement window, and the paper's own result partly cuts against
 its framing: "Contrary to the hypothesis, the current study showed significantly higher
-variation and higher RMSSD values during morning tests" — the variability result runs in
+variation and higher RMSSD values during morning tests". The variability result runs in
 the direction the code cites, but the authors report it as contrary to what they expected.
 The corpus passage states the cohort so a reader can weigh it.
 

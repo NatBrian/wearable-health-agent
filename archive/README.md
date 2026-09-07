@@ -36,7 +36,7 @@ refer to each other by that name. Read `history/x` as `archive/x`.
 | `AUDIT-2026-09-05.md` | Fifteen independent agents checking whether the 34 items were really done. **Seventeen came back partial**, two of them production-breaking, in work that had been reported as complete with a green suite behind it. Kept unedited on purpose: a verdict quietly revised afterwards is not a verdict |
 
 The audit is the one to read if you only read one. It is the clearest evidence in this
-repository for the rule at the top of `CLAUDE.md`: a passing test suite is not evidence that
+repository for the rule at the top of `AGENTS.md`: a passing test suite is not evidence that
 the code runs.
 
 `plan/02-contracts.md` used to live here and is now `docs/CONTRACTS.md`, because the source code

@@ -619,11 +619,16 @@ def eval_report_cmd(
         Path | None, typer.Option("--output", "-o", help="Where to write the report")
     ] = None,
 ) -> None:
-    """Run the offline evaluation suites and write EVALUATION.md.
+    """Run the offline evaluation suites and write experiments/detection/RESULTS.md.
 
     Evaluation results live in a file rather than a dashboard page. The dashboard is for
-    a person checking their own health; benchmark accuracy against comparator policies is
-    evidence for someone assessing the system, and reads better in the repository.
+    a person checking their own health; how our own code scores against our own comparator
+    policies is evidence for someone assessing the system, and reads better in the
+    repository.
+
+    It is written UNDER experiments/, never at the repository root. It used to be
+    EVALUATION.md beside the README, where a reader met it as though it stated how well
+    the system works. It does not: it is a self-scored run against labels we supplied.
     """
     try:
         written = write_evaluation_report(output_path=output)

@@ -9,7 +9,7 @@
 > You do not need to read it end to end. Find the boundary you are touching, and check it
 > still describes what you are about to do.
 
-> **BINDING, AND NOW CHECKED.** This was `archive/plan/02-contracts.md` and moved here on 4 September
+> **BINDING, AND NOW CHECKED.** This was `plan/02-contracts.md`, now `archive/plan/`, and moved here on 4 September
 > 2026, when the rest of the build plan was retired to `archive/`. It moved rather than being
 > retired because the source code cites it by name in `constants.py`, `models.py`,
 > `agent/nodes.py`, `eval/policy_oracle.py` and `service/episode_lifecycle.py`.
@@ -43,16 +43,18 @@ Python **3.12**, pinned by `.python-version`. Environment and packages managed b
 > **`python` on this machine resolves to an unrelated project's virtual environment.**
 > Always `uv run <command>`. Never bare `python`, never bare `pip`, never `python -m pytest`.
 
-Dependency groups in `pyproject.toml`, so a resolution conflict in one area cannot block the others.
+Two groups in `pyproject.toml`: the runtime `dependencies`, and `dev`. **This table is
+compared against `pyproject.toml` on every test run**, so it cannot drift again. It did:
+until 7 September 2026 it listed five groups that had never existed and an `ml` group
+holding `chronos-forecasting` and `torch`, both removed with the forecaster in item 22.
 
 | Group | Contents |
 |---|---|
-| core | `pydantic>=2.9,<3`, `pandas>=2.2,<3`, `numpy>=2.0,<3`, `scipy>=1.14,<2`, `httpx>=0.27,<1`, `typer>=0.12,<1`, `python-dotenv>=1,<2`, `apscheduler>=3.10,<4` |
-| ml | `chronos-forecasting>=2.3,<3`, `sentence-transformers>=3,<5`, `torch>=2.4` (CPU wheel) |
-| agent | `langgraph>=1.2,<2`, `langgraph-checkpoint-sqlite>=3.1,<4` |
-| retrieval | `rank-bm25>=0.2,<1`, `lxml>=5,<7` |
-| ui | `streamlit>=1.40,<2` |
-| dev | `pytest>=8,<9`, `pytest-cov`, `ruff`, `freezegun` |
+| runtime | `pydantic>=2.9,<3`, `pandas>=2.2,<3`, `numpy>=2.0,<3`, `scipy>=1.14,<2`, `httpx>=0.27,<1`, `typer>=0.12,<1`, `python-dotenv>=1,<2`, `apscheduler>=3.10,<4`, `sentence-transformers>=3,<5`, `langgraph>=1.2,<2`, `langgraph-checkpoint-sqlite>=3.1,<4`, `rank-bm25>=0.2,<1`, `lxml>=5,<7`, `streamlit>=1.40,<2`, `altair>=5,<7`, `fastapi>=0.115,<1`, `uvicorn>=0.30,<1` |
+| dev | `pytest>=8,<9`, `pytest-xdist`, `ruff`, `playwright>=1.62.0` |
+
+`torch` is still installed, as a dependency of `sentence-transformers`. Nothing in `src/`
+imports it directly.
 
 Exact versions resolve once via `uv lock` and are committed as `uv.lock`.
 
@@ -1297,7 +1299,7 @@ def delete_all_subject_data(subject_id: str) -> None: ...
 **This list is the stable core, not the whole surface.** `wha.service` exports 41 further
 callables that are not named here, and a signature list in a hand-maintained document will always
 lag the code. What this section is FOR is the shape of the boundary: a screen calls the service
-layer through `wha.api`, never the other way round, and `tests/unit/test_boundaries.py` enforces
+layer through `wha.api`, never the other way round, and `tests/ui/test_ui_boundary.py` enforces
 that. For the current surface, read `src/wha/service/__init__.py`.
 
 The conversation that replaced `ask_about_episode` is bounded differently and more strictly than
@@ -1353,7 +1355,7 @@ unreachable at any moment, whatever the provider. Every episode must survive it.
 |---|---|
 | Every test runs offline | No network, no live LLM, no phone, no dataset download |
 | `WHA_LLM_PROVIDER=cassette` in every test | Forced by an **autouse fixture** in `tests/conftest.py`, which overrides `.env`. A test may not opt out |
-| Time is frozen | `freezegun`. Never `datetime.now()` inside an assertion |
+| Time comes from one place | `wha.clock`. A test forbids `datetime.now(`, `date.today()` and `datetime.today()` anywhere in `src/wha` outside `clock.py`, so the demo film's `WHA_CLOCK_OFFSET_DAYS` moves every date the system uses. Never `datetime.now()` inside an assertion |
 | Determinism | Every generator call takes an explicit seed |
 | Dataset tests skip cleanly | `pytest.mark.skipif` on absence, with a message naming the fetch command |
 | **Never modify or delete a test to make it pass** | If a test is wrong, that is a blocker. Record it and stop |

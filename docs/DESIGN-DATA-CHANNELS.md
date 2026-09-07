@@ -24,13 +24,13 @@ not fix the problem this system exists to solve.
 
 | Channel | Stored | Changes the conclusion |
 |---|---|---|
-| Heart rate | yes | **yes** — the overnight resting rate is what the whole system watches |
-| Steps | yes | **yes** — how active the previous day was |
-| Sleep stages | yes | **yes** — short sleep raises heart rate and is subtracted first |
-| Workouts | yes | **yes** — a late workout raises it too, and is subtracted first |
-| Blood oxygen | yes | no — see "captured but not used" below |
-| Distance | yes | no — activity context; steps already carry the signal |
-| Energy burned | yes | no — activity context |
+| Heart rate | yes | **yes**, the overnight resting rate is what the whole system watches |
+| Steps | yes | **yes**, how active the previous day was |
+| Sleep stages | yes | **yes**, short sleep raises heart rate and is subtracted first |
+| Workouts | yes | **yes**, a late workout raises it too, and is subtracted first |
+| Blood oxygen | yes | no, see "captured but not used" below |
+| Distance | yes | no, activity context; steps already carry the signal |
+| Energy burned | yes | no, activity context |
 
 Run `uv run wha data capability` to see this for whichever device is connected, including
 any channel a richer device sends that this build does not parse.
@@ -103,7 +103,7 @@ explicitly records that the widely repeated "5 to 8 percent boost" claim is
 **And none of it addresses the actual problem.** Infection, stress, poor sleep, alcohol and
 the luteal phase all move these channels in the same direction. Goodale et al. 2019
 (J Med Internet Res 21(4):e13404, n=193) found the luteal phase **lowers heart rate
-variability while raising heart rate and respiratory rate** — the same signature as an
+variability while raising heart rate and respiratory rate**, the same signature as an
 infection. Adding those sensors would tell you more precisely that something changed. It
 would not tell you what changed.
 
@@ -124,7 +124,7 @@ twelve causes. Writing one is a clinical judgement, not a coding one.
 
 Two things a human should weigh before that changes, both observed in the real data:
 
-1. The readings are **spot measurements, not a stream** — five across seven days.
+1. The readings are **spot measurements, not a stream**: five across seven days.
 2. They are **noisy**. The observed set contains an 80 percent reading sixty-six seconds
    before a 92 percent one. A likelihood that does not model that noise will manufacture
    alarm.
@@ -147,12 +147,12 @@ that could be added.
 
 ## Sources
 
-- Alavi et al. 2022, *Nature Medicine* 28:175-184 (NightSignal) — 80 percent sensitivity,
+- Alavi et al. 2022, *Nature Medicine* 28:175-184 (NightSignal): 80 percent sensitivity,
   and the origin of the detection thresholds
-- Mason et al. 2022, *Scientific Reports* — AUC 0.770 to 0.819 with dermal temperature
-- Goodale et al. 2019, *J Med Internet Res* 21(4):e13404, n=193 — luteal phase moves heart
+- Mason et al. 2022, *Scientific Reports*: AUC 0.770 to 0.819 with dermal temperature
+- Goodale et al. 2019, *J Med Internet Res* 21(4):e13404, n=193: luteal phase moves heart
   rate, respiratory rate and heart rate variability in the infection direction
-- `archive/prior-research/13-galaxy-watch5-data-reality.md` — access paths and what each one exposes
-- `archive/prior-research/findings/F1-clinical-infection-studies.md` — the corrected figures, including
+- `archive/prior-research/13-galaxy-watch5-data-reality.md`: access paths and what each one exposes
+- `archive/prior-research/findings/F1-clinical-infection-studies.md`: the corrected figures, including
   which commonly cited claims are unsupported
-- `experiments/policy-simulation/` — the sensor-only versus asking comparison, self-scored
+- `experiments/policy-simulation/`: the sensor-only versus asking comparison, self-scored

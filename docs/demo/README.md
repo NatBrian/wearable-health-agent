@@ -16,8 +16,9 @@ Chaptered, captioned, no narration.
 The finished database is committed too, at `data/demo_film.sqlite`. It is **not**
 reproducible: rebuilding it costs model calls and the agent would word its replies
 differently, so the timeline you see is the one the film was cut from and cannot be
-recreated exactly. The per-day snapshots under `data/demo-snapshots/` are about 300 MB and
-are not committed; they are only needed to re-film a single day.
+recreated exactly. The per-day snapshots the build wrote to `data/demo-snapshots/` were about 300 MB, were
+never committed, and were deleted on 7 September. They are only needed to re-film a single
+day, and `build.py` writes them again if you do.
 
 **Everything here is generated.** Nothing is hand edited, so a wording change is an edit to
 one file and a re-run, not a re-shoot.

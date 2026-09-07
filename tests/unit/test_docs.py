@@ -38,8 +38,29 @@ def test_readme_quickstart_commands_exist() -> None:
         )
 
 
-def test_readme_has_no_em_dashes() -> None:
-    """README contains no em-dashes, conforming to repository stylistic rules."""
-    readme_path = Path("README.md")
-    content = readme_path.read_text(encoding="utf-8")
-    assert "\u2014" not in content, "README.md contains an em-dash (\u2014)"
+def test_no_prose_this_project_maintains_has_an_em_dash() -> None:
+    """The rule was enforced on README.md alone, so everything else drifted.
+
+    On 7 September 2026 a sweep found 42 em-dashes across five documents that nobody had
+    ever checked. The style rule in AGENTS.md applies to all prose in this repository, and
+    a rule that lives only in a document is a rule that holds until the next person writes
+    a heading.
+
+    archive/ is excluded on purpose: it is a record of finished work and is not rewritten.
+    """
+    root = Path(__file__).resolve().parents[2]
+    skip = {"archive", ".venv", "node_modules", ".git"}
+    checked = [
+        p for p in root.rglob("*.md") if not any(part in skip for part in p.relative_to(root).parts)
+    ]
+    assert checked, "found no markdown to check, which means the walk is wrong"
+
+    dash = chr(0x2014)
+    offenders = [
+        f"{p.relative_to(root).as_posix()}:{n}"
+        for p in checked
+        for n, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1)
+        if dash in line
+    ]
+    joined = ("\n  ").join(offenders)
+    assert not offenders, f"em-dash ({dash}) in prose this project maintains:\n  {joined}"

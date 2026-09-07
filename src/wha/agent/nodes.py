@@ -772,7 +772,7 @@ def node_ask(
             # Whether the model wrote this sentence or the canned one was used. The
             # column defaults to "fallback" and nothing ever passed anything, so every
             # question in the record claimed the canned wording had been used, including
-            # the ones the model wrote. That is the single field the Audit page uses to
+            # the ones the model wrote. That is the single field the audit trail uses to
             # show which words came from where.
             text_source=updated_question.text_source,
         )

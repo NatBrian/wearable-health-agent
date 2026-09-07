@@ -48,7 +48,8 @@ off-topic material it can promote, and BM25's exact term match on a small topica
 a stronger signal than a model trained on MS MARCO web passages.
 
 A perfect reranker over the same pool of 20 would reach 94.8%, so the headroom is real.
-Neither of these models captures any of it. Reproduce with `tools/rerank_sweep.py`.
+Neither of these models captures any of it. Reproduce with `tools/rerank_sweep.py`;
+the full sixteen-row table is `experiments/retrieval/sweep-results.txt`.
 
 **One number in this file moved after the sweep, and it is stated rather than quietly
 restated.** The 79.2% baseline and all 16 reranker runs were measured on the corpus as it

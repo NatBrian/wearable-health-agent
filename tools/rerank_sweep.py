@@ -38,7 +38,10 @@ def precision(rows):
 # A single run takes over an hour on CPU, so every line is written and flushed as it is
 # produced rather than at the end. An earlier run was killed by a timeout with the whole
 # result set still sitting in a pipe buffer, and an hour of measurement was lost.
-RESULTS = REPO / "tools" / "rerank-sweep-results.txt"
+# UNDER experiments/, never beside the code. This is a number this project measured
+# about itself, so it belongs behind the disclaimer in experiments/README.md. Moving
+# the file without moving this line would put it back on the next run.
+RESULTS = REPO / "experiments" / "retrieval" / "sweep-results.txt"
 _LINES: list[str] = []
 
 

@@ -22,7 +22,7 @@ and **the screen it appears on**: a limitation that lives only in a markdown fil
 to the person using the system. They are part of the design, not caveats discovered afterwards.
 
 Two of them are worth stating here rather than only there. **Eight of the ten numbers in the
-deterministic safety floor have no published source**, and say so on the Audit page. And a
+deterministic safety floor have no published source**, and say so on **The record** screen. And a
 sentence shown with a citation can still misdescribe the passage it cites: the check behind it
 proves the quoted span exists in the source, not that the sentence around it is a fair reading, so
 where the two differ **the passage is the one to believe**.

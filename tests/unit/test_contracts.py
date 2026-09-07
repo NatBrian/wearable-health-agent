@@ -374,3 +374,46 @@ def test_the_contract_quotes_the_constant_values_the_code_holds() -> None:
         ):
             problems.append(f"{name}: contract={declared} code={actual}")
     assert not problems, "docs/CONTRACTS.md and constants.py disagree:\n  " + "\n  ".join(problems)
+
+
+def test_the_contract_lists_the_dependencies_pyproject_actually_declares() -> None:
+    """The contract claimed this project depends on torch and chronos-forecasting.
+
+    Both went with the forecaster on 5 September 2026. The table survived because it was
+    the one part of CONTRACTS.md nothing compared against the code, so it also still
+    described five dependency groups that had never existed. A new agent reading it would
+    have believed the repository ships a neural forecasting stack.
+
+    Every other section of this document is checked. This one now is too.
+    """
+    import re
+    import tomllib
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    declared = {
+        "runtime": set(pyproject["project"]["dependencies"]),
+        "dev": set(pyproject["dependency-groups"]["dev"]),
+    }
+
+    block = _contract()
+    block = block[block.index("## 1. Environment") : block.index("## 2. Configuration and secrets")]
+
+    documented: dict[str, set[str]] = {}
+    for row in re.finditer(r"^\| (runtime|dev) \| (.+) \|$", block, re.MULTILINE):
+        documented[row.group(1)] = set(re.findall(r"`([^`]+)`", row.group(2)))
+
+    problems: list[str] = []
+    for group, wanted in declared.items():
+        if group not in documented:
+            problems.append(f"{group}: no row in the contract table")
+            continue
+        for missing in sorted(wanted - documented[group]):
+            problems.append(f"{group}: {missing} is in pyproject.toml and not in the contract")
+        for extra in sorted(documented[group] - wanted):
+            problems.append(f"{group}: {extra} is in the contract and not in pyproject.toml")
+
+    assert not problems, "docs/CONTRACTS.md and pyproject.toml disagree:\n  " + "\n  ".join(
+        problems
+    )

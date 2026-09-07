@@ -28,7 +28,7 @@ interface ever showed it**, so a person using the dashboard was never told it is
 medical device. It is now rendered on the Home page, where a person lands, as a red banner
 plus an expandable "What this system can and cannot do".
 
-Source: `src/wha/ui/components/disclaimer.py`.
+Source: the wording is in `src/wha/ui/explain.py`, rendered by `src/wha/ui/Home.py`.
 
 ---
 
@@ -55,7 +55,7 @@ Source: `src/wha/ui/components/disclaimer.py`.
 | Only sleep heart rate is used; waking heart rate never is | Mishica et al. 2022: morning measures significantly more variable, "during sleep, individuals are no longer affected by external stimuli" | **History**, chart notes and Full references |
 | Measured over recorded sleep, with a clock fallback | Dial et al. 2025, validation of nocturnal RHR in consumer wearables | **History**, chart caption; per-night source on the night detail |
 | The starting range is a population figure | Bloomfield et al. 2024, n=525 | **History**, chart caption and Full references |
-| Nights with no reading are not judged | — | **Today**, stated separately from the quiet-night count |
+| Nights with no reading are not judged | None needed. A night the watch did not record is an absence of data, not a finding about the person | **Today**, stated separately from the quiet-night count |
 | General health information comes from MedlinePlus, is about a condition in general, and is never about you | National Library of Medicine, attribution-only. Snapshot and checksum in `data/knowledge/corpus-sources.json`. See `docs/CORPUS-VERIFICATION.md` | **Episode**, Evidence tab, above the citations, and inside every MedlinePlus passage quoted |
 | The likelihood behind every question is assumed, not measured | probes.yaml records every row as ASSUMED; no published study measures next-morning self-report accuracy to an app | **Episode**, in each reason drawn from an answer, and in the retrieved passage itself |
 | **Several causes rest on a guess, and which ones is now shown** | 45 of the 57 temporal profile weights in `causes.yaml` have no source, and the profile is what tells causes apart across nights. Most between-person spreads have none either | **Episode**, an "Evidence" column reading "not measured" beside each affected cause, and a warning naming them under the chart |
@@ -110,19 +110,19 @@ transparency.
 
 ## The reasoning behind each
 
-- `docs/DESIGN-BASELINE-CENTRE.md` — why a night is compared against the person's own
+- `docs/DESIGN-BASELINE-CENTRE.md`: why a night is compared against the person's own
   median, what the population-shrunk centre cost, and why nothing is flagged below seven
   nights.
-- `docs/DESIGN-SLEEP-WINDOW.md` — why the window is the recorded sleep session rather than
+- `docs/DESIGN-SLEEP-WINDOW.md`: why the window is the recorded sleep session rather than
   a fixed clock window, why naps are excluded, and why apnoea is out of reach.
-- `docs/DESIGN-DATA-CHANNELS.md` — which of the device's channels are used and which are
+- `docs/DESIGN-DATA-CHANNELS.md`: which of the device's channels are used and which are
   captured but cannot move the belief.
-- `docs/CORPUS-VERIFICATION.md` — every figure in the retrievable corpus checked against
+- `docs/CORPUS-VERIFICATION.md`: every figure in the retrievable corpus checked against
   the paper it cites, what did not hold up, and what the consumer health layer changed.
-- `docs/RESEARCH-AGENTIC-TRIAGE.md` — the evidence behind the conversation, the triage
+- `docs/RESEARCH-AGENTIC-TRIAGE.md`: the evidence behind the conversation, the triage
   redesign and the clinician handover: why keyword matching was replaced, what a frontier
   model may and may not say here, and what remains unevidenced.
-- `docs/DISCLOSURES.md` — the decisions deliberately left to a human, including whether the
+- `docs/DISCLOSURES.md`: the decisions deliberately left to a human, including whether the
   step at seven nights should be smoothed and whether one population mean is the right
   cold-start prior across ages and sexes.
 
