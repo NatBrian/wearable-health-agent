@@ -123,3 +123,91 @@ def test_every_chapter_has_something_to_show(script):
         if not chapter.get("card") and not chapter.get("captions")
     ]
     assert not empty, f"chapters with neither a card nor captions: {empty}"
+
+
+# ---------------------------------------------------------------------------
+# The citation rule, added 7 September 2026 after the user reviewed the cards.
+#
+# The film presented three different kinds of number as though they were one
+# kind of evidence: our own simulations, our own re-analysis of a public
+# archive, and one real citation that was about a different condition
+# altogether. This project has no clinical trial and no validation, and nothing
+# in it may imply otherwise.
+#
+# A number in user-facing text must be one of:
+#
+#   1. from a published source, with the citation adjacent, AND about a
+#      population the claim applies to;
+#   2. an operating parameter of this system, which is a fact about the code
+#      and not a claim about health;
+#   3. removed, and living in experiments/.
+#
+# A rule nothing checks is a preference, and this one has already been broken.
+# ---------------------------------------------------------------------------
+
+# Figures produced by this project's own analysis. None may appear on a card.
+OUR_OWN_FIGURES = (
+    "46.7",
+    "16.5 percent",
+    "67.5",
+    "4.9 weeks",
+    "37 percent",
+    "738 person",
+    "8,508",
+    "7,295",
+    "0.586",
+    "0.629",
+    "0.675",
+    "0.825",
+    "79.2",
+    "77.1",
+    "sixteen configurations",
+    "16 configurations",
+)
+
+# Words that assert this project established something. Allowed only where the
+# sentence is denying it, which is how the limitations chapters are written.
+CLAIM_WORDS = ("proven", "proves that", "validated our", "demonstrates that")
+
+
+def test_no_card_quotes_a_figure_this_project_produced_itself(script):
+    """Our own runs are not evidence, and a card is not the place to imply they are."""
+    offenders = [
+        f"{where}: {figure}"
+        for chapter in _chapters(script)
+        for where, text in _all_text(chapter)
+        for figure in OUR_OWN_FIGURES
+        if figure in text
+    ]
+    assert not offenders, (
+        "these quote a number this project produced by running its own code. They belong "
+        "in experiments/, behind its disclaimer, not on screen:\n" + "\n".join(offenders)
+    )
+
+
+def test_no_card_claims_this_project_proved_anything(script):
+    offenders = [
+        f"{where}: {word}"
+        for chapter in _chapters(script)
+        for where, text in _all_text(chapter)
+        for word in CLAIM_WORDS
+        if word in text.lower()
+    ]
+    assert not offenders, (
+        "this project has no clinical trial and no validation, so nothing in it proves "
+        "anything about health:\n" + "\n".join(offenders)
+    )
+
+
+def test_the_film_says_plainly_that_it_has_not_been_tested_on_anyone(script):
+    """The absence has to be stated, not merely left unclaimed.
+
+    Removing the false claims is only half of it. A viewer who is never told
+    that this has no clinical validation will assume it has some, because every
+    other health product they have seen does.
+    """
+    everything = " ".join(
+        text.lower() for chapter in _chapters(script) for _, text in _all_text(chapter)
+    )
+    assert "never been tested on a patient" in everything or "no clinical trial" in everything
+    assert "not a medical device" in everything

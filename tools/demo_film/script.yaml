@@ -5,11 +5,19 @@
 # recorded segments.
 #
 # RULES, enforced by tests/unit/test_demo_film_script.py:
+#
+#   * THE CITATION RULE. Every number here must be one of: from a published source, with
+#     the citation on the same card, and about a population the claim applies to; or an
+#     operating parameter of this system, which is a fact about the code rather than a
+#     claim about health. Anything this project measured about ITSELF is neither, and
+#     lives in experiments/ behind its disclaimer. This project has no clinical trial and
+#     no validation, and nothing on screen may imply otherwise.
 #   * No em-dashes and no en-dashes, anywhere.
 #   * Two lines maximum per caption, because a third is not read.
 #   * Every number carries a plain-language gloss the first time it appears.
 #   * Nothing tells the viewer to discount what they are watching. Limitations get their
-#     own chapters, stated once, with evidence.
+#     own chapters, stated once, and the film says plainly that it has never been tested
+#     on a patient.
 #
 # The audience is not an engineer and not a clinician.
 
@@ -46,16 +54,18 @@ acts:
         form: card
         seconds: 70
         card:
-          heading: "The sensor alone cannot separate them. This was measured."
+          heading: "One reading. Several explanations. Opposite responses."
           body: |
-            Forty cases, half real infections and half harmless look-alikes
-            that produce the same raised heart rate.
+            A raised overnight heart rate is not a sign of any one thing.
 
-            Deciding from the sensor data alone:  50 percent correct.
-            A coin toss.
+            An infection raises it. So does a glass of wine, a hard session
+            at nine at night, a poor night's sleep, a stressful day, and a
+            vaccination two days ago.
 
-            Asking the person one well chosen question:  67.5 percent.
-          footer: "That gap is the entire reason there is an agent in this system at all."
+            A sensor on your wrist sees the same number in all of them. No
+            extra sensor fixes that, because the problem is not precision.
+            It is that the cause is not in the signal.
+          footer: "So the system asks you, rather than guessing. That is what the agent is for."
         captions:
           - "So the design splits in two."
           - "A cheap monitor that watches every night and uses no AI."
@@ -99,25 +109,10 @@ acts:
             Seven nights before it will compare anything at all.
             Twenty eight before it calls your baseline mature.
 
-            And the spread it measures against is YOUR OWN night to night
-            variation, about four beats a minute, not the variation between
-            different people, which is more than twice as wide.
-          footer: "Using the wider one would have made almost nothing look unusual."
-
-      - id: 5
-        title: "The model that got deleted"
-        form: card
-        seconds: 55
-        card:
-          heading: "A neural forecaster used to live here"
-          body: |
-            It was built, then measured against the plain arithmetic it was
-            meant to improve on.
-
-            It separated illness WORSE than subtracting your own median.
-
-            So it was deleted, along with everything that fed it.
-          footer: "Reporting this is cheaper than maintaining it."
+            And the spread it judges you against is YOUR OWN night to night
+            variation, not how much different people differ from each other,
+            which is a much wider figure and the wrong yardstick.
+          footer: "Using the wider one would have made almost nothing about you look unusual."
 
       - id: 6
         title: "A month of nights"
@@ -136,17 +131,19 @@ acts:
           - "A hard training session late in the evening."
           - "It barely moves the night, and nothing is said."
           - "A heavier drinking night than usual. Now the night is amber."
-          - "Amber does not raise an alarm. That is a decision, and it was measured."
+          - "Amber does not raise an alarm. That is a deliberate choice."
         card:
-          heading: "Why amber is not an alarm, and why one red night is not either"
+          heading: "Why one raised night is not an alarm"
           body: |
-            Alerting on a single raised night finds two more illnesses
-            in thirty, and opens 37 percent more investigations into
-            people who were never ill.
+            A single raised night is ordinary. Wine, a late session, a poor
+            night's sleep and a warm room all produce one.
 
-            Adding an amber rule finds zero more, across seven hundred
-            and thirty eight person weeks.
-          footer: "Both were tried, measured, and rejected. The quiet is chosen, not lucky."
+            So the system waits for a second raised night in a row before it
+            opens an investigation.
+
+            Alerting on one night would catch a little more. It would also
+            interrupt far more people who were never ill.
+          footer: "The quiet is a choice about who gets disturbed. It is not an accident."
 
   - act: "III. The agent"
     chapters:
@@ -168,18 +165,21 @@ acts:
         form: card
         seconds: 85
         card:
-          heading: "Asking is only worth it in the middle"
+          heading: "A question is worth asking only if the answer changes something"
           body: |
-            Chance this is an illness      Does it ask?
+            When illness looks very unlikely, the system will do nothing
+            whatever you answer. Asking would spend your attention and
+            change nothing.
 
-              2 in 100                     No.  No answer would change anything.
-              8 in 100                     YES. This is where a question earns its keep.
-             30 in 100                     No.  It already knows what to do.
-          footer: "Not asks when worried. Asks when the answer would change the decision."
+            When illness looks very likely, the system has already decided
+            to tell you to get seen. Your answer will not change that either.
+
+            Between those two is the only place where what you say decides
+            what happens next. That is where it asks, and nowhere else.
+          footer: "It does not ask because it is worried. It asks when your answer would change the outcome."
         captions:
-          - "And the line it works against was not chosen by anybody."
-          - "Missing an illness is set at nine times worse than a false alarm."
-          - "One divided by one plus nine gives ten percent. The threshold falls out of that."
+          - "So being more worried does not mean being asked more."
+          - "Past a certain point it stops asking and starts telling you to get seen."
 
       - id: 10
         title: "The agent wakes"
@@ -214,15 +214,17 @@ acts:
           - "Every clinical sentence has to quote words that appear in a real source."
           - "If it cannot, the sentence is removed, or flagged in amber as unsourced."
         card:
-          heading: "What the honest version of grounding looks like"
+          heading: "What this check does, and what it does not"
           body: |
-            The check proves the quoted words exist in the source.
+            Every clinical sentence has to quote words that really appear in
+            a source. If it cannot, the sentence is removed, or shown in
+            amber as not coming from a source.
 
-            It does NOT prove the sentence around them is fair to the source.
+            That proves the quoted words exist.
 
-            A search reranker was tried in sixteen configurations to improve this.
-            None of the sixteen beat plain search.
-          footer: "Both of those are in the documentation, and one of them is on this screen."
+            It does not prove the sentence around them is fair to the source.
+            A real quotation can still sit inside a misleading sentence.
+          footer: "That second limit is written on the screen the person reads, not only in the documentation."
 
   - act: "IV. Safety"
     chapters:
@@ -239,13 +241,16 @@ acts:
           - "Together they do, and the system now reads them together."
           - "See a doctor today. Decided by code, before the AI was asked."
         card:
-          heading: "Why combinations, and not single words"
+          heading: "One symptom is weak. Several together are not."
           body: |
-            Reviewed across fourteen studies, most single warning signs
-            barely move the odds of anything: under three in a hundred.
+            A fever on its own has many ordinary explanations. So does
+            feeling sick on its own.
 
-            Several of them together move it to ninety in a hundred.
-          footer: "Until this September, two symptoms on two nights counted as two unrelated singletons."
+            Reported together, across two nights, they are not the same
+            thing as either one alone, and the system stops staying quiet.
+
+            So the rule is about combinations, and not about single words.
+          footer: "Until this September it counted two symptoms on two nights as two unrelated singletons, and said nothing."
 
       - id: 14
         title: "Everything it did, written down"
@@ -266,13 +271,15 @@ acts:
         card:
           heading: "Three reasons, none of them invented here"
           body: |
-            In dengue, the dangerous phase BEGINS when the fever breaks.
+            In dengue the dangerous phase BEGINS when the fever breaks, and
+            patients may appear to improve exactly as they enter it.
+            World Health Organization and CDC guidance.
 
-            In several infections the pulse runs low while the person is
-            still seriously ill, which has had a name since the 1800s.
+            In several infections the pulse stays low while the person is
+            still seriously ill. Faget's sign, named in the 1800s.
 
-            After COVID, resting heart rate took around 79 days to
-            come back to normal.
+            After COVID, resting heart rate took months rather than nights
+            to return to normal. Radin and colleagues, 2021.
           footer: "A settled reading is evidence about the reading. It is not evidence about the person."
 
       - id: 16
@@ -297,16 +304,19 @@ acts:
           - "Chest pain is not handled by spotting the words chest pain."
           - "The AI asks five specific questions. Then code, not the AI, scores the answers."
         card:
-          heading: "A scoring rule from general practice, validated twice"
+          heading: "A scoring rule from general practice, published and checked twice"
           body: |
             Five questions about age, history, whether it worsens with effort,
-            whether pressing on the chest reproduces it, and what the person
-            themselves thinks it is.
+            whether pressing on the chest reproduces the pain, and what the
+            person themselves thinks it is.
 
             Three or more, and heart disease cannot be ruled out. Get seen.
 
-            Tested on 1,199 patients, then again on a separate group.
-          footer: "The AI can raise the urgency. It can never lower it."
+            This is the Marburg Heart Score. Bosner and colleagues built it on
+            1,199 patients in general practice, and a separate team checked it
+            on a different group. It is used here for the same situation it
+            was built for: chest pain, assessed by history alone.
+          footer: "The AI asks the questions. Code scores them. The AI can raise the urgency and can never lower it."
         captions_after:
           - "And when the picture is one the rule was never tested on,"
           - "such as pain right now with sweating or fainting,"
@@ -327,37 +337,41 @@ acts:
     chapters:
 
       - id: 19
-        title: "What was measured"
+        title: "What has been tested, and what has not"
         form: card
         seconds: 90
         card:
-          heading: "One hundred and twenty people. Eight thousand five hundred nights."
+          heading: "This has never been tested on a patient."
           body: |
-            Warned within three days before symptoms started:  46.7 percent
-            The same number of alerts, placed at random:       16.5 percent
+            There is no clinical trial behind this project. Nobody has been
+            warned by it, treated because of it, or helped by it, and no
+            medical outcome has ever been measured.
 
-            Against the published algorithm it takes its thresholds from,
-            it MATCHES. It does not beat it.
+            What exists is a replay of the detector over an archive of past
+            wearable readings, run by the person who built it and reviewed
+            by nobody.
 
-            Where it does better is warning earlier, three days ahead
-            rather than one and a half, and interrupting healthy people
-            less often: once every 4.9 weeks rather than every 4.5.
-          footer: "Always read the random column. A wide enough window makes any detector look good."
+            That can show the software behaves the way it was designed to.
+            It cannot show that it finds illness in a real person.
+          footer: "How well this works in real use is not known. Claiming otherwise would be the most dangerous thing in this project."
 
       - id: 20
         title: "What did not work"
         form: card
         seconds: 80
         card:
-          heading: "Three things that were built, measured, and not kept"
+          heading: "Things that were built and then not kept"
           body: |
-            Asking every question every time is 25 points MORE accurate
-            than this policy. It also asks five times as many questions.
-            This system ships the quieter one on purpose, and puts the
-            dial in the settings so the choice is yours.
+            Asking every question every time is more accurate than asking
+            selectively. It also interrupts you several times as often.
+            This system ships the quieter one on purpose, and puts the dial
+            in Settings so the choice belongs to you.
 
-            The search reranker: sixteen configurations, none better.
-            The amber alert rule: zero extra illnesses found.
+            A second search model, to improve which sources are found:
+            tried in several forms, none of them better.
+
+            A neural forecaster, to predict your night rather than compare
+            it: worse than plain arithmetic, so it was deleted.
           footer: "A demo that only shows what worked is not showing you the work."
 
       - id: 21
@@ -367,14 +381,15 @@ acts:
         card:
           heading: "Stated here, and stated on the screens themselves"
           body: |
-            One cohort, one device, one illness. These were Fitbit users
-            in a COVID study, not the general population.
+            It has no clinical validation of any kind, and it is not a
+            medical device.
 
             A night whose most likely explanation is a sensor glitch can
             still be concluded as probably an illness.
 
-            The alarm fatigue evidence behind the weekly limit was measured
-            on intensive care monitors, not on phones.
+            The evidence behind the weekly limit on questions was measured
+            on intensive care monitors, not on phones, which is a long way
+            to carry a finding.
           footer: "A limitation that lives only in a document is not disclosed at all."
 
       - id: 22
@@ -408,6 +423,6 @@ acts:
             If you feel unwell, the advice is the same as it has always
             been. Speak to a doctor.
           footer: >
-            Built and measured over two weeks. The baseline nights are the author's own
-            watch data, the prologue is generated at the resting rate measured from them,
-            and the illness is simulated.
+            Built over two weeks as a student project. Some of the baseline nights are the
+            author's own watch data, the rest are generated, and the illness is simulated.
+            It has no clinical validation and it is not a medical device.

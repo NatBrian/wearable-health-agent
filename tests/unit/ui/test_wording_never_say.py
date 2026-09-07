@@ -147,3 +147,51 @@ def test_no_screen_or_constant_quotes_a_superseded_alert_rate() -> None:
         f"an alert rate other than the published {current} is quoted in the code:\n  "
         + "\n  ".join(hits)
     )
+
+
+# ---------------------------------------------------------------------------
+# No screen may quote a figure this project produced by running its own code.
+#
+# Added 7 September 2026. The "How this works" panel told a real user that the
+# system opens an investigation once every 4.9 weeks, "measured across 76
+# people and 738 weeks of real wearable data". That is our own re-analysis of
+# an archive somebody else collected for another purpose. On screen it read as
+# an established property of the product, which it is not: this project has no
+# clinical trial, no peer review and no validation of any kind.
+#
+# The screens may quote a published source with its citation, and may state
+# their own operating parameters, which are facts about the code. Anything this
+# project measured about itself belongs in experiments/, behind its disclaimer.
+# ---------------------------------------------------------------------------
+
+OUR_OWN_FIGURES = (
+    "46.7",
+    "16.5 percent",
+    "67.5",
+    "4.9 weeks",
+    "738 person",
+    "738 weeks",
+    "8,508",
+    "7,295",
+    "0.586",
+    "0.629",
+    "0.675",
+    "0.825",
+    "79.2",
+    "77.1",
+)
+
+
+def test_no_screen_quotes_a_figure_this_project_produced_itself() -> None:
+    ui = Path(__file__).resolve().parents[3] / "src" / "wha" / "ui"
+    offenders: list[str] = []
+    for path in sorted(ui.rglob("*.py")):
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            for figure in OUR_OWN_FIGURES:
+                if figure in line:
+                    offenders.append(f"{path.relative_to(ui)}:{lineno}: {figure}")
+    assert not offenders, (
+        "a screen quotes a number this project produced by running its own code, which "
+        "reads to the person using it as an established property of the product:\n"
+        + "\n".join(offenders)
+    )
