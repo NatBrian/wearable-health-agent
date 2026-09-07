@@ -1,0 +1,31 @@
+{
+  "subject": "demo",
+  "cursor": "2026-09-23",
+  "window_days": 1,
+  "base_bpm": 45.5,
+  "seed": 7,
+  "timezone": "Asia/Singapore",
+  "events": [
+    {
+      "kind": "exercise",
+      "amplitude_bpm": 4.41,
+      "end_offset_h": 1.5,
+      "date": "2026-09-08"
+    },
+    {
+      "kind": "alcohol",
+      "amplitude_bpm": 3.7,
+      "date": "2026-09-09"
+    },
+    {
+      "kind": "illness",
+      "amplitude_bpm": 5.4,
+      "date": "2026-09-12"
+    },
+    {
+      "kind": "illness",
+      "amplitude_bpm": 5.4,
+      "date": "2026-09-17"
+    }
+  ]
+}

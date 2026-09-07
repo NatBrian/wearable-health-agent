@@ -13,6 +13,12 @@ Chaptered, captioned, no narration.
 | `telegram/` | Real messages this build sent to a real phone |
 | `preflight/` | Frames from the resolution check, kept so the next person can see what passed |
 
+The finished database is committed too, at `data/demo_film.sqlite`. It is **not**
+reproducible: rebuilding it costs model calls and the agent would word its replies
+differently, so the timeline you see is the one the film was cut from and cannot be
+recreated exactly. The per-day snapshots under `data/demo-snapshots/` are about 300 MB and
+are not committed; they are only needed to re-film a single day.
+
 **Everything here is generated.** Nothing is hand edited, so a wording change is an edit to
 one file and a re-run, not a re-shoot.
 
@@ -23,6 +29,30 @@ one file and a re-run, not a re-shoot.
 enough to read at speed, and nothing that tells the viewer to discount what they are
 watching. Limitations get three whole chapters of their own, with the measurements behind
 them. Said once with evidence is disclosure; said constantly in passing is noise.
+
+## Just looking at it
+
+The finished timeline is committed, so a fresh checkout can open it without rebuilding
+anything and without spending a single model call:
+
+```bash
+uv run python tools/demo_film/serve_demo.py
+```
+
+Then <http://localhost:8501>. Every night from 4 August to 23 September 2026 is there: the
+quiet nights, the illness, the relapse, the three linked investigations, every question
+asked and answered, the escalation, the human review decisions and the audit trail behind
+all of it.
+
+That script does three things `wha serve` on its own would not:
+
+- **Shifts the clock**, computed from today's real date at launch, so the newest night in
+  the database reads as "last night" however long from now you run it. Without that, Today
+  shows nothing.
+- **Serves a working copy**, so browsing, chatting or answering something cannot alter the
+  committed timeline. Delete `data/demo_film_live.sqlite` and run it again to get back to
+  exactly the state the film was cut from.
+- **Runs without the scheduler**, so nothing ingests, advances or expires while you look.
 
 ## Rebuilding it
 

@@ -374,8 +374,15 @@ def main() -> int:
                 "libx264",
                 "-preset",
                 "medium",
+                # crf 27, not 18. At 18 the finished film is 109 MB, which is over
+                # GitHub's 100 MB hard limit for a single file and would have its push
+                # REJECTED rather than merely warned about. This is a screencast of mostly
+                # static text, which compresses extremely well: 27 gives 51 MB with the
+                # body text still crisp, checked on a frame rather than assumed.
                 "-crf",
-                "18",
+                "27",
+                "-movflags",
+                "+faststart",
                 str(final),
                 cwd=work,
             )
