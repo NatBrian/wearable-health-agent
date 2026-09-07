@@ -127,13 +127,77 @@ def _assert_every_number_declares_where_it_came_from(
         )
 
 
+# Words that report a symptom ENDING, and therefore read naturally AFTER it rather than
+# before: "the fever has gone", not "gone fever". Both already appear in
+# `negation_guards.phrases`, so this changes no clinical content and adds no new word.
+#
+# Added 7 September 2026. The guard looked backwards only, so "no fever" was understood
+# and "the fever has gone" was recorded as a report of fever. That failed in the SAFE
+# direction, because an undetected retraction leaves the symptom on the record and keeps
+# an investigation open, which is why the fix is narrow rather than generous.
+_RESOLUTION_WORDS = ("gone", "resolved")
+
+# Only these may stand between the symptom and the resolution word. Anything else means
+# the resolution belongs to a different symptom, and a naive forward window gets this
+# catastrophically wrong: in "I still have a fever, the vomiting has gone", four words
+# forward from "fever" reaches "gone" and retracts the fever the person just said they
+# still have. A FALSE retraction is the dangerous direction, because a resolved symptom is
+# the one thing that lets an investigation close as benign.
+_AUXILIARIES = frozenset(
+    {
+        "is",
+        "are",
+        "was",
+        "were",
+        "has",
+        "have",
+        "had",
+        "s",
+        "all",
+        "now",
+        "already",
+        "finally",
+        "completely",
+        "totally",
+        "entirely",
+    }
+)
+
+
+def _is_phrase_resolved(text: str, target_phrase: str, window_words: int) -> bool:
+    """Whether every occurrence of the phrase is immediately followed by a resolution."""
+    lower_text = text.lower()
+    lower_target = target_phrase.lower()
+    matches = list(re.finditer(re.escape(lower_target), lower_text))
+    if not matches:
+        return False
+
+    for match in matches:
+        following = re.findall(r"[a-z']+", lower_text[match.end() :])[:window_words]
+        resolved = False
+        for word in following:
+            cleaned = word.replace("'", "")
+            if cleaned in _RESOLUTION_WORDS:
+                resolved = True
+                break
+            if cleaned not in _AUXILIARIES:
+                break
+        if not resolved:
+            return False
+    return True
+
+
 def is_phrase_negated(
     text: str,
     target_phrase: str,
     negation_phrases: list[str],
     window_words: int = 4,
 ) -> bool:
-    """Check if all occurrences of target_phrase in text are preceded by a negation phrase."""
+    """Whether every occurrence of the phrase is negated, before it or right after it.
+
+    Before: "no fever", "denies chest pain". After: "the fever has gone", which the
+    backward-only version read as a report of fever.
+    """
     lower_text = text.lower()
     lower_target = target_phrase.lower()
 
@@ -155,7 +219,13 @@ def is_phrase_negated(
             has_unnegated_match = True
             break
 
-    return not has_unnegated_match
+    if not has_unnegated_match:
+        return True
+    # Backward negation did not cover every occurrence. Try the forward form, which is a
+    # FALLBACK and not a replacement: an earlier version returned the forward result
+    # unconditionally and broke "no fever today", which the backward guard had always
+    # handled correctly.
+    return _is_phrase_resolved(text, target_phrase, window_words)
 
 
 def matches_symptom(

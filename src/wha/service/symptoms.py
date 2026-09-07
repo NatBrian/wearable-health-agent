@@ -418,8 +418,14 @@ def observe_and_check(
     #
     # Safe in the one direction that matters: tier C is additive only and may never clear a
     # rule, so recording what it found can raise urgency later and can never lower it.
+    # `model_flags`, NOT `triggered_flags`. The latter includes flags carried from earlier
+    # nights, because that is what the escalation was built on, and writing those back as
+    # tonight's report meant a symptom could never expire: every message renewed every
+    # symptom still inside the window. In the demo film build, "I feel a lot better today,
+    # the fever has gone" was recorded as fever, vomiting and poor intake all PRESENT.
+    # Telling the system you had recovered increased your recorded symptom burden.
     known = set(detect_symptoms(text, cfg))
-    for flag_id in result.triggered_flags:
+    for flag_id in result.model_flags:
         if flag_id in known:
             continue
         record_symptoms(conn, subject_id, text, night, config=cfg, force_flag_id=flag_id)

@@ -136,6 +136,7 @@ def check_red_flags_with_tier_c(
         escalate=escalate,
         level=level,
         triggered_flags=combined_flags,
+        model_flags=sorted(llm_flags),
         guidance=new_guidance,
         reason="; ".join(reasons) if reasons else None,
     )

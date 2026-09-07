@@ -174,5 +174,21 @@ class SafetyCheckResult(BaseModel):
     escalate: bool
     level: str | None = None  # "urgent", "same_day", or None
     triggered_flags: list[str] = Field(default_factory=list)
+    """Every flag in play for this decision, INCLUDING ones carried from earlier nights.
+
+    Not the same thing as "what this message said". `rules.py` adds the co-occurring
+    flags from the symptom window here on purpose, because they are what the escalation
+    is built on and the record has to show them. Reading this as tonight's report wrote
+    every symptom still inside the window onto every night the person spoke, so a
+    symptom could never expire and saying "I feel better" recorded more symptoms than
+    saying nothing. Use `model_flags` for what was found in the text.
+    """
+
+    model_flags: list[str] = Field(default_factory=list)
+    """What TIER C found in THIS text, and only this text.
+
+    Empty when the model was not consulted or found nothing beyond the phrase lists.
+    """
+
     guidance: list[str] = Field(default_factory=list)
     reason: str | None = None

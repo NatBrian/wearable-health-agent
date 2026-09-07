@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 from wha.clock import local_today
-from wha.constants import EPISODE_RECURRENCE_LINK_DAYS
+from wha.constants import EPISODE_RECURRENCE_LINK_DAYS, SYMPTOM_FOLLOWUP_MAX_PER_EPISODE
 from wha.db import connect
 from wha.db.migrations import apply_schema
 from wha.models import BaselineRung, BeliefState, CauseId, Disposition
@@ -324,18 +324,30 @@ def test_a_symptom_only_tier_c_spotted_still_reaches_the_timeline(conn):
     from wha.safety.models import SafetyCheckResult
     from wha.service.symptoms import observe_and_check, symptom_runs
 
+    # `model_flags` is what the model found in THIS text; `triggered_flags` is everything
+    # in play, which includes flags carried from earlier nights. The stub carries a flag
+    # in triggered_flags that is NOT in model_flags precisely to pin the difference: only
+    # what the model read here may be written onto tonight.
     spotted = SafetyCheckResult(
-        escalate=True, level="same_day", triggered_flags=["rf_poor_intake"], guidance=[]
+        escalate=True,
+        level="same_day",
+        triggered_flags=["rf_fever", "rf_poor_intake"],
+        model_flags=["rf_poor_intake"],
+        guidance=[],
     )
     start = date(2026, 9, 1)
     with patch("wha.safety.tier_c.check_red_flags_with_tier_c", return_value=spotted):
         result = observe_and_check(conn, "s", "I cannot keep any water down", start)
-        assert result.triggered_flags == ["rf_poor_intake"]
+        assert result.model_flags == ["rf_poor_intake"]
 
         runs = symptom_runs(conn, "s", start)
         assert [r.flag_id for r in runs] == ["rf_poor_intake"], (
             "Tier C escalated on a symptom the phrase lists missed, and it never reached "
             "the timeline, so it would count for nothing tomorrow"
+        )
+        assert "rf_fever" not in {r.flag_id for r in runs}, (
+            "rf_fever was in play for the escalation but the person never mentioned it "
+            "here, so it must not be written onto tonight as a fresh report"
         )
 
         # And it accumulates, which is the whole point of recording it.
@@ -343,3 +355,219 @@ def test_a_symptom_only_tier_c_spotted_still_reaches_the_timeline(conn):
         observe_and_check(conn, "s", "still cannot keep any water down", start + timedelta(days=2))
 
     assert symptom_runs(conn, "s", start + timedelta(days=2))[0].nights == 3
+
+
+# ---------------------------------------------------------------------------
+# The follow-up rule could fire without limit inside one night. Found on
+# 7 September 2026 by building the demo film timeline, not by any test.
+#
+# The rule fired ten times in three minutes on the day the person answered
+# promptly, consumed the whole conversation depth budget, and closed the
+# investigation as UNRESOLVED on its second day. On a real phone that is ten
+# notifications, which is precisely the alarm fatigue this project exists to
+# reduce, produced by the change that was meant to stop it going silent.
+#
+# Two things were wrong, both introduced on 7 September:
+#
+#   1. SYMPTOM_FOLLOWUP_MIN_NIGHTS_APART was declared in constants.py,
+#      documented as "at most one follow-up per night, whatever else happens",
+#      and read by NOTHING.
+#   2. The per-episode cap counts rows in `interactions` with
+#      initiation='followup'. Follow-up rows are keyed
+#      int_{episode}_{probe}_{night}, so every follow-up on one night upserts
+#      into ONE row. The count is pinned at 1 for the whole day and the cap of
+#      3 can never be reached from inside a single night.
+#
+# The unit test above passes `episode_followups_sent=3` directly and is green,
+# which is why it never caught this. The gate was right. Its input could not
+# reach the value that trips it.
+# ---------------------------------------------------------------------------
+
+
+def test_a_follow_up_does_not_repeat_within_one_night():
+    """The guard that constants.py has always described and never had."""
+    belief = BeliefState(
+        marginals={c: (0.92 if c == CauseId.INFECTION else 0.02) for c in CauseId},
+        p_illness=0.92,
+    )
+    common = {
+        "belief": belief,
+        "rung": BaselineRung.MATURE,
+        "already_asked_probe_ids": ["probe_symptoms"],
+        "outstanding_symptom": "sx_dizziness",
+    }
+
+    assert select_action(**common).kind.value == "ASK"
+    assert select_action(**common, followup_sent_tonight=True).kind.value != "ASK"
+
+
+def test_the_per_episode_cap_cannot_see_repeats_inside_one_night(tmp_path):
+    """Why the per-night guard has to exist, demonstrated against the real table.
+
+    Writing the same night's follow-up twice leaves one row, so the number the
+    per-episode cap reads does not move. A cap of three is unreachable by
+    repeating within a night, however many times the rule fires.
+    """
+    from wha.agent.repository import EpisodeRepository
+    from wha.db import apply_schema, connect
+
+    conn = connect(tmp_path / "t.sqlite")
+    apply_schema(conn)
+    conn.execute(
+        "INSERT INTO subjects (subject_id, label, source_kind, timezone, created_at_utc) "
+        "VALUES ('s', 's', 'synthetic', 'Asia/Singapore', '2026-09-13T00:00:00Z')"
+    )
+    conn.execute(
+        "INSERT INTO episodes (episode_id, subject_id, thread_id, opened_on, state, "
+        "baseline_nights, baseline_rung) VALUES ('ep', 's', 'th', '2026-09-13', 'OPEN', 30, "
+        "'MATURE')"
+    )
+    repo = EpisodeRepository(conn)
+
+    night_id = "int_ep_probe_symptoms_2026-09-13"
+    for _ in range(10):
+        repo.upsert_interaction(
+            interaction_id=night_id,
+            episode_id="ep",
+            subject_id="s",
+            probe_id="probe_symptoms",
+            question_text="How are you feeling now?",
+            initiation="followup",
+        )
+
+    counted = conn.execute(
+        "SELECT COUNT(*) FROM interactions WHERE episode_id = 'ep' AND probe_id = "
+        "'probe_symptoms' AND initiation = 'followup'"
+    ).fetchone()[0]
+    assert counted == 1, (
+        "ten follow-ups in one night are counted as one, so the per-episode cap of "
+        f"{SYMPTOM_FOLLOWUP_MAX_PER_EPISODE} cannot bound them"
+    )
+    conn.close()
+
+
+def test_the_decide_node_tells_the_policy_whether_it_already_asked_tonight():
+    """The same wiring failure, guarded on the call rather than on the behaviour.
+
+    `select_action` grew `followup_sent_tonight` and would happily default it to False
+    forever if the one production caller never passed it, which is exactly how
+    `symptom_history` went unread for the life of the project and how
+    `SYMPTOM_FOLLOWUP_MIN_NIGHTS_APART` sat in constants.py being read by nothing.
+    """
+    offenders: list[str] = []
+    for path in sorted(SRC.rglob("*.py")):
+        for call in _calls_to(path, {"select_action"}):
+            keywords = {kw.arg for kw in call.keywords}
+            if "outstanding_symptom" not in keywords:
+                continue  # not the caller that can trigger a follow-up
+            if "followup_sent_tonight" not in keywords:
+                offenders.append(f"{path.relative_to(SRC).as_posix()}:{call.lineno}")
+
+    assert not offenders, (
+        "These ask the policy for a decision that can force a symptom follow-up without "
+        "saying whether one already went out tonight, so the one-per-night guard cannot "
+        "fire: " + ", ".join(offenders)
+    )
+
+
+# ---------------------------------------------------------------------------
+# Saying you feel better made the system record MORE symptoms. Found on
+# 7 September 2026 by building the demo film, not by any test.
+#
+# On 15 September the person said "I feel a lot better today, the fever has
+# gone". Three rows were written for that night: fever PRESENT, vomiting
+# PRESENT and poor intake PRESENT. The message mentions one symptom, to say it
+# has stopped, and names neither of the other two.
+#
+# `observe_and_check` recorded every id in `result.triggered_flags`, and that
+# field does not mean "found in this message". `rules.py` deliberately adds the
+# co-occurring flags from earlier NIGHTS to it, because they are the flags in
+# play for the escalation being explained. So every message re-asserted every
+# symptom still inside the window, as of tonight.
+#
+# Three consequences, in order of how much they matter:
+#   1. A symptom could never expire, because speaking at all renewed it.
+#   2. Retracting one symptom silently re-asserted the others.
+#   3. Run lengths grew without the person reporting anything, and run length
+#      is what Tier B persistence escalates on.
+#
+# The fix is to record what the MODEL found in this text, which is what the
+# comment at that call site always said it was doing.
+# ---------------------------------------------------------------------------
+
+
+def test_a_message_only_records_symptoms_that_are_in_it(conn):
+    """A report of feeling better must not write three symptoms onto the night."""
+    from wha.service.symptoms import observe_and_check, symptom_history
+
+    monday = local_today() - timedelta(days=2)
+    tuesday = local_today() - timedelta(days=1)
+
+    record_symptoms(conn, "s", "I have a fever and chills", monday)
+    record_symptoms(conn, "s", "I have been vomiting all morning", tuesday)
+
+    before = symptom_history(conn, "s", tuesday)
+    observe_and_check(conn, "s", "I feel a lot better today, the fever has gone", local_today())
+
+    rows = conn.execute(
+        "SELECT flag_id, present FROM symptom_observations WHERE subject_id = 's' "
+        "AND night_date = ? ORDER BY flag_id",
+        (local_today().isoformat(),),
+    ).fetchall()
+    written = {r["flag_id"]: r["present"] for r in rows}
+
+    assert "rf_persistent_vomiting" not in written, (
+        "vomiting is not mentioned in that sentence and must not be written onto tonight "
+        f"from the history. Tonight was recorded as {written}"
+    )
+    assert written.get("rf_fever") != 1, (
+        "the sentence says the fever has GONE, so recording it as present is backwards: "
+        f"{written}"
+    )
+    assert before, "the fixture should have written some history to read back"
+
+
+# ---------------------------------------------------------------------------
+# "The fever has gone" read as a report of fever. Found on 7 September 2026 by
+# building the demo film.
+#
+# `negation_guards` already lists "gone" and "resolved", and the guard only
+# looks BACKWARDS from the matched phrase, so it catches "no fever" and misses
+# "the fever has gone". Both are ordinary ways to say the same thing.
+#
+# This failed in the SAFE direction: an undetected retraction leaves the
+# symptom on the record and keeps the investigation open. That is why it is
+# fixed carefully rather than quickly. The dangerous direction is a FALSE
+# retraction, which can close an investigation as benign, and a naive forward
+# window creates one immediately:
+#
+#     "I still have a fever, the vomiting has gone"
+#
+# Four words forward from "fever" reaches "gone" and would retract the fever
+# the person just said they still have. So a resolution word only counts if
+# nothing but an auxiliary verb stands between it and the symptom.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("I have a fever", True),
+        ("no fever today", False),
+        ("the fever has gone", False),
+        ("my fever is gone", False),
+        ("the fever resolved yesterday", False),
+        # The dangerous one. A resolution word belonging to a DIFFERENT symptom
+        # must not retract this one.
+        ("I still have a fever, the vomiting has gone", True),
+        ("fever gone but I am still vomiting", False),
+    ],
+)
+def test_a_resolution_after_the_symptom_is_read_as_a_retraction(text, expected):
+    from wha.service.symptoms import detect_symptoms
+
+    found = detect_symptoms(text)
+    assert found.get("rf_fever") == expected, (
+        f"{text!r} should record fever as {expected}, got {found.get('rf_fever')!r}. "
+        f"All flags: {found}"
+    )
