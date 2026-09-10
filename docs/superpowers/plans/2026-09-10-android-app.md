@@ -73,7 +73,7 @@ Spec section 11. Everything in user space under one directory, sourced from one 
 **Interfaces:**
 - Produces: `android/remote/run.sh '<command>'` runs a command on the remote inside `/home/liangsheng/brian/android/wha` with `env.sh` sourced; `android/remote/sync.sh` refreshes that working copy.
 
-- [ ] **Step 1: Write the failing test for the exclude list**
+- [x] **Step 1: Write the failing test for the exclude list**
 
 ```python
 # tests/unit/android/test_sync_exclude.py
@@ -131,13 +131,13 @@ def test_exclude_list_covers_every_gitignored_data_pattern() -> None:
     assert not uncovered, f"gitignored data patterns the sync does not exclude: {uncovered}"
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `uv run pytest tests/unit/android/test_sync_exclude.py -v`
 Expected: FAIL, `FileNotFoundError` on `android/sync-exclude.txt`. Also create
 `tests/unit/android/__init__.py` (empty) so pytest collects the package.
 
-- [ ] **Step 3: Write the exclude list**
+- [x] **Step 3: Write the exclude list**
 
 ```
 # android/sync-exclude.txt
@@ -170,12 +170,12 @@ serve.log
 mockwatch.log
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `uv run pytest tests/unit/android/test_sync_exclude.py -v`
 Expected: PASS, two tests.
 
-- [ ] **Step 5: Write the sync and run scripts**
+- [x] **Step 5: Write the sync and run scripts**
 
 ```bash
 #!/usr/bin/env bash
@@ -223,7 +223,7 @@ export PATH=$JAVA_HOME/bin:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/
 export GRADLE_OPTS="-Dorg.gradle.workers.max=8 -Dorg.gradle.daemon=true -Xmx6g"
 ```
 
-- [ ] **Step 6: Write the toolchain installer**
+- [x] **Step 6: Write the toolchain installer**
 
 Every download goes under `tools/`. Versions are pinned so the build is reproducible;
 record any change in `android/README.md`.
@@ -272,13 +272,13 @@ uv tool install --python 3.13 "cibuildwheel>=3.2,<4"
 echo "toolchain ready"
 ```
 
-- [ ] **Step 7: Sync and install**
+- [x] **Step 7: Sync and install**
 
 Run on the PC: `bash android/remote/sync.sh`
 Then: `ssh huawei_blue_1_ppt 'bash /home/liangsheng/brian/android/wha/android/remote/install-toolchain.sh'`
 Expected: ends with `toolchain ready`. Then `bash android/remote/run.sh 'java -version && sdkmanager --list_installed && rustup target list --installed && uv --version'` lists the JDK, the four SDK packages, `aarch64-linux-android`, and uv.
 
-- [ ] **Step 8: Start `android/README.md`**
+- [x] **Step 8: Start `android/README.md`**
 
 ```markdown
 # The Android app
@@ -306,7 +306,7 @@ JDK 17 (Temurin latest GA), command-line tools 11076708, platform 35, build-tool
 NDK 27.2.12479018, Python 3.13 via uv, cibuildwheel 3.x.
 ```
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add android/ tests/unit/android/
@@ -332,7 +332,7 @@ Spec section 4.2. The outcomes are decided in advance; this task discovers which
 **Interfaces:**
 - Produces: `android/wheels/` containing `pydantic_core-2.46.5-*android*_arm64_v8a.whl` and, if they build, `orjson`, `ormsgpack`, `xxhash`, `sqlite_vec` wheels; and a written decision in `BUILD.md` selecting one of the three spec outcomes.
 
-- [ ] **Step 1: Write the build script**
+- [x] **Step 1: Write the build script**
 
 cibuildwheel builds from a source tree, so each package is fetched as an sdist at the
 version `uv.lock` pins. Versions come from the lock, never typed twice.
@@ -387,7 +387,7 @@ ls -la "$OUT"
 ( cd "$OUT" && sha256sum *.whl > SHA256SUMS )
 ```
 
-- [ ] **Step 2: Sync, then build pydantic-core alone first**
+- [x] **Step 2: Sync, then build pydantic-core alone first**
 
 Run: `bash android/remote/sync.sh && bash android/remote/run.sh 'bash android/remote/build-wheels.sh pydantic-core'`
 Expected outcome written before running: a file named like
@@ -397,7 +397,7 @@ lookup, set `PYO3_CROSS_LIB_DIR` to the Android Python lib directory cibuildwhee
 (printed in its log under "Installing Python") and retry once. Record every error and every
 retry in `BUILD.md`.
 
-- [ ] **Step 3: Decide, per the spec**
+- [x] **Step 3: Decide, per the spec**
 
 If pydantic-core did not build after the one documented retry: **stop.** Write what was
 tried in `android/wheels/BUILD.md`, commit it, and return to the owner. Do not proceed to
@@ -406,7 +406,7 @@ Task 3 and do not begin any pydantic migration.
 If it built: `bash android/remote/run.sh 'bash android/remote/build-wheels.sh orjson ormsgpack xxhash sqlite-vec'`.
 Expected: four more wheels, or names in `FAILED.txt`.
 
-- [ ] **Step 4: Copy the wheels back and write the decision**
+- [x] **Step 4: Copy the wheels back and write the decision**
 
 Run: `mkdir -p android/wheels && scp 'huawei_blue_1_ppt:/home/liangsheng/brian/android/wheels/*' android/wheels/`
 
@@ -445,7 +445,7 @@ Task 3 before anything depends on it.
 Fill the table from the actual run. `<date>` and `<reason>` are placeholders only in
 this plan; the committed file must have real values.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add android/remote/build-wheels.sh android/wheels/
@@ -477,7 +477,7 @@ the core's heaviest dependencies on the phone.
 **Interfaces:**
 - Produces: the Gradle project every later task extends; `android/remote/build-apk.sh` producing `android/app/build/outputs/apk/debug/app-debug.apk` on the remote and copying it to `android/out/app-debug.apk` on the PC (gitignored).
 
-- [ ] **Step 1: Write the Gradle project**
+- [x] **Step 1: Write the Gradle project**
 
 ```kotlin
 // android/settings.gradle.kts
@@ -648,7 +648,7 @@ class MainActivity : ComponentActivity() {
 }
 ```
 
-- [ ] **Step 2: Write the APK build script**
+- [x] **Step 2: Write the APK build script**
 
 ```bash
 #!/usr/bin/env bash
@@ -668,13 +668,13 @@ ls -la "$HERE/android/out/"
 
 Add `android/out/` to `.gitignore` (the APK is a build artefact, and it is large).
 
-- [ ] **Step 3: Build**
+- [x] **Step 3: Build**
 
 Run: `bash android/remote/build-apk.sh`
 Expected, written first: Gradle ends with `BUILD SUCCESSFUL`; Chaquopy's pip step lists
 `pydantic_core` installed from `../wheels`; `android/out/app-debug.apk` exists.
 
-- [ ] **Step 4: Install on the phone and read the screen**
+- [x] **Step 4: Install on the phone and read the screen**
 
 Copy `android/out/app-debug.apk` to the phone (USB file transfer, or adb if the owner
 enabled debugging: `adb install -r android/out/app-debug.apk`). Open WHA.
@@ -686,7 +686,7 @@ Add `--find-links` wheels for the langgraph four to the smoke `install(...)` lis
 Task 2 built them, and re-run this step so every committed wheel has been imported on the
 real device once.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add android/ .gitignore
@@ -715,7 +715,7 @@ Spec section 4.1.
 **Interfaces:**
 - Produces: `uv sync --extra pc` installs everything the PC uses; `uv sync` alone installs the core the phone needs. The module set `wha.ui`, `wha.api`, `wha.cli`, `wha.service.scheduler`, `wha.service.demo`, `wha.eval` is the "PC only" set and is named in the new test.
 
-- [ ] **Step 1: Write the failing isolation test**
+- [x] **Step 1: Write the failing isolation test**
 
 ```python
 # tests/unit/android/test_core_imports_without_pc_extras.py
@@ -800,13 +800,13 @@ def test_pyproject_declares_the_pc_extra() -> None:
     assert not (core & names), f"declared in both core and pc: {core & names}"
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest tests/unit/android/test_core_imports_without_pc_extras.py -v`
 Expected: `test_pyproject_declares_the_pc_extra` FAILS (no extra). The sweep test may
 already pass or may name modules; either way, record the output before changing anything.
 
-- [ ] **Step 3: Split `pyproject.toml`**
+- [x] **Step 3: Split `pyproject.toml`**
 
 Replace the `dependencies` list and add the extra. Keep every version specifier exactly as
 it is today.
@@ -843,13 +843,13 @@ pc = [
 `pyyaml` was previously transitive; the core imports it directly (five modules), so it is
 declared. Then: `uv lock && uv sync --extra pc`.
 
-- [ ] **Step 4: Fix any module the sweep names**
+- [x] **Step 4: Fix any module the sweep names**
 
 Typical fix: an import of `apscheduler` or `streamlit` at module top in a core module
 becomes a function-local import in the one function that uses it, with a one-line comment
 saying why. Do not move logic. Re-run the sweep until it passes.
 
-- [ ] **Step 5: Extend the contracts test and the contract**
+- [x] **Step 5: Extend the contracts test and the contract**
 
 In `tests/unit/test_contracts.py`, `test_the_contract_lists_the_dependencies_pyproject_actually_declares`
 builds a dict of two groups at lines 396 to 397. Add a third:
@@ -873,12 +873,12 @@ and add one sentence above it: "The phone installs `runtime` only. The `pc` extr
 the dashboard, the API, the scheduler and the film tooling need; install it with
 `uv sync --extra pc`." Update the README's setup block to `uv sync --extra pc`.
 
-- [ ] **Step 6: Run the affected tests**
+- [x] **Step 6: Run the affected tests**
 
 Run: `uv run pytest tests/unit/android tests/unit/test_contracts.py tests/unit/test_docs.py -n auto -q`
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add pyproject.toml uv.lock docs/CONTRACTS.md README.md tests/unit/test_contracts.py tests/unit/android/ src/
@@ -908,7 +908,7 @@ caller supply one.
 - Produces: `wha.retrieve.embedder_registry.set_default_embedder(embedder: Embedder | None) -> None` and `get_default_embedder() -> Embedder | None`; `build_index(docs=None, embedder=None)` uses, in order, the argument, the registry, then the sentence-transformers default.
 - Consumed by: Task 16 (Kotlin sets the registry from an ONNX-backed embedder).
 
-- [ ] **Step 1: Write the failing registry test**
+- [x] **Step 1: Write the failing registry test**
 
 ```python
 # tests/unit/retrieve/test_embedder_registry.py
@@ -979,12 +979,12 @@ def test_registry_starts_empty_and_clears() -> None:
 Check `CorpusDocument`'s real fields in `src/wha/retrieve/models.py` before running and
 adjust the constructor call to them; the test must build a real document.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest tests/unit/retrieve/test_embedder_registry.py -v`
 Expected: FAIL, `ModuleNotFoundError: wha.retrieve.embedder_registry`.
 
-- [ ] **Step 3: Write the registry and thread it through `build_index`**
+- [x] **Step 3: Write the registry and thread it through `build_index`**
 
 ```python
 # src/wha/retrieve/embedder_registry.py
@@ -1048,12 +1048,12 @@ def build_index(docs: list[CorpusDocument] | None = None, embedder: Any = None) 
 `test_layering.py` declares allowed edges between packages; `retrieve` importing
 `retrieve` is same-package and needs no new edge.
 
-- [ ] **Step 4: Run the registry tests**
+- [x] **Step 4: Run the registry tests**
 
 Run: `uv run pytest tests/unit/retrieve -n auto -q`
 Expected: all pass, including the existing index and corpus tests.
 
-- [ ] **Step 5: Write the ONNX export tool**
+- [x] **Step 5: Write the ONNX export tool**
 
 Exports the exact model the PC uses. Runs on the PC once; the outputs are committed as app
 assets because they are what the phone ships.
@@ -1114,7 +1114,7 @@ if so, re-export with `--dtype fp16` is not supported by this exporter path, so 
 `model.onnx`, recording that in `EXPORT.md`. The agreement test below sets the tolerance;
 int8 must still pass it. If the fp32 export is already under forty megabytes, keep it.
 
-- [ ] **Step 6: Write the agreement test**
+- [x] **Step 6: Write the agreement test**
 
 ```python
 # tests/unit/retrieve/test_onnx_agreement.py
@@ -1172,14 +1172,14 @@ def test_onnx_matches_sentence_transformers() -> None:
     assert cosines.min() >= MIN_COSINE, f"cosine agreement per sentence: {cosines}"
 ```
 
-- [ ] **Step 7: Run it**
+- [x] **Step 7: Run it**
 
 Run: `uv run --with onnxruntime --with tokenizers pytest tests/unit/retrieve/test_onnx_agreement.py -v`
 Expected: PASS with the cosines printed on failure only. If the floor fails on the int8
 model, commit the fp32 model instead and say so in `EXPORT.md`; never lower the floor to
 fit.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/wha/retrieve/embedder_registry.py src/wha/retrieve/knowledge_docs.py tools/export_embedder_onnx.py android/app/src/main/assets/embedder/ tests/unit/retrieve/
@@ -1207,7 +1207,7 @@ Spec section 4.6. Python decides; Kotlin posts.
 - Produces: `wha.notify.android.AndroidNotifier(sink: Callable[[dict], bool])` with `channel = "android"`, and `wha.notify.android.set_sink(sink)` used by Kotlin at start-up. The dict handed to the sink has keys `recipient_id`, `kind`, `text`, `interaction_id`, `probe_id`, `options` (list of `{"option_id", "label"}`), `url`.
 - `get_notifier()` returns `AndroidNotifier` when `WHA_NOTIFY_CHANNEL=android` and a sink is set; `NullNotifier` when the channel is android and no sink is set (and logs a warning once).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/unit/notify/test_android_notifier.py
@@ -1286,12 +1286,12 @@ sink, telegram_token, telegram_chat_id)` and test that directly, with `get_notif
 reduced to reading configuration and calling it. Adjust the last two tests to call
 `factory.select_notifier("android", sink=..., telegram_token=None, telegram_chat_id=None)`.
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest tests/unit/notify/test_android_notifier.py -v`
 Expected: FAIL, `ImportError: cannot import name 'android'`.
 
-- [ ] **Step 3: Write the notifier and refactor the factory**
+- [x] **Step 3: Write the notifier and refactor the factory**
 
 ```python
 # src/wha/notify/android.py
@@ -1424,19 +1424,19 @@ The previous factory ignored `WHA_NOTIFY_CHANNEL` entirely and chose Telegram wh
 token existed. Keep that behaviour for every channel value other than `android` so the PC
 is unchanged; the `if channel == "android"` branch is the only new path.
 
-- [ ] **Step 4: Run the notify tests**
+- [x] **Step 4: Run the notify tests**
 
 Run: `uv run pytest tests/unit/notify -n auto -q`
 Expected: all pass.
 
-- [ ] **Step 5: Contract and settings**
+- [x] **Step 5: Contract and settings**
 
 In `docs/CONTRACTS.md` section 2 change the `WHA_NOTIFY_CHANNEL` row to
 "`none` (default), `telegram`, or `android` (the phone; requires the app to have registered
 a sink)". In section 7 (service layer) add `wha.notify.android.set_sink` and
 `AndroidNotifier` under the notify entries with their signatures above.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/wha/notify/ docs/CONTRACTS.md tests/unit/notify/test_android_notifier.py
