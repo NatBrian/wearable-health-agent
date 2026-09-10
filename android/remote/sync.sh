@@ -9,4 +9,5 @@ cd "$HERE"
 ssh -o BatchMode=yes "$HOST" "mkdir -p '$DEST'"
 tar --exclude-from=android/sync-exclude.txt -czf - . \
   | ssh -o BatchMode=yes "$HOST" "tar --warning=no-timestamp -xzf - -C '$DEST'"
-echo "synced $(git rev-parse --short HEAD) to $HOST:$DEST"
+REV=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
+echo "synced $REV to $HOST:$DEST"

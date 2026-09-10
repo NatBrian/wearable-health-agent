@@ -62,7 +62,11 @@ PY
   sdist=$(ls "$WORK/$name"/*.tar.gz | head -1)
   tar -xzf "$sdist" -C "$WORK/$name"
   src=$(find "$WORK/$name" -mindepth 1 -maxdepth 1 -type d | head -1)
-  if ( cd "$src" && nice -n 10 cibuildwheel --platform android --config-file "$WHA_ANDROID_BASE/wha/android/remote/cibw-override.toml" --output-dir "$OUT" > "$LOGS/$name-build.log" 2>&1 ); then
+  # A package's own [tool.cibuildwheel] table is ignored unless WHA_KEEP_CIBW_CONFIG=1:
+  # xxhash's table breaks the parse, while numpy's carries Android settings it needs.
+  config_args=(--config-file "$WHA_ANDROID_BASE/wha/android/remote/cibw-override.toml")
+  if [ "${WHA_KEEP_CIBW_CONFIG:-0}" = "1" ]; then config_args=(); fi
+  if ( cd "$src" && nice -n 10 cibuildwheel --platform android "${config_args[@]}" --output-dir "$OUT" > "$LOGS/$name-build.log" 2>&1 ); then
     echo "built: $name $ver"
   else
     echo "FAILED: $name $ver (build, see logs/$name-build.log)" | tee -a "$OUT/FAILED.txt"

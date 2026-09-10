@@ -15,6 +15,7 @@ app before anything depended on it (see "Verifying" below).
 | orjson 3.12.0 | built, first attempt |
 | ormsgpack 1.12.2 | built, first attempt |
 | xxhash 4.0.1 | built on the second attempt. The first failed before compiling: the package's own `[tool.cibuildwheel]` table enables the group `pyodide-eol`, which cibuildwheel 3.2 rejects when parsing. `android/remote/cibw-override.toml` is now passed with `--config-file` for every build so a package's table is ignored |
+| uuid_utils 0.17.0 | built 11 September 2026, first attempt. Missed by the original analysis: langchain-core and langsmith both depend on it, and the smoke APK's pip resolution failed on it. Same Rust path as the others |
 | sqlite_vec 0.1.9 | not built, and not needed. PyPI ships no sdist for it, only binary wheels for desktop platforms. It is declared by `langgraph-checkpoint-sqlite` but never imported: `langgraph.checkpoint.sqlite` and all three of its submodules import and construct `SqliteSaver` with `sqlite_vec` blocked (checked on the PC, 10 September). The phone therefore installs the checkpointer with `--no-deps` and its real imports pinned explicitly (Task 11) |
 
 ## Decision
@@ -37,6 +38,11 @@ the phone rather than built, on the evidence above.
 `sha256sum -c SHA256SUMS` in this directory. The smoke app (`android/app/src/main/python/wha_smoke.py`
 in the Task 3 commit) imports every native module here on the real device and validates a
 pydantic model, which is the only proof that counts.
+
+Verified 11 September 2026 on the owner's phone with the Task 3 smoke APK: numpy 1.26.2,
+pandas 2.1.3, lxml 5.3.0, pyyaml 6.0.3, pydantic 2.13.5 with pydantic-core 2.46.5, orjson
+3.12.0, ormsgpack 1.12.2, xxhash 4.0.1, uuid-utils 0.17.0, every roundtrip True, and a
+langgraph graph compiled and invoked True.
 
 ## Rebuilding
 
