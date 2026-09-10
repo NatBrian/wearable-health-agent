@@ -12,6 +12,7 @@ ALLOWED_PREFIXES = (
     "wha.api",
     "wha.models",
     "wha.ui",
+    "wha.wording",
 )
 
 UI_ROOT = Path("src/wha/ui")

@@ -230,6 +230,13 @@ def knowledge_provenance() -> str:
 
 
 @guarded
+def wording() -> str:
+    from wha.wording import TEXT
+
+    return ok(dict(TEXT))
+
+
+@guarded
 def lineage() -> str:
     from wha.models import PIPELINE_LINEAGE
 

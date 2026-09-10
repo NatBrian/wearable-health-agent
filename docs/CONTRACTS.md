@@ -1490,3 +1490,4 @@ function is guarded and that this table names every one of them.
 | `retrieval_ready()`, `fetch_corpus()` | `{"ready": bool}`; `{"message": str}` |
 | `run_ingest()`, `run_nightly()`, `run_episode_tick()`, `run_startup_catchup()` | `{"job", "started", "result"}`; serialised by one lock |
 | `lineage()` | `list[LineageEdge]` |
+| `wording()` | every sentence both surfaces say, keyed by stable id |

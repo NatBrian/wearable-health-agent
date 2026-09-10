@@ -143,7 +143,8 @@ DECLARED_EDGES: dict[str, set[str]] = {
         "retrieve",
         "safety",
     },
-    "ui": {"api", "models"},
+    "ui": {"api", "models", "wording"},
+    "wording": set(),
 }
 
 # The files that import `service` from below it, each with the reason. All are function-local
@@ -199,10 +200,14 @@ def test_the_dependency_graph_is_the_one_that_was_decided_on() -> None:
 def test_the_dashboard_reaches_the_application_only_through_the_api() -> None:
     """Also covered by tests/ui/test_ui_boundary.py, and repeated here because it is the
     boundary that decides whether the dashboard can be replaced at all.
+
+    `wording` is allowed beside `api` and `models`: it holds static sentences with no
+    figures and no data logic, so a screen reading it is still a client the phone can
+    match. Anything else past the API fails here.
     """
     edges, _ = _import_graph()
-    assert edges["ui"] <= {"api", "models"}, (
-        f"a screen reaches past the API into {sorted(edges['ui'] - {'api', 'models'})}. "
+    assert edges["ui"] <= {"api", "models", "wording"}, (
+        f"a screen reaches past the API into {sorted(edges['ui'] - {'api', 'models', 'wording'})}. "
         "Screens are an HTTP client, so that a React app could do the same job."
     )
 
