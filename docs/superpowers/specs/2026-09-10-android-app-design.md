@@ -453,25 +453,42 @@ says. A green suite here proves very little.
 
 ---
 
-## 11. Toolchain and the owner's machine
+## 11. Toolchain: build on the remote machine, install from the PC
 
-Measured on 10 September 2026: an i7-10610U, sixteen gigabytes of memory with under two
-free at the time, and about seventeen gigabytes free on the only disk. No Java, no Android
-SDK, no adb, no Android Studio. WSL Ubuntu 26.04 with Python 3.14 and nothing else.
+**Decided 10 September 2026 after inspecting both machines.** The owner's laptop cannot
+carry an Android toolchain: an i7-10610U, sixteen gigabytes of memory with under two free,
+seventeen gigabytes of disk. Nothing Android-related is installed on it or in its WSL.
 
-- **No emulator.** It needs disk and memory this machine does not have, and it has no
-  Health Connect data. Builds go to the owner's Samsung phone.
-- **Windows:** Temurin JDK 17, Android command-line tools, one platform and one build-tools
-  version, Gradle through the wrapper. Command line only; no Android Studio.
-- **WSL:** JDK, command-line tools with the NDK, Rust with the Android target,
-  cibuildwheel. Used only for the wheel spike and re-builds.
-- **Disk:** roughly ten gigabytes for both. Before installing, clear the Windows temp folder
-  and the uv cache. Downloads is the owner's and is not touched.
-- **Installing on the phone:** USB debugging is used only to install builds and read crash
-  logs. Without it, the APK is copied to the phone and sideloaded; the loop is slower but
-  works.
+The owner has SSH access to a shared Linux machine (alias `huawei_blue_1_ppt`, Ubuntu
+22.04 in a container, 192 cores, two terabytes of memory, over two terabytes free, glibc
+2.35, outbound access to Google's Android repository, PyPI and GitHub confirmed). Every
+build happens there. The rules for using it:
 
----
+- **Only `/home/liangsheng/brian/android` is ours.** Nothing is written outside it. Every
+  tool is installed under it in user space: there is no sudo, and none is needed. JDK from
+  a Temurin tarball, Android command-line tools with one platform, one build-tools and the
+  NDK, Gradle through the wrapper, rustup with the `aarch64-linux-android` target, and a
+  uv-managed Python 3.13 for cibuildwheel. `JAVA_HOME`, `ANDROID_HOME`, `GRADLE_USER_HOME`,
+  `CARGO_HOME`, `RUSTUP_HOME` and `UV_CACHE_DIR` all point inside that directory, set by a
+  single `env.sh` there, never in the shell profile.
+- **Other people use this machine.** The load average sits around twenty on 192 cores.
+  Builds are run with `nice` and Gradle's worker count capped, never `kill` anything that
+  is not ours, never touch the shell configuration, never reboot or restart services, and
+  never open listening ports. A Gradle daemon is ours and is stopped after each session.
+- **No emulator.** There is no `/dev/kvm` on the remote and no emulator fits the laptop.
+  The phone is the only test device, as before.
+- **Source travels from the PC, never through the remote's GitHub key.** The remote's SSH
+  key authenticates to GitHub as a different account. The repository is private under
+  NatBrian, so the remote never clones it. The worktree is synced to the remote with
+  rsync over SSH, excluding the database, the corpus and the demo film, and the built APK
+  and the wheel files are copied back the same way. The remote holds a working copy, not a
+  clone, and nothing is committed from it.
+- **Installing on the phone.** The APK is copied from the PC to the phone and sideloaded,
+  or installed with adb over USB if the owner enables USB debugging. adb, if used, runs on
+  the PC and is the one Android tool installed there; it is small.
+- **Secrets.** No provider key, webhook token or database ever goes to the remote. The
+  rsync exclude list is committed as `android/rsync-exclude.txt` and a test asserts it
+  names `.env`, `data/wha.sqlite`, `data/corpus` and `data/demo_film.sqlite`.
 
 ## 12. Documentation obligations this creates
 
