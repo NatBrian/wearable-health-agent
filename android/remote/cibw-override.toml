@@ -1,0 +1,5 @@
+# Passed to cibuildwheel with --config-file so a package's own [tool.cibuildwheel] table is
+# ignored. xxhash 4.0.1 enables "pyodide-eol", a group our cibuildwheel does not know, and
+# the parse error stops the Android build before it starts. Everything we need is set
+# through CIBW_* environment variables in build-wheels.sh.
+[tool.cibuildwheel]

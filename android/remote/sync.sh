@@ -8,5 +8,5 @@ DEST="/home/liangsheng/brian/android/wha"
 cd "$HERE"
 ssh -o BatchMode=yes "$HOST" "mkdir -p '$DEST'"
 tar --exclude-from=android/sync-exclude.txt -czf - . \
-  | ssh -o BatchMode=yes "$HOST" "tar -xzf - -C '$DEST'"
+  | ssh -o BatchMode=yes "$HOST" "tar --warning=no-timestamp -xzf - -C '$DEST'"
 echo "synced $(git rev-parse --short HEAD) to $HOST:$DEST"
