@@ -230,6 +230,13 @@ def knowledge_provenance() -> str:
 
 
 @guarded
+def lineage() -> str:
+    from wha.models import PIPELINE_LINEAGE
+
+    return ok(list(PIPELINE_LINEAGE))
+
+
+@guarded
 def safety_provenance() -> str:
     return ok(service.get_safety_rule_provenance())
 

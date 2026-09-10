@@ -593,6 +593,56 @@ CANONICAL_PIPELINE_STEPS: tuple[PipelineStepDef, ...] = (
 )
 
 
+class LineageEdge(BaseModel):
+    """One named output of one step, read by a later step. Drawn on the Record tab.
+
+    Every ``output`` is a key the pipeline's step views actually write in
+    ``service/pipeline.py``; tests/unit/test_lineage.py checks the names against that
+    source, so the picture cannot claim a flow the code does not have.
+    """
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    from_step: str
+    output: str
+    to_step: str
+
+
+PIPELINE_LINEAGE: tuple[LineageEdge, ...] = (
+    LineageEdge(from_step="collect", output="source", to_step="store"),
+    LineageEdge(from_step="store", output="heart_rate_samples", to_step="sleep_window"),
+    LineageEdge(from_step="store", output="sleep_stage_rows", to_step="sleep_window"),
+    LineageEdge(from_step="store", output="heart_rate_samples", to_step="features"),
+    LineageEdge(from_step="sleep_window", output="window_source", to_step="features"),
+    LineageEdge(from_step="features", output="rhr_bpm", to_step="baseline"),
+    LineageEdge(from_step="features", output="rhr_bpm", to_step="subtract_explained"),
+    LineageEdge(from_step="baseline", output="centre_bpm", to_step="subtract_explained"),
+    LineageEdge(from_step="subtract_explained", output="residual_bpm", to_step="detect"),
+    LineageEdge(from_step="baseline", output="rung", to_step="detect"),
+    LineageEdge(from_step="detect", output="level", to_step="safety_floor"),
+    LineageEdge(from_step="detect", output="flagged", to_step="episode_open"),
+    LineageEdge(from_step="safety_floor", output="reported_symptoms", to_step="episode_open"),
+    LineageEdge(from_step="episode_open", output="episode_id", to_step="preload"),
+    # An answer re-enters the investigation with new evidence: the hypothesis loop.
+    # This is the one declared backward edge the lineage test permits.
+    LineageEdge(from_step="answer", output="replies", to_step="investigate"),
+    LineageEdge(from_step="investigate", output="tool_calls", to_step="believe"),
+    LineageEdge(from_step="believe", output="p_illness", to_step="decide"),
+    LineageEdge(from_step="decide", output="action", to_step="ask"),
+    LineageEdge(from_step="decide", output="action", to_step="conclude"),
+    LineageEdge(from_step="decide", output="action", to_step="deliver"),
+    LineageEdge(from_step="ask", output="questions", to_step="answer"),
+    LineageEdge(from_step="believe", output="top_cause", to_step="conclude"),
+    # The critique reviews the draft the conclude step wrote. The draft's handle in
+    # the pipeline is its disposition: the outcome row conclude produces carries it,
+    # and the episode row surfaces it.
+    LineageEdge(from_step="conclude", output="disposition", to_step="critique"),
+    LineageEdge(from_step="critique", output="stripped_claims", to_step="review"),
+    LineageEdge(from_step="answer", output="free_text", to_step="safety_phrase_rules"),
+    LineageEdge(from_step="safety_phrase_rules", output="events", to_step="safety_triage"),
+)
+
+
 class InteractionView(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 

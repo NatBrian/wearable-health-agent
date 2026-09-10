@@ -783,7 +783,14 @@ class Detection(BaseModel):
     flagged: bool                     # set by the deterministic detector ONLY
     forecast: Forecast
     reasons: list[str]
+
+class LineageEdge(BaseModel):
+    from_step: str; output: str; to_step: str
 ```
+
+`PIPELINE_LINEAGE` declares which named output of which step each later step
+reads; tests/unit/test_lineage.py checks every edge against the step list and the
+pipeline's output keys.
 
 ### 6.3 Belief, probes and questions
 
@@ -1482,3 +1489,4 @@ function is guarded and that this table names every one of them.
 | `diagnose(component, overrides_json)`, `doctor()` | check result; `[{name, status, detail}]` |
 | `retrieval_ready()`, `fetch_corpus()` | `{"ready": bool}`; `{"message": str}` |
 | `run_ingest()`, `run_nightly()`, `run_episode_tick()`, `run_startup_catchup()` | `{"job", "started", "result"}`; serialised by one lock |
+| `lineage()` | `list[LineageEdge]` |
