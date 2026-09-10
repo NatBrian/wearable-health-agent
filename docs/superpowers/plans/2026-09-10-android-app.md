@@ -1498,7 +1498,7 @@ Spec section 5. One module Kotlin calls. JSON in, JSON out, never raises.
 | `fetch_corpus()` | `service.fetch_data("corpus")` |
 | `retrieval_ready()` | whether `data/corpus` holds the release named in `corpus-sources.json` with a matching hash |
 
-- [ ] **Step 1: Write the failing facade tests**
+- [x] **Step 1: Write the failing facade tests**
 
 ```python
 # tests/unit/android/test_facade.py
@@ -1626,12 +1626,12 @@ def test_contract_lists_every_facade_function() -> None:
     assert not missing, f"docs/CONTRACTS.md does not list: {missing}"
 ```
 
-- [ ] **Step 2: Run to verify they fail**
+- [x] **Step 2: Run to verify they fail**
 
 Run: `uv run pytest tests/unit/android/test_facade.py tests/unit/android/test_facade_parity.py -v`
 Expected: FAIL, `ModuleNotFoundError: wha_android`.
 
-- [ ] **Step 3: Write the envelope and the facade**
+- [x] **Step 3: Write the envelope and the facade**
 
 ```python
 # src/wha_android/__init__.py
@@ -2030,7 +2030,7 @@ there, so the facade imports `wha.service.jobs` at top instead. Add `jobs` to
 `service/__init__.py` exports and to `DECLARED_EDGES` if a new package edge appears (it
 does not; `jobs` is inside `service`).
 
-- [ ] **Step 4: Hatch packages and the isolation sweep**
+- [x] **Step 4: Hatch packages and the isolation sweep**
 
 ```toml
 [tool.hatch.build.targets.wheel]
@@ -2041,7 +2041,7 @@ In `tests/unit/android/test_core_imports_without_pc_extras.py`, after the `wha` 
 `import wha_android` and walk it the same way. Add `"facade"`-style edges: `wha_android` is
 outside `src/wha`, so `test_layering.py` does not see it; nothing to declare there.
 
-- [ ] **Step 5: Contract section 12**
+- [x] **Step 5: Contract section 12**
 
 Append to `docs/CONTRACTS.md`:
 
@@ -2081,12 +2081,12 @@ Adjust the model names in the table to the ones `service` really returns (read t
 annotations); the parity test only checks function names, so the table's right-hand column
 is on you.
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `uv run pytest tests/unit/android tests/unit/api tests/unit/test_layering.py tests/unit/test_contracts.py -n auto -q`
 Expected: all pass.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/wha_android/ src/wha/service/ src/wha/api/app.py pyproject.toml docs/CONTRACTS.md tests/unit/android/
