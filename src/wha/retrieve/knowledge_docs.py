@@ -692,8 +692,14 @@ def _save_cached_embeddings(chunks: list[Any], embeddings: "np.ndarray") -> None
 _INDEX_CACHE: dict[str, Any] = {}
 
 
-def build_index(docs: list[CorpusDocument] | None = None) -> Any:
-    """Chunk the corpus and build the hybrid index over it."""
+def build_index(docs: list[CorpusDocument] | None = None, embedder: Any = None) -> Any:
+    """Chunk the corpus and build the hybrid index over it.
+
+    The embedder is, in order: the argument, the one registered in
+    ``embedder_registry`` (how the phone supplies its ONNX model), then the
+    sentence-transformers default. A host that registers nothing gets the PC behaviour.
+    """
+    from wha.retrieve import embedder_registry
     from wha.retrieve.chunking import chunk_document
     from wha.retrieve.index import DefaultSentenceTransformerEmbedder, HybridIndex
 
@@ -702,9 +708,10 @@ def build_index(docs: list[CorpusDocument] | None = None) -> Any:
 
     cached = _load_cached_embeddings(chunks)
 
+    chosen = embedder if embedder is not None else embedder_registry.get_default_embedder()
     try:
-        embedder = DefaultSentenceTransformerEmbedder()
-        index = HybridIndex(chunks, embedder=embedder, embeddings=cached)
+        chosen = chosen if chosen is not None else DefaultSentenceTransformerEmbedder()
+        index = HybridIndex(chunks, embedder=chosen, embeddings=cached)
     except Exception:  # noqa: BLE001
         # Deliberately broad. sentence-transformers surfaces network, filesystem and
         # torch errors of several unrelated types, and none of them is a reason to leave
