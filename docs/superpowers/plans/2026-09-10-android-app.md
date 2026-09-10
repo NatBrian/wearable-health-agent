@@ -2112,7 +2112,7 @@ Spec section 7.5. Which step's outputs each step consumes, declared once.
 **Interfaces:**
 - Produces: `wha.models.PIPELINE_LINEAGE: tuple[LineageEdge, ...]` where `LineageEdge(from_step: str, output: str, to_step: str)`; `facade.lineage()` returns it as a list of dicts.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/unit/test_lineage.py
@@ -2151,12 +2151,12 @@ def test_edges_are_unique() -> None:
     assert len(seen) == len(set(seen))
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest tests/unit/test_lineage.py -v`
 Expected: FAIL, `ImportError: PIPELINE_LINEAGE`.
 
-- [ ] **Step 3: Declare the edges**
+- [x] **Step 3: Declare the edges**
 
 Every `output` name below must be a key that `service/pipeline.py` writes into that
 step's `outputs` dict. Read `_collect_step`, `_store_step`, `_sleep_window_step`,
@@ -2224,7 +2224,7 @@ def test_every_output_named_is_one_the_pipeline_writes() -> None:
     assert not missing, f"lineage names outputs the pipeline never writes: {missing}"
 ```
 
-- [ ] **Step 4: Facade and contract**
+- [x] **Step 4: Facade and contract**
 
 In `facade.py`:
 
@@ -2241,12 +2241,12 @@ sentence "`PIPELINE_LINEAGE` declares which named output of which step each late
 reads; tests/unit/test_lineage.py checks every edge against the step list and the
 pipeline's output keys." Add `lineage()` to the section 12 table.
 
-- [ ] **Step 5: Run**
+- [x] **Step 5: Run**
 
 Run: `uv run pytest tests/unit/test_lineage.py tests/unit/test_contracts.py tests/unit/android -n auto -q`
 Expected: pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/wha/models.py src/wha_android/facade.py docs/CONTRACTS.md tests/unit/test_lineage.py
