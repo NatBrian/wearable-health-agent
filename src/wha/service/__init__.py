@@ -31,8 +31,10 @@ from wha.service.conversation import (
     send_message,
     urgency_banner,
 )
+from wha.service.config_export import config_export
 from wha.service.corpus import (
     build_corpus_file,
+    corpus_present,
     search_corpus,
 )
 from wha.service.data_fetch import fetch_data
@@ -61,6 +63,7 @@ from wha.service.evaluation import (
 )
 from wha.service.handover import Handover, build_handover
 from wha.service.ingest import DEFAULT_INGEST_DAYS, describe_device_capability, run_ingest
+from wha.service.jobs import _rescore_recent, run_startup_catchup
 from wha.service.nightly import (
     get_monitoring_since,
     parse_date_range,
@@ -107,6 +110,8 @@ __all__ = [
     "acknowledge_urgency",
     "build_corpus_file",
     "build_handover",
+    "config_export",
+    "corpus_present",
     "count_audit_events",
     "create_scheduler",
     "delete_all_subject_data",
@@ -146,6 +151,7 @@ __all__ = [
     "run_evaluation_suite",
     "run_ingest",
     "run_nightly",
+    "run_startup_catchup",
     "search_corpus",
     "send_message",
     "source_label",

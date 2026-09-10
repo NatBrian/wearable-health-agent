@@ -45,10 +45,16 @@ class Blocker:
         return None
 sys.meta_path.insert(0, Blocker())
 import wha
+import wha_android
 failures = []
 for info in pkgutil.walk_packages(wha.__path__, "wha."):
     if info.name.startswith(pc_only):
         continue
+    try:
+        importlib.import_module(info.name)
+    except Exception:
+        failures.append(info.name + ": " + traceback.format_exc().splitlines()[-1])
+for info in pkgutil.walk_packages(wha_android.__path__, "wha_android."):
     try:
         importlib.import_module(info.name)
     except Exception:

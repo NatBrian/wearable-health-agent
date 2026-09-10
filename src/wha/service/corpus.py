@@ -1,5 +1,6 @@
 """Building and searching the clinical corpus, for the interface layer."""
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -74,3 +75,27 @@ def search_corpus(query: str, top_k: int = 5) -> list[dict[str, Any]]:
         }
         for r in results
     ]
+
+
+def corpus_present() -> bool:
+    """Whether the fetched MedlinePlus layer is on disk and recorded.
+
+    True when the manifest names a snapshot and the extracted release file exists and
+    is non-empty. This deliberately does not re-verify the manifest's SHA-256: that
+    digest covers the downloaded archive, which is not kept, only the extracted
+    topics file. Claiming a hash match here would report a check that never ran.
+    """
+    manifest = Path("data/knowledge/corpus-sources.json")
+    try:
+        record = json.loads(manifest.read_text(encoding="utf-8")).get("medlineplus", {})
+    except (OSError, ValueError):
+        return False
+    if not record.get("snapshot_date") or not record.get("sha256"):
+        return False
+    from wha.retrieve.medlineplus import CORPUS_DIR
+
+    topics = CORPUS_DIR / "topics.xml"
+    try:
+        return topics.stat().st_size > 0
+    except OSError:
+        return False

@@ -1450,3 +1450,35 @@ red-flag rule.
 
 **Validation happens in the application layer, never in the model**, and a response failing
 validation never reaches the human.
+
+---
+
+## 12. The phone facade
+
+`src/wha_android/facade.py` is what the Android app calls, through Chaquopy. Every
+function is decorated with `guarded` and returns a JSON string: the payload on success,
+or `{"error": {"kind": K, "message": M}}` where K is one of `unavailable` (the webhook,
+the provider or the corpus is not there), `invalid` (bad input or no such record), or
+`internal` (anything else, with the exception type in M). A test asserts every public
+function is guarded and that this table names every one of them.
+
+| Function | Returns the JSON of |
+|---|---|
+| `config()` | the same dict as `GET /config` |
+| `localise(utc_iso)` | `{"local": iso}` |
+| `settings()` and `update_settings(patch_json)` | `Settings` and the change report |
+| `profile(subject_id)` and `update_profile(subject_id, patch_json)` | `SubjectProfile` |
+| `status(subject_id)` | `SystemStatus` |
+| `urgency(subject_id)` and `acknowledge_urgency(subject_id)` | the same dicts as the API |
+| `nights(subject_id, days)`, `night(subject_id, night_date)` | `list[NightRow]`, `NightDetail` |
+| `pipeline_nights(subject_id, days)`, `night_pipeline(subject_id, night_date)` | `list[PipelineNightRef]`, `NightPipeline` |
+| `episodes(subject_id)`, `episode(episode_id)`, `pending(subject_id)` | `list[EpisodeSummary]`, `EpisodeDetail`, `PendingInteraction | null` |
+| `answer(episode_id, probe_id, option_id, free_text, declined)` | `{"status": "recorded"}` |
+| `review(episode_id, decision, edited_prose, rationale)` | `{"status": "recorded"}` |
+| `handover(subject_id, episode_id)` | the same dict as the API |
+| `conversation(subject_id, limit)`, `conversation_sessions(subject_id, limit_turns)`, `say(subject_id, text, episode_id)` | as the API |
+| `audit(subject_id, limit, offset)`, `audit_export(subject_id)` | as the API |
+| `knowledge_provenance()`, `safety_provenance()` | as the API |
+| `diagnose(component, overrides_json)`, `doctor()` | check result; `[{name, status, detail}]` |
+| `retrieval_ready()`, `fetch_corpus()` | `{"ready": bool}`; `{"message": str}` |
+| `run_ingest()`, `run_nightly()`, `run_episode_tick()`, `run_startup_catchup()` | `{"job", "started", "result"}`; serialised by one lock |

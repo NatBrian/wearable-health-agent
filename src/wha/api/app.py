@@ -81,23 +81,7 @@ def get_config() -> dict[str, Any]:
     Names are kept exactly as they appear in the source, so a reader can find the constant
     and its reasoning without a mapping table.
     """
-    from wha import constants
-
-    exported: dict[str, Any] = {}
-    for name in dir(constants):
-        if not name.isupper():
-            continue
-        value = getattr(constants, name)
-        if isinstance(value, str | int | float | bool | list | dict | type(None)):
-            exported[name] = value
-
-    # Not a constant, but a client cannot read the environment and needs to know which
-    # person this installation is configured for.
-    from wha.config import get_settings
-
-    exported["today"] = local_today().isoformat()
-    exported["configured_subject"] = get_settings().subject
-    return exported
+    return service.config_export()
 
 
 @app.get("/localise")

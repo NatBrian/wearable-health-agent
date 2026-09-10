@@ -57,6 +57,9 @@ wha = "wha.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/wha", "src/wha_android"]
+
 [tool.pytest.ini_options]
 # The interface tests run the real Streamlit scripts through AppTest, which is why the
 # suite is slow: each one starts a script run. They are independent, so they parallelise

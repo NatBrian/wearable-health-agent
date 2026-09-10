@@ -97,7 +97,7 @@ DECLARED_EDGES: dict[str, set[str]] = {
         "safety",
         "service",
     },
-    "api": {"clock", "config", "models"},
+    "api": {"clock", "models"},
     "audit": {"clock", "constants", "db", "models"},
     "belief": {"constants", "errors", "models"},
     "cli": {"api", "service"},
