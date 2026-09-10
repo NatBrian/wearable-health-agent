@@ -2271,7 +2271,7 @@ facade importing `wha.ui`.
 - Modify: `src/wha_android/facade.py` (add `wording()`)
 - Test: `tests/unit/test_wording_shared.py`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 # tests/unit/test_wording_shared.py
@@ -2304,12 +2304,12 @@ def test_core_wording_contains_no_digit() -> None:
     assert not offenders, f"wording with a figure in it: {offenders}"
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run: `uv run pytest tests/unit/test_wording_shared.py -v`
 Expected: FAIL, `ModuleNotFoundError: wha.wording`.
 
-- [ ] **Step 3: Move the module**
+- [x] **Step 3: Move the module**
 
 `git mv src/wha/ui/explain.py src/wha/wording.py`, then fix the docstring's path reference
 (`Add it to wha/ui/explain.py` becomes `wha/wording.py`) and recreate
@@ -2339,12 +2339,12 @@ Layering: add `"wording": set()` to `DECLARED_EDGES` and `"wording"` to `ui`'s s
 never-say test in `tests/unit/ui/test_wording_never_say.py` imports the dashboard module;
 it keeps working through the re-export, and it now also covers the phone.
 
-- [ ] **Step 4: Run**
+- [x] **Step 4: Run**
 
 Run: `uv run pytest tests/unit/test_wording_shared.py tests/unit/ui tests/ui/test_ui_boundary.py tests/unit/test_layering.py tests/unit/android -n auto -q`
 Expected: pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/wha/wording.py src/wha/ui/explain.py src/wha_android/facade.py tests/
