@@ -1,0 +1,28 @@
+# Paths never sent to the shared build machine. Read by android/remote/sync.sh as
+# tar --exclude-from. Tested by tests/unit/android/test_sync_exclude.py.
+.env
+.env.*
+.git
+.venv
+.pytest_cache
+.ruff_cache
+.playwright-mcp
+__pycache__
+data/wha.sqlite
+data/corpus
+data/demo_film.sqlite
+data/demo_film_live.sqlite
+data/demo-snapshots
+data/datasets
+data/cohort
+data/sim_state.json
+data/*.sqlite
+docs/demo/wha-demo.mp4
+docs/demo/work
+docs/demo/footage-raw
+android/app/build
+android/.gradle
+android/local.properties
+android/out
+serve.log
+mockwatch.log

@@ -101,3 +101,9 @@ data/demo-snapshots/
 # .claude/worktrees/. Those are full checkouts with their own .venv and run to gigabytes.
 # Nothing here belongs to the project.
 .claude/
+
+# Android build artefacts copied back from the remote (large; the build is reproducible).
+android/out/
+android/.gradle/
+android/app/build/
+android/local.properties
