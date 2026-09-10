@@ -75,10 +75,6 @@ from wha.service.pipeline import (
     get_night_pipeline,
     list_pipeline_nights,
 )
-from wha.service.scheduler import (
-    create_scheduler,
-    run_episode_tick,
-)
 from wha.service.settings import (
     delete_all_subject_data,
     get_service_settings,
@@ -166,3 +162,18 @@ __all__ = [
     "verify_hash_chain",
     "write_evaluation_report",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """Lazily re-export the scheduler surface without importing apscheduler.
+
+    The import sweep in tests/unit/android/ requires every non-PC module to load with
+    the PC-only packages blocked. Importing this package must therefore not pull
+    wha.service.scheduler (which needs apscheduler) until somebody actually asks for
+    one of its names. Direct ``wha.service.scheduler`` imports are unaffected.
+    """
+    if name in {"create_scheduler", "run_episode_tick"}:
+        from wha.service import scheduler as _scheduler
+
+        return getattr(_scheduler, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

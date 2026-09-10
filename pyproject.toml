@@ -8,16 +8,24 @@ dependencies = [
     "pydantic>=2.9,<3",
     "pandas>=2.2,<3",
     "numpy>=2.0,<3",
-    "scipy>=1.14,<2",
     "httpx>=0.27,<1",
     "typer>=0.12,<1",
     "python-dotenv>=1,<2",
-    "apscheduler>=3.10,<4",
-    "sentence-transformers>=3,<5",
     "langgraph>=1.2,<2",
     "langgraph-checkpoint-sqlite>=3.1,<4",
     "rank-bm25>=0.2,<1",
     "lxml>=5,<7",
+    "pyyaml>=6,<7",
+]
+
+[project.optional-dependencies]
+# Everything the PC uses that the phone does not. `uv sync --extra pc` on the PC.
+# Enforced by tests/unit/android/test_core_imports_without_pc_extras.py.
+# scipy lives here, not in core: the only scipy import in src/wha is eval/metrics.py
+# (beta.ppf for confidence intervals), and wha.eval is PC-only.
+pc = [
+    "apscheduler>=3.10,<4",
+    "sentence-transformers>=3,<5",
     "streamlit>=1.40,<2",
     # Imported directly by the episode panel, which needs sort=None on an ordinal axis to
     # stop st.bar_chart re-sorting the movement ranking alphabetically. Streamlit already
@@ -25,6 +33,7 @@ dependencies = [
     "altair>=5,<7",
     "fastapi>=0.115,<1",
     "uvicorn>=0.30,<1",
+    "scipy>=1.14,<2",
 ]
 
 [dependency-groups]

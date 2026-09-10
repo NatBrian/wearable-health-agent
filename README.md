@@ -46,7 +46,7 @@ It is not a medical device and it does not diagnose. See [DISCLAIMER.md](DISCLAI
 ## Setting it up from a clean checkout
 
 ```bash
-uv sync                                   # install. ALWAYS uv, never bare python
+uv sync --extra pc                      # install. ALWAYS uv, never bare python
 cp .env.example .env                      # then fill in the values it lists
 uv run wha data fetch corpus              # REQUIRED. ~32 MB, see below
 uv run wha doctor                         # should report no `fail` rows

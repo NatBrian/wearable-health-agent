@@ -43,14 +43,18 @@ Python **3.12**, pinned by `.python-version`. Environment and packages managed b
 > **`python` on this machine resolves to an unrelated project's virtual environment.**
 > Always `uv run <command>`. Never bare `python`, never bare `pip`, never `python -m pytest`.
 
-Two groups in `pyproject.toml`: the runtime `dependencies`, and `dev`. **This table is
+Three groups in `pyproject.toml`: the runtime `dependencies`, the `pc` optional
+extra, and `dev`. The phone installs `runtime` only. The `pc` extra is what
+the dashboard, the API, the scheduler and the film tooling need; install it with
+`uv sync --extra pc`. **This table is
 compared against `pyproject.toml` on every test run**, so it cannot drift again. It did:
 until 7 September 2026 it listed five groups that had never existed and an `ml` group
 holding `chronos-forecasting` and `torch`, both removed with the forecaster in item 22.
 
 | Group | Contents |
 |---|---|
-| runtime | `pydantic>=2.9,<3`, `pandas>=2.2,<3`, `numpy>=2.0,<3`, `scipy>=1.14,<2`, `httpx>=0.27,<1`, `typer>=0.12,<1`, `python-dotenv>=1,<2`, `apscheduler>=3.10,<4`, `sentence-transformers>=3,<5`, `langgraph>=1.2,<2`, `langgraph-checkpoint-sqlite>=3.1,<4`, `rank-bm25>=0.2,<1`, `lxml>=5,<7`, `streamlit>=1.40,<2`, `altair>=5,<7`, `fastapi>=0.115,<1`, `uvicorn>=0.30,<1` |
+| runtime | `pydantic>=2.9,<3`, `pandas>=2.2,<3`, `numpy>=2.0,<3`, `httpx>=0.27,<1`, `typer>=0.12,<1`, `python-dotenv>=1,<2`, `langgraph>=1.2,<2`, `langgraph-checkpoint-sqlite>=3.1,<4`, `rank-bm25>=0.2,<1`, `lxml>=5,<7`, `pyyaml>=6,<7` |
+| pc (optional extra) | `apscheduler>=3.10,<4`, `sentence-transformers>=3,<5`, `streamlit>=1.40,<2`, `altair>=5,<7`, `fastapi>=0.115,<1`, `uvicorn>=0.30,<1`, `scipy>=1.14,<2` |
 | dev | `pytest>=8,<9`, `pytest-xdist`, `ruff`, `playwright>=1.62.0`, `pillow>=11,<14` |
 
 `torch` is still installed, as a dependency of `sentence-transformers`. Nothing in `src/`

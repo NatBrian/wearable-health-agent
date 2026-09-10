@@ -394,6 +394,7 @@ def test_the_contract_lists_the_dependencies_pyproject_actually_declares() -> No
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     declared = {
         "runtime": set(pyproject["project"]["dependencies"]),
+        "pc": set(pyproject["project"]["optional-dependencies"]["pc"]),
         "dev": set(pyproject["dependency-groups"]["dev"]),
     }
 
@@ -401,8 +402,8 @@ def test_the_contract_lists_the_dependencies_pyproject_actually_declares() -> No
     block = block[block.index("## 1. Environment") : block.index("## 2. Configuration and secrets")]
 
     documented: dict[str, set[str]] = {}
-    for row in re.finditer(r"^\| (runtime|dev) \| (.+) \|$", block, re.MULTILINE):
-        documented[row.group(1)] = set(re.findall(r"`([^`]+)`", row.group(2)))
+    for row in re.finditer(r"^\| (runtime|pc \(optional extra\)|dev) \| (.+) \|$", block, re.MULTILINE):
+        documented[row.group(1).split(" ")[0]] = set(re.findall(r"`([^`]+)`", row.group(2)))
 
     problems: list[str] = []
     for group, wanted in declared.items():
