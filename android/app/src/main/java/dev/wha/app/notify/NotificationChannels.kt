@@ -11,7 +11,9 @@ object NotificationChannels {
     const val ONGOING = "ongoing"
 
     fun ensure(context: Context) {
-        val manager = context.getSystemService(NotificationManager::class.java)
+        // String-based lookup rather than getSystemService(Class): it exists on
+        // every API level and under Robolectric's test SDK alike.
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
             NotificationChannel(QUESTIONS, "Questions", NotificationManager.IMPORTANCE_DEFAULT)
         )

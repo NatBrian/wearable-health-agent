@@ -4,6 +4,8 @@ import android.content.Context
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
+import dev.wha.app.embed.OnnxEmbedder
+import dev.wha.app.notify.NotificationSink
 import dev.wha.app.settings.AppSettings
 import java.io.File
 
@@ -26,9 +28,9 @@ object PythonBoot {
             env.forEach { (k, v) -> os.callAttr("putenv", k, v); os.get("environ")!!.callAttr("__setitem__", k, v) }
             os.callAttr("chdir", root.absolutePath)
             val boot = py.getModule("wha_boot")
-            // No sink or embedder yet: Task 15 registers notifications, Task 16 the
-            // ONNX embedder. wha_boot tolerates nulls and runs the core without them.
-            val started = boot.callAttr("boot", null, null)
+            // The sink delivers questions as notifications; the embedder runs the
+            // same model the PC retrieves with. Both load lazily on first use.
+            val started = boot.callAttr("boot", NotificationSink(context.applicationContext), OnnxEmbedder(context.applicationContext))
             facade = started
             return started
         }

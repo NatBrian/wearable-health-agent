@@ -15,9 +15,15 @@ from typing import Any
 
 def boot(notify_sink: Any, embedder: Any) -> Any:
     if notify_sink is not None:
+        import json
+
         from wha.notify import android as android_notify
 
-        android_notify.set_sink(lambda payload: bool(notify_sink.deliver(payload)))
+        # JSON across the boundary, so delivery never depends on Chaquopy's
+        # nested conversions. The sink also accepts a Map (unit tests).
+        android_notify.set_sink(
+            lambda payload: bool(notify_sink.deliver(json.dumps(payload)))
+        )
     if embedder is not None:
         from wha.retrieve import embedder_registry
 

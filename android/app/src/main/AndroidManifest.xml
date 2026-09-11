@@ -28,5 +28,12 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+        <receiver
+            android:name=".notify.AnswerReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="dev.wha.ANSWER" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
