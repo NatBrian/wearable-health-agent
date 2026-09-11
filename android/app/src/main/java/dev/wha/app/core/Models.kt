@@ -369,6 +369,10 @@ import kotlinx.serialization.json.JsonObject
 @Serializable data class Turn(
     val role: String = "",
     val text: String = "",
+    // Stored as JSON strings in conversation_turns (schema.sql), parsed by the
+    // screens that render citations. Strings, not lists, because that is the wire shape.
+    val citations_json: String = "[]",
+    val uncited_json: String = "[]",
 )
 
 @Serializable data class SayResult(
