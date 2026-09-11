@@ -23,6 +23,7 @@ feel seriously unwell, contact a doctor. Nothing on any screen changes that.
 11. [Settings, and deleting your data](#11-settings-and-deleting-your-data)
 12. [What it will never do](#12-what-it-will-never-do)
 13. [If something looks wrong](#13-if-something-looks-wrong)
+14. [On your phone](#14-on-your-phone)
 
 ---
 
@@ -404,3 +405,38 @@ Worth knowing, so you are not waiting for something that is not coming.
 The system is quiet on purpose. Silence means it had nothing worth interrupting you for , 
 **it does not mean you are well.** You know how you feel and it does not. If you feel unwell,
 say so in the chat or on Telegram, or contact a doctor, whatever any screen says.
+
+---
+
+## 14. On your phone
+
+The same system also runs as an app on your phone, with the same colours, the same
+words and the same record as the dashboard. Everything above still holds. What
+changes is where things arrive and what you tap.
+
+**The four tabs.** Today is your daily check: last night, anything waiting for
+you, and why the system is quiet when nothing is. History is your nights over
+time against your own usual range, with nights the watch did not measure drawn
+as gaps. Record walks one night through every step the system took, in order;
+the second tab explains how any of it works. Settings holds every control,
+every number with where it came from, and the list of what the phone cannot do.
+
+**Notifications.** A question arrives as a notification with one button per
+answer and a Not now button. Tapping one records your answer and clears it.
+Not now records that you skipped, and you will not be asked again for that
+investigation. An escalation arrives on the urgent channel and stays until you
+open the app and confirm you have read it. Dismissing the notification alone
+does not clear it.
+
+**When the watch box is red.** The app reads your watch through a small app on
+the same network. If its address changed or that app is asleep, no new nights
+arrive. Today shows the time of the last successful pull next to last night:
+if that time stops moving, check the address in Settings and that the other
+app is running, on a network you trust. Your nights are still judged while you
+sort it out; nothing already measured goes anywhere.
+
+**What the phone cannot do.** Without a model configured it watches but cannot
+investigate or reply, and it says so on Today. Until the health library
+finishes downloading, the assistant says it has no general health information
+rather than answering from its own knowledge. Work can run late when the phone
+saves battery; the last pull time is how you tell.

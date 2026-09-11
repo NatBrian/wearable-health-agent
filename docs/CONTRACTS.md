@@ -1315,6 +1315,13 @@ class AndroidNotifier(Notifier):
     channel = "android"
     def __init__(self, sink: Sink) -> None: ...
 def set_sink(sink: Sink | None) -> None: ...
+
+# service/phrasing.py
+# The disposition labels the service itself sends live in wha/wording.py
+# (disposition.<value>), shared with the phone through facade.wording(), so both
+# surfaces call a conclusion by the same name. Cause names are shared the same
+# way (cause.<id>); the topic explainer bodies (topic.<n>.body) interpolate
+# figures from config_export() at render time on both surfaces.
 ```
 
 **This list is the stable core, not the whole surface.** `wha.service` exports 41 further

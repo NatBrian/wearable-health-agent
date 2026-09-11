@@ -13,7 +13,7 @@ the policy, the agent graph and Telegram all run exactly as they do with the rea
 ## Phase 1. A fresh start
 
 ```bash
-uv sync
+uv sync --extra pc
 cp .env.example .env               # then fill it in; see the table below
 uv run wha data fetch corpus       # REQUIRED, about 32 MB. Retrieval cannot run without it
 uv run wha doctor

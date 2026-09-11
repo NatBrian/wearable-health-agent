@@ -78,6 +78,18 @@ architecture.
 
 ---
 
+## The Android app
+
+The whole system also runs as a standalone app on one phone: the same core,
+the same thresholds, the same record, with questions arriving as notifications
+and every night drawn as the same steps the dashboard shows. The PC remains the
+main system and where development happens. Start at [android/README.md](android/README.md)
+for building and installing, and the design at
+[docs/superpowers/specs/2026-09-10-android-app-design.md](docs/superpowers/specs/2026-09-10-android-app-design.md).
+Installing it needs the APK built on a machine with the toolchain described there.
+
+---
+
 ## The repository, folder by folder
 
 | Path | What it is | Status |
@@ -111,6 +123,7 @@ The rest are reference:
 | [docs/CODE-CONVENTIONS.md](docs/CODE-CONVENTIONS.md) | Type hints, naming, module boundaries |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | The whole system in 19 parts. Routed by part below, do not read it cold |
 | [docs/RESEARCH-AGENTIC-TRIAGE.md](docs/RESEARCH-AGENTIC-TRIAGE.md) | Every clinical citation, with what it studied and what it justifies |
+| [docs/RESEARCH-HCI.md](docs/RESEARCH-HCI.md) | Every interface citation, with what it studied and which screen rule it justifies |
 | [USER-GUIDE.md](USER-GUIDE.md) | The product, for the person whose health it is |
 | [docs/demo/README.md](docs/demo/README.md) | The demo timeline and the film |
 | [experiments/README.md](experiments/README.md) | What we measured ourselves, and why it is not evidence |
