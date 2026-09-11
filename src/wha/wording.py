@@ -106,6 +106,21 @@ TEXT: dict[str, str] = {
         "Nothing to do. Too little of the night was measured to judge it, so nothing was "
         "concluded either way."
     ),
+    # Why nothing was asked, when nothing was. Shown on the phone's Today screen when the
+    # last night left no pending question: the decide step's own sentence when the night
+    # was flagged or an investigation is open, one of these per level otherwise.
+    "today.quiet.GREEN": ("Last night was in the usual range, so there was nothing to ask about."),
+    "today.quiet.YELLOW": (
+        "Last night was only a little above the usual range, and a night at that level "
+        "never opens anything on its own, so there was nothing to ask."
+    ),
+    "today.quiet.RED": (
+        "One clearly raised night is not enough to start looking into anything, so the "
+        "system is waiting to see tonight before it decides whether to ask."
+    ),
+    "today.quiet.NA": (
+        "Too little of last night was measured to judge it, so there was nothing to ask."
+    ),
     # Does NOT say why the investigation opened, because this string cannot know.
     #
     # It used to say "because your readings were clearly raised on more than one night in
@@ -218,6 +233,22 @@ TEXT: dict[str, str] = {
         "give the same answer every time. Blue steps are the AI working inside a fenced "
         "loop. Purple is you. Red is the safety floor, which runs on anything you type and "
         "can only ever raise urgency. Click any step to see what it did."
+    ),
+    # What it means that each kind of machine produced a step. Shown on the Record tab.
+    "layer.deterministic": (
+        "Arithmetic did this step, so the same readings give the same answer every time."
+    ),
+    "layer.safety": (
+        "A fixed rule did this step. It runs before anything else and nothing can lower what it sets."
+    ),
+    "layer.agentic": (
+        "The language model did this step, working inside a fixed list of tools with every call recorded."
+    ),
+    "layer.user": ("You did this step. Nothing here is filled in on your behalf."),
+    # Replay on the Record tab moves at a fixed pace. Said next to the controls so the
+    # pacing is never read as how long each step took.
+    "replay.pacing_note": (
+        "Replay moves at a fixed pace for reading. It is not how long each step took."
     ),
     "pipeline.unrecorded": (
         "The system did not write down what this step did. That is a gap in the record, "
@@ -348,6 +379,184 @@ TEXT: dict[str, str] = {
         "The cut-off comes from the study that published the checklist rather than from a "
         "threshold chosen here, and it is only applied to the people that study covered."
     ),
+    # ------------------------------------------------- how it works, by topic
+    # The Record tab's second tab and the dashboard's explainer render these with
+    # figures read from the running system at render time (see
+    # ui/components/how_it_works.py), so a threshold quoted here cannot drift from
+    # the code that uses it. Placeholders name config keys; the digit-free rule for
+    # this file applies to the prose, and every placeholder is filled from data.
+    "topic.1.title": "Reading the watch",
+    "topic.1.body": (
+        "- The reading is taken over the sleep your watch recorded, because daytime "
+        "heart rate reflects whatever you were doing. When the watch reports no sleep "
+        "for a night, the window falls back to a fixed night-time window on the clock "
+        "instead, and the night says so.\n"
+        "- At least {MIN_NOCTURNAL_MINUTES} minutes of contact are needed, or the night "
+        "is marked unusable rather than guessed at.\n"
+        "- Readings below {HR_PLAUSIBLE_MIN_BPM} bpm or above {HR_PLAUSIBLE_MAX_BPM} bpm "
+        "are treated as sensor error and dropped."
+    ),
+    "topic.2.title": "Learning your normal",
+    "topic.2.body": (
+        "Your baseline is the middle of your recent nights, not an average, so one bad "
+        "night cannot drag it. How much it relies on you rather than on typical adults "
+        "depends on how many nights it has: up to {RUNG_COLD_MAX_NIGHTS} of your own, "
+        "nothing is judged yet; {COLD_MAX_PLUS_ONE} to {RUNG_PRIOR_MAX_NIGHTS}, mostly "
+        "typical adults; {PRIOR_MAX_PLUS_ONE} to {RUNG_SHRINKING_MAX_NIGHTS}, a blend; "
+        "{SHRINKING_MAX_PLUS_ONE} to {RUNG_PERSONAL_MAX_NIGHTS}, mostly you; "
+        "{PERSONAL_MAX_PLUS_ONE} and up, you alone. The measure of your night-to-night "
+        "spread never goes below {BASELINE_SCALE_FLOOR_BPM} bpm. Watches report whole "
+        "numbers, so a run of identical nights would otherwise give a spread of exactly "
+        "zero and make every later night look infinitely unusual."
+    ),
+    "topic.3.title": "Deciding a night is worth looking at",
+    "topic.3.body": (
+        "- Anything a recorded workout would be expected to add is subtracted first.\n"
+        "- What remains is compared with your usual: {DETECT_YELLOW_BPM} bpm above is "
+        "slightly raised, {DETECT_RED_BPM} bpm above is clearly raised.\n"
+        "- A single raised night is not enough. It takes {DETECT_PERSISTENCE_NIGHTS} "
+        "nights in a row, both clearly raised, before anything opens. That is what keeps "
+        "a late drink from starting an investigation."
+    ),
+    "topic.4.title": "Checking what you have told us, over time",
+    "topic.4.body": (
+        "Anything you say about how you feel is checked against a fixed list of symptoms. "
+        "This is plain rules, not AI, and it can only ever make the system more cautious, "
+        "never less. Three things can happen, and the first two need a memory of what you "
+        "have said before rather than just tonight's message: one symptom that keeps "
+        "going, where a night you say nothing does not reset the count because going quiet "
+        "is not the same as getting better, and it stops when you say the symptom has gone "
+        "or after {SYMPTOM_RUN_GAP_DAYS} days with no mention; two symptoms within "
+        "{SYMPTOM_COOCCURRENCE_WINDOW_NIGHTS} nights of each other, whether you mentioned "
+        "them in one message or on different nights; or a symptom that goes straight to "
+        "urgent care on its own, with no waiting. Symptoms with no good evidence behind a "
+        "rule are still written down so the system can ask you about them. Recording "
+        "something is a much smaller claim than deciding where you should be treated. While "
+        "any symptom of yours is still going, an investigation will not close as nothing "
+        "pointing towards illness, however settled your heart rate looks."
+    ),
+    "topic.5.title": "Opening an investigation, and what the AI may do inside it",
+    "topic.5.body": (
+        "Only after {DETECT_PERSISTENCE_NIGHTS} clearly raised nights in a row, both of "
+        "them at that level. A clearly raised night next to a slightly raised one does not "
+        "open anything, in either order, and slightly raised nights never open anything "
+        "however many there are. Nothing opens at all until the system has at least "
+        "{BASELINE_MIN_NIGHTS_PERSONAL} of your own measured nights, because before that "
+        "your normal is still mostly a general estimate. A single piece of work about one "
+        "run of raised nights: only one runs at a time, so a stretch of raised nights is "
+        "looked at as one thing rather than as a series of separate alarms. It ends by "
+        "concluding, or by your nights going quiet again. It is not a finding, and not a "
+        "statement that anything is wrong. Inside one, the model can only call these "
+        "{TOOL_COUNT} read-only tools, and nothing else:\n{TOOLS}\nIt cannot write to your "
+        "record, send you anything, or decide whether to interrupt you."
+    ),
+    "topic.6.title": "Working out the likely cause",
+    "topic.6.body": (
+        "The system tracks {N_CAUSES} possible causes at once and considers every "
+        "combination of them being present or absent, which is {N_CAUSES_POWER} "
+        "possibilities. This is ordinary arithmetic, not a model, so the same evidence "
+        "always gives the same answer."
+    ),
+    "topic.7.title": "Deciding whether to interrupt you",
+    "topic.7.body": (
+        "This is the one decision the AI does not make. Before asking anything, the system "
+        "works out how much the answer could actually change what it does. If that is worth "
+        "less than the cost of interrupting you, it stays quiet. That arithmetic is what "
+        "keeps this quiet, not a cap. There is also a hard limit of "
+        "{INTERRUPTION_BUDGET_PER_WEEK} unsolicited questions a week. The cap stays as a "
+        "backstop. It is just not the reason you are rarely asked anything. This is why "
+        "most raised nights never produce a question."
+    ),
+    "topic.8.title": "Writing the conclusion, and checking it before you see it",
+    "topic.8.body": (
+        "- Every clinical sentence in a conclusion has to quote a span that really appears "
+        "in a passage this system holds. A sentence that quotes nothing is removed before "
+        "you see it.\n"
+        "- The model then reads its own draft back, and at that point it can only remove "
+        "claims, never add them. This step can make a conclusion smaller and never "
+        "larger.\n"
+        "- A person approves, edits, rejects or escalates the draft. Nothing reaches you as "
+        "a settled conclusion without passing that checkpoint.\n"
+        "- What is kept is saved to your record, {SURFACE} and the tamper-evident log at "
+        "the same time, so the copy you read is the copy that was kept. The check proves "
+        "the quoted words are really in the passage. It does not prove the sentence built "
+        "around them describes that passage fairly, so every citation opens to the whole "
+        "passage for you to read."
+    ),
+    "topic.9.title": "The safety rules, which run before anything else",
+    "topic.9.body": (
+        "If you describe certain symptoms in your own words, the system stops and tells you "
+        "to seek care. That check is plain pattern matching against a fixed list, it runs "
+        "before any model is consulted, and no amount of model output can switch it off. A "
+        "language model can only add a flag to that list, never remove one. "
+        "{ASSUMED_COUNT} of the {ROW_COUNT} numbers in that list have no published source "
+        "behind them, and the table beside this says which. No study was found measuring "
+        "how many nights a symptom should persist before it is worth a same-day "
+        "appointment, so those windows were chosen rather than measured. They are set "
+        "short, which means they err towards sending you to a doctor sooner rather than "
+        "later. This is disclosed because a number nobody measured must not look the same "
+        "as one somebody did."
+    ),
+    "topic.10.title": "Where your data goes",
+    "topic.10.body": (
+        "Readings, nightly figures and the full record stay in a database file on {DEVICE}. "
+        "The one exception is the language model. Unless it is set to the offline recorded "
+        "provider, the text of a question or summary is sent to whichever model endpoint is "
+        "configured, which may be a remote service. The Settings page shows which is in use."
+    ),
+    # ------------------------------------------------- what things are called
+    # The twelve causes, named for the person rather than by their internal ids. Shared
+    # with the dashboard's step detail, which reads these keys, so the phone and the
+    # dashboard never name a cause differently.
+    "cause.infection": "an infection coming on",
+    "cause.alcohol": "alcohol",
+    "cause.exertion": "hard exercise",
+    "cause.sleep_restriction": "too little sleep",
+    "cause.stress": "stress",
+    "cause.luteal": "the second half of your cycle",
+    "cause.vaccination": "a recent vaccination",
+    "cause.travel": "travel",
+    "cause.medication": "medication",
+    "cause.recovery_tail": "still recovering from something earlier",
+    "cause.sensor_artifact": "the watch misreading",
+    "cause.unexplained": "something not on this list",
+    # What a conclusion is called, and one sentence saying what it means. Shared with
+    # service/phrasing.py, which builds its disposition phrases from these keys, because
+    # the service itself sends these words and the phone must show the same ones.
+    "disposition.LIKELY_ILLNESS": "Possibly coming down with something",
+    "disposition.LIKELY_ILLNESS.why": (
+        "Your answers and your overnight readings together point towards an infection "
+        "more than to anything else. This is not a diagnosis."
+    ),
+    "disposition.LIKELY_BENIGN": "Nothing points towards illness",
+    "disposition.LIKELY_BENIGN.why": (
+        "Nothing here points towards illness. Keep an eye on how you feel."
+    ),
+    "disposition.EXPLAINED_BY_EVENT": "Explained by something you did",
+    "disposition.EXPLAINED_BY_EVENT.why": (
+        "Something specific accounts for it, such as a hard workout, a drink, a "
+        "vaccination or a flight."
+    ),
+    "disposition.ESCALATED": "Get medical help now",
+    "disposition.ESCALATED.why": (
+        "You described something that needs assessing by a person, not an app."
+    ),
+    "disposition.UNRESOLVED": "Could not tell",
+    "disposition.UNRESOLVED.why": (
+        "There was not enough to separate the possible causes, and asking more was not "
+        "worth interrupting you again."
+    ),
+    "disposition.INSUFFICIENT_DATA": "Still learning your normal",
+    "disposition.INSUFFICIENT_DATA.why": (
+        "A few more nights of wear are needed before any reading can be judged against "
+        "your own baseline."
+    ),
+    # Beside the interruption costs on the Investigation screen, saying what the number means.
+    "policy.evsi_explained": (
+        "How much the answer could change what the system concludes, weighed against the "
+        "cost of interrupting you. A question is only asked when the first outweighs the "
+        "second."
+    ),
     # ---------------------------------------------------------------------- the record
     "record.what_it_is": (
         "Every action the system took, in order, each one locked to the one before it. If "
@@ -385,9 +594,7 @@ def text(key: str) -> str:
     try:
         return TEXT[key]
     except KeyError as exc:
-        raise KeyError(
-            f"No explanation is written for {key!r}. Add it to wha/wording.py"
-        ) from exc
+        raise KeyError(f"No explanation is written for {key!r}. Add it to wha/wording.py") from exc
 
 
 # Rungs at which the band has shrunk toward this person enough for "your usual range" to
