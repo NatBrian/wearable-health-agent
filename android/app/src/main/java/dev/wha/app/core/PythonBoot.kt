@@ -1,6 +1,7 @@
 package dev.wha.app.core
 
 import android.content.Context
+import android.os.Build
 import com.chaquo.python.PyObject
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
@@ -39,7 +40,9 @@ object PythonBoot {
     /** data/knowledge from the APK to disk, once per app version. */
     private fun extractKnowledge(context: Context, root: File) {
         val marker = File(root, "knowledge.version")
-        val version = context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode.toString()
+        val pkg = context.packageManager.getPackageInfo(context.packageName, 0)
+        @Suppress("DEPRECATION")
+        val version = if (Build.VERSION.SDK_INT >= 28) pkg.longVersionCode.toString() else pkg.versionCode.toString()
         if (marker.exists() && marker.readText() == version) return
         val target = File(root, "data/knowledge").apply { mkdirs() }
         context.assets.list("knowledge")!!.forEach { name ->

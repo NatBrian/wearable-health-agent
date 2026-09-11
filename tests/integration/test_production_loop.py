@@ -317,7 +317,11 @@ def test_the_startup_message_names_every_job_that_is_running() -> None:
 
 
 def test_startup_catchup_ingests_then_scores_the_window(tmp_path: Path) -> None:
-    from wha.service.scheduler import run_startup_catchup
+    # The seams moved with the functions in Task 7 (service.jobs is their home now;
+    # scheduler only re-exports run_startup_catchup). Patching where they run, not
+    # where they used to live: the old scheduler paths are a no-op and run_nightly
+    # there raises AttributeError.
+    from wha.service.jobs import run_startup_catchup
 
     db_file = _make_db(tmp_path)
     calls: list[str] = []
@@ -331,8 +335,8 @@ def test_startup_catchup_ingests_then_scores_the_window(tmp_path: Path) -> None:
         return []
 
     with (
-        patch("wha.service.scheduler.run_ingest", side_effect=fake_ingest),
-        patch("wha.service.scheduler.run_nightly", side_effect=fake_nightly),
+        patch("wha.service.jobs.run_ingest", side_effect=fake_ingest),
+        patch("wha.service.jobs.run_nightly", side_effect=fake_nightly),
     ):
         result = run_startup_catchup(db_path=db_file)
 

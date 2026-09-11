@@ -14,11 +14,11 @@ from typing import Any
 
 import streamlit as st
 
-from wha import wording
 from wha.models import CauseId, PipelineStepView, StepStatus
 from wha.ui import design, explain, format
 from wha.ui.components.citations import drawer
 from wha.ui.components.pipeline_graph import step_name
+from wha.wording import TEXT as WORDING_TEXT
 
 # How each step's outputs read as a sentence. Keys are output field names; the value names
 # the field for a person. Anything not named here is still shown, under its own key.
@@ -220,7 +220,7 @@ _QUESTION_NAMES: dict[str, str] = {
 # source is wha/wording.py (cause.<id>), shared with the phone; this keeps the
 # dashboard's spelling for unknown ids.
 _CAUSE_NAMES: dict[str, str] = {
-    cause_id.value: wording.TEXT[f"cause.{cause_id.value}"] for cause_id in CauseId
+    cause_id.value: WORDING_TEXT[f"cause.{cause_id.value}"] for cause_id in CauseId
 }
 
 

@@ -27,6 +27,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -228,8 +229,9 @@ fun StepSheet(
     onDismiss: () -> Unit,
 ) {
     var whenText by remember(step.step_id) { mutableStateOf(step.occurred_utc ?: "") }
-    step.occurred_utc?.let { utc ->
-        remember(step.step_id) { localise(utc) { whenText = it } }
+    val utc = step.occurred_utc
+    LaunchedEffect(step.step_id) {
+        if (utc != null) localise(utc) { whenText = it }
     }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {

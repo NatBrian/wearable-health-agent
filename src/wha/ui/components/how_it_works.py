@@ -23,8 +23,8 @@ this work", which is a different question and still worth a page.
 
 import streamlit as st
 
-from wha import wording
 from wha.ui.components.api import api, config
+from wha.wording import text as wording_text
 
 # Which pipeline steps each topic explains. Checked by a test: every step
 # must appear under exactly the topics that describe it, so a step added to the pipeline
@@ -156,7 +156,7 @@ def topic_body(
     """
     tools = "\n".join(f"- `{name}`" for name in tool_names)
     n_causes = config["N_CAUSES"]
-    return wording.text(f"topic.{n}.body").format(
+    return wording_text(f"topic.{n}.body").format(
         MIN_NOCTURNAL_MINUTES=config["MIN_NOCTURNAL_MINUTES"],
         HR_PLAUSIBLE_MIN_BPM=config["HR_PLAUSIBLE_MIN_BPM"],
         HR_PLAUSIBLE_MAX_BPM=config["HR_PLAUSIBLE_MAX_BPM"],
