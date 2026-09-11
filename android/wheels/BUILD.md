@@ -16,7 +16,7 @@ app before anything depended on it (see "Verifying" below).
 | ormsgpack 1.12.2 | built, first attempt |
 | xxhash 4.0.1 | built on the second attempt. The first failed before compiling: the package's own `[tool.cibuildwheel]` table enables the group `pyodide-eol`, which cibuildwheel 3.2 rejects when parsing. `android/remote/cibw-override.toml` is now passed with `--config-file` for every build so a package's table is ignored |
 | uuid_utils 0.17.0 | built 11 September 2026, first attempt. Missed by the original analysis: langchain-core and langsmith both depend on it, and the smoke APK's pip resolution failed on it. Same Rust path as the others |
-| sqlite_vec 0.1.9 | not built, and not needed. PyPI ships no sdist for it, only binary wheels for desktop platforms. It is declared by `langgraph-checkpoint-sqlite` but never imported: `langgraph.checkpoint.sqlite` and all three of its submodules import and construct `SqliteSaver` with `sqlite_vec` blocked (checked on the PC, 10 September). The phone therefore installs the checkpointer with `--no-deps` and its real imports pinned explicitly (Task 11) |
+| sqlite_vec 0.1.9 | not built: PyPI ships no sdist, only desktop binary wheels. It is declared by `langgraph-checkpoint-sqlite` but never imported: `langgraph.checkpoint.sqlite` and all three of its submodules import and construct `SqliteSaver` with `sqlite_vec` blocked (checked on the PC, 10 September). `android/wheels/sqlite_vec-0.1.9-py3-none-any.whl` is a resolver stub built from an empty package (11 September) so pip's resolver is satisfied; it raises on import so any future code path reaching for the extension fails loudly instead of silently running without it |
 
 ## Decision
 
