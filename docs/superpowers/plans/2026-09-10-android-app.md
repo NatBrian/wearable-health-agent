@@ -3620,7 +3620,7 @@ Spec sections 4.6 and 6.2. The phone as the transport; the rules unchanged.
 - Consumes: the payload dict from `wha.notify.android` (Task 6): `kind`, `text`, `interaction_id`, `probe_id`, `options`.
 - Produces: `NotificationSink.deliver(payload: Map<String, Any?>): Boolean` (called from Python); two channels `questions` (default importance) and `urgent` (high importance, for `ESCALATION`); `AnswerReceiver` handling `dev.wha.ANSWER` intents with extras `episode_id`, `probe_id`, `option_id`, `declined`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```kotlin
 @RunWith(RobolectricTestRunner::class)
@@ -3656,7 +3656,7 @@ class NotificationSinkTest {
 escalation stays until acknowledged (the Today screen's acknowledge action clears it by
 calling `acknowledge_urgency`, which the core records). It is not a new rule.
 
-- [ ] **Step 2: Write the sink and receiver**
+- [x] **Step 2: Write the sink and receiver**
 
 `NotificationSink.deliver` builds a `NotificationCompat.Builder` on the channel for the
 kind, with `setContentText(text)`, `setStyle(BigTextStyle)`, one `addAction` per option
@@ -3668,14 +3668,14 @@ identify the episode; the receiver calls `core.pending(subject)` to obtain the e
 for the current question, then `core.answer(...)`, then cancels the notification. Returns
 `false` if `POST_NOTIFICATIONS` is not granted, which Python logs as not delivered.
 
-- [ ] **Step 3: Build, install, verify with a real question**
+- [ ] **Step 3: Build, install, verify with a real question** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Point the app's webhook at the PC's mock watch (Task 25 describes the scripted illness;
 use its first two red nights here). Expected, written first: a question notification
 arrives with the probe's options and "Not now"; tapping an option records it (Today shows
 the answer in the thread) and the notification clears; "Not now" records a declined answer.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/notify android/app/src/main/AndroidManifest.xml android/app/src/test
@@ -3699,7 +3699,7 @@ Spec sections 4.3, 6.3, 8.
 **Interfaces:**
 - Produces: `OnnxEmbedder(context).embed(texts: List<String>): FloatArray` (row-major, `texts.size * 384`), called from `wha_boot._KotlinEmbedder`. `CorpusFetch.start(context)` runs `core.fetchCorpus()` in a `OneTimeWorkRequest` and exposes `StateFlow<CorpusState>` (`Missing`, `Fetching`, `Ready`, `Failed(message)`), read by onboarding and Today.
 
-- [ ] **Step 1: Tokenizer unit test**
+- [x] **Step 1: Tokenizer unit test**
 
 The `tokenizer.json` exported in Task 5 is a WordPiece tokenizer with a BERT
 pre-tokenizer. Rather than depend on a JVM tokenizers library, implement WordPiece from
@@ -3732,7 +3732,7 @@ class WordPieceTokenizerTest {
 }
 ```
 
-- [ ] **Step 2: Write the tokenizer and the embedder**
+- [x] **Step 2: Write the tokenizer and the embedder**
 
 `WordPieceTokenizer`: lowercase (the exported tokenizer's normalizer says `lowercase:
 true`; read it from the JSON rather than assume), strip accents, split on whitespace and
@@ -3785,7 +3785,7 @@ compares to vectors exported from the PC into `src/androidTest/resources/embedde
 by extending `tools/make_tokenizer_fixture.py`; asserts cosine at or above the same
 `MIN_COSINE` as the Python test. This is the phone half of the agreement proof.
 
-- [ ] **Step 3: Corpus fetch**
+- [x] **Step 3: Corpus fetch**
 
 `CorpusFetch.start` enqueues a `CorpusWorker` (unique, KEEP) that calls
 `core.fetchCorpus()` then `core.retrievalReady()`; state moves `Missing` to `Fetching` to
@@ -3794,14 +3794,14 @@ by extending `tools/make_tokenizer_fixture.py`; asserts cosine at or above the s
 "General health information is not yet available to the assistant; downloading" while
 `Fetching`, and a retry button on `Failed`.
 
-- [ ] **Step 4: Build, install, verify**
+- [ ] **Step 4: Build, install, verify** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first: the corpus fetch completes on the phone and `retrieval_ready`
 reports true; the Settings self-test row reports cosine agreement above the floor; a
 conversation turn that asks about fever quotes a MedlinePlus passage with the National
 Library of Medicine named.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/embed android/app/src/main/java/dev/wha/app/corpus android/app/src/test android/app/src/androidTest tools/make_tokenizer_fixture.py
@@ -3828,7 +3828,7 @@ Spec sections 6.2, 6.4. Bottom bar, and the screen a person sees most.
 - Consumes: `WhaCore.status`, `urgency`, `pending`, `night`, `nightPipeline`, `conversation`, `say`, `answer`, `review`, `acknowledgeUrgency`, `wording`, `config`, `CorpusFetch.state`.
 - Produces: `TodayUiState(lastNight: LastNight?, signal: SignalQuality, pending: PendingInteraction?, urgency: Urgency?, quietReason: String?, providerConfigured: Boolean, corpus: CorpusState, thread: List<Turn>, error: WhaResult.Err?)`; `StatusWord(level: String)` composable rendering colour plus icon plus word for `GREEN`, `YELLOW`, `RED`, `NA`; `Provenance(layer: String)` chip rendering "arithmetic", "rule", "model", "you" with its layer colour; `ErrorCard(err, onRetry, onOpenSettings)` rendering the three error kinds in words.
 
-- [ ] **Step 1: Failing view model test**
+- [x] **Step 1: Failing view model test**
 
 ```kotlin
 class TodayViewModelTest {
@@ -3873,7 +3873,7 @@ night's pipeline; when last night is not flagged, it is `wording["today.quiet.<l
 means for why nothing was asked, containing no digit). This is the spec's rule that silence
 shows its reasoning.
 
-- [ ] **Step 2: Screen layout**
+- [x] **Step 2: Screen layout**
 
 Top to bottom, in a `LazyColumn`:
 
@@ -3909,7 +3909,7 @@ Top to bottom, in a `LazyColumn`:
 Every card has a `Refresh` on pull-down. Every core error renders `ErrorCard` in place of
 the card that needed it, and the rest of the screen stays.
 
-- [ ] **Step 3: Build, install, verify on the phone**
+- [ ] **Step 3: Build, install, verify on the phone** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first, on real data: the last night card shows the real level and the
 real contact minutes; the baseline line says the rung the PC's dashboard says for the same
@@ -3917,7 +3917,7 @@ data; with no provider key the provider notice shows; typing "I feel dizzy" prod
 reply that names its source or carries the amber block; a screenshot of each state goes to
 `docs/screenshots/android/today-*.png`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/ui android/app/src/test android/app/src/main/res src/wha/wording.py docs/screenshots/android
@@ -3941,7 +3941,7 @@ Spec section 6.6, and the dataviz skill's rules.
 - Consumes: `WhaCore.nights`, `episodes`, `config` (for the band and threshold constants to label), `wording`.
 - Produces: `NightChart(nights: List<NightSummary>, onTapNight: (String) -> Unit)` drawn with `Canvas`; a table view toggle listing the same rows.
 
-- [ ] **Step 1: Chart rules, decided before drawing**
+- [x] **Step 1: Chart rules, decided before drawing**
 
 Form: change over time of one measure (resting heart rate) against a personal band. So:
 one y axis; the band as a light fill of the accent at low alpha behind a 2px line of
@@ -3955,7 +3955,7 @@ list with the same columns the dashboard shows (`2_History.py:95-110`). Hover is
 tapping a point shows a tooltip with date, the reading, the band, and the level word, and
 a second tap opens the Record tab on that night.
 
-- [ ] **Step 2: Failing geometry test**
+- [x] **Step 2: Failing geometry test**
 
 ```kotlin
 class NightChartGeometryTest {
@@ -3973,7 +3973,7 @@ class NightChartGeometryTest {
 }
 ```
 
-- [ ] **Step 3: Draw it, then validate the colours**
+- [x] **Step 3: Draw it, then validate the colours**
 
 Run the dataviz validator on the three status colours plus the band accent in light mode
 (`node scripts/validate_palette.js "#0CA30C,#FAB219,#D03B3B,#2F6F73" --mode light` from
@@ -3982,13 +3982,13 @@ between amber and green is expected and is mitigated by the icon plus word rule;
 the run's output in `android/README.md` under "Chart colours" so the mitigation is
 written where the numbers are. Anything else that fails is fixed before commit.
 
-- [ ] **Step 4: Build, install, verify**
+- [ ] **Step 4: Build, install, verify** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first: sixty nights render with the band; a night the watch did not
 measure shows as an open circle and reads "not measured" in the table; tapping the newest
 night opens the Record tab on it; screenshot to `docs/screenshots/android/history.png`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/ui/history android/app/src/test android/README.md docs/screenshots/android
@@ -4012,7 +4012,7 @@ Spec sections 7.1 and 7.4.
 - Consumes: `WhaCore.pipelineNights`, `nightPipeline`, `lineage`, `wording`, `config`.
 - Produces: `GraphLayout.build(steps: List<PipelineStepView>): List<Node>` with fixed group membership and positions; `PipelineGraph(layout, highlighted: Set<String>, running: String?, onTap: (String) -> Unit)`; `StepSheet(step: PipelineStepView, wording: Map<String, String>, onTapOutput: (String) -> Unit)`.
 
-- [ ] **Step 1: Failing layout test**
+- [x] **Step 1: Failing layout test**
 
 ```kotlin
 class GraphLayoutTest {
@@ -4050,7 +4050,7 @@ class GraphLayoutTest {
 asserts the generated file equals what the generator produces now, so the graph frame
 cannot drift from the step list.
 
-- [ ] **Step 2: Draw the frame**
+- [x] **Step 2: Draw the frame**
 
 `PipelineGraph` is a `Canvas` inside a vertical scroll: five group headers with the group
 name and its machine word; nodes as rounded rectangles 56dp tall, full width less margins,
@@ -4069,7 +4069,7 @@ that arithmetic, a rule, a model or the person produced this), the headline figu
 labelled rows where each output row is tappable (Task 21), sources with the label text the
 core supplies, and the full `detail_json` under an expander titled "Everything recorded".
 
-- [ ] **Step 3: View model**
+- [x] **Step 3: View model**
 
 `RecordUiState(nights: List<PipelineNightRef>, selected: String?, pipeline: NightPipeline?,
 lineage: List<LineageEdge>, highlighted: Set<String>, running: String?, replay: ReplayState,
@@ -4077,14 +4077,14 @@ sheet: PipelineStepView?, error)`. `RecordViewModel.select(date)` loads the pipe
 `open(stepId)` sets the sheet. The night picker is a horizontal row of chips built from
 `pipeline_nights`, newest first, each chip coloured by its level with the word.
 
-- [ ] **Step 4: Build, install, verify**
+- [ ] **Step 4: Build, install, verify** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first: the newest night shows all twenty-one nodes; on a green night
 the investigation group is dimmed with reasons like "no investigation was opened, because
 the night was in your usual range"; tapping "detect" opens its sheet with the level, the
 residual and the rule sentence; screenshot to `docs/screenshots/android/record-graph.png`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/ui/record android/app/src/main/java/dev/wha/app/core/CanonicalSteps.kt tools/android_canonical_steps.py tests/unit/android android/app/src/test src/wha/wording.py docs/screenshots/android
@@ -4109,7 +4109,7 @@ Spec sections 7.2 and 7.3.
 - Consumes: `RunState` (Task 14), `WhaCore.nightPipeline`.
 - Produces: `LivePoller(core, subject).observe(): Flow<NightPipeline>` polling once a second while `RunState` is `Running`, emitting on change, stopping when idle; `Replay(steps).state: StateFlow<ReplayState(index, playing)>` with `play()`, `pause()`, `next()`, `previous()`, `seek(i)`, advancing every `cadenceMs` while playing.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```kotlin
 class ReplayTest {
@@ -4143,7 +4143,7 @@ class LivePollerTest {
 }
 ```
 
-- [ ] **Step 2: Implement**
+- [x] **Step 2: Implement**
 
 `LivePoller.observe()` is a `flow { }` that loops while `RunState.status` is `Running`,
 calls `core.nightPipeline`, emits when the result differs from the last emitted (data
@@ -4165,7 +4165,7 @@ step's `reason` sentence and the note "Replay pacing is fixed for reading; it is
 long each step took" (a `wording` key, disclosed in Task 24). During replay, nodes with
 ordinal above the index are drawn dimmed and the current node is `running`.
 
-- [ ] **Step 3: Build, install, verify**
+- [ ] **Step 3: Build, install, verify** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first: trigger the nightly job from Settings (Task 23 adds "Run now"
 buttons); the graph animates through the deterministic group within a second and, on a
@@ -4173,7 +4173,7 @@ flagged night with the mock watch, the investigation nodes tick as the tool call
 replay of a past night steps at the fixed cadence with the caption changing; screenshots
 to `docs/screenshots/android/record-live.png` and `record-replay.png`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/ui/record android/app/src/test src/wha/wording.py docs/screenshots/android
@@ -4198,7 +4198,7 @@ Spec sections 7.5 and 7.6.
 - Consumes: `WhaCore.lineage`, `config`, `wording`.
 - Produces: `Lineage(edges).upstream(step, output): Set<String>` and `downstream(step, output): Set<String>`; tapping an output row in `StepSheet` closes the sheet and sets `highlighted = upstream + downstream + {step}` on the graph with a banner "Highlighting where this came from and what read it; tap anywhere to clear".
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```kotlin
 class LineageTest {
@@ -4217,7 +4217,7 @@ class LineageTest {
 }
 ```
 
-- [ ] **Step 2: Implement lineage and the topic tab**
+- [x] **Step 2: Implement lineage and the topic tab**
 
 `Lineage` builds two adjacency maps and walks them. `RecordScreen` gains a `TabRow` with
 "This night" and "How it works". `HowItWorksTab` renders the same topic list as
@@ -4229,14 +4229,14 @@ does, and the Streamlit component reads the moved keys. The Python test that ass
 test asserting the generated `CanonicalSteps` are all covered by the topic table the app
 renders, so the two surfaces cannot drift.
 
-- [ ] **Step 3: Build, install, verify**
+- [ ] **Step 3: Build, install, verify** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first: tapping `residual_bpm` in the detect sheet highlights features,
 baseline and subtract explained upstream and safety floor and episode open downstream;
 the topic tab shows the thresholds as the dashboard shows them; screenshot to
 `docs/screenshots/android/record-lineage.png`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/ui/record android/app/src/test src/wha/wording.py src/wha/ui/components/how_it_works.py docs/screenshots/android
@@ -4260,7 +4260,7 @@ Spec section 6.5. Three layers.
 - Consumes: `WhaCore.episode`, `handover`, `review`, `wording`, `config`, `knowledgeProvenance`.
 - Produces: `InvestigationUiState(detail: EpisodeDetail?, narrative: List<String>, causes: List<CauseBar>, handover: Handover?, error)`.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```kotlin
 class InvestigationViewModelTest {
@@ -4286,7 +4286,7 @@ class InvestigationViewModelTest {
 every member of `CauseId` has one. Check whether `explain.py` already has cause labels
 under another key and reuse them if so.
 
-- [ ] **Step 2: Screen**
+- [x] **Step 2: Screen**
 
 1. **What it concluded**: `outcome.prose`, the disposition as a word from
    `wording["disposition.<value>"]` (check the dashboard's phrasing source,
@@ -4310,14 +4310,14 @@ under another key and reuse them if so.
 4. **Summary for your doctor**: the handover text with a share button (Android share
    sheet, text only).
 
-- [ ] **Step 3: Build, install, verify**
+- [ ] **Step 3: Build, install, verify** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first, on a mock-watch investigation: the conclusion paragraph matches
 the dashboard's for the same episode; the bars match the belief on the Record tab's
 believe step; the stripped sentences appear; share opens the sheet with the handover text;
 screenshot to `docs/screenshots/android/investigation.png`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/ui/investigation android/app/src/test src/wha/wording.py tests/ docs/screenshots/android
@@ -4341,7 +4341,7 @@ Spec section 6.7.
 - Consumes: `AppSettings`, `WhaCore.settings`, `updateSettings`, `config`, `knowledgeProvenance`, `safetyProvenance`, `diagnose`, `doctor`, `auditExport`, the job runners, `CorpusFetch`, `OnnxEmbedder` self test.
 - Produces: the screen sections below.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```kotlin
 class SettingsViewModelTest {
@@ -4364,7 +4364,7 @@ class SettingsViewModelTest {
 
 Use the real constant names from `constants.py` in the canned JSON.
 
-- [ ] **Step 2: Sections**
+- [x] **Step 2: Sections**
 
 1. **Data source**: host, port, token, "Test connection", last successful pull from
    `status.last_ingest_utc` localised, and the last ingest error from `status.components`.
@@ -4390,14 +4390,14 @@ Use the real constant names from `constants.py` in the canned JSON.
 8. **About**: version, `LICENSE`, the MedlinePlus attribution sentence from
    `corpus-sources.json`, a link to the repository README.
 
-- [ ] **Step 3: Build, install, verify**
+- [ ] **Step 3: Build, install, verify** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first: every constant on the dashboard's Settings page appears with the
 same value; the provenance of the red threshold names its source; "Run ingest now"
 returns a result and Today updates; export shares a JSONL text; screenshot to
 `docs/screenshots/android/settings.png`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/ui/settings android/app/src/test android/app/build.gradle.kts docs/screenshots/android
@@ -4425,7 +4425,7 @@ Spec section 12. Each of these is checked by a test that already exists or one a
 - Modify: `docs/superpowers/specs/2026-09-10-android-app-design.md` (section 5: the facade lives at `src/wha_android/facade.py`, imported as `wha_android.facade`; section 4.5: the job functions moved to `service/jobs.py`)
 - Test: `tests/unit/android/test_disclosures_name_android_screens.py`
 
-- [ ] **Step 1: Failing disclosure test**
+- [x] **Step 1: Failing disclosure test**
 
 ```python
 # tests/unit/android/test_disclosures_name_android_screens.py
@@ -4460,7 +4460,7 @@ def test_every_android_limitation_is_disclosed_with_its_screen() -> None:
 Match the phrases to the exact wording you write in the entries; the test's phrases are
 lower-case substrings of the entry text.
 
-- [ ] **Step 2: Write the disclosures**
+- [x] **Step 2: Write the disclosures**
 
 One entry per key above, in the file's existing format (read the top of
 `docs/DISCLOSURES.md` for the shape: what the limitation is, why it exists, the screen
@@ -4468,7 +4468,7 @@ that shows it, what a person can do). The "background work may be delayed" entry
 that Android may defer periodic work under battery saving and that the Today screen shows
 the time of the last successful pull so a stale reading is visible rather than silent.
 
-- [ ] **Step 3: Write `docs/RESEARCH-HCI.md`**
+- [x] **Step 3: Write `docs/RESEARCH-HCI.md`**
 
 The five sources from spec section 6.1, each with: full citation, what was studied (method
 and population), what it found, which rule in the app it justifies (by spec section 6.2
@@ -4476,7 +4476,7 @@ row), and whether it was read in full or located. The closing paragraph says non
 this system and that these are interface rules, not clinical ones. No em-dash. Link it
 from `README.md`'s document table.
 
-- [ ] **Step 4: README, USER-GUIDE, android/README**
+- [x] **Step 4: README, USER-GUIDE, android/README**
 
 `README.md`: a section "The Android app" after the setup block: what it is in three
 sentences, that the PC remains the main system, a link to `android/README.md` and to the
@@ -4495,12 +4495,12 @@ timing observed in Task 11, as an engineering observation), "Chart colours" (the
 output from Task 18), and "What is not built" (no emulator, no release signing yet, no
 Play Store).
 
-- [ ] **Step 5: Run the document tests**
+- [x] **Step 5: Run the document tests**
 
 Run: `uv run pytest tests/unit/test_docs.py tests/unit/test_contracts.py tests/unit/test_documented_numbers.py tests/unit/android -n auto -q`
 Expected: pass. The em-dash sweep covers every new markdown file.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add docs/ README.md USER-GUIDE.md android/README.md tests/unit/android/test_disclosures_name_android_screens.py
@@ -4521,7 +4521,7 @@ Spec section 10, and `AGENTS.md` "How to work" steps 5 to 7.
 - Create: `android/verification/2026-09-run2-scripted-illness.md`
 - Create: `tools/mock_watch_phone.md` (how to point the phone at the PC's mock watch)
 
-- [ ] **Step 1: Write the expected outcomes first**
+- [x] **Step 1: Write the expected outcomes first** (Expected columns written in `android/verification/` before touching the phone; Observed empty)
 
 Before touching the phone, write both files with an "Expected" column filled and an
 "Observed" column empty. Run 1, fresh install against the real webhook:
