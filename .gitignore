@@ -25,6 +25,8 @@ exports/
 secrets.*
 credentials.*
 token*.json
+# Exception: the tokenizer fixture is generated test data, not a secret.
+!android/app/src/test/resources/tokenizer_fixture.json
 
 # --- Python ---
 __pycache__/

@@ -23,6 +23,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+    // Robolectric loads the merged manifest and resources, so tests see the same
+    // package name and resources as the app rather than bare OS stubs.
+    testOptions { unitTests.isIncludeAndroidResources = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/wha-assets"))
     sourceSets["main"].res.srcDir(layout.buildDirectory.dir("generated/wha-res"))
@@ -40,6 +43,32 @@ tasks.register<Copy>("copyDisclaimer") {
     into(layout.buildDirectory.dir("generated/wha-res/raw"))
 }
 tasks.named("preBuild") { dependsOn("copyDisclaimer") }
+
+// The disclosures the Settings screen shows, straight from the file that owns
+// them, so a limitation cannot live only in markdown (Task 24 names the screen
+// in each entry; DisclosuresList keeps the rows naming a phone screen).
+tasks.register<Copy>("copyDisclosures") {
+    from("../../docs/DISCLOSURES.md")
+    rename("DISCLOSURES.md", "disclosures.md")
+    into(layout.buildDirectory.dir("generated/wha-res/raw"))
+}
+tasks.named("preBuild") { dependsOn("copyDisclosures") }
+
+// The licence the About section names, so the string cannot drift from the file.
+tasks.register<Copy>("copyLicence") {
+    from("../../LICENSE")
+    rename("LICENSE", "licence.txt")
+    into(layout.buildDirectory.dir("generated/wha-res/raw"))
+}
+tasks.named("preBuild") { dependsOn("copyLicence") }
+
+// PC vectors for the on-device embedder self test (Task 16 wrote the fixture;
+// the test row in Settings reads it from assets).
+tasks.register<Copy>("copyEmbedderFixture") {
+    from("src/androidTest/resources/embedder_fixture.json") { into("embedder") }
+    into(layout.buildDirectory.dir("generated/wha-assets"))
+}
+tasks.named("preBuild") { dependsOn("copyEmbedderFixture") }
 
 chaquopy {
     defaultConfig {
@@ -68,17 +97,21 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.20.0")
     testImplementation("androidx.work:work-testing:2.10.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     testImplementation("org.robolectric:robolectric:4.14.1")
     testImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
