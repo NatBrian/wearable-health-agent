@@ -2819,7 +2819,7 @@ Spec sections 3, 4.4. Replace the smoke app's Python wiring with the core.
 **Interfaces:**
 - Produces: `PythonBoot.ensureStarted(context)`: idempotent; extracts `knowledge/` assets to `filesDir/wha/data/knowledge`, sets the environment from `AppSettings` (Task 13), sets the working directory, starts Python, and calls `wha_boot.boot(...)` which registers the notifier sink and the embedder. Returns the `wha_android.facade` `PyObject`.
 
-- [ ] **Step 1: Point Chaquopy at the core**
+- [x] **Step 1: Point Chaquopy at the core**
 
 ```kotlin
 // android/app/build.gradle.kts, chaquopy block replaces the smoke one
@@ -2899,7 +2899,7 @@ Run `uv run python tools/android_requirements.py` and commit the output. Add a t
 `tests/unit/android/test_android_requirements.py` that regenerates to a temp path and
 asserts it equals the committed file, so a lock change without a regeneration fails.
 
-- [ ] **Step 2: Assets and boot**
+- [x] **Step 2: Assets and boot**
 
 Copy `data/knowledge/` into the APK at build time rather than committing a second copy:
 
@@ -3027,7 +3027,7 @@ object PythonBoot {
 lands, stub `AppSettings` with those defaults and `WHA_LLM_PROVIDER=cassette` so the app
 boots.
 
-- [ ] **Step 3: Theme, strings, and the no-digits rule**
+- [x] **Step 3: Theme, strings, and the no-digits rule**
 
 ```kotlin
 // ui/theme/Color.kt
@@ -3085,7 +3085,7 @@ class StringsHaveNoDigitsTest {
 
 Add `testImplementation("junit:junit:4.13.2")` to dependencies.
 
-- [ ] **Step 4: Manifest and application class**
+- [x] **Step 4: Manifest and application class**
 
 ```kotlin
 // WhaApp.kt
@@ -3106,7 +3106,7 @@ Manifest gains `android:name=".WhaApp"`, `INTERNET`, `POST_NOTIFICATIONS`,
 `res/xml/network_security_config.xml` to `127.0.0.1`, `localhost` and private ranges
 (the webhook is plain HTTP on the phone; the provider is HTTPS).
 
-- [ ] **Step 5: Build, install, verify**
+- [x] **Step 5: Build, install, verify**
 
 `MainActivity` for now calls `PythonBoot.ensureStarted(this)` and shows
 `facade.callAttr("config").toString()` in a scrolling `Text`.
@@ -3116,7 +3116,7 @@ upper-case constant name from `constants.py`. Time from tap to text is noted in
 `android/README.md` under "Measured start-up" as a plain observation (this is an
 engineering timing, not a claim about health, so it may be recorded).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add android/ tools/android_requirements.py tests/unit/android/test_android_requirements.py
