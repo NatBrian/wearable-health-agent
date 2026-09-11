@@ -3140,7 +3140,7 @@ Spec sections 5 and 9. One class between Compose and Python.
 **Interfaces:**
 - Produces: `interface WhaCore` with one suspend function per facade function, each returning `WhaResult<T>`; `sealed class WhaResult<T> { data class Ok(val value: T); data class Err(val kind: ErrorKind, val message: String) }`; `enum class ErrorKind { UNAVAILABLE, INVALID, INTERNAL }`; `PythonWhaCore(context)` the real one; `FakeWhaCore` for tests holding canned JSON. `Models.kt` holds `@Serializable` data classes mirroring the Pydantic models the facade returns, with `ignoreUnknownKeys = true` so a field added on the PC does not crash the phone.
 
-- [ ] **Step 1: Write the failing result test**
+- [x] **Step 1: Write the failing result test**
 
 ```kotlin
 // android/app/src/test/java/dev/wha/app/core/WhaResultTest.kt
@@ -3176,12 +3176,12 @@ class WhaResultTest {
 }
 ```
 
-- [ ] **Step 2: Run to verify it fails**
+- [x] **Step 2: Run to verify it fails**
 
 Run on the remote: `./gradlew :app:testDebugUnitTest --tests '*WhaResultTest*'`
 Expected: compilation failure, `WhaResult` unresolved.
 
-- [ ] **Step 3: Write the result type and the core**
+- [x] **Step 3: Write the result type and the core**
 
 ```kotlin
 // core/WhaResult.kt
@@ -3318,12 +3318,12 @@ Add to dependencies: `implementation("org.jetbrains.kotlinx:kotlinx-serializatio
 `FakeWhaCore` (in `src/test`) implements `WhaCore` with a `MutableMap<String, String>`
 of canned JSON per method name and records calls; every view model test uses it.
 
-- [ ] **Step 4: Run the unit tests**
+- [x] **Step 4: Run the unit tests**
 
 Run on the remote: `./gradlew :app:testDebugUnitTest`
 Expected: `WhaResultTest` four tests pass; `StringsHaveNoDigitsTest` passes.
 
-- [ ] **Step 5: Model parity check against the contract**
+- [x] **Step 5: Model parity check against the contract**
 
 Add `tests/unit/android/test_kotlin_models_match_contract.py`: parse
 `android/app/src/main/java/dev/wha/app/core/Models.kt` with a regex for
@@ -3333,7 +3333,7 @@ reads; reuse its parser), and assert every Pydantic field of each mirrored model
 Kotlin field of the same name in snake case. Fields may be missing on the Kotlin side only
 if listed in an `IGNORED` dict in the test with a reason.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/core android/app/src/test tests/unit/android/test_kotlin_models_match_contract.py android/app/build.gradle.kts
