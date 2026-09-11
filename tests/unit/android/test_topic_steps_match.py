@@ -19,9 +19,7 @@ def test_kotlin_topics_match_python_topic_steps() -> None:
     assert len(found) == len(TOPIC_STEPS) == 10, f"expected 10 topics, found {len(found)}"
     numbers = sorted(int(n) for n, _ in found)
     assert numbers == list(range(1, 11))
-    by_number = {
-        int(n): tuple(int(x) for x in body.split(",") if x.strip()) for n, body in found
-    }
+    by_number = {int(n): tuple(int(x) for x in body.split(",") if x.strip()) for n, body in found}
     expected = [tuple(steps) for steps in TOPIC_STEPS.values()]
     actual = [by_number[n] for n in range(1, 11)]
     assert actual == expected, f"Kotlin topics differ from TOPIC_STEPS:\n{actual}\n{expected}"

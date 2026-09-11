@@ -38,7 +38,7 @@ def _onnx_embed(texts: list[str]) -> np.ndarray:
     feed = {"input_ids": ids, "attention_mask": mask}
     if "token_type_ids" in names:
         feed["token_type_ids"] = types
-    out = sess.run(None, feed)[0]           # (N, T, 384) last hidden state
+    out = sess.run(None, feed)[0]  # (N, T, 384) last hidden state
     cls = out[:, 0, :]
     return cls / np.linalg.norm(cls, axis=1, keepdims=True)
 

@@ -13,10 +13,6 @@ def test_every_topic_body_formats_with_no_tokens_left() -> None:
     assert len(titles) == 10
     for n, title in enumerate(titles, 1):
         assert wording.text(f"topic.{n}.title") == title
-        body = topic_body(
-            n, config=config, tool_names=["read_nights"], assumed=6, rows=10
-        )
+        body = topic_body(n, config=config, tool_names=["read_nights"], assumed=6, rows=10)
         assert "{" not in body, f"topic {n} left a placeholder unfilled"
-        assert "read_nights" in topic_body(
-            5, config=config, tool_names=["read_nights"]
-        )
+        assert "read_nights" in topic_body(5, config=config, tool_names=["read_nights"])

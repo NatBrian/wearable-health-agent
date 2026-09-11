@@ -3,7 +3,6 @@ returns. A field renamed on the PC must fail a test here rather than a screen on
 the phone. Dict-shaped facade payloads (no model behind them) are checked for
 existence only; their keys are documented in docs/CONTRACTS.md section 12."""
 
-import ast
 import re
 from pathlib import Path
 

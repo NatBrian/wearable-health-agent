@@ -22,8 +22,12 @@ class CountingEmbedder:
 def _tiny_corpus() -> list[CorpusDocument]:
     return [
         CorpusDocument(
-            doc_id="t1", title="Fever", text="A fever is a body temperature above normal.",
-            layer=1, source_url="test", metadata={},
+            doc_id="t1",
+            title="Fever",
+            text="A fever is a body temperature above normal.",
+            layer=1,
+            source_url="test",
+            metadata={},
         )
     ]
 
@@ -32,8 +36,12 @@ def test_build_index_uses_the_registered_embedder(monkeypatch) -> None:
     embedder = CountingEmbedder()
     embedder_registry.set_default_embedder(embedder)
     try:
-        monkeypatch.setattr("wha.retrieve.knowledge_docs._load_cached_embeddings", lambda chunks: None)
-        monkeypatch.setattr("wha.retrieve.knowledge_docs._save_cached_embeddings", lambda c, e: None)
+        monkeypatch.setattr(
+            "wha.retrieve.knowledge_docs._load_cached_embeddings", lambda chunks: None
+        )
+        monkeypatch.setattr(
+            "wha.retrieve.knowledge_docs._save_cached_embeddings", lambda c, e: None
+        )
         index = build_index(_tiny_corpus())
         assert embedder.calls == 1
         assert index.embedder is embedder
@@ -45,8 +53,12 @@ def test_explicit_argument_beats_the_registry(monkeypatch) -> None:
     registered, explicit = CountingEmbedder(), CountingEmbedder()
     embedder_registry.set_default_embedder(registered)
     try:
-        monkeypatch.setattr("wha.retrieve.knowledge_docs._load_cached_embeddings", lambda chunks: None)
-        monkeypatch.setattr("wha.retrieve.knowledge_docs._save_cached_embeddings", lambda c, e: None)
+        monkeypatch.setattr(
+            "wha.retrieve.knowledge_docs._load_cached_embeddings", lambda chunks: None
+        )
+        monkeypatch.setattr(
+            "wha.retrieve.knowledge_docs._save_cached_embeddings", lambda c, e: None
+        )
         index = build_index(_tiny_corpus(), embedder=explicit)
         assert explicit.calls == 1 and registered.calls == 0
         assert index.embedder is explicit

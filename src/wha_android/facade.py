@@ -152,9 +152,7 @@ def answer(
 
 
 @guarded
-def review(
-    episode_id: str, decision: str, edited_prose: str | None, rationale: str | None
-) -> str:
+def review(episode_id: str, decision: str, edited_prose: str | None, rationale: str | None) -> str:
     service.submit_human_decision(
         episode_id=episode_id, decision=decision, edited_prose=edited_prose, rationale=rationale
     )
@@ -263,7 +261,12 @@ def diagnose(component: str, overrides_json: str = "{}") -> str:
 
 @guarded
 def doctor() -> str:
-    return ok([{"name": i.name, "status": str(i.status), "detail": i.detail} for i in service.run_doctor()])
+    return ok(
+        [
+            {"name": i.name, "status": str(i.status), "detail": i.detail}
+            for i in service.run_doctor()
+        ]
+    )
 
 
 @guarded

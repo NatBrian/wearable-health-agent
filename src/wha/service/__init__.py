@@ -22,6 +22,7 @@ from wha.service.belief import (
     get_knowledge_provenance,
     get_safety_rule_provenance,
 )
+from wha.service.config_export import config_export
 from wha.service.conversation import (
     acknowledge_urgency,
     get_conversation_sessions,
@@ -31,7 +32,6 @@ from wha.service.conversation import (
     send_message,
     urgency_banner,
 )
-from wha.service.config_export import config_export
 from wha.service.corpus import (
     build_corpus_file,
     corpus_present,
@@ -63,7 +63,7 @@ from wha.service.evaluation import (
 )
 from wha.service.handover import Handover, build_handover
 from wha.service.ingest import DEFAULT_INGEST_DAYS, describe_device_capability, run_ingest
-from wha.service.jobs import _rescore_recent, run_startup_catchup
+from wha.service.jobs import run_startup_catchup
 from wha.service.nightly import (
     get_monitoring_since,
     parse_date_range,

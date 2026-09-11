@@ -24,7 +24,9 @@ def test_no_edge_runs_backwards_except_the_answer_loop() -> None:
 
 def test_every_step_after_the_first_consumes_something() -> None:
     consumers = {e.to_step for e in PIPELINE_LINEAGE}
-    orphans = [s.step_id for s in CANONICAL_PIPELINE_STEPS if s.ordinal > 1 and s.step_id not in consumers]
+    orphans = [
+        s.step_id for s in CANONICAL_PIPELINE_STEPS if s.ordinal > 1 and s.step_id not in consumers
+    ]
     assert not orphans, f"steps with no declared input: {orphans}"
 
 

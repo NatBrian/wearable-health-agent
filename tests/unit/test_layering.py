@@ -282,6 +282,5 @@ def test_no_allowed_upward_import_is_stale() -> None:
     reaching = {s[2] for s in sites if s[1] == "service" and s[0] in {"agent", "notify"}}
     stale = sorted(set(ALLOWED_UPWARD_IMPORTS) - reaching)
     assert not stale, (
-        f"these no longer import wha.service, so remove them from "
-        f"ALLOWED_UPWARD_IMPORTS: {stale}"
+        f"these no longer import wha.service, so remove them from ALLOWED_UPWARD_IMPORTS: {stale}"
     )

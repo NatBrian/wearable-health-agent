@@ -13,7 +13,6 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from wha.audit.monitor import review_requested_at
 from wha.clock import now_utc
-from wha.config import get_settings
 from wha.constants import (
     ANSWER_TIMEOUT_HOURS,
     MEASUREMENT_TIMEOUT_HOURS,

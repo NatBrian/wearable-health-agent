@@ -19,9 +19,7 @@ from wha.models import CANONICAL_PIPELINE_STEPS, StepLayer
 def test_every_node_maps_to_a_real_pipeline_step() -> None:
     """A node reporting as a step the dashboard does not have renders nothing, silently."""
     real = {s.step_id for s in CANONICAL_PIPELINE_STEPS}
-    unknown = {
-        node: step for node, step in NODE_TO_PIPELINE_STEP.items() if step not in real
-    }
+    unknown = {node: step for node, step in NODE_TO_PIPELINE_STEP.items() if step not in real}
     assert not unknown, f"nodes mapped to steps that do not exist: {unknown}"
 
 

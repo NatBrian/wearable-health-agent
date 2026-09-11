@@ -33,7 +33,7 @@ PC_ONLY_MODULES = (
     "wha.eval",
 )
 
-SWEEP = r'''
+SWEEP = r"""
 import importlib, pkgutil, sys, traceback
 blocked = %r
 pc_only = %r
@@ -61,13 +61,13 @@ for info in pkgutil.walk_packages(wha_android.__path__, "wha_android."):
         failures.append(info.name + ": " + traceback.format_exc().splitlines()[-1])
 print("\n".join(failures))
 sys.exit(1 if failures else 0)
-'''
+"""
 
 
 def test_every_core_module_imports_with_pc_packages_blocked() -> None:
     code = SWEEP % (PC_ONLY_PACKAGES, PC_ONLY_MODULES)
     proc = subprocess.run(
-        [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True
+        [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True, check=False
     )
     assert proc.returncode == 0, "core modules that reach a PC-only package:\n" + proc.stdout
 
@@ -79,7 +79,17 @@ def test_pyproject_declares_the_pc_extra() -> None:
     extras = pyproject["project"].get("optional-dependencies", {})
     assert "pc" in extras, "pyproject.toml has no [project.optional-dependencies] pc"
     names = {dep.split(">")[0].split("<")[0].split("=")[0].strip() for dep in extras["pc"]}
-    for required in ("streamlit", "altair", "fastapi", "uvicorn", "sentence-transformers", "apscheduler"):
+    for required in (
+        "streamlit",
+        "altair",
+        "fastapi",
+        "uvicorn",
+        "sentence-transformers",
+        "apscheduler",
+    ):
         assert required in names, f"{required} must be in the pc extra, not in core"
-    core = {d.split(">")[0].split("<")[0].split("=")[0].strip() for d in pyproject["project"]["dependencies"]}
+    core = {
+        d.split(">")[0].split("<")[0].split("=")[0].strip()
+        for d in pyproject["project"]["dependencies"]
+    }
     assert not (core & names), f"declared in both core and pc: {core & names}"

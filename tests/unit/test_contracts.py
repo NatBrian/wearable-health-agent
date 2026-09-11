@@ -402,7 +402,9 @@ def test_the_contract_lists_the_dependencies_pyproject_actually_declares() -> No
     block = block[block.index("## 1. Environment") : block.index("## 2. Configuration and secrets")]
 
     documented: dict[str, set[str]] = {}
-    for row in re.finditer(r"^\| (runtime|pc \(optional extra\)|dev) \| (.+) \|$", block, re.MULTILINE):
+    for row in re.finditer(
+        r"^\| (runtime|pc \(optional extra\)|dev) \| (.+) \|$", block, re.MULTILINE
+    ):
         documented[row.group(1).split(" ")[0]] = set(re.findall(r"`([^`]+)`", row.group(2)))
 
     problems: list[str] = []

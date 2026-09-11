@@ -116,7 +116,8 @@ def test_ask_node_calls_the_real_notifier_protocol_method() -> None:
     db.has_notification_for.return_value = False
 
     with patch(
-        "wha.agent.nodes.ask.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+        "wha.agent.nodes.ask.interrupt",
+        return_value={"probe_id": "probe_alcohol", "option_id": "none"},
     ):
         node_ask(state, notifier=notifier, db=db)
 
@@ -146,7 +147,8 @@ def test_failed_delivery_is_not_recorded_as_sent() -> None:
     db.has_notification_for.return_value = False
 
     with patch(
-        "wha.agent.nodes.ask.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+        "wha.agent.nodes.ask.interrupt",
+        return_value={"probe_id": "probe_alcohol", "option_id": "none"},
     ):
         node_ask(state, notifier=notifier, db=db)
 
@@ -168,7 +170,8 @@ def test_interrupt_resume_is_idempotent_on_writes() -> None:
     mock_db.has_notification_for.return_value = True
 
     with patch(
-        "wha.agent.nodes.ask.interrupt", return_value={"probe_id": "probe_alcohol", "option_id": "none"}
+        "wha.agent.nodes.ask.interrupt",
+        return_value={"probe_id": "probe_alcohol", "option_id": "none"},
     ):
         node_ask(state, db=mock_db)
         node_ask(state, db=mock_db)

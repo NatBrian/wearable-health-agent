@@ -9,7 +9,9 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def _kotlin_const(name: str) -> int:
-    source = (ROOT / "android/app/src/main/java/dev/wha/app/jobs/Jobs.kt").read_text(encoding="utf-8")
+    source = (ROOT / "android/app/src/main/java/dev/wha/app/jobs/Jobs.kt").read_text(
+        encoding="utf-8"
+    )
     match = re.search(rf"const val {name} = (\d+)L", source)
     assert match, f"{name} not found in Jobs.kt"
     return int(match.group(1))
@@ -24,8 +26,6 @@ def test_ingest_and_tick_intervals_match_the_pc_scheduler() -> None:
 
 
 def test_nightly_interval_matches_the_pc_constant() -> None:
-    import tomllib
-
     constants = (ROOT / "src/wha/constants.py").read_text(encoding="utf-8")
     match = re.search(r"NIGHTLY_RESCORE_INTERVAL_HOURS\s*=\s*(\d+)", constants)
     assert match, "NIGHTLY_RESCORE_INTERVAL_HOURS not found in constants.py"
