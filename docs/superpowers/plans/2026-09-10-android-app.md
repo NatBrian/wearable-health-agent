@@ -3588,7 +3588,7 @@ runs the tick inside `InvestigationService` (start foreground with the
 Battery: WorkManager's minimum periodic interval is fifteen minutes, so the tick runs at
 its floor. No wake locks beyond the foreground service.
 
-- [x] **Step 3: Build, install, verify on the phone**
+- [ ] **Step 3: Build, install, verify on the phone** (unit tests green on remote; install and verify deferred to Task 25 per owner)
 
 Expected, written first: after onboarding, `adb shell dumpsys jobscheduler | grep dev.wha`
 (or the Settings screen's diagnostics row in Task 23) shows the three periodic jobs; the
