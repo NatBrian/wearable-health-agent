@@ -48,4 +48,13 @@ class FakeWhaCore : WhaCore {
     override suspend fun runNightly(): WhaResult<JobResult> = cannedAs("run_nightly")
     override suspend fun runEpisodeTick(): WhaResult<JobResult> = cannedAs("run_episode_tick")
     override suspend fun runStartupCatchup(): WhaResult<JobResult> = cannedAs("run_startup_catchup")
+
+    override suspend fun localise(utcIso: String): WhaResult<String> {
+        calls.add("localise")
+        val raw = canned["localise"] ?: return WhaResult.Ok(utcIso)
+        return when (val parsed = WhaResult.parse<Map<String, String>>(raw)) {
+            is WhaResult.Ok -> WhaResult.Ok(parsed.value["local"] ?: utcIso)
+            is WhaResult.Err -> parsed
+        }
+    }
 }

@@ -38,6 +38,7 @@ interface WhaCore {
     suspend fun runNightly(): WhaResult<JobResult>
     suspend fun runEpisodeTick(): WhaResult<JobResult>
     suspend fun runStartupCatchup(): WhaResult<JobResult>
+    suspend fun localise(utcIso: String): WhaResult<String>
 }
 
 class PythonWhaCore(private val context: Context) : WhaCore {
@@ -79,4 +80,12 @@ class PythonWhaCore(private val context: Context) : WhaCore {
     override suspend fun runNightly() = call<JobResult>("run_nightly")
     override suspend fun runEpisodeTick() = call<JobResult>("run_episode_tick")
     override suspend fun runStartupCatchup() = call<JobResult>("run_startup_catchup")
+
+    override suspend fun localise(utcIso: String): WhaResult<String> =
+        withContext(Dispatchers.IO) {
+            when (val raw = WhaResult.parse<Map<String, String>>(facade.callAttr("localise", utcIso).toString())) {
+                is WhaResult.Ok -> WhaResult.Ok(raw.value["local"] ?: utcIso)
+                is WhaResult.Err -> raw
+            }
+        }
 }
