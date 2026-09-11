@@ -3514,7 +3514,7 @@ Spec section 4.5. The four schedules, on WorkManager.
 **Interfaces:**
 - Produces: `Jobs.enqueueAll(context)` (idempotent, `ExistingPeriodicWorkPolicy.UPDATE`), `Jobs.runCatchupNow(context)`; `RunState` a process-wide `StateFlow<RunState.Status>` with `Idle` or `Running(job: String, since: Instant)` that the Record tab reads (Task 20); `InvestigationService` a foreground service that `EpisodeTickWorker` starts when `pending` is null and an episode is active, showing "Investigating last night" until the tick returns.
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 ```kotlin
 @RunWith(RobolectricTestRunner::class)
@@ -3544,7 +3544,7 @@ the numbers agree, so a change on either side fails.
 Add: `implementation("androidx.work:work-runtime-ktx:2.10.0")`,
 `testImplementation("androidx.work:work-testing:2.10.0")`.
 
-- [ ] **Step 2: Write the workers**
+- [x] **Step 2: Write the workers**
 
 ```kotlin
 // jobs/Jobs.kt
@@ -3588,14 +3588,14 @@ runs the tick inside `InvestigationService` (start foreground with the
 Battery: WorkManager's minimum periodic interval is fifteen minutes, so the tick runs at
 its floor. No wake locks beyond the foreground service.
 
-- [ ] **Step 3: Build, install, verify on the phone**
+- [x] **Step 3: Build, install, verify on the phone**
 
 Expected, written first: after onboarding, `adb shell dumpsys jobscheduler | grep dev.wha`
 (or the Settings screen's diagnostics row in Task 23) shows the three periodic jobs; the
 first ingest after Finish writes samples (Today shows "readings arrived" with a time after
 the catch-up); an investigation, when one runs, shows the foreground notification.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/jobs android/app/src/main/AndroidManifest.xml android/app/src/test tests/unit/android/test_job_intervals.py
