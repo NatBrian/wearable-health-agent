@@ -142,6 +142,9 @@ DECLARED_EDGES: dict[str, set[str]] = {
         "policy",
         "retrieve",
         "safety",
+        # service/phrasing.py builds the disposition phrases the service itself sends
+        # from wording, so the phone shows the same words through facade.wording().
+        "wording",
     },
     "ui": {"api", "models", "wording"},
     "wording": set(),

@@ -14,7 +14,8 @@ from typing import Any
 
 import streamlit as st
 
-from wha.models import PipelineStepView, StepStatus
+from wha import wording
+from wha.models import CauseId, PipelineStepView, StepStatus
 from wha.ui import design, explain, format
 from wha.ui.components.citations import drawer
 from wha.ui.components.pipeline_graph import step_name
@@ -215,20 +216,11 @@ _QUESTION_NAMES: dict[str, str] = {
 }
 
 
-# The twelve causes, named for a reader rather than by their internal ids.
+# The twelve causes, named for a reader rather than by their internal ids. Single
+# source is wha/wording.py (cause.<id>), shared with the phone; this keeps the
+# dashboard's spelling for unknown ids.
 _CAUSE_NAMES: dict[str, str] = {
-    "infection": "an infection coming on",
-    "alcohol": "alcohol",
-    "exertion": "hard exercise",
-    "sleep_restriction": "too little sleep",
-    "stress": "stress",
-    "luteal": "the second half of your cycle",
-    "vaccination": "a recent vaccination",
-    "travel": "travel",
-    "medication": "medication",
-    "recovery_tail": "still recovering from something earlier",
-    "sensor_artifact": "the watch misreading",
-    "unexplained": "something not on this list",
+    cause_id.value: wording.TEXT[f"cause.{cause_id.value}"] for cause_id in CauseId
 }
 
 

@@ -10,8 +10,11 @@ screen, where the user decided it should live.
 """
 
 from wha.models import Disposition
+from wha.wording import TEXT as WORDING
 
-# The label a person sees, and one sentence saying what it means.
+# The label a person sees, and one sentence saying what it means. Single source is
+# wha/wording.py (disposition.<value>), shared with the phone, because the service
+# itself sends these words and both screens must show the same ones.
 #
 # "Nothing points towards illness" read "Probably nothing to worry about" until 5 September
 # 2026, and "nothing to worry about" is on the `never_say` list in red_flags.yaml. The
@@ -19,40 +22,28 @@ from wha.models import Disposition
 # system was breaking its own safety rule in a string it had written by hand.
 DISPOSITION_PHRASES: dict[str, tuple[str, str]] = {
     Disposition.LIKELY_ILLNESS.value: (
-        "Possibly coming down with something",
-        (
-            "Your answers and your overnight readings together point towards an infection "
-            "more than to anything else. This is not a diagnosis."
-        ),
+        WORDING["disposition.LIKELY_ILLNESS"],
+        WORDING["disposition.LIKELY_ILLNESS.why"],
     ),
     Disposition.LIKELY_BENIGN.value: (
-        "Nothing points towards illness",
-        "Nothing here points towards illness. Keep an eye on how you feel.",
+        WORDING["disposition.LIKELY_BENIGN"],
+        WORDING["disposition.LIKELY_BENIGN.why"],
     ),
     Disposition.EXPLAINED_BY_EVENT.value: (
-        "Explained by something you did",
-        (
-            "Something specific accounts for it, such as a hard workout, a drink, a "
-            "vaccination or a flight."
-        ),
+        WORDING["disposition.EXPLAINED_BY_EVENT"],
+        WORDING["disposition.EXPLAINED_BY_EVENT.why"],
     ),
     Disposition.ESCALATED.value: (
-        "Get medical help now",
-        "You described something that needs assessing by a person, not an app.",
+        WORDING["disposition.ESCALATED"],
+        WORDING["disposition.ESCALATED.why"],
     ),
     Disposition.UNRESOLVED.value: (
-        "Could not tell",
-        (
-            "There was not enough to separate the possible causes, and asking more was not "
-            "worth interrupting you again."
-        ),
+        WORDING["disposition.UNRESOLVED"],
+        WORDING["disposition.UNRESOLVED.why"],
     ),
     Disposition.INSUFFICIENT_DATA.value: (
-        "Still learning your normal",
-        (
-            "A few more nights of wear are needed before any reading can be judged against "
-            "your own baseline."
-        ),
+        WORDING["disposition.INSUFFICIENT_DATA"],
+        WORDING["disposition.INSUFFICIENT_DATA.why"],
     ),
 }
 
