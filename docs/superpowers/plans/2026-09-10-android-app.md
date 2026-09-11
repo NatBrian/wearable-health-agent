@@ -3359,7 +3359,7 @@ Spec sections 4.7, 6.3.
 **Interfaces:**
 - Produces: `AppSettings(context)` with typed properties `webhookHost`, `webhookPort`, `webhookToken`, `providerBaseUrl`, `providerModel`, `providerKey`, `subject`, `timezone`, `onboarded: Boolean`, and `pythonEnvironment(root: File): Map<String, String>`. Secrets (`webhookToken`, `providerKey`) live in `SecretStore` (EncryptedSharedPreferences with a Keystore master key); everything else in plain `SharedPreferences`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```kotlin
 // settings/AppSettingsTest.kt (Robolectric)
@@ -3401,7 +3401,7 @@ Add Robolectric: `testImplementation("org.robolectric:robolectric:4.14.1")`,
 `EncryptedSharedPreferences` needs a fake; `SecretStore` takes an interface
 `SecretBacking` with a `PlainBacking` used only under test (annotated so, with the reason).
 
-- [ ] **Step 2: Run to verify failure, then write `AppSettings`**
+- [x] **Step 2: Run to verify failure, then write `AppSettings`**
 
 ```kotlin
 // settings/AppSettings.kt
@@ -3460,7 +3460,7 @@ Note the provider falls back to `cassette` with no key, which the core treats as
 fixtures; the Today screen must say "no model provider configured" in that state (Task 17)
 rather than let a cassette reply look real. Record this in `docs/DISCLOSURES.md` (Task 24).
 
-- [ ] **Step 3: Onboarding**
+- [x] **Step 3: Onboarding**
 
 Four pages in a `HorizontalPager`, state in `OnboardingViewModel`:
 
@@ -3483,14 +3483,14 @@ Four pages in a `HorizontalPager`, state in `OnboardingViewModel`:
 "could not reach" text and not a crash; Finish is disabled until the disclaimer box is
 ticked.
 
-- [ ] **Step 4: Build, install, walk through onboarding on the phone**
+- [x] **Step 4: Build, install, walk through onboarding on the phone**
 
 Expected, written first: all four pages render; "Test connection" against the real
 webhook on the phone reports the record types the core sees; entering a wrong port reports
 `unavailable` in words; the provider test with the rotated key reports success; Finish
 lands on Today (a placeholder until Task 17).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add android/app/src/main/java/dev/wha/app/settings android/app/src/main/java/dev/wha/app/ui/onboarding android/app/src/test android/app/src/main/res
