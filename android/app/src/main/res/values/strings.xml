@@ -5,4 +5,6 @@
     <string name="nav_history">History</string>
     <string name="nav_record">Record</string>
     <string name="nav_settings">Settings</string>
+    <string name="investigating_title">Investigating last night</string>
+    <string name="investigating_text">Working through what changed and why. This takes a moment.</string>
 </resources>

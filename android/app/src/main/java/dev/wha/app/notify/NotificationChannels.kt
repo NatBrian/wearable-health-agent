@@ -8,6 +8,7 @@ import android.content.Context
 object NotificationChannels {
     const val QUESTIONS = "questions"
     const val URGENT = "urgent"
+    const val ONGOING = "ongoing"
 
     fun ensure(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -16,6 +17,9 @@ object NotificationChannels {
         )
         manager.createNotificationChannel(
             NotificationChannel(URGENT, "Urgent", NotificationManager.IMPORTANCE_HIGH)
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(ONGOING, "Working", NotificationManager.IMPORTANCE_LOW)
         )
     }
 }
