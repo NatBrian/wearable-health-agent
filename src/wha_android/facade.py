@@ -166,6 +166,8 @@ def handover(subject_id: str, episode_id: str | None = None) -> str:
     h = service.build_handover(subject_id, episode_id=episode_id)
     return ok(
         {
+            "subject_id": h.subject_id,
+            "generated_at_utc": h.generated_at_utc,
             "text": h.as_text(),
             "situation": h.situation,
             "background": h.background,
