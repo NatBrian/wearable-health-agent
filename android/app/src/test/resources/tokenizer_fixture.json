@@ -1,0 +1,52 @@
+{
+ "A fever is a body temperature above normal.": [
+  101,
+  1037,
+  9016,
+  2003,
+  1037,
+  2303,
+  4860,
+  2682,
+  3671,
+  1012,
+  102
+ ],
+ "Resting heart rate rises during infection.": [
+  101,
+  8345,
+  2540,
+  3446,
+  9466,
+  2076,
+  8985,
+  1012,
+  102
+ ],
+ "Alcohol in the evening can raise overnight heart rate.": [
+  101,
+  6544,
+  1999,
+  1996,
+  3944,
+  2064,
+  5333,
+  11585,
+  2540,
+  3446,
+  1012,
+  102
+ ],
+ "Dizziness, nausea and vomiting since yesterday": [
+  101,
+  4487,
+  29212,
+  1010,
+  19029,
+  1998,
+  24780,
+  2144,
+  7483,
+  102
+ ]
+}
