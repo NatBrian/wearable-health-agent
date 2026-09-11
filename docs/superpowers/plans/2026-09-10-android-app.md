@@ -3106,7 +3106,7 @@ Manifest gains `android:name=".WhaApp"`, `INTERNET`, `POST_NOTIFICATIONS`,
 `res/xml/network_security_config.xml` to `127.0.0.1`, `localhost` and private ranges
 (the webhook is plain HTTP on the phone; the provider is HTTPS).
 
-- [x] **Step 5: Build, install, verify**
+- [ ] **Step 5: Build, install, verify** (build done 11 Sep, APK assembled; install and verify deferred to Task 25 per owner)
 
 `MainActivity` for now calls `PythonBoot.ensureStarted(this)` and shows
 `facade.callAttr("config").toString()` in a scrolling `Text`.
