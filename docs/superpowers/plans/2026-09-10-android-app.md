@@ -3483,7 +3483,7 @@ Four pages in a `HorizontalPager`, state in `OnboardingViewModel`:
 "could not reach" text and not a crash; Finish is disabled until the disclaimer box is
 ticked.
 
-- [x] **Step 4: Build, install, walk through onboarding on the phone**
+- [ ] **Step 4: Build, install, walk through onboarding on the phone** (unit tests green on remote; install and walkthrough deferred to Task 25 per owner)
 
 Expected, written first: all four pages render; "Test connection" against the real
 webhook on the phone reports the record types the core sees; entering a wrong port reports
