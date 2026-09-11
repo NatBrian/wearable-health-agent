@@ -25,6 +25,7 @@ android {
     kotlinOptions { jvmTarget = "17" }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/wha-assets"))
+    sourceSets["main"].res.srcDir(layout.buildDirectory.dir("generated/wha-res"))
 }
 
 tasks.register<Copy>("copyKnowledgeAssets") {
@@ -32,6 +33,13 @@ tasks.register<Copy>("copyKnowledgeAssets") {
     into(layout.buildDirectory.dir("generated/wha-assets"))
 }
 tasks.named("preBuild") { dependsOn("copyKnowledgeAssets") }
+
+tasks.register<Copy>("copyDisclaimer") {
+    from("../../DISCLAIMER.md")
+    rename("DISCLAIMER.md", "disclaimer.md")
+    into(layout.buildDirectory.dir("generated/wha-res/raw"))
+}
+tasks.named("preBuild") { dependsOn("copyDisclaimer") }
 
 chaquopy {
     defaultConfig {
@@ -65,6 +73,10 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("androidx.test:core:1.6.1")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 }
