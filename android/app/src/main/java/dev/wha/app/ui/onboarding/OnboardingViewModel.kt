@@ -58,7 +58,14 @@ class OnboardingViewModel(
         val s = _state.value
         viewModelScope.launch {
             val overrides = """{"bridge_host": ${jsonStr(s.webhookHost)}, "bridge_token": ${jsonStr(s.webhookToken)}}"""
-            _state.value = s.copy(bridgeResult = describe(core.diagnose("bridge", overrides)))
+            // A Test button must show words, never close the app: this is the first
+            // touch of Python, so any throw during first start lands here.
+            val result = try {
+                core.diagnose("bridge", overrides)
+            } catch (e: Exception) {
+                WhaResult.Err(ErrorKind.INTERNAL, "${e::class.simpleName}: ${e.message}")
+            }
+            _state.value = s.copy(bridgeResult = describe(result))
         }
     }
 
@@ -66,7 +73,12 @@ class OnboardingViewModel(
         val s = _state.value
         viewModelScope.launch {
             val overrides = """{"provider": "openai_compatible", "model": ${jsonStr(s.providerModel)}}"""
-            _state.value = s.copy(providerResult = describe(core.diagnose("llm", overrides)))
+            val result = try {
+                core.diagnose("llm", overrides)
+            } catch (e: Exception) {
+                WhaResult.Err(ErrorKind.INTERNAL, "${e::class.simpleName}: ${e.message}")
+            }
+            _state.value = s.copy(providerResult = describe(result))
         }
     }
 

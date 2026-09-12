@@ -71,4 +71,16 @@ class OnboardingViewModelTest {
         assertTrue(settings.onboarded)
         Dispatchers.resetMain()
     }
+
+    @Test fun aThrowingCoreShowsWordsNotACrash() = runTest(dispatcher) {
+        // Run 1 finding 1: the Test buttons are the first touch of Python, and a
+        // throw there closed the app. The fake throws when nothing is canned, like
+        // a failed first start does on the phone.
+        val (vm, _) = viewModel(FakeWhaCore())
+        vm.testBridge(); advanceUntilIdle()
+        assertTrue(vm.state.value.bridgeResult?.contains("no canned JSON") == true)
+        vm.testProvider(); advanceUntilIdle()
+        assertTrue(vm.state.value.providerResult?.contains("no canned JSON") == true)
+        Dispatchers.resetMain()
+    }
 }
