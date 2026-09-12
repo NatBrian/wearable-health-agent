@@ -20,6 +20,8 @@ PC_ONLY_PACKAGES = (
     "torch",
     "apscheduler",
     "playwright",
+    # pc extra only (pyproject): run 1 finding 2 reached it from the boot path.
+    "scipy",
 )
 
 # Modules that legitimately need a PC-only package. Everything else under wha must load

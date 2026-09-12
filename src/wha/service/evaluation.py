@@ -6,7 +6,6 @@ from pathlib import Path
 
 from wha.clock import now_utc
 from wha.errors import ConfigError
-from wha.eval.detection import run_detection_eval
 from wha.models import EvaluationResult
 
 logger = logging.getLogger(__name__)
@@ -16,6 +15,12 @@ def run_evaluation_suite(suite: str, eval_dir: Path | None = None) -> Evaluation
     """Run an evaluation suite and persist results."""
     suite_clean = suite.lower().strip()
     if suite_clean == "detection":
+        # Lazy like every other suite below: wha.eval needs scipy, which lives
+        # in the pc extra, while this module is imported by wha.service, which
+        # the phone imports at boot. A top-level import here crashed the app on
+        # first use (run 1 finding 2).
+        from wha.eval.detection import run_detection_eval
+
         return run_detection_eval(eval_dir=eval_dir)
     elif suite_clean in {"baseline-age", "baseline_age"}:
         from wha.eval.baseline_age import run_baseline_age_eval
