@@ -4563,7 +4563,7 @@ Per the owner's standing rule: record every finding, fix afterwards, then retest
 fresh install. Each defect found gets its own commit with the observation in the message.
 The verification files are committed with both columns filled and the date.
 
-- [ ] **Step 3: The full suite and ruff, once**
+- [ ] **Step 3: The full suite and ruff, once** (PC: all green except pre-existing `test_knowledge_corpus` failure, owner decision pending; `ruff check src tests` and `ruff format --check src tests` clean. Remote: `:app:testDebugUnitTest` 42/42 green and `lint` green. `ruff check .` still flags pre-existing tools/experiments debt outside this branch's scope)
 
 Run: `uv run ruff check . && uv run ruff format --check . && uv run pytest -n auto -q`
 Expected: clean, all tests pass, including the UI tests that drive the Streamlit pages
@@ -4587,7 +4587,7 @@ outcome chosen and why, the two verification runs with links, what was deliberat
 done (release signing, Play Store, emulator, a second language), and the sentence that
 merging into `main` needs the admin override and is the owner's decision.
 
-- [ ] **Step 6: Stop the Gradle daemon and leave the remote clean**
+- [x] **Step 6: Stop the Gradle daemon and leave the remote clean** (Verified: no Gradle daemons are running; remote contains only `env.sh`, `tools/`, `wha/`, `wheels/` and `wheel-work/`.)
 
 Run: `bash android/remote/run.sh 'cd android && ./gradlew --stop; ls /home/liangsheng/brian/android'`
 Expected: no daemon running; only `env.sh`, `tools/`, `wha/`, `wheels/` and
