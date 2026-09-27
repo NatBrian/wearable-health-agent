@@ -18,11 +18,6 @@ dependencies = [
     "langgraph-checkpoint-sqlite>=3.1,<4",
     "rank-bm25>=0.2,<1",
     "lxml>=5,<7",
-    "streamlit>=1.40,<2",
-    # Imported directly by the episode panel, which needs sort=None on an ordinal axis to
-    # stop st.bar_chart re-sorting the movement ranking alphabetically. Streamlit already
-    # pulls it in; declared explicitly because the code imports it by name.
-    "altair>=5,<7",
     "fastapi>=0.115,<1",
     "uvicorn>=0.30,<1",
 ]

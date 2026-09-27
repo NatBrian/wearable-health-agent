@@ -83,6 +83,7 @@ architecture.
 | Path | What it is | Status |
 |---|---|---|
 | `src/wha/` | **The system.** All of it | **Live** |
+| `frontend/` | The dashboard, a React + Vite + TypeScript client of `src/wha/api/`. Replaced the Streamlit dashboard on 27 September 2026 | **Live.** `cd frontend && npm run dev`, backend via `uv run wha serve` |
 | `tests/` | The suite. You may add, never weaken | **Live** |
 | `data/knowledge/` | The clinical tables: causes, probes, red flags, triage rules. Every number carries its own provenance | **Live, under change control.** See rule 4 in `AGENTS.md` |
 | `docs/` | The design documents, contracts and disclosures | **Live** |
@@ -128,7 +129,7 @@ The rest are reference:
 | **Fix a bug** | `AGENTS.md`, then the relevant `ARCHITECTURE.md` part below. **Reproduce it in the running dashboard first**, because a green suite proves very little here |
 | **Add a feature** | `AGENTS.md`, `docs/CODE-CONVENTIONS.md`, `docs/CONTRACTS.md` for the boundary you are touching |
 | **Change a clinical number** | `AGENTS.md` rule 4, then `docs/KNOWLEDGE-CHANGELOG.md` for the format. You need a quotable source or a committed measurement |
-| **Change what the screen says** | `src/wha/ui/explain.py` holds the copy. UI copy may contain no digits, and the dashboard may not import from `wha.service`. Tests enforce both |
+| **Change what the screen says** | `frontend/src/App.tsx` holds the copy, inline. The wording used to live in `src/wha/ui/explain.py`, archived to `archive/streamlit-ui-2026-09-27/` on 27 September 2026. Its rules, no digits in UI copy and no reaching into `wha.service`, were enforced by tests archived with it, and have no equivalent yet on the frontend side |
 | **Add or change a safety rule** | `data/knowledge/red_flags.yaml`, `src/wha/safety/`, and `ARCHITECTURE.md` Part 12. The floor may only ever raise urgency |
 | **Work on the agent's reasoning** | `ARCHITECTURE.md` Parts 8 to 11, and `src/wha/agent/` |
 | **Work on retrieval or grounding** | `ARCHITECTURE.md` Parts 13 and 14, and `src/wha/retrieve/` |
@@ -737,7 +738,7 @@ of work can proceed independently.
 
 | Workstream | Start at | Boundary that holds it |
 |---|---|---|
-| Replacing the dashboard | `src/wha/api/client.py` and the 34 endpoints behind it | `tests/ui/test_ui_boundary.py`. No screen may reach past the API |
+| Extending the dashboard | `src/wha/api/app.py` and the 35 endpoints behind it, or `frontend/src/api.ts` on the client side | `tests/unit/test_layering.py`. No screen may reach past the API. The dashboard was already replaced once, 27 September 2026: Streamlit to `frontend/`, with no backend change required, which is what this boundary is for |
 | Restructuring the agent | `src/wha/agent/steps.py`, then `src/wha/agent/nodes/` | `tests/unit/agent/test_steps.py`. Map new nodes onto existing public steps and no screen changes |
 | Replacing retrieval | The `Retriever` protocol in `src/wha/retrieve/index.py` | `tests/unit/retrieve/test_retriever_protocol.py`. Keep the `RetrievalResult` shape, which the grounding check depends on |
 | Changing when an investigation opens | `src/wha/service/episode_lifecycle.py` | Already independent of the agent. The detector has no knowledge of episodes |

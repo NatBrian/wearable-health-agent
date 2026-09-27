@@ -103,9 +103,5 @@ def _api_without_a_server():
         base_url="http://testserver", client=TestClient(api_app)
     )
     with patch("wha.api.client.ApiClient.config", return_value=_real_config()):
-        from wha.ui.components import api as api_module
-
-        api_module.config.clear()
         yield
-        api_module.config.clear()
     client_module._client = previous

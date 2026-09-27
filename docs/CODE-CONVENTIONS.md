@@ -7,22 +7,25 @@ function.
 
 ## Module boundaries
 
-These are enforced by `tests/unit/test_layering.py` and `tests/ui/test_ui_boundary.py`.
-Breaking one is a blocker, not a judgement call.
+These are enforced by `tests/unit/test_layering.py`. Breaking one is a blocker, not a
+judgement call.
 
 ```
-ui/       may import ONLY from api/ and models.py, and reaches the application over HTTP
-api/      the boundary. Everything a screen reads passes through it
-service/  application logic. May import from anything except ui/
+api/      the boundary. Everything a client reads passes through it
+service/  application logic. May import from anything except a client
 agent/    the graph, its nodes and its tools
 db/       owns connections, schema and migrations
 config, constants, errors, models    depend on nothing, and everything depends on them
 ```
 
-**Nothing in the application imports `ui/`.** The dependency points one way, so the system
-runs headless and the dashboard is replaceable. No business logic in `ui/`: if a screen needs
-a computation it belongs in `service/` and reaches the screen through `api/`. No SQL in
-`ui/` either.
+**Nothing under `src/` imports a dashboard.** The system runs headless. This used to be
+enforced by a `ui/` package that could import only from `api/` and `models.py`, reaching
+the application over HTTP; that Streamlit dashboard was archived to
+`archive/streamlit-ui-2026-09-27/` on 27 September 2026. The client that replaced it,
+`frontend/`, is a separate React/TypeScript project outside `src/wha`, talking to the same
+`api/` boundary over HTTP by construction rather than by a Python-level rule. No business
+logic belongs in a client: if a screen needs a computation it belongs in `service/` and
+reaches the screen through `api/`.
 
 **A dependency between two packages is a design decision.** Every one that exists is listed
 in `DECLARED_EDGES` in `tests/unit/test_layering.py`, and creating a new one fails that test

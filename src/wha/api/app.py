@@ -23,6 +23,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from wha import service
@@ -33,6 +34,18 @@ app = FastAPI(
     title="Wearable Health Early Warning Agent",
     version="1.0",
     summary="Everything an interface needs. One person, one device, localhost only.",
+)
+
+# The frontend is a separate origin (a Vite dev server on its own port) from this API, so a
+# browser blocks every request with no explanation beyond "Failed to fetch" until this is
+# here. Wide open on purpose: this API is already unauthenticated and bound to one person's
+# own machine, per the module docstring above, so restricting origins would add a second,
+# weaker lock in front of a door that has none.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -191,6 +204,13 @@ def get_night_pipeline(subject_id: str, night_date: date) -> Any:
         return service.get_night_pipeline(subject_id, night_date)
     except (ValueError, KeyError) as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/subjects/{subject_id}/oxygen")
+def list_oxygen(subject_id: str, days: int = Query(default=7, ge=1, le=60)) -> list[Any]:
+    """Spot SpO2 samples in the last N days. Sparse and never baselined, see
+    docs/DESIGN-DATA-CHANNELS.md."""
+    return service.list_oxygen_readings(subject_id, days=days)
 
 
 @app.get("/subjects/{subject_id}/nights/{night_date}")

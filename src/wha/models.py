@@ -391,6 +391,15 @@ class ConnectionCheck(BaseModel):
     latency_ms: int | None = None
 
 
+class OxygenReading(BaseModel):
+    """One spot SpO2 sample. Never baselined: see docs/DESIGN-DATA-CHANNELS.md."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    ts_utc: datetime
+    percentage: float
+
+
 class NightRow(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -422,6 +431,12 @@ class NightRow(BaseModel):
     forecast_lo_bpm: float | None = None
     forecast_hi_bpm: float | None = None
     forecast_status: str | None = None
+    # Carried here, not fetched per-night through NightDetail, so a chart across many
+    # nights costs one list_nights call rather than one NightDetail call per night. Both
+    # are frequently None: sleep_hours is absent whenever the watch recorded no sleep
+    # session, and steps_prev_day whenever the previous day has no step bucket.
+    sleep_hours: float | None = None
+    steps_prev_day: int | None = None
 
 
 class NightDetail(BaseModel):

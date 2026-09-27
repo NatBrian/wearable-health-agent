@@ -4,7 +4,9 @@ import json
 import sqlite3
 from datetime import date, timedelta
 
+from wha.clock import now_utc
 from wha.db import connect
+from wha.db.iso import from_iso, to_iso
 from wha.db.migrations import apply_schema
 from wha.models import (
     Baseline,
@@ -16,6 +18,7 @@ from wha.models import (
     NightDetail,
     NightlyFeatures,
     NightRow,
+    OxygenReading,
 )
 
 
@@ -142,6 +145,8 @@ def list_nights(
                     forecast_lo_bpm=det["forecast_lo_bpm"] if det is not None else None,
                     forecast_hi_bpm=det["forecast_hi_bpm"] if det is not None else None,
                     forecast_status=det["forecast_status"] if det is not None else None,
+                    sleep_hours=feat["sleep_hours"] if feat is not None else None,
+                    steps_prev_day=feat["steps_prev_day"] if feat is not None else None,
                 )
             )
             cur_date += timedelta(days=1)
@@ -300,6 +305,42 @@ def get_night_detail(
             baseline=baseline,
             detection=detection,
         )
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def list_oxygen_readings(
+    subject_id: str,
+    days: int = 7,
+    conn: sqlite3.Connection | None = None,
+) -> list[OxygenReading]:
+    """Spot SpO2 samples in the last `days`, oldest first.
+
+    Sparse and unbaselined on purpose: a night frequently has none, per
+    docs/DESIGN-DATA-CHANNELS.md. Same table and query shape as the safety floor's own
+    overnight check in wha.safety.rules, so a spot-check panel and the rule that acts on the
+    same readings can never disagree about which rows exist.
+    """
+    close_conn = False
+    if conn is None:
+        conn = connect()
+        apply_schema(conn)
+        close_conn = True
+
+    try:
+        since = to_iso(now_utc() - timedelta(days=days))
+        rows = conn.execute(
+            """SELECT ts_utc, percentage FROM oxygen_saturation_samples
+               WHERE subject_id = ? AND ts_utc >= ?
+               ORDER BY ts_utc ASC""",
+            (subject_id, since),
+        ).fetchall()
+        return [
+            OxygenReading(ts_utc=from_iso(r["ts_utc"]), percentage=float(r["percentage"]))
+            for r in rows
+            if r["percentage"] is not None
+        ]
     finally:
         if close_conn:
             conn.close()

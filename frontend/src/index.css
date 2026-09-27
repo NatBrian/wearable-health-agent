@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+:root {
+  /* sidebar + chat rail */
+  --sidebar-bg: #131320;
+  --sidebar-text: #ffffff;
+  --sidebar-muted: rgba(255,255,255,0.45);
+  --sidebar-border: rgba(255,255,255,0.07);
+  --sidebar-active-bg: rgba(255,255,255,0.1);
+
+  /* main canvas */
+  --canvas-bg: #f0f0f5;
+  --card-bg: #ffffff;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.05);
+  --card-radius: 18px;
+
+  /* text */
+  --text-primary: #0e0e1c;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+
+  /* accents */
+  --lime: #c5f041;
+  --lime-dark: #9bc230;
+  --purple: #9b8fef;
+  --purple-light: #c4b5fd;
+  --amber: #f59e0b;
+  --cyan: #22d3ee;
+  --danger: #ef4444;
+  --success: #22c55e;
+
+  /* chat rail (dark) */
+  --chat-bg: #0e0f1c;
+  --chat-card: #181927;
+  --chat-border: rgba(255,255,255,0.08);
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background: var(--sidebar-bg);
+  color: var(--text-primary);
+  height: 100%;
+  overflow: hidden;
+}
+
+button { font-family: inherit; }
+textarea { font-family: inherit; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes dots {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+  40%           { transform: scale(1);   opacity: 1;   }
+}
+
+.pulse { animation: pulse-slow 2s ease-in-out infinite; }
+.fade-up { animation: fade-up 0.3s ease-out forwards; }
+
+.dot1 { animation: dots 1.2s 0.0s ease-in-out infinite; }
+.dot2 { animation: dots 1.2s 0.2s ease-in-out infinite; }
+.dot3 { animation: dots 1.2s 0.4s ease-in-out infinite; }

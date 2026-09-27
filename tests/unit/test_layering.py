@@ -78,8 +78,10 @@ def _import_graph() -> tuple[dict[str, set[str]], list[tuple[str, str, str, int,
 # to ask whether the thing you are about to couple should be coupled.
 #
 # Read it downwards. `config`, `constants`, `errors` and `models` depend on nothing and
-# everything depends on them. `ui` is at the far end and reaches the application only
-# through `api`, over HTTP.
+# everything depends on them. The dashboard that used to sit at the far end of this graph,
+# reaching the application only through `api` over HTTP, was `ui`; it was archived to
+# archive/streamlit-ui-2026-09-27/ on 27 September 2026, and the frontend that replaced it
+# lives in frontend/ as a separate, non-Python project this graph does not cover.
 DECLARED_EDGES: dict[str, set[str]] = {
     "agent": {
         "audit",
@@ -143,7 +145,6 @@ DECLARED_EDGES: dict[str, set[str]] = {
         "retrieve",
         "safety",
     },
-    "ui": {"api", "models"},
 }
 
 # The files that import `service` from below it, each with the reason. All are function-local
@@ -193,17 +194,6 @@ def test_the_dependency_graph_is_the_one_that_was_decided_on() -> None:
     assert not removed, (
         "these declared dependencies no longer exist, which is good news: "
         f"delete them from DECLARED_EDGES: {removed}"
-    )
-
-
-def test_the_dashboard_reaches_the_application_only_through_the_api() -> None:
-    """Also covered by tests/ui/test_ui_boundary.py, and repeated here because it is the
-    boundary that decides whether the dashboard can be replaced at all.
-    """
-    edges, _ = _import_graph()
-    assert edges["ui"] <= {"api", "models"}, (
-        f"a screen reaches past the API into {sorted(edges['ui'] - {'api', 'models'})}. "
-        "Screens are an HTTP client, so that a React app could do the same job."
     )
 
 

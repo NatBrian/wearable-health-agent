@@ -25,14 +25,25 @@ This page is the index. It exists so the rule can be checked rather than assumed
 
 `DISCLAIMER.md` has been in this repository since the beginning and **nothing in the
 interface ever showed it**, so a person using the dashboard was never told it is not a
-medical device. It is now rendered on the Home page, where a person lands, as a red banner
-plus an expandable "What this system can and cannot do".
+medical device. It was rendered on the Streamlit Home page, where a person lands, as a red
+banner plus an expandable "What this system can and cannot do".
 
-Source: the wording is in `src/wha/ui/explain.py`, rendered by `src/wha/ui/Home.py`.
+Source of that wording: `explain.py` and `Home.py`, in `archive/streamlit-ui-2026-09-27/`.
+The Streamlit dashboard this describes was archived on that date and replaced by the React
+client under `frontend/`.
+
+> **This table describes disclosures that existed on the archived Streamlit dashboard.**
+> The `frontend/` client that replaced it on 27 September 2026 does not yet reproduce most
+> of them. That is a real, current gap, stated here rather than left for someone to
+> discover: this project's own rule is that a limitation living only in a markdown file is
+> not disclosed at all, and right now several of the rows below are exactly that on the
+> live surface, even though the underlying backend behaviour they describe still holds.
+> Each "Shown on" cell names the screen it was true of in the archived dashboard; treat it
+> as a checklist for the frontend rebuild, not a claim about what `frontend/` shows today.
 
 ---
 
-## Each limitation, its evidence, and where it is shown
+## Each limitation, its evidence, and where it was shown on the archived dashboard
 
 | Limitation | Evidence | Shown on |
 |---|---|---|

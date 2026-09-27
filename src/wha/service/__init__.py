@@ -70,6 +70,7 @@ from wha.service.nights import (
     get_night_detail,
     latest_recorded_night,
     list_nights,
+    list_oxygen_readings,
 )
 from wha.service.pipeline import (
     get_night_pipeline,
@@ -137,6 +138,7 @@ __all__ = [
     "latest_urgency_reason",
     "list_episodes",
     "list_nights",
+    "list_oxygen_readings",
     "list_pipeline_nights",
     "list_plain_records",
     "list_subjects",

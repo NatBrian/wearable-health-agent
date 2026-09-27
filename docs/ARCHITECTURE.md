@@ -75,7 +75,7 @@ flowchart TB
     end
 
     subgraph OUT["WHAT REACHES YOU"]
-        API["HTTP API on 127.0.0.1:8500<br/>34 endpoints"]
+        API["HTTP API on 127.0.0.1:8500<br/>35 endpoints"]
         DASH["Streamlit dashboard<br/>Home, Today, History, Audit, Settings"]
         TG["Telegram bot<br/>questions with buttons, and chat"]
         AUD["Audit log<br/>hash-chained, tamper evident"]
