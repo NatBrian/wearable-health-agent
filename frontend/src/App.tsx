@@ -24,6 +24,8 @@ interface VitalSeries {
   available: boolean; unavailableReason?: string
   baseline?: number; sigma?: number; current?: number; data?: number[]
   usableNights?: number; rung?: string
+  chartPoints?: { date: string; v: number | null }[]
+  chartBand?: { lo: number | null; hi: number | null }[]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -217,10 +219,16 @@ function Spark({ data, color, h = 40 }: { data: number[]; color: string; h?: num
 // Full line chart — real nights, real band, no fabricated sigma multiplier
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LineChart({ nights, color = '#f59e0b', height = 160 }: { nights: NightRow[]; color?: string; height?: number }) {
+function LineChart({
+  points: rawPoints, band, color = '#f59e0b', height = 160, unit = '',
+}: {
+  points: { date: string; v: number | null }[]
+  band?: { lo: number | null; hi: number | null }[]
+  color?: string; height?: number; unit?: string
+}) {
   const [hover, setHover] = useState<number | null>(null)
   const W = 600, H = height, pad = { t: 8, b: 24, l: 36, r: 12 }
-  const points = nights.map(n => ({ date: n.night_date, v: n.rhr_bpm, lo: n.band_lo, hi: n.band_hi }))
+  const points = rawPoints.map((p, i) => ({ date: p.date, v: p.v, lo: band?.[i]?.lo ?? null, hi: band?.[i]?.hi ?? null }))
   const values = points.map(p => p.v).filter((v): v is number => v !== null)
   const bands = points.flatMap(p => [p.lo, p.hi]).filter((v): v is number => v !== null)
   if (values.length < 2) {
@@ -282,7 +290,7 @@ function LineChart({ nights, color = '#f59e0b', height = 160 }: { nights: NightR
           <rect x={Math.min(xs(hover) + 8, W - 68)} y={ys(points[hover].v as number) - 24} width={60} height={18} rx="6" fill="#0e0e1c" />
           <text x={Math.min(xs(hover) + 8, W - 68) + 30} y={ys(points[hover].v as number) - 11} textAnchor="middle"
             fontSize="10" fontFamily="var(--font-mono)" fill={color} fontWeight="600">
-            {points[hover].v} bpm
+            {points[hover].v} {unit}
           </text>
         </g>
       )}
@@ -629,6 +637,10 @@ function DashboardView({
     .map(n => ({ date: n.night_date, steps: n.steps_prev_day }))
     .filter((p): p is { date: string; steps: number } => p.steps !== null)
   const lastSteps = stepsPoints[stepsPoints.length - 1]
+  const recentSteps = stepsPoints.slice(-7)
+  const stepsWeeklyAvg = recentSteps.length > 0
+    ? Math.round(recentSteps.reduce((sum, p) => sum + p.steps, 0) / recentSteps.length)
+    : undefined
 
   const streak = useMemo(() => computeStreak(nights), [nights])
 
@@ -640,18 +652,22 @@ function DashboardView({
       current: last?.rhr_bpm ?? undefined,
       data: measured.map(n => n.rhr_bpm).filter((v): v is number => v !== null),
       usableNights: status?.usable_nights, rung: status?.rung,
+      chartPoints: measured.map(n => ({ date: n.night_date, v: n.rhr_bpm })),
+      chartBand: measured.map(n => ({ lo: n.band_lo, hi: n.band_hi })),
     },
     {
       label: 'Sleep', unit: 'h', color: '#c5f041', available: !!lastSleep,
       current: lastSleep?.hours,
       data: sleepPoints.map(p => p.hours),
       unavailableReason: `Not recorded by this device across the last ${measured.length} measured nights.`,
+      chartPoints: sleepPoints.map(p => ({ date: p.date, v: p.hours })),
     },
     {
-      label: 'Steps (prior day)', unit: 'steps', color: '#818cf8', available: !!lastSteps,
-      current: lastSteps?.steps,
+      label: 'Steps (7d avg)', unit: 'steps', color: '#818cf8', available: !!lastSteps,
+      current: stepsWeeklyAvg,
       data: stepsPoints.map(p => p.steps),
       unavailableReason: `Not recorded by this device across the last ${measured.length} measured nights.`,
+      chartPoints: stepsPoints.map(p => ({ date: p.date, v: p.steps })),
     },
     {
       // Spot checks, not a nightly reading — no baseline/sigma, same as Steps above, but
@@ -661,6 +677,7 @@ function DashboardView({
       current: oxygenReadings[oxygenReadings.length - 1]?.percentage,
       data: oxygenReadings.map(r => r.percentage),
       unavailableReason: 'No spot reading in the last 7 days.',
+      chartPoints: oxygenReadings.map(r => ({ date: r.ts_utc.slice(0, 10), v: r.percentage })),
     },
   ]
   const activeSeries = vitals.find(s => s.label === selected) ?? vitals[0]
@@ -748,9 +765,9 @@ function DashboardView({
               </div>
             </div>
           </div>
-          {activeSeries.label === 'Resting HR'
-            ? <LineChart nights={nights} color={activeSeries.color} height={170} />
-            : <div style={{ height: 170, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 12 }}>{activeSeries.unavailableReason ?? 'No time series for this channel.'}</div>
+          {activeSeries.chartPoints && activeSeries.chartPoints.length >= 2
+            ? <LineChart points={activeSeries.chartPoints} band={activeSeries.chartBand} color={activeSeries.color} height={170} unit={activeSeries.unit} />
+            : <div style={{ height: 170, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 12 }}>{activeSeries.unavailableReason ?? 'Not enough measured nights yet to draw a chart.'}</div>
           }
         </div>
 

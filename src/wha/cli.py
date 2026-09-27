@@ -1,6 +1,7 @@
 """Command-line interface for Wearable Health Early Warning Agent."""
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -701,6 +702,13 @@ def serve_cmd(
     import socket
 
     from wha.service import create_scheduler
+
+    if db is not None:
+        # The API resolves its own db path from this env var (see wha.config.Settings),
+        # not from this command's arguments, so --db has to reach it this way to have any
+        # effect on what the API actually serves. Set before create_scheduler() runs, since
+        # get_settings() caches its first read for the rest of the process.
+        os.environ["WHA_DB_PATH"] = str(db)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         in_use = s.connect_ex((host, port)) == 0

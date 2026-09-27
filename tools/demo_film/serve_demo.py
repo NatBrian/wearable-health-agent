@@ -3,10 +3,10 @@
 
     uv run python tools/demo_film/serve_demo.py
 
-Then go to http://localhost:8501 and look around. Every night from 4 August to 23
-September 2026 is there: the quiet nights, the illness, the relapse, the three linked
-investigations, every question asked and answered, the escalation, and the full audit
-trail behind all of it.
+Then run `npm run dev` in frontend/ and go to http://localhost:8443. Every night from 4
+August to 23 September 2026 is there: the quiet nights, the illness, the relapse, the
+three linked investigations, every question asked and answered, the escalation, and the
+full audit trail behind all of it.
 
 THREE THINGS THIS HANDLES that running `wha serve` by hand does not.
 
@@ -66,7 +66,8 @@ def main() -> int:
     env["WHA_CLOCK_OFFSET_DAYS"] = str(offset)
 
     print(f"clock shifted {offset:+d} days, so the dashboard reads {LAST_NIGHT}")
-    print("dashboard on http://localhost:8501, API on http://localhost:8500")
+    print("API on http://localhost:8500")
+    print("dashboard: run `npm run dev` in frontend/, then open http://localhost:8443")
     print("ctrl-c to stop\n")
 
     return subprocess.call(

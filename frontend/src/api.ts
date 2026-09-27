@@ -10,7 +10,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${DEFAULT_BASE_URL}${path}`
   let response: Response
   try {
-    response = await fetch(url, init)
+    response = await fetch(url, { cache: 'no-store', ...init })
   } catch (exc) {
     throw new ApiUnavailable(`Could not reach the application at ${url}: ${exc}`)
   }
