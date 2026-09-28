@@ -101,3 +101,6 @@ data/demo-snapshots/
 # .claude/worktrees/. Those are full checkouts with their own .venv and run to gigabytes.
 # Nothing here belongs to the project.
 .claude/
+
+# Short-lived implementation worktrees used by Codex.
+.worktrees/
