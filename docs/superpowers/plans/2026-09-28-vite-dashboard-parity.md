@@ -13,7 +13,7 @@
 ## Implementation Scope and Sources
 
 - Implement against PR #3's reviewed head, `214c39b` (`origin/pr/3`), after creating an isolated worktree at that revision. The current documentation branch is based on `main`; it is not the frontend implementation checkout. Carry the approved spec and this plan into the implementation worktree. Do not rewrite or force-push the existing PR branch.
-- Use the legacy UI at `origin/main:src/wha/ui/` and `docs/DISCLOSURES.md` as the behavioral and wording sources. The legacy UI is the requirements source, not a styling template. Do not invent or clinically re-author copy.
+- Use the legacy UI at `origin/main:src/wha/ui/` and `docs/DISCLOSURES.md` as the behavioral and wording sources. The legacy UI is the requirements source, not a styling template. Do not invent or clinically re-author copy. Project self-measured performance claims stay in experiment records with their disclaimer, even where archived UI copy pointed to The record.
 - Preserve every legacy content key from `src/wha/ui/explain.py` and every explanatory section in `src/wha/ui/components/how_it_works.py`. Preserve all disclosure rows from `docs/DISCLOSURES.md` in the relevant live view. Replace embedded numbers only with values returned by the API/config; do not lose the surrounding explanation.
 - The PR review found the Vite implementation incomplete in content, behavior, API boundaries, and responsive layout. Treat the review findings and the spec's feature inventory as merge gates, not optional polish.
 
@@ -199,7 +199,7 @@ Each state must have a named automated check in the task list and an explicit ob
 - [ ] Preserve every audit column: UTC time, actor, operation, tool, permission result, safety event, hash integrity, investigation id, and entry id. Keep the empty-filter message distinct from an empty record and a failed query.
 - [ ] Restore conversation archive with explicit date/session boundaries, turn counts, urgency, source titles, uncited labeling, and per-session expansion. Never flatten archived sessions into Today's active chat.
 - [ ] Restore the step detail's full fixed-order explanation: what happened, why the step exists, API-backed arithmetic in words, symptom timeline and persistence/co-occurrence table, all cause marginals and illness-probability caveat, every question considered and its value, named outputs, source drawers, and expandable raw inputs/outputs/detail.
-- [ ] Move every `how_it_works.py` topic into its React section: the complete twenty-step topic mapping, live operating values, currently permitted read-only tool list, safety-rule provenance table and warning for assumed values, and where readings/model text go. Keep every number tied to API/config data. Add a check that every pipeline step appears in exactly one topic.
+- [ ] Move every `how_it_works.py` topic into its React section: the complete topic mapping for every recorded pipeline step, live operating values, currently permitted read-only tool list, safety-rule provenance table and warning for assumed values, and where readings/model text go. Keep every number tied to API/config data. Add a check that every pipeline step appears in exactly one topic.
 - [ ] Fix duplicate React keys in safety-rule lists.
 
 **Tests:** no pipeline nights versus pipeline fetch failure; usable-night default and earlier/later; click/keyboard step details; symptom timeline, all-cause, and question-value details; every audit column; empty/intact/broken chain; each audit filter and filtered export; empty/nonempty session archive with dates; every How-it-works key and exact topic-to-step coverage; live config/tool/provenance display; `NOT_RUN`/`ASSUMED` pipeline states; stable list keys.
@@ -230,6 +230,16 @@ Each state must have a named automated check in the task list and an explicit ob
 ### Task 8: Refine the Vite visual system, update docs, and verify the complete product
 
 **Files:** `frontend/src/index.css`, shared frontend components and views, `README.md`, `docs/demo/README.md`, `docs/CONTRACTS.md` only if an API/schema change requires it, all new frontend tests
+
+**Expected demo outcomes, written before opening the UI:** the demo server serves a disposable
+copy with subject `demo` and no scheduler; Home shows the standing disclaimer and emergency
+guidance; Today shows only the fixture's current night and any live pending/urgency state;
+History exposes the recorded timeline, gaps, filters and selected-night route; The record
+shows the ordered pipeline, audit chain and separate conversation archive; Settings exposes
+the profile, connections, diagnostics, budgets and disposable-record deletion. At mobile
+width the five destinations remain reachable, emergency copy stays readable, and controls
+are not clipped. Fixture detail, not an assumed status, determines which pending states are
+available to exercise.
 
 - [ ] Apply a cohesive Vite visual system with clear page hierarchy, readable type, consistent spacing, purposeful cards/charts, responsive navigation, and visible loading/empty/stale/pending/success/error states. Keep emergency guidance and the standing disclaimer immediately visible on Home.
 - [ ] Verify each view on desktop and at the reviewed `390px` mobile width, including navigation, metric cards, charts, filters, pipeline controls, tables, disclosures, dialogs, forms, focus, and touch targets. Replace the fixed-width/overflow-clipped shell behavior that caused the reviewed layout defect. Fix clipping, horizontal overflow, obscured controls, and keyboard traps. Do not make density improvements by removing content.

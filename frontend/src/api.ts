@@ -82,6 +82,7 @@ export interface NumericBounds {
 export interface DashboardConfig {
   history_windows_days: number[]
   steps_average_days: number
+  cause_combinations: number
   settings_bounds: {
     age_years: NumericBounds
     interruption_budget_per_week: NumericBounds
@@ -93,6 +94,11 @@ export interface DashboardConfig {
 export interface SystemConfig extends Record<string, unknown> {
   today: string
   configured_subject: string
+  BASELINE_MIN_NIGHTS_PERSONAL: number
+  SOURCE_LABEL_PREFIXES?: Record<string, string>
+  SOURCE_LABEL_FALLBACK?: string
+  EXTERNAL_SOURCE_PREFIX?: string
+  ATTRIBUTION_NOTE?: string
   dashboard: DashboardConfig
 }
 
@@ -128,6 +134,7 @@ export interface DifferentialItem {
 
 export interface Citation {
   source_id: string; title: string; uri: string | null; passage: string; retrieval_score: number
+  quoted_span?: string | null
 }
 
 export interface EpisodeOutcome {
@@ -198,7 +205,7 @@ export interface ConversationTurn {
 export interface ConversationSession { started_utc: string; turns: ConversationTurn[] }
 
 export interface SafetyRuleProvenance {
-  rule: string; number: string; provenance: string; basis: string
+  rule: string; number: string; provenance: string; basis: string; minimum_age_years?: number | null
 }
 
 export interface Settings {
@@ -310,6 +317,11 @@ export type KnowledgeProvenance = Record<string, {
   has_unevidenced_number?: string
   note: string
 }>
+
+export interface KnowledgeProvenanceSummary {
+  unevidenced_entries: number
+  total_entries: number
+}
 
 export interface OxygenReading {
   ts_utc: string
@@ -433,6 +445,9 @@ export const api = {
     request<{ content: string }>(`/subjects/${subjectId}/audit/export${search({ ...filters })}`),
 
   getKnowledgeProvenance: () => request<KnowledgeProvenance>('/knowledge/provenance'),
+
+  getKnowledgeProvenanceSummary: () =>
+    request<KnowledgeProvenanceSummary>('/knowledge/provenance/summary'),
 
   getSafetyProvenance: () => request<SafetyRuleProvenance[]>('/knowledge/safety-provenance'),
 

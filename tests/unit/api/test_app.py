@@ -129,10 +129,13 @@ def test_cors_origin_list_comes_from_backend_configuration(monkeypatch) -> None:
 
 
 def test_dashboard_config_exposes_history_windows_and_schema_control_bounds() -> None:
+    from wha.constants import N_CAUSES
+
     dashboard = client.get("/config").json()["dashboard"]
 
     assert dashboard["history_windows_days"] == [30, 60, 90, 365]
     assert dashboard["steps_average_days"] == 7
+    assert dashboard["cause_combinations"] == 2**N_CAUSES
     assert dashboard["settings_bounds"] == {
         "age_years": {"minimum": 0, "maximum": 120},
         "interruption_budget_per_week": {"minimum": 0, "maximum": 20},
@@ -148,23 +151,33 @@ def test_night_endpoint_applies_history_filters_server_side(monkeypatch) -> None
 
     rows = [
         NightRow(
-            night_date=date(2026, 9, 1), coverage_minutes=400, usable=True,
-            level=DetectionLevel.RED, episode_id="ep_red", rhr_bpm=80,
+            night_date=date(2026, 9, 1),
+            coverage_minutes=400,
+            usable=True,
+            level=DetectionLevel.RED,
+            episode_id="ep_red",
+            rhr_bpm=80,
         ),
         NightRow(
-            night_date=date(2026, 9, 2), coverage_minutes=400, usable=True,
-            level=DetectionLevel.RED, episode_id=None, rhr_bpm=80,
+            night_date=date(2026, 9, 2),
+            coverage_minutes=400,
+            usable=True,
+            level=DetectionLevel.RED,
+            episode_id=None,
+            rhr_bpm=80,
         ),
         NightRow(
-            night_date=date(2026, 9, 3), coverage_minutes=400, usable=True,
-            level=DetectionLevel.GREEN, episode_id="ep_green", rhr_bpm=60,
+            night_date=date(2026, 9, 3),
+            coverage_minutes=400,
+            usable=True,
+            level=DetectionLevel.GREEN,
+            episode_id="ep_green",
+            rhr_bpm=60,
         ),
     ]
     monkeypatch.setattr("wha.api.app.service.list_nights", lambda *args, **kwargs: rows)
 
-    response = client.get(
-        "/subjects/sim/nights?days=3&level=RED&investigated_only=true"
-    )
+    response = client.get("/subjects/sim/nights?days=3&level=RED&investigated_only=true")
 
     assert response.status_code == 200
     assert [row["night_date"] for row in response.json()] == ["2026-09-01"]
@@ -195,8 +208,13 @@ def test_dashboard_summary_endpoint_uses_the_configured_calendar_window(monkeypa
     assert response.status_code == 200
     body = response.json()
     assert set(body) == {
-        "latest_sleep_hours", "latest_sleep_night", "latest_steps", "latest_steps_night",
-        "steps_average", "steps_window_start", "steps_window_end",
+        "latest_sleep_hours",
+        "latest_sleep_night",
+        "latest_steps",
+        "latest_steps_night",
+        "steps_average",
+        "steps_window_start",
+        "steps_window_end",
     }
     assert body["steps_window_start"] == "2026-09-01"
     assert body["steps_window_end"] == "2026-09-07"
@@ -229,7 +247,9 @@ def test_settings_and_profile_models_keep_the_legacy_control_ranges() -> None:
 
 def test_settings_route_passes_a_validated_patch_to_the_service(monkeypatch) -> None:
     received = []
-    monkeypatch.setattr("wha.api.app.service.update_settings", lambda patch: received.append(patch) or patch)
+    monkeypatch.setattr(
+        "wha.api.app.service.update_settings", lambda patch: received.append(patch) or patch
+    )
 
     response = client.post("/settings", json={"llm_model": "local-model"})
 
@@ -267,6 +287,52 @@ def test_audit_export_receives_the_same_date_filters_as_the_query(monkeypatch) -
     assert captured[0].actor == "human"
     assert captured[0].since_utc.isoformat() == "2026-09-01T00:00:00+00:00"
     assert captured[0].until_utc.isoformat() == "2026-09-08T00:00:00+00:00"
+
+
+def test_provenance_summary_counts_entries_not_figures(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "wha.service.belief.get_knowledge_provenance",
+        lambda: {
+            "assumed": {"provenance": "ASSUMED", "has_unevidenced_number": "no"},
+            "derived-with-gap": {"provenance": "DERIVED", "has_unevidenced_number": "yes"},
+            "derived": {"provenance": "DERIVED", "has_unevidenced_number": "no"},
+            "cited": {"provenance": "CITED", "has_unevidenced_number": "no"},
+        },
+    )
+
+    response = client.get("/knowledge/provenance/summary")
+
+    assert response.status_code == 200
+    assert response.json() == {"unevidenced_entries": 2, "total_entries": 4}
+
+
+def test_llm_diagnostic_uses_unsaved_values_without_echoing_the_secret(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def diagnostic(**values: object) -> dict[str, object]:
+        captured.update(values)
+        return {"ok": True, "detail": "Connected to the selected provider", "latency_ms": 4}
+
+    monkeypatch.setattr("wha.api.app.service.test_llm_connection", diagnostic)
+    secret = "private-diagnostic-key"
+    response = client.post(
+        "/diagnostics/llm",
+        json={
+            "provider": "openai_compatible",
+            "model": "model-a",
+            "base_url": "http://127.0.0.1:9000/v1",
+            "api_key": secret,
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "provider": "openai_compatible",
+        "model": "model-a",
+        "base_url": "http://127.0.0.1:9000/v1",
+        "api_key": secret,
+    }
+    assert secret not in response.text
 
 
 def test_subject_delete_route_protects_the_real_subject(monkeypatch) -> None:

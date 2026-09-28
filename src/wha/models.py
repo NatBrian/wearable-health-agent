@@ -453,6 +453,15 @@ class DashboardSummary(BaseModel):
     steps_window_end: date
 
 
+class KnowledgeProvenanceSummary(BaseModel):
+    """Entry counts for the Home evidence summary, without exposing figure counts."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    unevidenced_entries: int
+    total_entries: int
+
+
 class NightDetail(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 

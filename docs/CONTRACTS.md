@@ -1007,6 +1007,10 @@ class DashboardSummary(BaseModel):
     steps_window_start: date
     steps_window_end: date
 
+class KnowledgeProvenanceSummary(BaseModel):
+    unevidenced_entries: int
+    total_entries: int
+
 class NightDetail(BaseModel):
     row: NightRow
     features: NightlyFeatures
@@ -1283,9 +1287,10 @@ class Scenario(BaseModel):
 
 ## 7. Service layer
 
-`src/wha/service/` holds every business-logic entry point. **Streamlit pages and CLI commands call
-these and do nothing else.** No page or command queries the database directly, and no page imports
-from `detect/`, `belief/`, `policy/`, `agent/` or `db/`. A lint rule enforces the import ban.
+`src/wha/service/` holds every business-logic entry point. **The HTTP API and CLI commands call
+these and do nothing else.** The React dashboard calls the API over HTTP; no browser view imports
+the service layer or queries the database. The Python layering test enforces the service import
+boundary.
 
 ```python
 # service/status.py
@@ -1333,8 +1338,9 @@ def delete_all_subject_data(subject_id: str) -> None: ...
 **This list is the stable core, not the whole surface.** `wha.service` exports 41 further
 callables that are not named here, and a signature list in a hand-maintained document will always
 lag the code. What this section is FOR is the shape of the boundary: a screen calls the service
-layer through `wha.api`, never the other way round, and `tests/ui/test_ui_boundary.py` enforces
-that. For the current surface, read `src/wha/service/__init__.py`.
+layer through `wha.api`, never the other way round. `tests/unit/test_layering.py` and the
+frontend API/view tests enforce that boundary. For the current service surface, read
+`src/wha/service/__init__.py`.
 
 The conversation that replaced `ask_about_episode` is bounded differently and more strictly than
 that signature was: the deterministic safety floor runs on the person's words BEFORE the model

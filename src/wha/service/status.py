@@ -337,6 +337,8 @@ def test_bridge_connection(
 def test_llm_connection(
     provider: str | None = None,
     model: str | None = None,
+    base_url: str | None = None,
+    api_key: str | None = None,
 ) -> ConnectionCheck:
     """Attempt an LLM connectivity check. Never returns secrets."""
     settings = get_settings()
@@ -354,12 +356,26 @@ def test_llm_connection(
     try:
         from pydantic import BaseModel
 
-        from wha.llm.client import Prompt, get_llm_client
+        from wha.llm.client import Prompt
+
+        if prov == "ollama_native":
+            from wha.llm.ollama import OllamaNativeClient
+
+            client = OllamaNativeClient(base_url=base_url, model=mod)
+        elif prov == "openai_compatible":
+            from wha.llm.openai_compat import OpenAICompatClient
+
+            client = OpenAICompatClient(base_url=base_url, api_key=api_key, model=mod)
+        else:
+            return ConnectionCheck(
+                ok=False,
+                detail=f"Unknown LLM provider: {prov}",
+                latency_ms=None,
+            )
 
         class PingResponse(BaseModel):
             status: str = "ok"
 
-        client = get_llm_client()
         prompt = Prompt(prompt_id="ping", user="Respond with status ok")
         client.complete(prompt, schema=PingResponse, temperature=0.0)
         latency_ms = int((time.perf_counter() - start_time) * 1000)

@@ -64,10 +64,11 @@ without it, which is expected and harmless.
 ### Look at a working system immediately
 
 ```bash
-uv run python tools/demo_film/serve_demo.py     # then http://localhost:8501
+uv run python tools/demo_film/serve_demo.py     # terminal 1: API and shifted demo clock
+cd frontend && npm run dev                       # terminal 2: Vite dashboard on 8443
 ```
 
-This opens a committed seventeen day timeline: quiet nights, an illness, a relapse, a
+Then open <http://127.0.0.1:8443>. This shows a committed seventeen day timeline: quiet nights, an illness, a relapse, a
 recovery, three linked investigations, every question asked and answered, an escalation, and
 the audit trail behind all of it. It shifts the clock so the newest night reads as "last
 night" however long from now you run it, serves a copy so browsing cannot alter the
@@ -129,7 +130,7 @@ The rest are reference:
 | **Fix a bug** | `AGENTS.md`, then the relevant `ARCHITECTURE.md` part below. **Reproduce it in the running dashboard first**, because a green suite proves very little here |
 | **Add a feature** | `AGENTS.md`, `docs/CODE-CONVENTIONS.md`, `docs/CONTRACTS.md` for the boundary you are touching |
 | **Change a clinical number** | `AGENTS.md` rule 4, then `docs/KNOWLEDGE-CHANGELOG.md` for the format. You need a quotable source or a committed measurement |
-| **Change what the screen says** | `frontend/src/App.tsx` holds the copy, inline. The wording used to live in `src/wha/ui/explain.py`, archived to `archive/streamlit-ui-2026-09-27/` on 27 September 2026. Its rules, no digits in UI copy and no reaching into `wha.service`, were enforced by tests archived with it, and have no equivalent yet on the frontend side |
+| **Change what the screen says** | `frontend/src/content/legacyCopy.ts` holds stable explanatory copy; `frontend/src/test/legacyParityInventory.ts` maps the archived copy, visible literals, and disclosure rows to current views. Frontend tests protect these mappings and the UI/API boundary. |
 | **Add or change a safety rule** | `data/knowledge/red_flags.yaml`, `src/wha/safety/`, and `ARCHITECTURE.md` Part 12. The floor may only ever raise urgency |
 | **Work on the agent's reasoning** | `ARCHITECTURE.md` Parts 8 to 11, and `src/wha/agent/` |
 | **Work on retrieval or grounding** | `ARCHITECTURE.md` Parts 13 and 14, and `src/wha/retrieve/` |
@@ -206,7 +207,7 @@ experiment.
                                                                    ┌─────────────────────────┐
                                                                    │ DELIVERY (Tier 2)       │
                                                                    │ Telegram Inline Buttons │
-                                                                   │ Streamlit Web Dashboard │
+                                                                   │ React + Vite Dashboard   │
                                                                    │ SHA-256 Audit Trail     │
                                                                    └─────────────────────────┘
 ```
@@ -283,7 +284,7 @@ calls, and it does five things in order:
 
 ### 5. Delivery
 
-Telegram with one-tap buttons, the Streamlit dashboard, and a SHA-256 hash-chained audit log
+Telegram with one-tap buttons, the React + Vite dashboard, and a SHA-256 hash-chained audit log
 that makes tampering detectable.
 
 ---
@@ -472,7 +473,7 @@ flowchart LR
 
     subgraph Delivery["User Interaction Channels"]
         LLM --> TG["Telegram Bot (Inline Buttons)"]
-        LLM --> UI["Streamlit Dashboard (Port 8501)"]
+        LLM --> UI["React + Vite Dashboard (Port 8443)"]
         Stats --> DB[("SQLite DB + Audit Chain")]
     end
 ```
@@ -550,13 +551,20 @@ looking at the demo timeline rather than at now.
 Any row can read `fail`, and `wha doctor` exits non-zero if one does. `--live` additionally
 opens the bridge, the model provider and the Telegram bot, and reports the round trip in ms.
 
-### The dashboard and the background scheduler
+### The API, dashboard, and background scheduler
 
 ```bash
-uv run wha serve --port 8501
+uv run wha serve
 ```
 
-Access the dashboard at `http://localhost:8501`. The server runs the 24/7 background scheduler:
+This starts the HTTP API on port `8500` and the background scheduler. In a second terminal, start the dashboard:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open `http://127.0.0.1:8443`. The scheduler runs:
 * **Every 30 mins**: Ingests new wearable samples from the phone bridge.
 * **On a repeating interval, not a fixed hour**: Derives overnight baseline features, executes anomaly detection, and opens an episode if a night is flagged. A night settles as soon as its sleep syncs, whatever time that is.
 * **Every 15 mins**: Ticks interaction timeouts and advances open episodes.
@@ -571,7 +579,7 @@ You can configure, test, and manage the system through whichever interface you p
 
 | Interface | How to Use | What It Supports |
 |---|---|---|
-| **Web Dashboard** | Open `http://localhost:8501/Settings` | Live test buttons for Bridge, LLM, and Telegram; secret inputs; one-click persistent saves; permanent data purge. |
+| **Web Dashboard** | Open `http://127.0.0.1:8443` and choose Settings from the navigation | Live test buttons for Bridge, LLM, and Telegram; write-only secret inputs; settings and profile saves; deletion only for disposable `sim` and `demo` records. |
 | **Environment File** | Edit `.env` | File-based persistent configuration for headless and production deployments. |
 | **CLI Overrides** | `uv run wha ... --live` | Inline shell flags, temporary runtime overrides, and diagnostic probing. |
 
@@ -698,13 +706,14 @@ src/wha/
   retrieve/   BM25 + embeddings + fusion, and the grounding check
   service/    Application logic: nightly, episodes, symptoms, pipeline, scheduler
   api/        The HTTP boundary. Everything the dashboard reads goes through here
-  ui/         Streamlit screens. Holds NO data logic and NO clinical content
+frontend/         React + Vite screens. Calls the HTTP API; holds no clinical data logic
   llm/        Provider clients, prompts, cassettes
   notify/     Telegram and other outbound channels
   audit/      The SHA-256 hash-chained log
 data/knowledge/   The clinical tables. Under change control, see below
 experiments/detection/cohort/     The measurement scripts behind every published number
-tests/            unit, integration, scenario, and ui (Streamlit AppTest)
+tests/            Python unit, integration, scenario, and contract tests
+frontend/src/__tests__/  Vitest and React Testing Library view/component tests
 ```
 
 ### Rules enforced by tests, not by convention
@@ -713,10 +722,10 @@ You will hit these if you break them, so they are worth knowing up front.
 
 - **`docs/CONTRACTS.md` is compared against the models, schema and constants on every run.**
   Add a table or a model field and the suite fails until the contract is updated.
-- **The dashboard may not import from `wha.service`.** It is an API client. A test walks the
-  UI source and fails on any reach past the API.
-- **UI copy may contain no digits.** A number typed into a screen drifts away from the code
-  that computes it, so every figure is fetched from `/config` at render time.
+- **The dashboard may not import from `wha.service`.** It is an API client. The Python
+  layering test and typed frontend client keep every screen behind the HTTP boundary.
+- **Stable explanatory copy has no typed digits.** Runtime values come from `/config` or the
+  relevant API response so a displayed operating figure cannot drift from the code.
 - **Every pipeline step must have plain-English copy and a name,** and the "How this works"
   tab must cover exactly the steps that exist. Adding a step without explaining it fails.
 - **Every number in `red_flags.yaml`, `causes.yaml` and `probes.yaml` must declare its
@@ -738,7 +747,7 @@ of work can proceed independently.
 
 | Workstream | Start at | Boundary that holds it |
 |---|---|---|
-| Extending the dashboard | `src/wha/api/app.py` and the 36 endpoints behind it, or `frontend/src/api.ts` on the client side | `tests/unit/test_layering.py`. No screen may reach past the API. The dashboard was already replaced once, 27 September 2026: Streamlit to `frontend/`, with no backend change required, which is what this boundary is for |
+| Extending the dashboard | `src/wha/api/app.py` or `frontend/src/api.ts` on the client side | `tests/unit/test_layering.py` and frontend API/view tests. No screen may reach past the API. The dashboard was replaced on 27 September 2026, from Streamlit to `frontend/`. |
 | Restructuring the agent | `src/wha/agent/steps.py`, then `src/wha/agent/nodes/` | `tests/unit/agent/test_steps.py`. Map new nodes onto existing public steps and no screen changes |
 | Replacing retrieval | The `Retriever` protocol in `src/wha/retrieve/index.py` | `tests/unit/retrieve/test_retriever_protocol.py`. Keep the `RetrievalResult` shape, which the grounding check depends on |
 | Changing when an investigation opens | `src/wha/service/episode_lifecycle.py` | Already independent of the agent. The detector has no knowledge of episodes |

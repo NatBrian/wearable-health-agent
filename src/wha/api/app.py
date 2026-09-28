@@ -20,7 +20,7 @@ deliberate scope decision and it is stated in the README rather than assumed.
 """
 
 from datetime import date, datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,16 +29,12 @@ from pydantic import BaseModel
 from wha import service
 from wha.clock import local_today, to_local
 from wha.config import get_settings as get_app_settings
-from wha.constants import (
-    DASHBOARD_STEPS_AVERAGE_DAYS,
-    HISTORY_WINDOW_DAYS,
-    POLICY_COST_WEIGHT_UI_STEP,
-)
 from wha.models import (
     Answer,
     AuditFilter,
     DashboardSummary,
     DetectionLevel,
+    KnowledgeProvenanceSummary,
     SettingsPatch,
     SubjectProfilePatch,
 )
@@ -94,64 +90,8 @@ def health() -> dict[str, str]:
 
 @app.get("/config")
 def get_config() -> dict[str, Any]:
-    """Every public constant, plus the subject's local date.
-
-    Enumerated from the module rather than listed by hand, so a constant added to
-    ``wha.constants`` is available to an interface immediately and this endpoint cannot
-    drift away from the code. Screens used to import these directly, which a browser
-    cannot do and which also let a threshold shown on a screen disagree with the one the
-    detector used.
-
-    Names are kept exactly as they appear in the source, so a reader can find the constant
-    and its reasoning without a mapping table.
-    """
-    from wha import constants
-
-    exported: dict[str, Any] = {}
-    for name in dir(constants):
-        if not name.isupper():
-            continue
-        value = getattr(constants, name)
-        if isinstance(value, str | int | float | bool | list | dict | type(None)):
-            exported[name] = value
-
-    # Not a constant, but a client cannot read the environment and needs to know which
-    # person this installation is configured for.
-    from wha.config import get_settings
-
-    exported["today"] = local_today().isoformat()
-    exported["configured_subject"] = get_settings().subject
-    exported["dashboard"] = {
-        "history_windows_days": HISTORY_WINDOW_DAYS,
-        "steps_average_days": DASHBOARD_STEPS_AVERAGE_DAYS,
-        "settings_bounds": {
-            "age_years": _numeric_bounds(SubjectProfilePatch, "age_years"),
-            "interruption_budget_per_week": _numeric_bounds(
-                SettingsPatch, "interruption_budget_per_week"
-            ),
-            "depth_budget_per_episode": _numeric_bounds(
-                SettingsPatch, "depth_budget_per_episode"
-            ),
-            "policy_cost_weight": {
-                **_numeric_bounds(SettingsPatch, "policy_cost_weight"),
-                "step": POLICY_COST_WEIGHT_UI_STEP,
-            },
-        },
-    }
-    return exported
-
-
-def _numeric_bounds(model: type[BaseModel], field_name: str) -> dict[str, int | float | None]:
-    """Read optional numeric input bounds from the Pydantic contract."""
-    field_schema = model.model_json_schema()["properties"][field_name]
-    if "anyOf" in field_schema:
-        field_schema = next(
-            branch for branch in field_schema["anyOf"] if branch.get("type") != "null"
-        )
-    return {
-        "minimum": field_schema.get("minimum"),
-        "maximum": field_schema.get("maximum"),
-    }
+    """Public settings and operating limits the browser client needs to explain."""
+    return service.get_dashboard_configuration()
 
 
 @app.get("/localise")
@@ -220,25 +160,24 @@ def list_nights(
     start: date | None = None,
     end: date | None = None,
     days: int = Query(default=60, ge=1, le=400),
-    level: list[DetectionLevel] = Query(default=[]),
+    level: Annotated[list[DetectionLevel] | None, Query()] = None,
     investigated_only: bool = False,
 ) -> list[Any]:
     """Every calendar night in the range, including nights with no reading."""
     end_d = end or _record_end(subject_id)
     start_d = start or (end_d - timedelta(days=days))
     nights = service.list_nights(subject_id, start=start_d, end=end_d)
-    return service.filter_history_nights(
-        nights, levels=level, investigated_only=investigated_only
-    )
+    return service.filter_history_nights(nights, levels=level, investigated_only=investigated_only)
 
 
 @app.get("/subjects/{subject_id}/dashboard-summary", response_model=DashboardSummary)
 def get_dashboard_summary(subject_id: str, end: date | None = None) -> DashboardSummary:
     """Latest sleep/steps observations and steps averaged over the configured calendar window."""
+    config = service.get_dashboard_configuration()
     return service.get_dashboard_summary(
         subject_id,
         end=end or _record_end(subject_id),
-        steps_window_days=DASHBOARD_STEPS_AVERAGE_DAYS,
+        steps_window_days=config["dashboard"]["steps_average_days"],
     )
 
 
@@ -512,9 +451,7 @@ def get_subject_profile(subject_id: str) -> Any:
 @app.post("/subjects/{subject_id}/profile")
 def post_subject_profile(subject_id: str, body: SubjectProfilePatch) -> Any:
     """Change them. This changes how the rules decide, so it is recorded."""
-    return service.update_subject_profile(
-        body, subject_id=subject_id
-    )
+    return service.update_subject_profile(body, subject_id=subject_id)
 
 
 @app.get("/knowledge/provenance")
@@ -523,8 +460,14 @@ def get_knowledge_provenance() -> Any:
     return service.get_knowledge_provenance()
 
 
+@app.get("/knowledge/provenance/summary", response_model=KnowledgeProvenanceSummary)
+def get_knowledge_provenance_summary() -> KnowledgeProvenanceSummary:
+    """Entry counts for the Home evidence summary, computed outside the browser."""
+    return service.get_knowledge_provenance_summary()
+
+
 @app.get("/knowledge/safety-provenance")
-def get_safety_rule_provenance() -> Any:
+def get_safety_rule_provenance() -> list[dict[str, str | int | None]]:
     """Where each number in the deterministic safety floor came from."""
     return service.get_safety_rule_provenance()
 
@@ -544,4 +487,12 @@ def check_component(component: str, overrides: dict[str, Any] | None = None) -> 
     }
     if component not in checks:
         raise HTTPException(status_code=404, detail=f"No such component: {component}")
-    return checks[component](**(overrides or {}))
+    supplied = overrides or {}
+    if component == "llm":
+        supplied = {
+            "provider": supplied.get("provider", supplied.get("llm_provider")),
+            "model": supplied.get("model", supplied.get("llm_model")),
+            "base_url": supplied.get("base_url", supplied.get("llm_base_url")),
+            "api_key": supplied.get("api_key", supplied.get("llm_api_key")),
+        }
+    return checks[component](**{key: value for key, value in supplied.items() if value is not None})

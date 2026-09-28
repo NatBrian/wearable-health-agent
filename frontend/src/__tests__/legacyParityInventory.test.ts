@@ -8,6 +8,7 @@ import {
   VISIBLE_LITERAL_SURFACES,
 } from '../test/legacyParityInventory'
 import { LEGACY_VISIBLE_LITERALS } from '../test/legacyVisibleLiteralInventory'
+import { HOW_IT_WORKS_TOPIC_STEPS } from '../components/HowItWorks'
 
 describe('legacy Streamlit parity inventory', () => {
   it('maps every stable explanation key to a React destination and a copy check', () => {
@@ -21,6 +22,18 @@ describe('legacy Streamlit parity inventory', () => {
     expect(DISCLOSURE_ITEMS).toHaveLength(41)
     expect(new Set(DISCLOSURE_ITEMS.map((item) => item.id)).size).toBe(DISCLOSURE_ITEMS.length)
     expect(DISCLOSURE_ITEMS.every((item) => item.destination && item.verification.startsWith('disclosure:'))).toBe(true)
+  })
+
+  it('covers every recorded pipeline step in How it works exactly once', () => {
+    const stepIds = Object.values(HOW_IT_WORKS_TOPIC_STEPS).flat()
+    expect(stepIds).toHaveLength(21)
+    expect(new Set(stepIds).size).toBe(stepIds.length)
+    expect(new Set(stepIds)).toEqual(new Set([
+      'collect', 'store', 'sleep_window', 'features', 'baseline', 'subtract_explained',
+      'detect', 'safety_floor', 'episode_open', 'preload', 'investigate', 'believe',
+      'decide', 'ask', 'answer', 'conclude', 'critique', 'review', 'deliver',
+      'safety_phrase_rules', 'safety_triage',
+    ]))
   })
 
   it('covers every legacy UI source area and every deleted user-visible UI test', () => {

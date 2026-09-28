@@ -75,8 +75,8 @@ flowchart TB
     end
 
     subgraph OUT["WHAT REACHES YOU"]
-        API["HTTP API on 127.0.0.1:8500<br/>36 endpoints"]
-        DASH["Streamlit dashboard<br/>Home, Today, History, Audit, Settings"]
+        API["HTTP API on 127.0.0.1:8500"]
+        DASH["React + Vite dashboard<br/>Home, Today, History, The record, Settings"]
         TG["Telegram bot<br/>questions with buttons, and chat"]
         AUD["Audit log<br/>hash-chained, tamper evident"]
     end
@@ -1380,15 +1380,20 @@ to be.
 
 ### What does this part do?
 
-Everything a screen shows now comes over HTTP from a small API on `127.0.0.1:8500`, with 28
-endpoints and generated documentation at `/docs`. The Streamlit dashboard is one client of
-that API. A test asserts that no screen imports the service layer, the constants, or the
-clock.
+Everything a screen shows now comes over HTTP from the API on `127.0.0.1:8500`, with
+generated documentation at `/docs`. The React + Vite dashboard is a separate client of
+that API, served by Vite on `127.0.0.1:8443` during development. Tests assert that browser
+views do not import the service layer, constants, or clock.
+
+`GET /knowledge/safety-provenance` returns each rule's threshold, provenance, and source
+basis. For rules with an age gate, it also returns `minimum_age_years`, so Settings and the
+question screen can show the live limit and citation without typing either into frontend
+copy.
 
 ### Why does it exist?
 
-So the dashboard can be replaced by a React front end without a line of backend work, and
-so there is exactly one path from data to screen rather than two.
+So every dashboard screen reads the same service-owned data over one HTTP boundary, while
+the presentation can evolve independently of detection and safety behavior.
 
 ### The five screens
 
@@ -1396,9 +1401,9 @@ so there is exactly one path from data to screen rather than two.
 |---|---|
 | Home | the disclaimer, and what the system can and cannot do |
 | Today | last night, anything pending, and the chat box |
-| History | the chart, the list of investigations, night by night |
-| Audit | the tamper-evident record, in plain English |
-| Settings | where data comes from, how you are contacted, every constant |
+| History | the chart and night-by-night readings |
+| The record | the pipeline, tamper-evident history, conversations, and explanations |
+| Settings | your profile, data connections, contact channel, and interruption preferences |
 
 The `/config` endpoint enumerates every public constant from the module rather than listing
 them by hand, so the numbers on screen cannot drift from the code. It also carries your

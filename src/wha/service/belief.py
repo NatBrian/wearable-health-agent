@@ -166,19 +166,48 @@ def get_knowledge_provenance() -> dict[str, dict[str, str]]:
     return out
 
 
-def get_safety_rule_provenance() -> list[dict[str, str]]:
-    """Every number in the deterministic safety floor, and where it came from.
+def get_knowledge_provenance_summary() -> dict[str, int]:
+    """Count provenance entries with at least one assumed or unsourced figure."""
+    entries = get_knowledge_provenance()
+    unevidenced_entries = sum(
+        1
+        for entry in entries.values()
+        if entry.get("provenance", "").upper() == "ASSUMED"
+        or entry.get("has_unevidenced_number", "").lower() == "yes"
+    )
+    return {"unevidenced_entries": unevidenced_entries, "total_entries": len(entries)}
+
+
+def get_safety_rule_provenance() -> list[dict[str, str | int | None]]:
+    """Every published or assumed safety-rule number and its source.
 
     The standing rule requires an unevidenced clinical figure to be labelled in the docs
-    AND on the dashboard. `causes.yaml` had that on both sides; `red_flags.yaml` had it on
-    neither, and it is the file whose own footer calls its numbers "the only place in this
-    project where a wrong number has a real-world consequence". Six of the eleven turn out
-    to be ASSUMED, which is a legitimate answer and now a visible one.
+    AND on the dashboard. These rows cover assumed red-flag thresholds, cited triage rule
+    scope and source, and cited overnight oxygen limits. Assumed values are shown with the
+    basis recorded in their source table.
     """
     from wha.safety.rules import load_red_flags
+    from wha.safety.triage import load_oxygen_rule, load_triage_rules
 
     config = load_red_flags()
-    rows: list[dict[str, str]] = []
+    rows: list[dict[str, str | int | None]] = []
+
+    triage = load_triage_rules()
+    for rule in triage.rules:
+        age = rule.minimum_age_years
+        rows.append(
+            {
+                "rule": rule.id,
+                "number": (
+                    f"applies to {rule.applies_to}; minimum age {age}"
+                    if age is not None
+                    else f"applies to {rule.applies_to}"
+                ),
+                "provenance": "CITED",
+                "basis": rule.citation.strip(),
+                "minimum_age_years": age,
+            }
+        )
 
     for rule in config.tier_b:
         rows.append(
@@ -214,5 +243,33 @@ def get_safety_rule_provenance() -> list[dict[str, str]]:
                     "basis": (rule.assumption_cold_rung or "").strip(),
                 }
             )
+
+    oxygen = load_oxygen_rule()
+    if oxygen is not None:
+        rows.append(
+            {
+                "rule": "oxygen_threshold",
+                "number": f"only after {oxygen.min_overnight_readings} overnight readings",
+                "provenance": "CITED",
+                "basis": oxygen.citation.strip(),
+            }
+        )
+        rows.extend(
+            {
+                "rule": "oxygen_threshold",
+                "number": f"{band.max_percent:g} percent or less: {band.urgency}",
+                "provenance": "CITED",
+                "basis": f"{band.meaning.strip()} {oxygen.citation_plain.strip()}",
+            }
+            for band in oxygen.bands
+        )
+        rows.append(
+            {
+                "rule": "oxygen_threshold",
+                "number": "above every threshold does not mean all clear",
+                "provenance": "CITED",
+                "basis": oxygen.never_reassure.strip(),
+            }
+        )
 
     return rows

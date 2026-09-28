@@ -40,7 +40,14 @@ anything and without spending a single model call:
 uv run python tools/demo_film/serve_demo.py
 ```
 
-Then <http://localhost:8501>. Every night from 4 August to 23 September 2026 is there: the
+In a second terminal, run the Vite dashboard:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Then open <http://127.0.0.1:8443>. Every night from 4 August to 23 September 2026 is there: the
 quiet nights, the illness, the relapse, the three linked investigations, every question
 asked and answered, the escalation, the human review decisions and the audit trail behind
 all of it.

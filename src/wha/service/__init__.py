@@ -20,6 +20,7 @@ from wha.service.belief import (
     BeliefNightRecord,
     explain_belief,
     get_knowledge_provenance,
+    get_knowledge_provenance_summary,
     get_safety_rule_provenance,
 )
 from wha.service.conversation import (
@@ -35,6 +36,7 @@ from wha.service.corpus import (
     build_corpus_file,
     search_corpus,
 )
+from wha.service.dashboard import get_dashboard_configuration
 from wha.service.data_fetch import fetch_data
 from wha.service.demo import (
     DEMO_DB_PATH,
@@ -123,10 +125,12 @@ __all__ = [
     "fetch_data",
     "filter_history_nights",
     "get_conversation_sessions",
+    "get_dashboard_configuration",
     "get_dashboard_summary",
     "get_episode",
     "get_evaluation_results",
     "get_knowledge_provenance",
+    "get_knowledge_provenance_summary",
     "get_monitoring_since",
     "get_night_detail",
     "get_night_pipeline",
