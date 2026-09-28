@@ -13,13 +13,16 @@ Carry every Streamlit screen, explanation, disclosure, and action into the Vite 
 The following existing behaviors and elements remain available and recognizable:
 
 - The three primary destinations: **Dashboard**, **Pipeline**, and **Settings**.
+- The **Vital Agent** brand and **health triage** tagline, subject identity/usable-night/baseline summary, and sidebar open-session/last-closed summary.
+- The original page titles and context: **Health Overview**, **System Pipeline**, and **Settings**, with the Dashboard's last-scored/open-investigation context.
 - The Dashboard's original overview composition: status/episode summary; resting-heart-rate, sleep, steps, and oxygen cards when data is available; the multi-night heart-rate chart; the latest-night and baseline details; and the cause differential.
-- The Pipeline destination's safety-rule provenance and selected-night trace.
+- Clickable metric cards that select the corresponding trend series, the empty/unavailable metric treatment, and the selected-series chart detail.
+- The Pipeline destination's grouped system overview, safety-rule provenance, active-episode summary, and selected-night trace. Preserve the overview's visual organization while correcting static claims that do not match the running system.
 - The Settings destination's existing Device, Agent, Model & RAG, and Privacy sections and their controls.
 - The global Agent Chat rail and its open/close control, unread indicator, pending-question controls, transcript, text entry, and citation inspection. Chat remains reachable from every primary destination.
 - The original Vite visual language: near-black navy sidebar, pale gray-lavender canvas, white cards, lime/purple and existing urgency accents, Fraunces/DM Sans/JetBrains Mono typography, and the existing chart/card treatment.
 
-The existing Dashboard cards, chart, baseline details, cause differential, Pipeline entry points, Settings controls, and global chat may be refined for legibility, keyboard/touch use, and narrow screens. They must not be silently removed, replaced with unrelated components, or moved behind a new primary destination. New sections may follow them or use clearly labeled secondary tabs/disclosures within the same destination.
+The existing Dashboard cards, chart, baseline details, cause differential, Pipeline overview and trace, Settings controls, subject/session summaries, and global chat may be refined for legibility, keyboard/touch use, and narrow screens. They must not be silently removed, replaced with unrelated components, or moved behind a new primary destination. New sections may follow them or use clearly labeled secondary tabs/disclosures within the same destination.
 
 ## Streamlit parity inside the existing Vite structure
 
@@ -31,7 +34,7 @@ The safety instruction is prominent on the Dashboard without replacing the origi
 
 ### Pipeline
 
-Keep Pipeline as the destination for the existing selected-night step trace and safety-rule provenance. Add the legacy record features as clearly labeled secondary sections within Pipeline: night selection and previous/next navigation, detailed step explanations, audit-chain status and event table, actor/operation/permission filters, filtered export, archived conversations with date/session boundaries, and every How it works topic. Keep trace selection and audit detail inspectable without converting the page into a new top-level Record destination.
+Keep Pipeline as the destination for the existing grouped system overview, active-episode context, selected-night step trace, and safety-rule provenance. Add the legacy record features as clearly labeled secondary sections within Pipeline: night selection and previous/next navigation, detailed step explanations, audit-chain status and event table, actor/operation/permission filters, filtered export, archived conversations with date/session boundaries, and every How it works topic. Keep trace selection and audit detail inspectable without converting the page into a new top-level Record destination.
 
 ### Settings
 
@@ -63,7 +66,7 @@ All reads, writes, calculations, thresholds, and health-policy decisions remain 
 
 ## Verification and acceptance
 
-- Compare the new Dashboard, Pipeline, and Settings against the original Vite screenshot and source at `214c39b`. The original palette, typography roles, three-destination shell, Dashboard widgets, settings organization, and global chat access remain recognizable and functional.
+- Compare the new Dashboard, Pipeline, and Settings against the original Vite screenshot and source at `214c39b`. The original brand, sidebar summaries, palette, typography roles, three-destination shell, Dashboard widgets and metric selection, Pipeline overview, settings organization, and global chat access remain recognizable and functional.
 - Keep a baseline inventory for original Vite controls/actions as well as the existing Streamlit parity inventory. Tests fail if an original Vite destination, chart/card, settings section, or global chat affordance disappears.
 - Preserve all existing Streamlit parity assertions and verify every inventory row has a visible destination and working supported action.
 - Verify the responsive layout and the original chat rail on desktop and narrow viewports with Playwright MCP and demo data.
