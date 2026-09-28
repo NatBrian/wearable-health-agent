@@ -738,7 +738,7 @@ of work can proceed independently.
 
 | Workstream | Start at | Boundary that holds it |
 |---|---|---|
-| Extending the dashboard | `src/wha/api/app.py` and the 35 endpoints behind it, or `frontend/src/api.ts` on the client side | `tests/unit/test_layering.py`. No screen may reach past the API. The dashboard was already replaced once, 27 September 2026: Streamlit to `frontend/`, with no backend change required, which is what this boundary is for |
+| Extending the dashboard | `src/wha/api/app.py` and the 36 endpoints behind it, or `frontend/src/api.ts` on the client side | `tests/unit/test_layering.py`. No screen may reach past the API. The dashboard was already replaced once, 27 September 2026: Streamlit to `frontend/`, with no backend change required, which is what this boundary is for |
 | Restructuring the agent | `src/wha/agent/steps.py`, then `src/wha/agent/nodes/` | `tests/unit/agent/test_steps.py`. Map new nodes onto existing public steps and no screen changes |
 | Replacing retrieval | The `Retriever` protocol in `src/wha/retrieve/index.py` | `tests/unit/retrieve/test_retriever_protocol.py`. Keep the `RetrievalResult` shape, which the grounding check depends on |
 | Changing when an investigation opens | `src/wha/service/episode_lifecycle.py` | Already independent of the agent. The detector has no knowledge of episodes |

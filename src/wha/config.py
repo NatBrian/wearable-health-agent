@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 load_dotenv()
 
@@ -19,6 +19,24 @@ class Settings(BaseModel):
     )
     subject: str = Field(default_factory=lambda: os.environ.get("WHA_SUBJECT", "me"))
     timezone: str = Field(default_factory=lambda: os.environ.get("WHA_TIMEZONE", "Asia/Singapore"))
+    dashboard_origins: list[str] = Field(
+        default_factory=lambda: [
+            origin.strip()
+            for origin in os.environ.get(
+                "WHA_CORS_ALLOWED_ORIGINS",
+                "http://127.0.0.1:8443,http://localhost:8443",
+            ).split(",")
+            if origin.strip()
+        ],
+        validate_default=True,
+    )
+
+    @field_validator("dashboard_origins")
+    @classmethod
+    def require_exact_dashboard_origins(cls, origins: list[str]) -> list[str]:
+        if any("*" in origin for origin in origins):
+            raise ValueError("Dashboard CORS origins must be explicit origins, never wildcards")
+        return origins
     data_dir: Path = Field(
         default_factory=lambda: Path(os.environ.get("WHA_DATA_DIR", "data/datasets"))
     )

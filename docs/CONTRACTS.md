@@ -221,6 +221,11 @@ Single source of truth: `src/wha/constants.py`. **Nothing below may be duplicate
 anywhere else in the codebase.** Every value is either swept or justified in the evaluation.
 
 ```python
+# --- dashboard presentation ----------------------------------------------
+DASHBOARD_STEPS_AVERAGE_DAYS = 7
+HISTORY_WINDOW_DAYS = [30, 60, 90, 365]
+POLICY_COST_WEIGHT_UI_STEP = 0.01
+
 # --- coverage and quality -------------------------------------------------
 MIN_NOCTURNAL_MINUTES         = 180     # 3h of the 7h window
 HR_PLAUSIBLE_MIN_BPM          = 25
@@ -990,6 +995,17 @@ class NightRow(BaseModel):
     forecast_lo_bpm: float | None = None
     forecast_hi_bpm: float | None = None
     forecast_status: str | None = None
+    sleep_hours: float | None = None
+    steps_prev_day: int | None = None
+
+class DashboardSummary(BaseModel):
+    latest_sleep_hours: float | None = None
+    latest_sleep_night: date | None = None
+    latest_steps: int | None = None
+    latest_steps_night: date | None = None
+    steps_average: int | None = None
+    steps_window_start: date
+    steps_window_end: date
 
 class NightDetail(BaseModel):
     row: NightRow
@@ -1084,9 +1100,9 @@ class Settings(BaseModel):
 
 class SettingsPatch(BaseModel):
     """Every field optional. Secrets are write-only and never read back."""
-    interruption_budget_per_week: int | None = None
-    depth_budget_per_episode: int | None = None
-    policy_cost_weight: float | None = None
+    interruption_budget_per_week: int | None = Field(default=None, ge=0, le=20)
+    depth_budget_per_episode: int | None = Field(default=None, ge=0, le=10)
+    policy_cost_weight: float | None = Field(default=None, ge=0, le=1)
     notify_channel: Literal["none","telegram"] | None = None
     llm_provider: Literal["cassette","ollama_native","openai_compatible"] | None = None
     llm_model: str | None = None
@@ -1095,6 +1111,24 @@ class SettingsPatch(BaseModel):
     bridge_token: SecretStr | None = None
     llm_api_key: SecretStr | None = None
     telegram_token: SecretStr | None = None
+
+class SubjectProfile(BaseModel):
+    subject_id: str
+    age_years: int | None = None
+    sex: Literal["female", "male"] | None = None
+    known_vascular_disease: bool | None = None
+    menstruates: bool | None = None
+    rate_lowering_medicine: bool | None = None
+    notes_for_doctor: str | None = None
+    updated_at_utc: datetime | None = None
+
+class SubjectProfilePatch(BaseModel):
+    age_years: int | None = Field(default=None, ge=0, le=120)
+    sex: Literal["female", "male"] | None = None
+    known_vascular_disease: bool | None = None
+    menstruates: bool | None = None
+    rate_lowering_medicine: bool | None = None
+    notes_for_doctor: str | None = None
 ```
 
 ### 6.6 Agent, tool and LLM models

@@ -2,9 +2,19 @@
 // Mirrors src/wha/api/client.py's endpoint list and Pydantic model shapes 1:1, so a shape
 // mismatch here is a real backend contract change, not a naming choice made in this file.
 
-const DEFAULT_BASE_URL = 'http://127.0.0.1:8500'
+const DEFAULT_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8500'
 
 export class ApiUnavailable extends Error {}
+export class ApiHttpError extends Error {
+  constructor(
+    readonly status: number,
+    readonly path: string,
+    readonly responseBody: string,
+  ) {
+    super(`Request ${path} failed with HTTP ${status}: ${responseBody}`)
+    this.name = 'ApiHttpError'
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const url = `${DEFAULT_BASE_URL}${path}`
@@ -14,12 +24,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   } catch (exc) {
     throw new ApiUnavailable(`Could not reach the application at ${url}: ${exc}`)
   }
-  if (response.status === 404) return null as T
   if (!response.ok) {
     const body = await response.text()
-    throw new ApiUnavailable(`${init?.method ?? 'GET'} ${path} failed: ${response.status} ${body}`)
+    throw new ApiHttpError(response.status, `${init?.method ?? 'GET'} ${path}`, body)
   }
   return response.json() as Promise<T>
+}
+
+async function requestOptional<T>(path: string): Promise<T | null> {
+  try {
+    return await request<T>(path)
+  } catch (error) {
+    if (error instanceof ApiHttpError && error.status === 404) return null
+    throw error
+  }
 }
 
 // ── Domain types (Pydantic models serialised as-is) ──────────────────────────
@@ -55,6 +73,39 @@ export interface SystemStatus {
   quiet_nights_streak: number; unmeasured_recent_nights: number
 }
 
+export interface NumericBounds {
+  minimum: number | null
+  maximum: number | null
+  step?: number
+}
+
+export interface DashboardConfig {
+  history_windows_days: number[]
+  steps_average_days: number
+  settings_bounds: {
+    age_years: NumericBounds
+    interruption_budget_per_week: NumericBounds
+    depth_budget_per_episode: NumericBounds
+    policy_cost_weight: NumericBounds
+  }
+}
+
+export interface SystemConfig extends Record<string, unknown> {
+  today: string
+  configured_subject: string
+  dashboard: DashboardConfig
+}
+
+export interface DashboardSummary {
+  latest_sleep_hours: number | null
+  latest_sleep_night: string | null
+  latest_steps: number | null
+  latest_steps_night: string | null
+  steps_average: number | null
+  steps_window_start: string
+  steps_window_end: string
+}
+
 export interface NightRow {
   night_date: string; rhr_bpm: number | null; centre_bpm: number | null
   band_lo: number | null; band_hi: number | null; deviation_bpm: number | null
@@ -88,6 +139,21 @@ export interface EpisodeOutcome {
   interruptions_used_this_week: number; depth_used_this_episode: number
 }
 
+export interface MeasurementRequest {
+  measurement_id: string
+  kind: 'spot_resting_hr' | 'wear_tonight'
+  instruction: string
+  expires_at_utc: string
+}
+
+export interface MeasurementResult {
+  measurement_id: string
+  kind: string
+  value: number | null
+  observed_at_utc: string | null
+  satisfied: boolean
+}
+
 export interface PipelineStage {
   name: string; status: 'RAN' | 'SKIPPED' | 'FAILED' | 'PENDING'; reason: string
   duration_ms: number | null; detail_json: Record<string, unknown>
@@ -108,7 +174,7 @@ export interface InteractionView {
 export interface EpisodeDetail {
   summary: EpisodeSummary; outcome: EpisodeOutcome | null; stages: PipelineStage[]
   belief_history: BeliefHistoryEntry[]; interactions: InteractionView[]
-  measurements: unknown[]; citations: Citation[]; stripped_claims: string[]
+  measurements: MeasurementResult[]; citations: Citation[]; stripped_claims: string[]
 }
 
 export interface Question {
@@ -118,7 +184,7 @@ export interface Question {
 
 export interface PendingInteraction {
   kind: 'question' | 'measurement' | 'review'; episode_id: string
-  question: Question | null; measurement: { instruction: string } | null
+  question: Question | null; measurement: MeasurementRequest | null
   draft_outcome: EpisodeOutcome | null
 }
 
@@ -142,6 +208,109 @@ export interface Settings {
   llm_model: string; llm_base_url: string | null; bridge_host: string | null
 }
 
+export interface SettingsPatch extends Partial<Settings> {
+  bridge_token?: string
+  llm_api_key?: string
+  telegram_token?: string
+}
+
+export interface SubjectProfile {
+  subject_id: string
+  age_years: number | null
+  sex: 'female' | 'male' | null
+  known_vascular_disease: boolean | null
+  menstruates: boolean | null
+  rate_lowering_medicine: boolean | null
+  notes_for_doctor: string | null
+  updated_at_utc: string | null
+}
+
+export type SubjectProfilePatch = Partial<Omit<SubjectProfile, 'subject_id' | 'updated_at_utc'>>
+
+export interface PipelineNightRef {
+  night_date: string
+  level: DetectionLevel
+  has_episode: boolean
+  usable: boolean
+}
+
+export interface AuditFilter {
+  episode_id?: string
+  actor?: string
+  operation?: string
+  safety_event?: string
+  since_utc?: string
+  until_utc?: string
+}
+
+export interface AuditEventView {
+  event_id: string
+  timestamp_utc: string
+  episode_id: string | null
+  step_index: number | null
+  actor: string
+  operation: string
+  control_tier: string | null
+  tool_name: string | null
+  permission_decision: string | null
+  sources: string[]
+  validation_status: string | null
+  human_decision: string | null
+  safety_event: string
+  latency_ms: number | null
+  hash_ok: boolean
+}
+
+export interface PlainAuditRecord {
+  event_id: string
+  timestamp_utc: string
+  operation: string
+  night: string | null
+  sentences: string[]
+  detail: Record<string, unknown>
+}
+
+export interface AuditQueryResponse {
+  events: AuditEventView[]
+  plain: PlainAuditRecord[]
+  count: number
+  intact: boolean
+  first_bad_event: string | null
+  permitted_tools: string[]
+}
+
+export interface HandoverSummary {
+  text: string
+  situation: string[]
+  background: string[]
+  assessment: string[]
+  recommendation: string[]
+  questions: string[]
+  what_this_is_not: string[]
+}
+
+export interface ConnectionCheck {
+  ok: boolean
+  detail: string
+  latency_ms: number | null
+}
+
+export interface UrgencyState {
+  urgency: 'none' | 'same_day' | 'urgent' | null
+  reason: string | null
+  set_on: string | null
+  days_ago: number | null
+  stale: boolean
+  cleared: boolean
+}
+
+export type KnowledgeProvenance = Record<string, {
+  provenance: string
+  profile_sourced: string
+  has_unevidenced_number?: string
+  note: string
+}>
+
 export interface OxygenReading {
   ts_utc: string
   percentage: number
@@ -163,34 +332,66 @@ export interface PipelineStepView {
 
 export interface NightPipeline {
   subject_id: string; night_date: string; episode_id: string | null
-  headline: { level: DetectionLevel; flagged: boolean; primary_cause: CauseId | null; primary_probability: number | null }
+  headline: {
+    level: DetectionLevel; flagged: boolean; rung: BaselineRung | null
+    primary_cause: CauseId | null; primary_probability: number | null
+    sleep_hours: number | null; coverage_minutes: number
+    questions_asked: number; sources_read: number
+  }
   steps: PipelineStepView[]
 }
 
 // ── Client ─────────────────────────────────────────────────────────────────
 
+function search(params: Record<string, string | undefined>): string {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined) query.set(key, value)
+  }
+  const encoded = query.toString()
+  return encoded ? `?${encoded}` : ''
+}
+
+export interface HistoryNightFilters {
+  levels?: DetectionLevel[]
+  investigatedOnly?: boolean
+}
+
 export const api = {
-  config: () => request<Record<string, unknown>>('/config'),
+  config: () => request<SystemConfig>('/config'),
 
   listSubjects: () => request<Subject[]>('/subjects'),
 
+  deleteSubject: (subjectId: string) =>
+    request<{ status: string; subject_id: string }>(`/subjects/${subjectId}`, { method: 'DELETE' }),
+
   getStatus: (subjectId: string) => request<SystemStatus>(`/subjects/${subjectId}/status`),
 
-  listNights: (subjectId: string, days = 28) =>
-    request<NightRow[]>(`/subjects/${subjectId}/nights?days=${days}`),
+  getDashboardSummary: (subjectId: string) =>
+    request<DashboardSummary>(`/subjects/${subjectId}/dashboard-summary`),
+
+  listNights: (subjectId: string, days = 28, filters: HistoryNightFilters = {}) => {
+    const params = new URLSearchParams({ days: String(days) })
+    for (const level of filters.levels ?? []) params.append('level', level)
+    if (filters.investigatedOnly) params.set('investigated_only', 'true')
+    return request<NightRow[]>(`/subjects/${subjectId}/nights?${params.toString()}`)
+  },
 
   getNightDetail: (subjectId: string, nightDate: string) =>
-    request<NightDetail>(`/subjects/${subjectId}/nights/${nightDate}`),
+    requestOptional<NightDetail>(`/subjects/${subjectId}/nights/${nightDate}`),
+
+  listPipelineNights: (subjectId: string, days = 60) =>
+    request<PipelineNightRef[]>(`/subjects/${subjectId}/pipeline/nights?days=${days}`),
 
   getNightPipeline: (subjectId: string, nightDate: string) =>
-    request<NightPipeline>(`/subjects/${subjectId}/nights/${nightDate}/pipeline`),
+    requestOptional<NightPipeline>(`/subjects/${subjectId}/nights/${nightDate}/pipeline`),
 
   listOxygenReadings: (subjectId: string, days = 7) =>
     request<OxygenReading[]>(`/subjects/${subjectId}/oxygen?days=${days}`),
 
   listEpisodes: (subjectId: string) => request<EpisodeSummary[]>(`/subjects/${subjectId}/episodes`),
 
-  getEpisode: (episodeId: string) => request<EpisodeDetail>(`/episodes/${episodeId}`),
+  getEpisode: (episodeId: string) => requestOptional<EpisodeDetail>(`/episodes/${episodeId}`),
 
   getPending: (subjectId: string) => request<PendingInteraction | null>(`/subjects/${subjectId}/pending`),
 
@@ -199,8 +400,15 @@ export const api = {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     }),
 
-  getConversationSessions: (subjectId: string, limitTurns = 200) =>
-    request<ConversationSession[]>(`/subjects/${subjectId}/conversation/sessions?limit_turns=${limitTurns}`),
+  submitReview: (episodeId: string, body: { decision: string; edited_prose?: string | null; rationale?: string | null }) =>
+    request<{ status: string }>(`/episodes/${episodeId}/review`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    }),
+
+  getConversationSessions: (subjectId: string, limitTurns = 400, sinceNight?: string) =>
+    request<ConversationSession[]>(
+      `/subjects/${subjectId}/conversation/sessions${search({ limit_turns: String(limitTurns), since_night: sinceNight })}`,
+    ),
 
   postMessage: (subjectId: string, text: string, episodeId?: string | null) =>
     request<{ text: string; urgency: string | null; citations: Citation[]; uncited: string[] }>(
@@ -208,12 +416,43 @@ export const api = {
       { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, episode_id: episodeId ?? null }) },
     ),
 
+  getUrgency: (subjectId: string) => request<UrgencyState>(`/subjects/${subjectId}/urgency`),
+
+  acknowledgeUrgency: (subjectId: string) =>
+    request<{ status: string }>(`/subjects/${subjectId}/urgency/acknowledged`, { method: 'POST' }),
+
+  getHandover: (subjectId: string, episodeId?: string) =>
+    request<HandoverSummary>(`/subjects/${subjectId}/handover${search({ episode_id: episodeId })}`),
+
+  getAudit: (subjectId: string, filters: AuditFilter = {}, limit = 100, offset = 0) =>
+    request<AuditQueryResponse>(
+      `/subjects/${subjectId}/audit${search({ ...filters, limit: String(limit), offset: String(offset) })}`,
+    ),
+
+  exportAudit: (subjectId: string, filters: AuditFilter = {}) =>
+    request<{ content: string }>(`/subjects/${subjectId}/audit/export${search({ ...filters })}`),
+
+  getKnowledgeProvenance: () => request<KnowledgeProvenance>('/knowledge/provenance'),
+
   getSafetyProvenance: () => request<SafetyRuleProvenance[]>('/knowledge/safety-provenance'),
 
   getSettings: () => request<Settings>('/settings'),
 
-  updateSettings: (patch: Partial<Settings>) =>
+  updateSettings: (patch: SettingsPatch) =>
     request<Settings>('/settings', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
+    }),
+
+  getSubjectProfile: (subjectId: string) =>
+    request<SubjectProfile>(`/subjects/${subjectId}/profile`),
+
+  updateSubjectProfile: (subjectId: string, patch: SubjectProfilePatch) =>
+    request<SubjectProfile>(`/subjects/${subjectId}/profile`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch),
+    }),
+
+  testComponent: (component: 'bridge' | 'llm' | 'telegram', overrides: Record<string, unknown> = {}) =>
+    request<ConnectionCheck>(`/diagnostics/${component}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(overrides),
     }),
 }

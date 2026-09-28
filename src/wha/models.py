@@ -439,6 +439,20 @@ class NightRow(BaseModel):
     steps_prev_day: int | None = None
 
 
+class DashboardSummary(BaseModel):
+    """Latest sleep and step observations plus a calendar-bounded steps summary."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    latest_sleep_hours: float | None = None
+    latest_sleep_night: date | None = None
+    latest_steps: int | None = None
+    latest_steps_night: date | None = None
+    steps_average: int | None = None
+    steps_window_start: date
+    steps_window_end: date
+
+
 class NightDetail(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -721,9 +735,9 @@ class SettingsPatch(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    interruption_budget_per_week: int | None = None
-    depth_budget_per_episode: int | None = None
-    policy_cost_weight: float | None = None
+    interruption_budget_per_week: int | None = Field(default=None, ge=0, le=20)
+    depth_budget_per_episode: int | None = Field(default=None, ge=0, le=10)
+    policy_cost_weight: float | None = Field(default=None, ge=0, le=1)
     notify_channel: Literal["none", "telegram"] | None = None
     llm_provider: Literal["cassette", "ollama_native", "openai_compatible"] | None = None
     llm_model: str | None = None
@@ -770,7 +784,7 @@ class SubjectProfilePatch(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    age_years: int | None = None
+    age_years: int | None = Field(default=None, ge=0, le=120)
     sex: Literal["female", "male"] | None = None
     known_vascular_disease: bool | None = None
     menstruates: bool | None = None

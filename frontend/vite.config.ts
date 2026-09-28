@@ -12,12 +12,12 @@ export default defineConfig({
     },
   },
   server: {
-    host: '0.0.0.0',
+    host: '127.0.0.1',
     port: parseInt(process.env.PORT || '8443'),
     strictPort: true,
   },
   preview: {
-    host: '0.0.0.0',
+    host: '127.0.0.1',
     port: parseInt(process.env.PORT || '8443'),
   },
 })

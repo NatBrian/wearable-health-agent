@@ -28,7 +28,20 @@ from pydantic import BaseModel
 
 from wha import service
 from wha.clock import local_today, to_local
-from wha.models import Answer, AuditFilter
+from wha.config import get_settings as get_app_settings
+from wha.constants import (
+    DASHBOARD_STEPS_AVERAGE_DAYS,
+    HISTORY_WINDOW_DAYS,
+    POLICY_COST_WEIGHT_UI_STEP,
+)
+from wha.models import (
+    Answer,
+    AuditFilter,
+    DashboardSummary,
+    DetectionLevel,
+    SettingsPatch,
+    SubjectProfilePatch,
+)
 
 app = FastAPI(
     title="Wearable Health Early Warning Agent",
@@ -36,16 +49,14 @@ app = FastAPI(
     summary="Everything an interface needs. One person, one device, localhost only.",
 )
 
-# The frontend is a separate origin (a Vite dev server on its own port) from this API, so a
-# browser blocks every request with no explanation beyond "Failed to fetch" until this is
-# here. Wide open on purpose: this API is already unauthenticated and bound to one person's
-# own machine, per the module docstring above, so restricting origins would add a second,
-# weaker lock in front of a door that has none.
+# CORS is a browser boundary for the configured local frontend, not authentication. The API
+# remains local-only and has no authentication, so only the expected loopback origins are
+# allowed to make browser requests.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=get_app_settings().dashboard_origins,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Accept", "Content-Type"],
 )
 
 
@@ -110,7 +121,37 @@ def get_config() -> dict[str, Any]:
 
     exported["today"] = local_today().isoformat()
     exported["configured_subject"] = get_settings().subject
+    exported["dashboard"] = {
+        "history_windows_days": HISTORY_WINDOW_DAYS,
+        "steps_average_days": DASHBOARD_STEPS_AVERAGE_DAYS,
+        "settings_bounds": {
+            "age_years": _numeric_bounds(SubjectProfilePatch, "age_years"),
+            "interruption_budget_per_week": _numeric_bounds(
+                SettingsPatch, "interruption_budget_per_week"
+            ),
+            "depth_budget_per_episode": _numeric_bounds(
+                SettingsPatch, "depth_budget_per_episode"
+            ),
+            "policy_cost_weight": {
+                **_numeric_bounds(SettingsPatch, "policy_cost_weight"),
+                "step": POLICY_COST_WEIGHT_UI_STEP,
+            },
+        },
+    }
     return exported
+
+
+def _numeric_bounds(model: type[BaseModel], field_name: str) -> dict[str, int | float | None]:
+    """Read optional numeric input bounds from the Pydantic contract."""
+    field_schema = model.model_json_schema()["properties"][field_name]
+    if "anyOf" in field_schema:
+        field_schema = next(
+            branch for branch in field_schema["anyOf"] if branch.get("type") != "null"
+        )
+    return {
+        "minimum": field_schema.get("minimum"),
+        "maximum": field_schema.get("maximum"),
+    }
 
 
 @app.get("/localise")
@@ -142,6 +183,8 @@ def list_subjects() -> list[Any]:
 @app.delete("/subjects/{subject_id}")
 def delete_subject(subject_id: str) -> dict[str, str]:
     """Erase everything held about a person."""
+    if subject_id == "me":
+        raise HTTPException(status_code=403, detail="The real subject cannot be deleted")
     service.delete_all_subject_data(subject_id)
     return {"status": "deleted", "subject_id": subject_id}
 
@@ -177,11 +220,26 @@ def list_nights(
     start: date | None = None,
     end: date | None = None,
     days: int = Query(default=60, ge=1, le=400),
+    level: list[DetectionLevel] = Query(default=[]),
+    investigated_only: bool = False,
 ) -> list[Any]:
     """Every calendar night in the range, including nights with no reading."""
     end_d = end or _record_end(subject_id)
     start_d = start or (end_d - timedelta(days=days))
-    return service.list_nights(subject_id, start=start_d, end=end_d)
+    nights = service.list_nights(subject_id, start=start_d, end=end_d)
+    return service.filter_history_nights(
+        nights, levels=level, investigated_only=investigated_only
+    )
+
+
+@app.get("/subjects/{subject_id}/dashboard-summary", response_model=DashboardSummary)
+def get_dashboard_summary(subject_id: str, end: date | None = None) -> DashboardSummary:
+    """Latest sleep/steps observations and steps averaged over the configured calendar window."""
+    return service.get_dashboard_summary(
+        subject_id,
+        end=end or _record_end(subject_id),
+        steps_window_days=DASHBOARD_STEPS_AVERAGE_DAYS,
+    )
 
 
 # Declared before the `{night_date}` route below so that `pipeline` in the path segment
@@ -405,6 +463,8 @@ def export_audit(
     actor: str | None = None,
     operation: str | None = None,
     safety_event: str | None = None,
+    since_utc: datetime | None = None,
+    until_utc: datetime | None = None,
 ) -> dict[str, str]:
     """The record as text, for someone who wants to keep or check it elsewhere.
 
@@ -420,6 +480,8 @@ def export_audit(
         actor=actor,
         operation=operation,
         safety_event=safety_event,
+        since_utc=since_utc,
+        until_utc=until_utc,
     )
     target = _Path(tempfile.mkdtemp()) / f"audit-{subject_id}.jsonl"
     service.export_audit(audit_filter, target)
@@ -436,9 +498,9 @@ def get_settings() -> Any:
 
 
 @app.post("/settings")
-def post_settings(body: dict[str, Any]) -> Any:
+def post_settings(body: SettingsPatch) -> Any:
     """Change those, and report what actually changed."""
-    return service.update_settings(**body)
+    return service.update_settings(body)
 
 
 @app.get("/subjects/{subject_id}/profile")
@@ -448,12 +510,10 @@ def get_subject_profile(subject_id: str) -> Any:
 
 
 @app.post("/subjects/{subject_id}/profile")
-def post_subject_profile(subject_id: str, body: dict[str, Any]) -> Any:
+def post_subject_profile(subject_id: str, body: SubjectProfilePatch) -> Any:
     """Change them. This changes how the rules decide, so it is recorded."""
-    from wha.models import SubjectProfilePatch
-
     return service.update_subject_profile(
-        SubjectProfilePatch.model_validate(body), subject_id=subject_id
+        body, subject_id=subject_id
     )
 
 

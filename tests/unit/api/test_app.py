@@ -76,6 +76,209 @@ def test_an_unknown_diagnostic_component_is_refused() -> None:
     assert client.post("/diagnostics/anything", json={}).status_code == 404
 
 
+def test_cors_allows_only_the_loopback_vite_origin_and_required_headers() -> None:
+    response = client.options(
+        "/subjects/me/nights",
+        headers={
+            "Origin": "http://127.0.0.1:8443",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:8443"
+    assert "*" not in response.headers.get("access-control-allow-methods", "")
+    assert "*" not in response.headers.get("access-control-allow-headers", "")
+
+
+def test_cors_rejects_an_unlisted_origin() -> None:
+    response = client.options(
+        "/subjects/me/nights",
+        headers={
+            "Origin": "https://unlisted.invalid",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_origin_list_comes_from_backend_configuration(monkeypatch) -> None:
+    from pydantic import ValidationError
+
+    from wha.config import Settings
+
+    monkeypatch.setenv(
+        "WHA_CORS_ALLOWED_ORIGINS",
+        "http://127.0.0.1:8443, http://localhost:8443",
+    )
+
+    assert Settings().dashboard_origins == [
+        "http://127.0.0.1:8443",
+        "http://localhost:8443",
+    ]
+
+    monkeypatch.setenv("WHA_CORS_ALLOWED_ORIGINS", "*")
+    try:
+        Settings()
+    except ValidationError:
+        pass
+    else:
+        raise AssertionError("the backend configuration accepted a wildcard CORS origin")
+
+
+def test_dashboard_config_exposes_history_windows_and_schema_control_bounds() -> None:
+    dashboard = client.get("/config").json()["dashboard"]
+
+    assert dashboard["history_windows_days"] == [30, 60, 90, 365]
+    assert dashboard["steps_average_days"] == 7
+    assert dashboard["settings_bounds"] == {
+        "age_years": {"minimum": 0, "maximum": 120},
+        "interruption_budget_per_week": {"minimum": 0, "maximum": 20},
+        "depth_budget_per_episode": {"minimum": 0, "maximum": 10},
+        "policy_cost_weight": {"minimum": 0, "maximum": 1, "step": 0.01},
+    }
+
+
+def test_night_endpoint_applies_history_filters_server_side(monkeypatch) -> None:
+    from datetime import date
+
+    from wha.models import DetectionLevel, NightRow
+
+    rows = [
+        NightRow(
+            night_date=date(2026, 9, 1), coverage_minutes=400, usable=True,
+            level=DetectionLevel.RED, episode_id="ep_red", rhr_bpm=80,
+        ),
+        NightRow(
+            night_date=date(2026, 9, 2), coverage_minutes=400, usable=True,
+            level=DetectionLevel.RED, episode_id=None, rhr_bpm=80,
+        ),
+        NightRow(
+            night_date=date(2026, 9, 3), coverage_minutes=400, usable=True,
+            level=DetectionLevel.GREEN, episode_id="ep_green", rhr_bpm=60,
+        ),
+    ]
+    monkeypatch.setattr("wha.api.app.service.list_nights", lambda *args, **kwargs: rows)
+
+    response = client.get(
+        "/subjects/sim/nights?days=3&level=RED&investigated_only=true"
+    )
+
+    assert response.status_code == 200
+    assert [row["night_date"] for row in response.json()] == ["2026-09-01"]
+
+
+def test_dashboard_summary_endpoint_uses_the_configured_calendar_window(monkeypatch) -> None:
+    from datetime import date
+
+    from wha.models import DashboardSummary
+
+    received = []
+
+    def summary(subject_id, end, steps_window_days):
+        received.append((subject_id, end, steps_window_days))
+        return DashboardSummary(
+            latest_sleep_hours=None,
+            latest_sleep_night=None,
+            latest_steps=None,
+            latest_steps_night=None,
+            steps_average=None,
+            steps_window_start=date(2026, 9, 1),
+            steps_window_end=end,
+        )
+
+    monkeypatch.setattr("wha.api.app.service.get_dashboard_summary", summary)
+    response = client.get("/subjects/sim/dashboard-summary?end=2026-09-07")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body) == {
+        "latest_sleep_hours", "latest_sleep_night", "latest_steps", "latest_steps_night",
+        "steps_average", "steps_window_start", "steps_window_end",
+    }
+    assert body["steps_window_start"] == "2026-09-01"
+    assert body["steps_window_end"] == "2026-09-07"
+    assert received == [("sim", date(2026, 9, 7), 7)]
+
+
+def test_settings_and_profile_models_keep_the_legacy_control_ranges() -> None:
+    from pydantic import ValidationError
+
+    from wha.models import SettingsPatch, SubjectProfilePatch
+
+    assert SettingsPatch(
+        interruption_budget_per_week=20,
+        depth_budget_per_episode=10,
+        policy_cost_weight=1.0,
+    )
+    assert SubjectProfilePatch(age_years=120)
+    for invalid in (
+        lambda: SettingsPatch(interruption_budget_per_week=21),
+        lambda: SettingsPatch(depth_budget_per_episode=11),
+        lambda: SettingsPatch(policy_cost_weight=1.01),
+        lambda: SubjectProfilePatch(age_years=121),
+    ):
+        try:
+            invalid()
+        except ValidationError:
+            continue
+        raise AssertionError("the API model accepted a value outside the legacy control range")
+
+
+def test_settings_route_passes_a_validated_patch_to_the_service(monkeypatch) -> None:
+    received = []
+    monkeypatch.setattr("wha.api.app.service.update_settings", lambda patch: received.append(patch) or patch)
+
+    response = client.post("/settings", json={"llm_model": "local-model"})
+
+    assert response.status_code == 200
+    assert received[0].llm_model == "local-model"
+
+    invalid = client.post("/settings", json={"interruption_budget_per_week": 21})
+    assert invalid.status_code == 422
+
+
+def test_profile_route_enforces_the_legacy_age_range(monkeypatch) -> None:
+    monkeypatch.setattr("wha.api.app.service.update_subject_profile", lambda *args, **kwargs: None)
+
+    response = client.post("/subjects/sim/profile", json={"age_years": 121})
+
+    assert response.status_code == 422
+
+
+def test_audit_export_receives_the_same_date_filters_as_the_query(monkeypatch) -> None:
+    captured = []
+
+    def export(filters, path):
+        captured.append(filters)
+        path.write_text("event", encoding="utf-8")
+
+    monkeypatch.setattr("wha.api.app.service.export_audit", export)
+
+    response = client.get(
+        "/subjects/sim/audit/export?actor=human&since_utc=2026-09-01T00:00:00Z"
+        "&until_utc=2026-09-08T00:00:00Z"
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"content": "event"}
+    assert captured[0].actor == "human"
+    assert captured[0].since_utc.isoformat() == "2026-09-01T00:00:00+00:00"
+    assert captured[0].until_utc.isoformat() == "2026-09-08T00:00:00+00:00"
+
+
+def test_subject_delete_route_protects_the_real_subject(monkeypatch) -> None:
+    deleted: list[str] = []
+    monkeypatch.setattr("wha.api.app.service.delete_all_subject_data", deleted.append)
+
+    response = client.delete("/subjects/me")
+
+    assert response.status_code == 403
+    assert deleted == []
+
+
 def test_the_openapi_schema_is_generated() -> None:
     """A React author needs the contract without reading Python."""
     schema = client.get("/openapi.json").json()

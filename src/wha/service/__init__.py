@@ -67,6 +67,8 @@ from wha.service.nightly import (
     run_nightly,
 )
 from wha.service.nights import (
+    filter_history_nights,
+    get_dashboard_summary,
     get_night_detail,
     latest_recorded_night,
     list_nights,
@@ -119,7 +121,9 @@ __all__ = [
     "explain_belief",
     "export_audit",
     "fetch_data",
+    "filter_history_nights",
     "get_conversation_sessions",
+    "get_dashboard_summary",
     "get_episode",
     "get_evaluation_results",
     "get_knowledge_provenance",

@@ -3,6 +3,12 @@
 All constants are single-sourced here as specified in docs/CONTRACTS.md section 4.
 """
 
+# Dashboard display intervals and control bounds. These are operating parameters, not
+# clinical thresholds. The API publishes them so browser copy and inputs stay aligned.
+DASHBOARD_STEPS_AVERAGE_DAYS = 7
+HISTORY_WINDOW_DAYS = [30, 60, 90, 365]
+POLICY_COST_WEIGHT_UI_STEP = 0.01
+
 # --- coverage and quality -------------------------------------------------
 MIN_NOCTURNAL_MINUTES = 180  # 3h of measured sleep
 
