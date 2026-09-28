@@ -19,13 +19,15 @@ The implementation will use this inventory as its parity checklist. Each row mus
 
 | Legacy area | Capabilities to preserve |
 | --- | --- |
-| Home | Subject selection where applicable, emergency guidance, standing medical-device disclaimer, what the system can and cannot do, evidence limitations, and the landing status context. Reuse the archived wording and its documented source; do not author new clinical claims. |
-| Today | Current status and overnight metrics, episode and urgency information, baseline-aware reassurance, symptom and structured-question flows, decline/free-text answers, measurement instructions, human review actions, current-night conversation, citations and unsupported-claim notices, contextual oxygen explanation, verdict and measurement explanations, and the doctor handover summary. |
-| History | Selectable historical windows and detection-level filters, chart, tabular records, and per-night detail. Numeric window values and labels must be supplied by the API/configuration rather than hard-coded UI copy. |
-| The record | Per-night pipeline trace and explanations, hash-chain verification, audit-event table and available export, and a dated archive of conversations. |
-| Settings | Subject profile, bridge/data-source configuration and diagnostics, notification and Telegram configuration/testing, agent interruption and policy settings, model/retrieval settings, and privacy controls. Preserve the existing data-deletion safeguards: real `me` data is never deleted; only disposable `sim` and `demo` data can be purged. |
+| Home | Resolve the configured subject consistently across all views; if multiple subjects need a choice, let the person choose rather than silently using the first API row. Preserve the no-subject state, status bar, emergency guidance, standing medical-device disclaimer, what the system can and cannot do, how a night is judged, links to the other views, and the live evidence-provenance summary. Preserve the summary's entry-count meaning and wording. Reuse archived wording and its documented source; do not author new clinical claims. |
+| Today | Current status and overnight metrics, episode and urgency information, baseline-aware reassurance, symptom and structured-question flows, decline/free-text answers, measurement instructions, human review actions, current-night conversation, citations and unsupported-claim notices, per-cause evidence/provenance, contextual oxygen explanation, verdict and measurement explanations, and the doctor handover summary with prepare, preview, and copy actions. Show the date of the latest available sleep/steps observation so older samples do not look current. |
+| History | Selectable historical windows; detection-level and investigated-only filters; the show-every-recorded-field toggle; chart, tabular records, conclusion explanation, empty-filter state that says no matching rows are not a health statement, and per-night detail; and the action that opens the selected night in The record. Numeric window values and labels must be supplied by the API/configuration rather than hard-coded UI copy. |
+| The record | Per-night pipeline trace and explanations, hash-chain verification, audit-event filters and table, available filtered export, and a dated archive of conversations. |
+| Settings | Subject profile, bridge/data-source configuration and diagnostics, notification and Telegram configuration/testing, weekly interruption budget, per-investigation question budget, policy-cost weight and their explanations, model/retrieval settings, save-all feedback, and privacy controls. Preserve the ranges accepted by the legacy UI/backend contract instead of narrowing them in frontend code. Preserve the existing data-deletion safeguards: real `me` data is never deleted; only disposable `sim` and `demo` data can be purged. |
 
-The shared component inventory also needs an explicit React mapping: subject selection, status bar, verdict, night chart, chat, citation drawer, pipeline graph and step detail, "How it works" explanations, formatting, and visual design tokens. Components may be combined when behavior remains available and testable; their user-visible content and actions may not be omitted.
+The shared component inventory also needs an explicit React mapping: subject resolution/selection, status bar, verdict, night chart, chat, citation drawer, pipeline graph and step detail, "How it works" explanations, formatting, and visual design tokens. Components may be combined when behavior remains available and testable; their user-visible content and actions may not be omitted.
+
+Before implementation, compare every row in `docs/DISCLOSURES.md` and every UI copy entry used by the archived `explain.py` and `how_it_works.py` against its archived screen and assign it a React destination. Preserve the full supported oxygen caveats, source/population context, evidence labels, and urgency limitations wherever they appeared. A disclosure documented in Markdown is not considered preserved until it appears in the relevant UI. Numeric clinical values must continue to originate in `data/knowledge/` and reach the UI through the API; system parameters must originate in backend constants/configuration.
 
 ## Architecture and navigation
 
@@ -38,15 +40,18 @@ All data reads and writes go through `frontend/src/api.ts` and the FastAPI API. 
 ## Safety, data, and interaction behavior
 
 - Show the standing disclaimer and emergency guidance on the Home landing view. Preserve the archived clinical wording and the existing evidence caveats. Do not invent thresholds, medical advice, or clinical copy.
+- Resolve the active subject from the remembered or configured subject, falling back to the sole available subject. If configuration is ambiguous with multiple subjects, ask the person to choose. Never silently select the first API row.
 - Keep the Today reassurance state conditional on backend baseline maturity. An immature baseline must explain that the system is still learning and must not imply that absence of a pending episode means health was assessed as clear.
 - Render question, measurement, and human-review pending states with the supported response actions. Preserve optional free text and decline behavior where the API accepts them. Keep urgency decisions and red-flag logic on the backend.
 - Scope the active conversation to the current night/episode and show older sessions in The record with date/session boundaries. Do not merge old answers into an unlabeled current chat.
-- Render unsupported-claim warnings independently of whether citations exist. Show source attribution and enough passage text to inspect the evidence, alongside the existing limitation that verbatim span presence does not prove the surrounding claim is fair to the source.
+- Render unsupported-claim warnings independently of whether citations exist. Show source attribution, the full inspectable passage, and the quoted evidence span; label missing spans and retain the limitation that verbatim span presence does not prove the surrounding claim is fair to the source.
+- Preserve per-cause provenance and the live count/labels for unevidenced assumptions. Oxygen results must retain their archived population and source caveats, measurement limitations, and explicit no-all-clear meaning; do not reduce this to the threshold pathway alone.
 - Keep Pipeline descriptions aligned with the current API and architecture. Do not describe a removed or `NOT_RUN` subsystem as active or present assumed values as literature-backed.
 - Preserve missing nights and calendar gaps in charts. Use the band appropriate to each point or explicitly label a current band as current-only. Steps averages must represent the configured calendar interval, not merely the last few non-null samples.
 - Use explicit approved frontend origins for CORS and retain the API's local-only binding. Do not treat CORS as user authentication or add a broad authentication subsystem as part of this dashboard parity change.
 - Distinguish expected missing resources from failed API requests. Do not convert every HTTP 404 into a successful empty result.
 - On chat or settings save failures, retain the user's input and show a clear retryable error. Do not silently discard edits or imply that a save succeeded.
+- Ensure settings save and connection-test actions work with pointer, touch, and keyboard input. Slider bounds come from the backend contract and preserve the legacy-supported range.
 - Keep the layout usable on narrow screens. Fix duplicate React keys in safety-rule lists.
 
 ## Settings and privacy boundary
@@ -57,7 +62,7 @@ Restore legacy controls by calling the existing API endpoints where available. A
 
 Update setup and demo instructions to describe the API and Vite frontend processes, correct ports and commands, current routes, and the restored screens. Remove obsolete claims that Streamlit still serves the dashboard.
 
-Port behavior-focused coverage for the legacy screens into a lightweight frontend test harness. At minimum, cover: Home disclosures; immature-baseline reassurance; question, decline, measurement, and review flows; citation and uncited warnings; conversation session boundaries; history filtering and date gaps; record integrity/archive views; settings and deletion safeguards; API failures; and mobile layout. Keep backend tests for service/API contracts. Finally, run the actual Vite UI against demo data at desktop and mobile sizes and inspect the rendered text and interactions.
+Use the deleted Streamlit UI and UI-unit tests as the behavioral source, translating their assertions rather than their Streamlit-specific mechanics. Port behavior-focused coverage into a lightweight frontend test harness. At minimum, cover: configured/ambiguous subject selection; every disclosure row and Home provenance summary; immature-baseline reassurance; question, decline, measurement, and review flows; citation and uncited warnings; conversation session boundaries; History's window, level, investigated-only, and all-fields controls plus date gaps and trace navigation; Record integrity, audit filters/export, and conversation archive; all Settings fields, legacy bounds, save/test feedback, and deletion safeguards; latest metric observation dates; API failures; stable safety-rule rendering without duplicate-key warnings; no literal digits in UI copy; no health/data calculations in frontend components; and narrow-screen layout. Keep backend tests for service/API contracts. Finally, run the actual Vite UI against demo data at desktop and mobile sizes and inspect the rendered text and interactions.
 
 ## Constraints and non-goals
 
@@ -78,5 +83,6 @@ Port behavior-focused coverage for the legacy screens into a lightweight fronten
 6. Unsupported claims remain visibly labeled even with no citations; source passages and attribution are inspectable.
 7. Charts retain calendar gaps and represent baseline bands and averages accurately.
 8. CORS rejects unapproved origins; expected absence and API failure have distinct UI states.
-9. Dashboard, History, Record, and Settings remain usable on narrow screens.
-10. README instructions, automated frontend checks, backend checks, and a demo-data visual pass agree with the migrated UI.
+9. Home, Today, History, The record, and Settings remain usable on narrow screens.
+10. Every archived disclosure and shared UI component has a verified React destination; no visible row is treated as present merely because it remains in documentation.
+11. README instructions, automated frontend checks, backend checks, and a demo-data visual pass agree with the migrated UI.
