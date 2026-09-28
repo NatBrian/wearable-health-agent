@@ -3,9 +3,7 @@ import { api, type HandoverSummary, type SystemConfig, type Subject, type System
 import { legacyText } from '../content/legacyCopy'
 import type { BackendData } from '../useBackend'
 import { dateLabel, measuredValue, timeLabel } from '../lib/format'
-import { ChatPanel } from '../components/ChatPanel'
 import { OxygenContext } from '../components/OxygenContext'
-import { PendingInteraction } from '../components/PendingInteraction'
 import { VerdictPanel } from '../components/VerdictPanel'
 import type { DashboardViewId } from './HomeView'
 
@@ -17,12 +15,13 @@ const waitingCopy: Record<string, string> = {
 }
 
 export function TodayView({
-  subject, config, data, onNavigate,
+  subject, config, data, onNavigate, onOpenChat,
 }: {
   subject: Subject
   config: SystemConfig
   data: BackendData
   onNavigate: (view: DashboardViewId, nightDate?: string) => void
+  onOpenChat: () => void
 }) {
   const [urgency, setUrgency] = useState<UrgencyState | null>(null)
   const [urgencyError, setUrgencyError] = useState<string | null>(null)
@@ -108,7 +107,13 @@ export function TodayView({
       )}
       {urgencyError && <p className="inline-notice inline-notice--warning" role="status">The urgency status could not be refreshed. {urgencyError}</p>}
 
-      {data.errors.pending ? <section className="content-card inline-notice inline-notice--warning" role="alert"><strong>Could not check whether you need to answer.</strong><p>This is a fetch failure, not a confirmation that nothing is waiting. {data.errors.pending}</p><button className="button button--secondary" onClick={data.refresh}>Try again</button></section> : data.pending ? <PendingInteraction pending={data.pending} config={config} safetyRules={data.safetyRules} onComplete={data.refresh} /> : data.loading ? <section className="content-card" role="status">Checking whether anything needs your attention.</section> : (
+      {data.errors.pending ? <section className="content-card inline-notice inline-notice--warning" role="alert"><strong>Could not check whether you need to answer.</strong><p>This is a fetch failure, not a confirmation that nothing is waiting. {data.errors.pending}</p><button className="button button--secondary" onClick={data.refresh}>Try again</button></section> : data.pending ? (
+        <section className="content-card pending-summary" aria-label="Pending interaction">
+          <div className="section-heading"><div><span className="eyebrow">Needs your attention</span><h2>{data.pending.kind === 'question' ? 'One question for you' : data.pending.kind === 'review' ? 'A summary is ready for you to check' : 'Something to measure'}</h2></div><span className="pending-pill">Waiting</span></div>
+          <p>{data.pending.kind === 'question' ? data.pending.question?.text : data.pending.kind === 'measurement' ? data.pending.measurement?.instruction : data.pending.draft_outcome?.observation}</p>
+          <button className="button button--primary" onClick={onOpenChat}>Open Agent Chat to respond</button>
+        </section>
+      ) : data.loading ? <section className="content-card" role="status">Checking whether anything needs your attention.</section> : (
         <section className={`inbox-state ${data.status?.rung === 'COLD' || data.status?.rung === 'PRIOR_DOMINATED' ? 'inbox-state--learning' : ''}`} aria-live="polite">
           {data.status && (data.status.rung === 'COLD' || data.status.rung === 'PRIOR_DOMINATED') ? (
             <><strong>Still learning your normal.</strong><p>{legacyText(`rung.${data.status.rung}`)}</p></>
@@ -148,8 +153,6 @@ export function TodayView({
       )}
 
       <OxygenContext readings={data.oxygenReadings} subject={subject} error={data.errors.oxygenReadings} safetyRules={data.safetyRules} />
-
-      <ChatPanel subject={subject} nightDate={latestDate ?? config.today} episodeId={openEpisode?.episode_id ?? null} pending={data.pending} config={config} settings={data.settings} refreshAfterSend={() => { data.refresh(); void loadUrgency() }} />
 
       <section className="content-card handover-card" aria-labelledby="handover-heading">
         <div className="section-heading"><div><span className="eyebrow">For a clinician</span><h2 id="handover-heading">Summary for your doctor</h2></div></div>

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, type ConversationSession, type PendingInteraction, type Settings, type SystemConfig, type Subject } from '../api'
+import { api, type ConversationSession, type PendingInteraction as PendingModel, type SafetyRuleProvenance, type Settings, type SystemConfig, type Subject } from '../api'
 import { CitationPanel } from './CitationPanel'
 import { dateLabel, timeLabel } from '../lib/format'
+import { PendingInteraction as PendingControls } from './PendingInteraction'
 
 function parseList<T>(value: string): T[] {
   try {
@@ -11,15 +12,18 @@ function parseList<T>(value: string): T[] {
 }
 
 export function ChatPanel({
-  subject, nightDate, episodeId, pending, config, settings, refreshAfterSend,
+  subject, nightDate, episodeId, pending, pendingError, config, settings, safetyRules, refreshAfterSend, onClose,
 }: {
   subject: Subject
   nightDate: string | null
   episodeId: string | null
-  pending: PendingInteraction | null
+  pending: PendingModel | null
+  pendingError?: string | null
   config: SystemConfig
   settings: Settings | null
+  safetyRules: SafetyRuleProvenance[]
   refreshAfterSend: () => void
+  onClose: () => void
 }) {
   const [sessions, setSessions] = useState<ConversationSession[]>([])
   const [loading, setLoading] = useState(true)
@@ -82,9 +86,13 @@ export function ChatPanel({
   const triageReplyLimit = configuredNumber(config, 'TRIAGE_MAX_TURNS_BEFORE_ESCALATE')
 
   return (
-    <section className="content-card chat-card" aria-labelledby="chat-heading">
-      <div className="section-heading"><div><span className="eyebrow">Your current conversation</span><h2 id="chat-heading">Ask about any of this</h2></div><span className="chat-status">{pending ? 'Awaiting your reply' : 'Available'}</span></div>
+    <div className="chat-rail__inner">
+      <div className="chat-rail__header"><span>Agent chat</span><button type="button" className="chat-rail__close" aria-label="Close chat" onClick={onClose}>×</button></div>
+      <section className="content-card chat-card" aria-labelledby="chat-heading">
+      <div className="section-heading"><div><span className="eyebrow">Your current conversation</span><h2 id="chat-heading">Ask about any of this</h2></div><span className="chat-status">{pending ? 'Awaiting your reply' : pendingError ? 'Unable to check' : 'Available'}</span></div>
       <p className="chat-intro">Ask about your readings, or say how you feel. Anything you write is checked by fixed rules before any AI sees it. Those rules can raise how urgent this is, and the AI can never lower it.</p>
+      {pending && <PendingControls pending={pending} config={config} safetyRules={safetyRules} onComplete={refreshAfterSend} />}
+      {pendingError && <p className="inline-notice inline-notice--warning" role="alert"><strong>Could not check whether you need to answer.</strong> This is a fetch failure, not a confirmation that nothing is waiting. {pendingError} <button className="text-link" onClick={refreshAfterSend}>Try again</button></p>}
       {nightDate && <p className="supporting-copy">This conversation is about the night of {dateLabel(nightDate, subject.timezone)}. Earlier conversations stay on The record.</p>}
       <details className="chat-limits"><summary>Conversation and notification limits</summary><div className="disclosure-card__body">
         <p>{exchangeLimit === null ? 'The conversation length limit is not available.' : <>A conversation ends after <strong>{formatConfigNumber(exchangeLimit)} back-and-forth exchanges</strong>. After chat ends, the fixed safety rules still check what you tell the system and can still raise urgency.</>}</p>
@@ -113,7 +121,8 @@ export function ChatPanel({
       <label className="field-label">Say anything, or ask a question<textarea value={input} onChange={(event) => setInput(event.target.value)} rows={3} placeholder="Write a message" onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') void send() }} /></label>
       <div className="chat-actions"><span className="supporting-copy">{turnCount} turns in this conversation</span><button className="button button--primary" onClick={() => void send()} disabled={!input.trim() || sending}>{sending ? 'Sending…' : 'Send message'}</button></div>
       <p className="supporting-copy">This sorting is done by the AI itself and can miss things. A sentence with a source shown can still misdescribe that source; open and read the whole passage.</p>
-    </section>
+      </section>
+    </div>
   )
 }
 

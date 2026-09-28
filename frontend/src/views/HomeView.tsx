@@ -13,13 +13,14 @@ const destinations: { id: DashboardViewId; title: string; copy: string }[] = [
 ]
 
 export function HomeView({
-  summary, provenance, baselineMinimum, errors, onNavigate,
+  summary, provenance, baselineMinimum, errors, onNavigate, showCannot = true,
 }: {
   summary: DashboardSummary | null
   provenance: KnowledgeProvenanceSummary | null
   baselineMinimum: number
   errors?: BackendErrors
   onNavigate: (view: DashboardViewId) => void
+  showCannot?: boolean
 }) {
   return (
     <div className="page-stack">
@@ -29,15 +30,15 @@ export function HomeView({
         <p className="home-intro__lede">{legacyText('home.what_it_is')}</p>
       </section>
 
-      <div className="home-capabilities">
+      <div className={`home-capabilities ${showCannot ? '' : 'home-capabilities--single'}`}>
         <article className="content-card content-card--can">
           <span className="card-kicker">What it can do</span>
           <p>{legacyText('home.can')}</p>
         </article>
-        <article className="content-card content-card--cannot">
+        {showCannot && <article className="content-card content-card--cannot">
           <span className="card-kicker">What it cannot do</span>
           <p>{legacyText('home.cannot')}</p>
-        </article>
+        </article>}
       </div>
 
       <HomeDisclosure baselineMinimum={baselineMinimum} />

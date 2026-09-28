@@ -12,6 +12,7 @@ from pathlib import Path
 from wha.db import connect
 from wha.db.iso import to_iso
 from wha.db.migrations import apply_schema
+from wha.models import DetectionLevel
 from wha.service.audit import count_audit_events, verify_hash_chain
 from wha.service.status import get_system_status
 
@@ -82,6 +83,32 @@ def test_a_flagged_night_ends_the_streak(tmp_path: Path) -> None:
     db_file = _db_with_detections(tmp_path, rows)
 
     assert get_system_status("me", db_path=db_file).quiet_nights_streak == 1
+
+
+def test_dashboard_status_reports_the_latest_level_run_and_residual_direction(
+    tmp_path: Path,
+) -> None:
+    base = date(2026, 9, 3)
+    rows = [
+        (base, "YELLOW", 1),
+        (base - timedelta(days=1), "YELLOW", 1),
+        (base - timedelta(days=2), "GREEN", 0),
+    ]
+    db_file = _db_with_detections(tmp_path, rows)
+    conn = connect(db_file)
+    conn.executemany(
+        "UPDATE detections SET residual_bpm = ? WHERE subject_id = 'me' AND night_date = ?",
+        [(3.2, base.isoformat()), (2.0, (base - timedelta(days=1)).isoformat())],
+    )
+    conn.commit()
+    conn.close()
+
+    streak = get_system_status("me", db_path=db_file).detection_streak
+
+    assert streak is not None
+    assert streak.length == 2
+    assert streak.level is DetectionLevel.YELLOW
+    assert streak.direction == "rising"
 
 
 # "your usual range" wording lived in wha.ui.explain.level, which was Streamlit-specific

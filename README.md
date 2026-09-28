@@ -84,7 +84,7 @@ architecture.
 | Path | What it is | Status |
 |---|---|---|
 | `src/wha/` | **The system.** All of it | **Live** |
-| `frontend/` | The dashboard, a React + Vite + TypeScript client of `src/wha/api/`. Replaced the Streamlit dashboard on 27 September 2026 | **Live.** `cd frontend && npm run dev`, backend via `uv run wha serve` |
+| `frontend/` | The dashboard, a React + Vite + TypeScript client of `src/wha/api/`. Replaced the Streamlit dashboard on 27 September 2026. Dashboard contains Overview, Today and History; Pipeline contains the live overview, night trace, audit/archive and How it works; Settings keeps its four sections. Chat stays available from every destination. | **Live.** `cd frontend && npm run dev`, backend via `uv run wha serve` |
 | `tests/` | The suite. You may add, never weaken | **Live** |
 | `data/knowledge/` | The clinical tables: causes, probes, red flags, triage rules. Every number carries its own provenance | **Live, under change control.** See rule 4 in `AGENTS.md` |
 | `docs/` | The design documents, contracts and disclosures | **Live** |

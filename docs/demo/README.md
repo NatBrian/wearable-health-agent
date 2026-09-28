@@ -52,6 +52,11 @@ quiet nights, the illness, the relapse, the three linked investigations, every q
 asked and answered, the escalation, the human review decisions and the audit trail behind
 all of it.
 
+Use **Dashboard** for the original metric overview and its Today and History sections,
+**Pipeline** for the selected-night trace, audit, conversation archive and explanations, and
+**Settings** for the four configuration sections. The chat rail is available from each
+destination. The timeline runs on subject `demo`; the real subject `me` is not used.
+
 That script does three things `wha serve` on its own would not:
 
 - **Shifts the clock**, computed from today's real date at launch, so the newest night in

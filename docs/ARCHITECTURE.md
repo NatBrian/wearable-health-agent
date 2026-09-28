@@ -1395,15 +1395,15 @@ copy.
 So every dashboard screen reads the same service-owned data over one HTTP boundary, while
 the presentation can evolve independently of detection and safety behavior.
 
-### The five screens
+### The three dashboard destinations
 
-| Screen | What it is for |
+| Destination | What it contains |
 |---|---|
-| Home | the disclaimer, and what the system can and cannot do |
-| Today | last night, anything pending, and the chat box |
-| History | the chart and night-by-night readings |
-| The record | the pipeline, tamper-evident history, conversations, and explanations |
-| Settings | your profile, data connections, contact channel, and interruption preferences |
+| Dashboard | The original Vite metric cards and selectable trend; baseline and cause details; standing emergency and system-limit copy. Overview, Today and History are sections within this destination. Today carries service status, verdict and pending actions, oxygen context, and handover. History carries the selectable chart, filters, full night table and trace action. |
+| Pipeline | The original detection, reasoning and retrieval overview; selected-night trace; tamper-evident audit, filters and export; archived conversations; and How it works explanations with live provenance. |
+| Settings | Device & Data, Agent Behavior, Model & RAG, and Privacy, including profile, diagnostics, save behavior and disposable-record deletion. |
+
+The chat rail stays available from all three destinations. Dashboard and Pipeline keep the original Vite navigation; the former Streamlit pages are sections within those destinations.
 
 The `/config` endpoint enumerates every public constant from the module rather than listing
 them by hand, so the numbers on screen cannot drift from the code. It also carries your
@@ -1412,7 +1412,7 @@ local date, because a browser cannot compute it.
 **Why bound to localhost and unauthenticated:** one person, one machine, their own health
 record. Putting it on a network would need authentication first, and it does not have any.
 
-**Weaknesses found by driving the five screens as an ordinary person:**
+**Historical review of the former five-screen dashboard:**
 
 - The **Execution Trace** panel reported all nine stages as SKIPPED on every episode, with
   invented reasons like "Ask probe not selected by EVSI optimizer" on an episode that

@@ -8,6 +8,9 @@ All constants are single-sourced here as specified in docs/CONTRACTS.md section 
 DASHBOARD_STEPS_AVERAGE_DAYS = 7
 HISTORY_WINDOW_DAYS = [30, 60, 90, 365]
 POLICY_COST_WEIGHT_UI_STEP = 0.01
+# Display-only deadband retained from the original Vite dashboard. It describes residual
+# movement and does not alter a detection level, urgency, or clinical action.
+DASHBOARD_RESIDUAL_DIRECTION_FLOOR_BPM = 0.5
 
 # --- coverage and quality -------------------------------------------------
 MIN_NOCTURNAL_MINUTES = 180  # 3h of measured sleep

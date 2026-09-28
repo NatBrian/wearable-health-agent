@@ -225,6 +225,7 @@ anywhere else in the codebase.** Every value is either swept or justified in the
 DASHBOARD_STEPS_AVERAGE_DAYS = 7
 HISTORY_WINDOW_DAYS = [30, 60, 90, 365]
 POLICY_COST_WEIGHT_UI_STEP = 0.01
+DASHBOARD_RESIDUAL_DIRECTION_FLOOR_BPM = 0.5   # original Vite display deadband, no clinical effect
 
 # --- coverage and quality -------------------------------------------------
 MIN_NOCTURNAL_MINUTES         = 180     # 3h of the 7h window
@@ -968,6 +969,10 @@ class ComponentStatus(BaseModel):
     ok: bool; detail: str; checked_at_utc: datetime
     severity: Literal["ok", "warn", "error"]
 
+class DetectionStreak(BaseModel):
+    length: int; level: DetectionLevel
+    direction: Literal["rising", "steady", "falling"] | None
+
 class SystemStatus(BaseModel):
     components: list[ComponentStatus]
     last_ingest_utc: datetime | None
@@ -975,6 +980,7 @@ class SystemStatus(BaseModel):
     usable_nights: int; rung: BaselineRung
     errors_24h: int
     quiet_nights_streak: int
+    detection_streak: DetectionStreak | None
     # Nights in the recent window with no reading at all. A quiet-night streak that counts
     # unmeasured nights reports reassurance the system is not in a position to give.
     unmeasured_recent_nights: int = 0

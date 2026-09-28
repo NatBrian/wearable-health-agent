@@ -4,6 +4,14 @@ import type { BackendData } from '../useBackend'
 
 type DiagnosticId = 'bridge' | 'llm' | 'telegram'
 type DiagnosticState = Partial<Record<DiagnosticId, { loading: boolean; result?: ConnectionCheck; error?: string }>>
+type SettingsSection = 'device' | 'agent' | 'model' | 'privacy'
+
+const sections: { id: SettingsSection; label: string }[] = [
+  { id: 'device', label: 'Device & Data' },
+  { id: 'agent', label: 'Agent Behavior' },
+  { id: 'model', label: 'Model & RAG' },
+  { id: 'privacy', label: 'Privacy' },
+]
 
 const diagnosticLabels: Record<DiagnosticId, string> = {
   bridge: 'phone connection', llm: 'model connection', telegram: 'message delivery',
@@ -30,6 +38,7 @@ export function SettingsView({ subject, config, data, onDeleted }: {
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [changedSettings, setChangedSettings] = useState<string[]>([])
   const [diagnostics, setDiagnostics] = useState<DiagnosticState>({})
+  const [section, setSection] = useState<SettingsSection>('device')
   const [deleteText, setDeleteText] = useState('')
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null)
@@ -157,9 +166,15 @@ export function SettingsView({ subject, config, data, onDeleted }: {
 
   return (
     <div className="page-stack settings-view">
-      <section className="settings-heading"><div><span className="eyebrow">Your choices and the system they affect</span><h1>Settings</h1><p>Each setting below says what it changes. Secret values are never shown again after saving.</p></div></section>
+      <section className="settings-heading"><div><span className="eyebrow">Your choices and the system they affect</span><p>Each setting below says what it changes. Secret values are never shown again after saving.</p></div></section>
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          <span className="eyebrow">Sections</span>
+          {sections.map((item) => <button key={item.id} type="button" className={section === item.id ? 'settings-nav__item settings-nav__item--active' : 'settings-nav__item'} aria-current={section === item.id ? 'page' : undefined} onClick={() => setSection(item.id)}>{item.label}</button>)}
+        </nav>
+        <div className="settings-content">
 
-      <section className="content-card settings-section" aria-labelledby="settings-profile-title">
+      <section hidden={section !== 'device'} className="content-card settings-section" aria-labelledby="settings-profile-title">
         <div className="section-heading"><div><span className="eyebrow">Your standing information</span><h2 id="settings-profile-title">About you</h2></div><span className="settings-step">Profile</span></div>
         <p className="supporting-copy">Only information used by the rules or included in a clinician handover is collected here.</p>
         {profileLoading && <p role="status">Loading your profile.</p>}
@@ -179,7 +194,17 @@ export function SettingsView({ subject, config, data, onDeleted }: {
       </section>
 
       {!settingsDraft ? data.errors.settings ? <section className="content-card inline-notice inline-notice--warning" role="alert"><strong>Settings could not be loaded.</strong><p>This is a fetch failure, not a missing setting. {data.errors.settings}</p><button className="button button--secondary" onClick={data.refresh}>Try again</button></section> : <section className="content-card" role="status">Loading settings from the application.</section> : <>
-        <section className="content-card settings-section" aria-labelledby="settings-source-title">
+        {section === 'device' && <section className="content-card device-status-summary" aria-label="Device and baseline status">
+          <div className="section-heading"><div><span className="eyebrow">Current status</span><h2>Device &amp; Data</h2></div></div>
+          {data.status ? <dl className="device-status-grid">
+            <div><dt>Watch connection</dt><dd>{data.status.components.find((item) => item.component === 'bridge')?.detail ?? 'Status unavailable'}</dd></div>
+            <div><dt>Baseline</dt><dd>{data.status.usable_nights} measured nights · {data.status.rung}</dd></div>
+            <div><dt>Last sync</dt><dd>{data.status.last_ingest_utc ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: subject.timezone }).format(new Date(data.status.last_ingest_utc)) : 'not recorded'}</dd></div>
+            <div><dt>Quiet streak</dt><dd>{data.status.quiet_nights_streak} measured nights</dd></div>
+          </dl> : <p role="status">Device status is not available.</p>}
+          <p className="supporting-copy">The baseline window and detection thresholds come from the backend and cannot be changed here. Their current operation is visible in the Pipeline explanations.</p>
+        </section>}
+        <section hidden={section !== 'device' || !settingsDraft} className="content-card settings-section" aria-labelledby="settings-source-title">
           <div className="section-heading"><div><span className="eyebrow">Watch data</span><h2 id="settings-source-title">Where your readings come from</h2></div></div>
           <div className="settings-grid">
             <label className="field-label settings-field--wide">Your phone's address on this network<input aria-label="Your phone's address on this network" value={settingsDraft.bridge_host ?? ''} onChange={(event) => updateSetting('bridge_host', event.target.value || null)} /><small>The app on your phone serves your watch data at this address. If it is wrong or the phone is asleep, no new night can be measured.</small></label>
@@ -188,7 +213,13 @@ export function SettingsView({ subject, config, data, onDeleted }: {
           <DiagnosticButton component="bridge" label="Test the connection to my phone" diagnostics={diagnostics} onTest={testConnection} />
         </section>
 
-        <section className="content-card settings-section" aria-labelledby="settings-model-title">
+        <section hidden={section !== 'model'} className="content-card settings-section" aria-labelledby="settings-model-title">
+          <section className="model-endpoint-summary" aria-label="Current model endpoint">
+            <div><span>Provider</span><strong>{settingsDraft.llm_provider}</strong></div>
+            <div><span>Model</span><strong>{settingsDraft.llm_model}</strong></div>
+            <div><span>Base address</span><strong>{settingsDraft.llm_base_url ?? 'not set'}</strong></div>
+            <div><span>Connection status</span><strong>{data.status?.components.find((item) => item.component === 'llm')?.detail ?? 'not available'}</strong></div>
+          </section>
           <div className="section-heading"><div><span className="eyebrow">Questions, summaries and chat</span><h2 id="settings-model-title">The AI model</h2></div></div>
           <p className="supporting-copy">Used for wording questions, writing summaries and chat. Nothing that decides whether a night is unusual uses AI at all.</p>
           <div className="settings-grid">
@@ -200,7 +231,7 @@ export function SettingsView({ subject, config, data, onDeleted }: {
           <DiagnosticButton component="llm" label="Test the model" diagnostics={diagnostics} onTest={testConnection} />
         </section>
 
-        <section className="content-card settings-section" aria-labelledby="settings-contact-title">
+        <section hidden={section !== 'agent'} className="content-card settings-section" aria-labelledby="settings-contact-title">
           <div className="section-heading"><div><span className="eyebrow">When something needs you</span><h2 id="settings-contact-title">How you get asked</h2></div></div>
           <div className="settings-grid">
             <label className="field-label">Where questions should reach you<select value={settingsDraft.notify_channel} onChange={(event) => updateSetting('notify_channel', event.target.value as Settings['notify_channel'])}><option value="none">On this screen</option><option value="telegram">Telegram</option></select><small>With none, questions wait on this screen until you open it. With Telegram they arrive on your phone and you can answer there.</small></label>
@@ -209,25 +240,38 @@ export function SettingsView({ subject, config, data, onDeleted }: {
           <DiagnosticButton component="telegram" label="Send myself a test message" diagnostics={diagnostics} onTest={testConnection} />
         </section>
 
-        <section className="content-card settings-section" aria-labelledby="settings-budget-title">
+        <section hidden={section !== 'agent'} className="content-card settings-section" aria-labelledby="settings-budget-title">
           <div className="section-heading"><div><span className="eyebrow">How often the system can interrupt you</span><h2 id="settings-budget-title">How often you get asked</h2></div></div>
           <div className="settings-grid">
             <label className="field-label">Most questions in a week<input type="number" min={bounds.interruption_budget_per_week.minimum ?? undefined} max={bounds.interruption_budget_per_week.maximum ?? undefined} value={settingsDraft.interruption_budget_per_week} onChange={(event) => updateSetting('interruption_budget_per_week', Number(event.target.value))} /><small>A hard ceiling. Lower it and the system stays quieter, at the cost of sometimes concluding without asking the one question that would have helped.</small></label>
             <label className="field-label">Most questions in one investigation<input type="number" min={bounds.depth_budget_per_episode.minimum ?? undefined} max={bounds.depth_budget_per_episode.maximum ?? undefined} value={settingsDraft.depth_budget_per_episode} onChange={(event) => updateSetting('depth_budget_per_episode', Number(event.target.value))} /><small>Stops a single investigation asking you repeatedly over several nights.</small></label>
             <label className="field-label">How much an interruption costs you<input type="number" min={bounds.policy_cost_weight.minimum ?? undefined} max={bounds.policy_cost_weight.maximum ?? undefined} step={bounds.policy_cost_weight.step ?? 'any'} value={settingsDraft.policy_cost_weight} onChange={(event) => updateSetting('policy_cost_weight', Number(event.target.value))} /><small>Raise it and only the most useful questions get asked. Lower it and you are asked more often. This is weighed against how much an answer would change the conclusion.</small></label>
           </div>
-          <div className="settings-actions"><button className="button button--primary" onClick={() => void saveSettings()} disabled={settingsSaving}>{settingsSaving ? 'Saving…' : 'Save all of the above'}</button>{settingsSaved && <span className="save-confirmation" role="status">Saved.{changedSettings.length > 0 ? ` Changed: ${changedSettings.join(', ')}.` : ' No returned setting values changed.'}</span>}</div>
-          {settingsError && <p className="inline-notice inline-notice--warning" role="alert">Settings could not be saved. Your entries are still here. {settingsError}</p>}
         </section>
       </>}
 
-      {['demo', 'sim'].includes(subject.subject_id) && <section className="content-card settings-delete" aria-labelledby="settings-delete-title">
+      {section === 'privacy' && <section className="content-card privacy-summary" aria-labelledby="privacy-summary-title">
+        <div><span className="eyebrow">Local first · single person</span><h2 id="privacy-summary-title">Where your data goes</h2><p>Wearable readings and the recorded history are stored by this local application. The configured language model receives question or summary text when it is used.</p>
+          {settingsDraft && <p className="provider-status">Current model provider: <strong>{settingsDraft.llm_provider}</strong>. Model name: <strong>{settingsDraft.llm_model}</strong>. Configured endpoint: <strong>{settingsDraft.llm_base_url ?? 'not set'}</strong>.</p>}
+          {settingsDraft?.llm_base_url && settingsDraft.llm_provider !== 'cassette' && <p className="inline-notice inline-notice--warning">Question and summary text is sent to this configured endpoint. Whether it stays on this machine depends on where that endpoint runs: <strong>{settingsDraft.llm_base_url}</strong>.</p>}
+          <p className="supporting-copy">The disposable demo and simulation records can be deleted below. The real subject is protected from deletion in this screen.</p>
+        </div>
+      </section>}
+      {['demo', 'sim'].includes(subject.subject_id) && <section hidden={section !== 'privacy'} className="content-card settings-delete" aria-labelledby="settings-delete-title">
         <div><span className="eyebrow">Disposable records only</span><h2 id="settings-delete-title">Delete everything</h2><p>This erases everything held about you on this machine: every heart rate reading, every night, every investigation, every message and the record of all of it. It cannot be undone and nothing is kept elsewhere.</p></div>
         <label className="field-label">Type the name of the person to delete, which is {subject.subject_id}<input aria-label="Type the name of the person to delete" value={deleteText} onChange={(event) => { setDeleteText(event.target.value); setDeleteError(null) }} /></label>
         <button className="button button--danger" onClick={() => void deleteRecord()} disabled={deleting || deleteText !== subject.subject_id}>{deleting ? 'Deleting…' : 'Delete everything about this person'}</button>
         {deleteError && <p role="alert" className="inline-notice inline-notice--warning">{deleteError}</p>}
         {deleteStatus && <p role="status" className="save-confirmation">{deleteStatus}</p>}
       </section>}
+      {section === 'agent' && settingsDraft && <section className="content-card safety-settings-note"><h2>Safety rules stay in control</h2><p>The deterministic safety floor runs before the model and cannot be disabled or lowered through settings. The model can only add caution.</p></section>}
+      {section === 'model' && settingsDraft && <section className="content-card retrieval-settings-note"><h2>Retrieval grounding</h2><p>A supported clinical sentence must contain a verbatim span from a retrieved passage. That check confirms the words exist in the passage; it does not prove the sentence around them is fair to the source. The full passage and its source stay available in the Pipeline record.</p></section>}
+      {settingsDraft && <div className="settings-savebar">
+        <div className="settings-actions"><button className="button button--primary" onClick={() => void saveSettings()} disabled={settingsSaving}>{settingsSaving ? 'Saving…' : 'Save all settings'}</button>{settingsSaved && <span className="save-confirmation" role="status">Saved.{changedSettings.length > 0 ? ` Changed: ${changedSettings.join(', ')}.` : ' No returned setting values changed.'}</span>}</div>
+        {settingsError && <p className="inline-notice inline-notice--warning" role="alert">Settings could not be saved. Your entries are still here. {settingsError}</p>}
+      </div>}
+        </div>
+      </div>
     </div>
   )
 }

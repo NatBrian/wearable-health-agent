@@ -12,6 +12,7 @@ import httpx
 from wha.clock import now_utc
 from wha.config import get_settings
 from wha.constants import (
+    DASHBOARD_RESIDUAL_DIRECTION_FLOOR_BPM,
     INGEST_STALE_REFUSE_HOURS,
     INGEST_STALE_WARN_HOURS,
     RECENT_NIGHTS_WINDOW,
@@ -22,6 +23,8 @@ from wha.models import (
     BaselineRung,
     ComponentStatus,
     ConnectionCheck,
+    DetectionLevel,
+    DetectionStreak,
     NightlyFeatures,
     SystemStatus,
 )
@@ -269,6 +272,37 @@ def get_system_status(
             1 for r in rows_det[:RECENT_NIGHTS_WINDOW] if r["level"] == "NA"
         )
 
+        measured_levels = conn.execute(
+            """SELECT level, residual_bpm FROM detections
+               WHERE subject_id = ? AND level != 'NA'
+               ORDER BY night_date DESC LIMIT 30""",
+            (subject_id,),
+        ).fetchall()
+        detection_streak = None
+        if measured_levels:
+            latest_level = DetectionLevel(measured_levels[0]["level"])
+            same_level = []
+            for row in measured_levels:
+                if row["level"] != latest_level.value:
+                    break
+                same_level.append(row)
+
+            direction = None
+            if len(same_level) >= 2:
+                oldest = same_level[-1]["residual_bpm"]
+                latest = same_level[0]["residual_bpm"]
+                if oldest is not None and latest is not None:
+                    delta = float(latest) - float(oldest)
+                    if delta > DASHBOARD_RESIDUAL_DIRECTION_FLOOR_BPM:
+                        direction = "rising"
+                    elif delta < -DASHBOARD_RESIDUAL_DIRECTION_FLOOR_BPM:
+                        direction = "falling"
+                    else:
+                        direction = "steady"
+            detection_streak = DetectionStreak(
+                length=len(same_level), level=latest_level, direction=direction
+            )
+
         return SystemStatus(
             components=components,
             last_ingest_utc=last_ingest_utc,
@@ -277,6 +311,7 @@ def get_system_status(
             rung=rung,
             errors_24h=errors_24h,
             quiet_nights_streak=quiet_nights_streak,
+            detection_streak=detection_streak,
             unmeasured_recent_nights=unmeasured_recent_nights,
         )
     finally:

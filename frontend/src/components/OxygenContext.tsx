@@ -1,22 +1,23 @@
 import type { OxygenReading, SafetyRuleProvenance, Subject } from '../api'
 import { dateLabel, measuredValue, timeLabel } from '../lib/format'
 
-export function OxygenContext({ readings, subject, error, safetyRules = [] }: {
+export function OxygenContext({ readings, subject, error, safetyRules = [], title = 'Blood oxygen context' }: {
   readings: OxygenReading[]
   subject: Subject
   error?: string
   safetyRules?: SafetyRuleProvenance[]
+  title?: string
 }) {
   const oxygenRules = safetyRules.filter((rule) => rule.rule === 'oxygen_threshold')
   return (
     <section className="content-card oxygen-card" aria-labelledby="oxygen-heading">
-      <div className="section-heading"><div><span className="eyebrow">Spot readings</span><h2 id="oxygen-heading">Blood oxygen context</h2></div></div>
+      <div className="section-heading"><div><span className="eyebrow">Spot readings</span><h2 id="oxygen-heading">{title}</h2></div></div>
       {error ? <p className="inline-notice inline-notice--warning" role="alert">Blood oxygen readings could not be loaded. This is a fetch failure, not a period with no readings. {error}</p> : readings.length === 0 ? (
         <p>No spot reading is recorded in this period. The system has no opinion about blood oxygen without a reading.</p>
       ) : (
         <ul className="oxygen-list">
           {readings.map((reading) => (
-            <li key={reading.ts_utc}><strong>{measuredValue(reading.percentage, '%')}</strong><span>{dateLabel(reading.ts_utc, subject.timezone)} at {timeLabel(reading.ts_utc, subject.timezone)}</span></li>
+            <li key={reading.ts_utc}><strong>{measuredValue(reading.percentage)}%</strong><span>{dateLabel(reading.ts_utc, subject.timezone)} at {timeLabel(reading.ts_utc, subject.timezone)}</span></li>
           ))}
         </ul>
       )}

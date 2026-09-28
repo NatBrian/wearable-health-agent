@@ -61,7 +61,7 @@ const EMPTY_DATA: BackendSnapshot = {
   errors: {},
 }
 
-export function useBackend(subjectId: string | null): BackendData {
+export function useBackend(subjectId: string | null, historyDays = 28): BackendData {
   const [data, setData] = useState<BackendSnapshot>(EMPTY_DATA)
   const [dataSubjectId, setDataSubjectId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -85,7 +85,7 @@ export function useBackend(subjectId: string | null): BackendData {
       const requests = await Promise.allSettled([
         api.getStatus(subjectId),
         api.getDashboardSummary(subjectId),
-        api.listNights(subjectId, 28),
+        api.listNights(subjectId, historyDays),
         api.listEpisodes(subjectId),
         api.getPending(subjectId),
         api.getConversationSessions(subjectId, 400),
@@ -153,7 +153,7 @@ export function useBackend(subjectId: string | null): BackendData {
     })
 
     return () => { active = false }
-  }, [subjectId, revision])
+  }, [subjectId, historyDays, revision])
 
   const currentData = subjectId === dataSubjectId ? data : EMPTY_DATA
   return {

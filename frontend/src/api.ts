@@ -71,6 +71,7 @@ export interface SystemStatus {
   components: ComponentStatus[]; last_ingest_utc: string | null; last_nightly_utc: string | null
   usable_nights: number; rung: BaselineRung; errors_24h: number
   quiet_nights_streak: number; unmeasured_recent_nights: number
+  detection_streak: { length: number; level: DetectionLevel; direction: 'rising' | 'steady' | 'falling' | null } | null
 }
 
 export interface NumericBounds {

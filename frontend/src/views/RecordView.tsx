@@ -6,10 +6,11 @@ import { CitationPanel } from '../components/CitationPanel'
 import { HowItWorks } from '../components/HowItWorks'
 import { PipelineStepDetail } from '../components/PipelineStepDetail'
 import { PipelineTrace } from '../components/PipelineTrace'
+import { PipelineOverview } from '../components/PipelineOverview'
 import type { BackendData } from '../useBackend'
 import type { DashboardViewId } from './HomeView'
 
-type RecordTab = 'pipeline' | 'audit' | 'how'
+type RecordTab = 'overview' | 'pipeline' | 'audit' | 'how'
 const actors = ['anyone', 'system', 'agent', 'human', 'monitor']
 const operations = ['anything', 'ingest', 'nightly', 'chat', 'execute_tool', 'human_decision', 'settings']
 
@@ -20,7 +21,7 @@ export function RecordView({ subject, config, data, initialNight, onNavigate }: 
   initialNight: string | null
   onNavigate: (view: DashboardViewId, nightDate?: string) => void
 }) {
-  const [tab, setTab] = useState<RecordTab>('pipeline')
+  const [tab, setTab] = useState<RecordTab>(initialNight ? 'pipeline' : 'overview')
   const [refs, setRefs] = useState<PipelineNightRef[]>([])
   const [refsLoading, setRefsLoading] = useState(true)
   const [refsError, setRefsError] = useState<string | null>(null)
@@ -133,12 +134,15 @@ export function RecordView({ subject, config, data, initialNight, onNavigate }: 
 
   return (
     <div className="page-stack">
-      <section className="record-heading"><div><span className="eyebrow">A reviewable history</span><h1>The record</h1><p>{legacyText('record.what_it_is')}</p></div></section>
-      <div className="record-tabs" role="tablist" aria-label="The record sections">
+      <section className="record-heading"><div><span className="eyebrow">A reviewable history</span><p>{legacyText('record.what_it_is')}</p></div></section>
+      <div className="record-tabs" role="tablist" aria-label="Pipeline sections">
+        <button role="tab" aria-selected={tab === 'overview'} onClick={() => setTab('overview')}>System overview</button>
         <button role="tab" aria-selected={tab === 'pipeline'} onClick={() => setTab('pipeline')}>This night, step by step</button>
         <button role="tab" aria-selected={tab === 'audit'} onClick={() => setTab('audit')}>Everything the system did</button>
         <button role="tab" aria-selected={tab === 'how'} onClick={() => setTab('how')}>How this works</button>
       </div>
+
+      {tab === 'overview' && <PipelineOverview data={data} timezone={subject.timezone} />}
 
       {tab === 'pipeline' && (
         <div className="page-stack">

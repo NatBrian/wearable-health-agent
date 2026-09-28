@@ -367,6 +367,14 @@ class ComponentStatus(BaseModel):
     severity: Literal["ok", "warn", "error"]
 
 
+class DetectionStreak(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    length: int
+    level: DetectionLevel
+    direction: Literal["rising", "steady", "falling"] | None = None
+
+
 class SystemStatus(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -377,6 +385,7 @@ class SystemStatus(BaseModel):
     rung: BaselineRung
     errors_24h: int
     quiet_nights_streak: int
+    detection_streak: DetectionStreak | None = None
     # Nights in the same recent window with no usable reading. A night the watch did not
     # measure is not a quiet night, and reporting it as one turns missing data into
     # reassurance, which is the opposite of what it means.

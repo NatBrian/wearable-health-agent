@@ -43,13 +43,13 @@ describe('ChatPanel', () => {
 
   it('does not turn a failed conversation request into an empty conversation', async () => {
     api.getConversationSessions.mockRejectedValueOnce(new Error('network unavailable'))
-    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} refreshAfterSend={vi.fn()} />)
+    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} safetyRules={[]} refreshAfterSend={vi.fn()} onClose={vi.fn()} />)
     expect(await screen.findByText(/This is a fetch failure, not an empty conversation/)).toBeInTheDocument()
     expect(screen.queryByText(/No conversation has been recorded for this night/)).not.toBeInTheDocument()
   })
 
   it('retains a message only when sending it failed', async () => {
-    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} refreshAfterSend={vi.fn()} />)
+    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} safetyRules={[]} refreshAfterSend={vi.fn()} onClose={vi.fn()} />)
     await screen.findByText(/No conversation has been recorded/)
     fireEvent.change(screen.getByLabelText('Say anything, or ask a question'), { target: { value: 'I feel unwell' } })
     api.postMessage.mockRejectedValueOnce(new Error('send failed'))
@@ -63,7 +63,7 @@ describe('ChatPanel', () => {
       .mockResolvedValueOnce([])
       .mockRejectedValueOnce(new Error('reload failed'))
     const refreshAfterSend = vi.fn()
-    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} refreshAfterSend={refreshAfterSend} />)
+    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} safetyRules={[]} refreshAfterSend={refreshAfterSend} onClose={vi.fn()} />)
     await screen.findByText(/No conversation has been recorded/)
     const input = screen.getByLabelText('Say anything, or ask a question')
     fireEvent.change(input, { target: { value: 'I feel unwell' } })
@@ -75,7 +75,7 @@ describe('ChatPanel', () => {
   })
 
   it('shows live conversation, notification, and repeat-notice limits', async () => {
-    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} refreshAfterSend={vi.fn()} />)
+    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} safetyRules={[]} refreshAfterSend={vi.fn()} onClose={vi.fn()} />)
     await screen.findByText(/No conversation has been recorded/)
     fireEvent.click(screen.getByText('Conversation and notification limits'))
     expect(screen.getByText(/10 back-and-forth exchanges/)).toBeInTheDocument()
@@ -83,5 +83,31 @@ describe('ChatPanel', () => {
     expect(screen.getByText(/1 robust deviations/)).toBeInTheDocument()
     expect(screen.getByText(/2 nights/)).toBeInTheDocument()
     expect(screen.getByText(/If the system cannot collect enough information/).textContent).toContain('within 3 replies')
+  })
+
+  it('keeps source passages and uncited labels expandable in global chat', async () => {
+    api.getConversationSessions.mockResolvedValue([{
+      started_utc: '2026-09-20T00:00:00Z',
+      turns: [{
+        id: 'turn-a', episode_id: null, subject_id: 'demo', seq: 1, role: 'agent',
+        text: 'This reply contains a sourced statement.',
+        citations_json: JSON.stringify([{
+          source_id: 'study-a', title: 'Example paper', uri: null,
+          passage: 'The quoted source span appears here, in this context.',
+          retrieval_score: 0.8, quoted_span: 'The quoted source span appears here',
+        }]),
+        uncited_json: JSON.stringify(['A detail from general model knowledge.']), urgency: null,
+        triggered_flags_json: '[]', asked_item_id: null, presentation: null,
+        created_at_utc: '2026-09-20T01:00:00Z',
+      }],
+    }])
+    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} safetyRules={[]} refreshAfterSend={vi.fn()} onClose={vi.fn()} />)
+
+    expect(await screen.findByRole('region', { name: /Sources behind this reply/ })).toBeInTheDocument()
+    expect(screen.getByRole('complementary', { name: 'Not from a cited source' })).toHaveTextContent('A detail from general model knowledge.')
+    fireEvent.click(screen.getByRole('button', { name: /Example paper/ }))
+    expect(screen.getByText('Quoted words: “The quoted source span appears here”')).toBeInTheDocument()
+    expect(screen.getByText('The quoted source span appears here, in this context.')).toBeInTheDocument()
+    expect(screen.getByText(/does not prove the sentence built around them describes the passage fairly/)).toBeInTheDocument()
   })
 })
