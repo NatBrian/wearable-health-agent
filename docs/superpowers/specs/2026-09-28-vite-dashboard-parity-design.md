@@ -4,11 +4,12 @@
 
 PR #3 replaces the Streamlit dashboard with a React, TypeScript, and Vite client of the existing FastAPI service. The migration improves the desktop presentation and adds sleep, steps, and oxygen summaries, but it removes several legacy screens and interactions. This design restores the user-visible feature set while addressing the safety, data-display, and maintenance issues found in the review.
 
-The accepted implementation direction is to keep the Vite and API architecture, split the frontend along view boundaries, and avoid adding a router, global state library, or a second runtime dashboard.
+The accepted implementation direction is to keep the Vite and API architecture, split the frontend along view boundaries, and avoid adding a router, global state library, or a second runtime dashboard. The current Vite visual system is the starting point for refinement. The Streamlit UI is the source of feature and content requirements, not a visual template.
 
 ## Goals
 
 - Preserve every legacy screen-level capability, user action, explanation, and disclosure in an equivalent React view or component. Layout and interaction may be improved, but no feature is silently dropped.
+- Treat behavior and information parity as mandatory, while deliberately improving the visual hierarchy, readability, navigation, responsiveness, and interaction feedback. Do not reproduce Streamlit's default layout, widgets, or table styling.
 - Keep the dashboard as an HTTP API client. Health calculations, thresholds, policy decisions, and numeric configuration come from the backend.
 - Fix the reviewed CORS, pending-workflow, conversation-context, citation-transparency, chart, responsive-layout, API-error, and stale-documentation issues.
 - Give every restored or changed user-visible behavior an automated regression check and verify the real interface with demo data.
@@ -34,6 +35,12 @@ Before implementation, compare every row in `docs/DISCLOSURES.md` and every UI c
 Keep React, TypeScript, Vite, the typed API client, and FastAPI. The shell will expose five clear views: Home, Today, History, The record, and Settings. Home remains the safe landing view; Today remains the active dashboard. Navigation can continue to use the existing local view state, so no routing dependency is needed.
 
 Split the current `App.tsx` into a small shell, view-level components, and shared UI components only where behavior is reused. Shared components should cover the disclosure/status presentation, metric/chart presentation, citations, conversation controls, and confirmation/error states. Keep feature behavior in its owning view rather than building a generalized dashboard framework.
+
+## Visual and interaction direction
+
+Build on the existing Vite dashboard's visual identity and refine it into a polished, readable health dashboard. Use clear page hierarchy, consistent spacing and typography, purposeful cards and charts, responsive navigation, and visible loading, unavailable, stale, pending, success, and error states. Do not aim for a pixel-for-pixel Streamlit recreation or carry over default Streamlit controls. The same information and actions must remain discoverable even when a denser legacy section is reorganized into a well-labeled tab, detail panel, or expandable section.
+
+Keep emergency guidance and the standing disclaimer immediately visible on Home. Use text and icons as well as color to communicate status. All actions must work with keyboard and touch input, show focus clearly, and give feedback after success or failure. Preserve the full detail behind progressive disclosure; collapsing content is a layout choice, not a feature removal.
 
 All data reads and writes go through `frontend/src/api.ts` and the FastAPI API. Add or extend only the endpoints needed to reproduce legacy behavior. Move trend, aggregation, threshold, and calendar-window calculations into the service/API. The browser formats returned values and submits user choices; it does not infer health states.
 
@@ -83,6 +90,7 @@ Use the deleted Streamlit UI and UI-unit tests as the behavioral source, transla
 6. Unsupported claims remain visibly labeled even with no citations; source passages and attribution are inspectable.
 7. Charts retain calendar gaps and represent baseline bands and averages accurately.
 8. CORS rejects unapproved origins; expected absence and API failure have distinct UI states.
-9. Home, Today, History, The record, and Settings remain usable on narrow screens.
+9. Home, Today, History, The record, and Settings remain usable on narrow screens, with no clipped navigation, cards, chart controls, tables, dialogs, or actions.
 10. Every archived disclosure and shared UI component has a verified React destination; no visible row is treated as present merely because it remains in documentation.
-11. README instructions, automated frontend checks, backend checks, and a demo-data visual pass agree with the migrated UI.
+11. A visual review confirms a cohesive Vite design with clearer hierarchy and responsive interaction, rather than a Streamlit-style restyling; all preserved details remain discoverable.
+12. README instructions, automated frontend checks, backend checks, and a demo-data visual pass agree with the migrated UI.
