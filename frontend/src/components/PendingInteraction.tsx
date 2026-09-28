@@ -46,6 +46,7 @@ export function PendingInteraction({
             {pending.question.options.map((option) => (
               <button className="button button--primary" key={option.option_id} disabled={busy} onClick={() => void run(() => api.submitAnswer(pending.episode_id, { probe_id: pending.question!.probe.probe_id, option_id: option.option_id, free_text: freeText.trim() || null }))}>{option.label}</button>
             ))}
+            {pending.question.allows_free_text && <button className="button button--secondary" disabled={busy || !freeText.trim()} onClick={() => void run(() => api.submitAnswer(pending.episode_id, { probe_id: pending.question!.probe.probe_id, option_id: null, free_text: freeText.trim() }))}>Send written answer</button>}
             <button className="button button--secondary" disabled={busy} onClick={() => void run(() => api.submitAnswer(pending.episode_id, { probe_id: pending.question!.probe.probe_id, option_id: pending.question!.options[0]?.option_id ?? null, declined: true }))}>Skip</button>
           </div>
           <p className="supporting-copy">Skipping is fine. You will not be asked this again for this investigation.</p>
@@ -54,7 +55,7 @@ export function PendingInteraction({
       {pending.kind === 'measurement' && pending.measurement && (
         <>
           <p className="pending-question">{pending.measurement.instruction}</p>
-          <p className="supporting-copy">This is asked only where the reading would change what happens next. The system will show the result when it is recorded.</p>
+          <p className="supporting-copy">This is asked only where the reading would change what happens next.</p>
           <div className="measurement-meta"><span>{pending.measurement.kind.replace(/_/g, ' ')}</span><span>Expires {pending.measurement.expires_at_utc}</span></div>
         </>
       )}

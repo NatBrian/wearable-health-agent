@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { api, type PendingInteraction, type SystemConfig } from '../api'
 import { PendingInteraction as PendingCard } from '../components/PendingInteraction'
 import { CitationPanel } from '../components/CitationPanel'
@@ -51,6 +51,16 @@ describe('pending interaction controls', () => {
     expect(onComplete).toHaveBeenCalledOnce()
   })
 
+  it('submits a written answer without requiring an option', async () => {
+    const onComplete = vi.fn()
+    const submit = vi.spyOn(api, 'submitAnswer').mockResolvedValue({ status: 'recorded' })
+    render(<PendingCard pending={questionPending} config={config} safetyRules={[]} onComplete={onComplete} />)
+    fireEvent.change(screen.getByLabelText(/anything else/i), { target: { value: '  Since yesterday  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send written answer' }))
+    expect(submit).toHaveBeenCalledWith('episode-a', { probe_id: 'probe-a', option_id: null, free_text: 'Since yesterday' })
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+  })
+
   it('keeps typed text when the answer request fails', async () => {
     vi.spyOn(api, 'submitAnswer').mockRejectedValue(new Error('offline'))
     render(<PendingCard pending={questionPending} config={config} safetyRules={[]} onComplete={() => undefined} />)
@@ -70,6 +80,18 @@ describe('pending interaction controls', () => {
     expect(screen.getByText(/Haasenritter/)).toBeInTheDocument()
   })
 
+  it('preserves the legacy measurement instruction without promising an unavailable result action', () => {
+    const pending: PendingInteraction = {
+      ...questionPending, kind: 'measurement', question: null,
+      measurement: { measurement_id: 'measurement-a', kind: 'spot_resting_hr', instruction: 'Take a resting pulse.', expires_at_utc: '2026-09-28T12:00:00Z' },
+    }
+    render(<PendingCard pending={pending} config={config} safetyRules={[]} onComplete={() => undefined} />)
+    expect(screen.getByText('Take a resting pulse.')).toBeInTheDocument()
+    expect(screen.getByText('This is asked only where the reading would change what happens next.')).toBeInTheDocument()
+    expect(screen.queryByText(/show the result when it is recorded/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
   it('shows an unsupported-content warning even when no citation is attached', () => {
     render(<CitationPanel citations={[]} uncited={['An unsupported statement']} config={config} />)
     expect(screen.getByRole('complementary', { name: 'Not from a cited source' })).toBeInTheDocument()
@@ -83,5 +105,13 @@ describe('pending interaction controls', () => {
     fireEvent.click(screen.getByRole('button', { name: /Example source/ }))
     expect(screen.getByText(/quoted words could not be found/i)).toBeInTheDocument()
     expect(screen.getByText('The full passage remains available.')).toBeInTheDocument()
+  })
+
+  it('warns when a citation has no quoted span to verify', () => {
+    render(<CitationPanel citations={[{
+      source_id: 'local:source', title: 'Example source', uri: null, passage: 'The full passage remains available.', retrieval_score: 1, quoted_span: null,
+    }]} uncited={[]} config={config} />)
+    fireEvent.click(screen.getByRole('button', { name: /Example source/ }))
+    expect(screen.getByText(/quoted words could not be found/i)).toBeInTheDocument()
   })
 })

@@ -152,7 +152,7 @@ Each state must have a named automated check in the task list and an explicit ob
 - [ ] Restore the complete legacy verdict and next-step wording for each level. For a cold/prior-dominated baseline, display the maturity explanation and do not imply that an absent episode or normal-looking result means health was assessed as clear.
 - [ ] Preserve backend-provided quiet-night and unmeasured-night counts with their distinct explanations. A night without a reading stays missing data and is never counted as a quiet/normal night.
 - [ ] Preserve every verdict detail: reading, personal normal and range, difference, measurement-window source (recorded sleep or clock fallback), coverage, exercise subtraction, non-diagnosis statement, symptom-matching/local-guidance limitations, and the action to open that night in the pipeline.
-- [ ] Render each pending kind explicitly. Questions must support listed options, optional free text where allowed, and decline. Measurements must show instructions and the supported submitted/result state. Reviews must show the draft outcome and the existing accept/revise/reject decision controls supported by the API. Disable repeat submission while pending and show retryable errors without losing input.
+- [ ] Render each pending kind explicitly. Questions must support listed options, optional free text where allowed, and decline. Preserve the legacy measurement instruction and explanation as an informational pending state; do not invent a submission action or claim a result will appear when no producer or completion endpoint exists. Reviews must show the draft outcome and the existing accept/revise/reject decision controls supported by the API. Disable repeat submission while pending and show retryable errors without losing input.
 - [ ] Preserve the ongoing-investigation explanation: current waiting state, most recent answered question and local answer time, leading cause with its non-diagnosis caveat, nights covered, and why the system did not ask a question when the pipeline records that decision.
 - [ ] Scope Today chat to the active night/episode using the existing `since_night` API capability. Preserve current messages, attribution, urgency/safety output, and retryable send behavior.
 - [ ] Preserve chat submission and recorded-transcript behavior, the message that fixed rules run before the AI and can only raise urgency, urgency carried across sessions, source chips and open/close citation drawers, external-source/MedlinePlus attribution, the amber uncited panel, and the warning that uncited classification is best effort. Render uncited/unsupported warnings independently of citation-array presence.
@@ -161,9 +161,9 @@ Each state must have a named automated check in the task list and an explicit ob
 - [ ] Restore handover prepare, preview, and copy actions using the current API response. Give confirmation/error feedback and keep the prepared text available if clipboard access fails.
 - [ ] Fix every pending-state label/action and citation branch against the legacy copy inventory. Keep urgency logic and safety decisions in the backend.
 
-**Tests:** cold/prior-dominated baseline; no-reading versus quiet-night counts; each pending kind and response path; review submit body; active-chat session boundary; urgency carried across sessions; uncited claim with an empty citation list; missing quote span; complete passage/source display; oxygen caveat; handover prepare/preview/copy and failure; failed chat send retains input.
+**Tests:** cold/prior-dominated baseline; no-reading versus quiet-night counts; question/free-text/decline and review response paths; measurement instruction and informational state; review submit body; active-chat session boundary; urgency carried across sessions; uncited claim with an empty citation list; missing or absent quote span; complete passage/source display; oxygen caveat; handover prepare/preview/copy and failure; failed chat send retains input.
 
-**Done when:** every legacy Today capability is actionable and the five high-risk baseline, pending, and evidence states have direct regression coverage.
+**Done when:** every legacy Today capability is preserved, every action with a supported backend response is actionable, the retired measurement prompt stays informational, and the five high-risk baseline, pending, and evidence states have direct regression coverage.
 
 **Commit intent:** explain that complete, correctly scoped interactions prevent unanswered work and unsupported claims from looking resolved.
 
@@ -258,7 +258,7 @@ available to exercise.
 - [ ] Every legacy screen, shared component, visible copy unit, disclosure row, feature, and user action maps to a React destination and a verification case.
 - [ ] Home/Today/History/The record/Settings all use the same explicit subject selection and render clear no-data, loading, and failure states.
 - [ ] The cold/prior-dominated baseline cannot present an unconditional all-clear.
-- [ ] Question, free text, decline, measurement, review, chat, and handover actions are complete and retryable.
+- [ ] Question/free-text, decline, review, chat, and handover actions with current backend support are complete and retryable; the measurement prompt preserves its legacy informational behavior because no current submission endpoint exists.
 - [ ] Citation warnings do not depend on citations being present; full source passages and quote-span status are inspectable.
 - [ ] Conversation context is scoped on Today and date/session-separated in The record.
 - [ ] History controls, all recorded fields, calendar gaps, per-night bands, and trace navigation work.

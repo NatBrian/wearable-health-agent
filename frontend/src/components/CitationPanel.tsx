@@ -31,7 +31,7 @@ export function CitationPanel({
             const id = `${citation.source_id}-${index}`
             const expanded = open === id
             const quoteFound = Boolean(citation.quoted_span && citation.passage.includes(citation.quoted_span))
-            const quoteMissing = Boolean(citation.quoted_span && !quoteFound)
+            const quoteMissing = !citation.quoted_span || !quoteFound
             return (
               <article className="citation-card" key={id}>
                 <button className="citation-card__toggle" onClick={() => setOpen(expanded ? null : id)} aria-expanded={expanded}>
