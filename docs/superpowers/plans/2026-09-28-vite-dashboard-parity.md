@@ -41,6 +41,26 @@ Every source below must have a React destination and a behavior/content check. C
 | `src/wha/ui/design.py` | `frontend/src/index.css` and shared primitives | Retain useful brand tokens while redesigning hierarchy and layout for the Vite interface; do not copy Streamlit widget/table styling. |
 | `src/wha/ui/components/api.py` | `frontend/src/api.ts` | Typed transport, explicit expected-absence handling, surfaced failures, and no direct browser access to service/database logic. |
 
+## PR #3 Review Finding Crosswalk
+
+This crosswalk makes the earlier PR review traceable to implementation tasks. Each finding below must be closed before merge.
+
+| Finding from the PR review | Plan coverage |
+| --- | --- |
+| Vite omitted Home, History, audit/record, many Settings controls, and much of the legacy copy/disclosure surface. | Tasks 1, 3, 5, 6, and 7; complete source-to-React map plus inventory of all visible source copy and deleted UI-test assertions. |
+| Home did not make the emergency guidance and medical-device disclaimer prominent; cold/prior-dominated baselines could read as an all-clear. | Tasks 3 and 4; prominent Home disclosure and explicit baseline-maturity states. |
+| Subject selection silently used the first API subject instead of configured/remembered selection or an explicit choice. | Tasks 2 and 3; one shared resolver with configured, remembered, sole, ambiguous, empty, and failure states. |
+| Pending question handling omitted free text and decline controls; measurement and human-review actions were unavailable. | Tasks 2 and 4; typed existing endpoints and complete question, measurement, review, decline, and retry flows. |
+| Uncited warnings were coupled to citations, quote passages were truncated, and source/quote limitations were not fully inspectable. | Task 4; independent unsupported-claim warnings, full passage/source inspection, quote-span state, and fair-representation caveat. |
+| History filters/table/drill-down and The record's pipeline, integrity, audit, export, and conversation archive were missing. | Tasks 5 and 6; every control, table field, navigation action, integrity state, and filtered export is named and tested. |
+| Current chat mixed sessions; older conversations lacked clear date boundaries. | Tasks 2, 4, and 6; `since_night` for Today and dated session archive in The record. |
+| Settings omitted profile, connection/model/Telegram controls, per-investigation depth budget, and safe save feedback; slider limits were narrowed and pointer-only saves missed keyboard/touch. | Tasks 2 and 7; full fields, legacy ranges, unsaved diagnostics, write-only secrets, save-all confirmation, retained failures, and accessible controls. |
+| Vite presented an inaccurate steps average and latest observation dates, client-only trend/severity heuristics, chart bands/gaps incorrectly, and status values without needed context. | Tasks 2, 3, 4, and 5; backend calendar summary/config, remove unsupported heuristics, per-date bands/gaps, and full status explanations. |
+| Pipeline copy claimed removed/unsupported components or literature backing for assumed values; step details did not expose all evidence and decision data. | Task 6; API-backed status/provenance and restoration of arithmetic, symptoms, causes, questions, outputs, sources, and raw detail. |
+| Wildcard CORS covered origins, methods, and headers; Vite bound to all interfaces; no frontend regression harness existed. | Tasks 1 and 2; exact loopback origin/method/header allowlists and focused React/API regression tests. |
+| Generic 404 handling, swallowed write failures, and missing frontend tests made errors look like empty data or successful actions. | Tasks 1, 2, 4, and 7; typed API failures, expected-absence handling, retained user input, and explicit success/error state. |
+| Duplicate React keys, narrow-screen clipping at 390px, and stale Streamlit README/demo instructions remained. | Tasks 6 and 8; stable keys, explicit 390px pass, responsive redesign, and updated setup/demo docs. |
+
 ## Global Constraints
 
 - Preserve all rows in the spec's feature inventory and the source-to-React map above. A feature is not preserved merely because related data exists in the API or the text remains in Markdown.
@@ -71,8 +91,10 @@ Each state must have a named automated check in the task list and an explicit ob
 
 - [ ] Add Vitest, jsdom, and React Testing Library with a `test` script. Keep the dependency set limited to component-level behavior checks; do not add a separate E2E framework.
 - [ ] Convert the spec's source-to-React map and disclosure/copy inventory into test data. Include every `explain.py` key and every `DISCLOSURES.md` row, each with its required view/component destination.
+- [ ] Use the legacy Streamlit behavior tests deleted by PR #3 as a second requirements source. Read the old `tests/ui/` and `tests/unit/ui/` files from `origin/main` and port their user-visible assertions to frontend/API tests; do not carry over Streamlit implementation details.
+- [ ] Inventory all other visible literals across `src/wha/ui/**/*.py`, not only `explain.py`: titles, headings, labels, help text, buttons, tab names, table columns, status text, warnings, captions, expanders, and empty/error messages. Record each source file/anchor and React destination, including API-backed interpolation for values. Exclude only Streamlit layout/configuration that produces no user-visible content.
 - [ ] Add focused failing checks for the five high-risk states above. Assert visible user outcomes and API calls, not Streamlit-specific implementation details.
-- [ ] Add a check that every legacy copy/disclosure key is represented, numeric prose is not typed into frontend copy, and no copy violates the existing forbidden-phrase rule.
+- [ ] Add a check that every inventory item has a React destination and is represented by the copy catalog or the explicitly mapped API-backed template, numeric prose is not typed into frontend copy, and no copy violates the existing forbidden-phrase rule.
 - [ ] Keep tests deterministic with mocked API responses. Do not require network access or depend on mutable demo database state.
 - [ ] Run the focused frontend tests while implementing each slice; reserve the full backend suite and Ruff for Task 8.
 
@@ -106,16 +128,16 @@ Each state must have a named automated check in the task list and an explicit ob
 - [ ] Reduce `App.tsx` to shell/navigation, active-view state, a shared selected subject, loading/error handling, and view composition. Keep five destinations: Home, Today, History, The record, Settings.
 - [ ] Resolve a subject using `/config.configured_subject`, the current in-app remembered selection, and the sole-subject fallback. If there are multiple subjects without a usable configured/remembered selection, require an explicit selection; never use `subjects[0]` silently. Distinguish no subjects from API errors.
 - [ ] Use that one subject state for every view and make the selected identity visible. Preserve the empty-state explanation from Home and provide a safe route to settings/setup where appropriate.
-- [ ] Create the central legacy copy catalog from the archived `explain.py` and the documented disclosures. Keep keys stable, preserve wording and context, and interpolate any operating/clinical values from typed API data. Do not paraphrase clinical meaning or delete an explanation to make the page shorter.
+- [ ] Create the central legacy copy catalog from the archived `explain.py` and all inventoried visible copy, alongside the documented disclosures. Keep keys stable, preserve wording and context, and interpolate any operating/clinical values from typed API data. Do not paraphrase clinical meaning or delete an explanation to make the page shorter.
 - [ ] During implementation, compare every catalog entry and disclosure row directly against its archived source, record its React destination in the parity inventory, and review the complete rendered copy in context. A key-presence test alone is not sufficient evidence that text was preserved.
 - [ ] Map every row in `docs/DISCLOSURES.md` to a live Home, Today, Settings, or Record destination and test the destination. Keep the standing medical-device disclaimer and emergency guidance prominent on Home.
 - [ ] Rebuild Home with clear hierarchy and the Vite visual system: what the system is, emergency guidance, what it can/cannot do, how a night is judged, navigation cards, and the live provenance entry count. Keep the count as entries, not figures, and keep the legacy explanatory sentence.
-- [ ] Rebuild the status component from the full legacy status bar data, with explicit loading, stale, unavailable, and error presentation. Use text/icons with color.
+- [ ] Rebuild the status component from all five legacy plain-language lines: watch data and local arrival time, baseline maturity, scheduler, model reachability, and contact channel. Preserve degraded explanations that state what stops working, plus the recent-problem count and link to The record. Add explicit loading, stale, unavailable, and error presentation. Use text/icons with color.
 - [ ] Remove `computeStreak` and any Home/Today statistic inferred in React; use returned backend summary/status fields or omit a metric that has no supported backend result.
 - [ ] Remove the reviewed client-only direction/severity heuristics, including the `0.5 BPM` delta direction and `1.5 sigma` styling rules. Use an existing backend result when it has the same documented meaning; otherwise omit the heuristic rather than inventing a clinical interpretation.
 - [ ] Preserve view-level visual clarity without copying Streamlit columns, tables, widget styling, or spacing.
 
-**Tests:** configured/remembered/sole/ambiguous/no-subject/error cases; all disclosure and copy keys map to visible destinations; live provenance count is labeled as entries; Home contains emergency and standing disclaimer text; static copy contains no UI digits or forbidden reassurance.
+**Tests:** configured/remembered/sole/ambiguous/no-subject/error cases; every visible-copy inventory item and disclosure maps to its rendered destination; live provenance count is labeled as entries; Home contains emergency and standing disclaimer text; static copy contains no UI digits or forbidden reassurance.
 
 **Done when:** all screens share one explicit subject choice, Home preserves every legacy section, and copy inventory coverage is complete.
 
@@ -126,15 +148,20 @@ Each state must have a named automated check in the task list and an explicit ob
 **Files:** `frontend/src/views/TodayView.tsx`, `frontend/src/components/VerdictPanel.tsx`, `frontend/src/components/ChatPanel.tsx`, `frontend/src/components/PendingInteraction.tsx`, `frontend/src/components/CitationPanel.tsx`, `frontend/src/components/OxygenContext.tsx`, `frontend/src/api.ts`, focused files under `frontend/src/__tests__/`
 
 - [ ] Preserve the current status, overnight metrics, episode/urgency, sleep/steps/oxygen summaries, baseline maturity, per-cause provenance, evidence explanations, and doctor handover. Show the actual latest sleep/steps observation dates from the API summary.
+- [ ] Keep the legacy Today order and meanings: pending work and any active urgency first; the latest measured night and verdict next; active investigation and its explanation; current-night chat; then clinician handover. "Nothing is waiting for you to answer" describes only the inbox and must neither suppress an escalation nor read as an all-clear.
 - [ ] Restore the complete legacy verdict and next-step wording for each level. For a cold/prior-dominated baseline, display the maturity explanation and do not imply that an absent episode or normal-looking result means health was assessed as clear.
+- [ ] Preserve backend-provided quiet-night and unmeasured-night counts with their distinct explanations. A night without a reading stays missing data and is never counted as a quiet/normal night.
+- [ ] Preserve every verdict detail: reading, personal normal and range, difference, measurement-window source (recorded sleep or clock fallback), coverage, exercise subtraction, non-diagnosis statement, symptom-matching/local-guidance limitations, and the action to open that night in the pipeline.
 - [ ] Render each pending kind explicitly. Questions must support listed options, optional free text where allowed, and decline. Measurements must show instructions and the supported submitted/result state. Reviews must show the draft outcome and the existing accept/revise/reject decision controls supported by the API. Disable repeat submission while pending and show retryable errors without losing input.
+- [ ] Preserve the ongoing-investigation explanation: current waiting state, most recent answered question and local answer time, leading cause with its non-diagnosis caveat, nights covered, and why the system did not ask a question when the pipeline records that decision.
 - [ ] Scope Today chat to the active night/episode using the existing `since_night` API capability. Preserve current messages, attribution, urgency/safety output, and retryable send behavior.
-- [ ] Render uncited/unsupported warnings independently of citation-array presence. Show complete source attribution and the complete inspectable passage; identify whether the quoted span was found; retain the copy explaining that a matching span does not prove the surrounding claim is fair to the source. Remove the reviewed passage truncation.
-- [ ] Preserve oxygen source/population caveats, measurement limitations, dates, and explicit no-all-clear meaning. Do not present oxygen as the current threshold/safety pathway unless the API says so.
+- [ ] Preserve chat submission and recorded-transcript behavior, the message that fixed rules run before the AI and can only raise urgency, urgency carried across sessions, source chips and open/close citation drawers, external-source/MedlinePlus attribution, the amber uncited panel, and the warning that uncited classification is best effort. Render uncited/unsupported warnings independently of citation-array presence.
+- [ ] Show complete source attribution and the complete inspectable passage; identify whether the quoted span was found; retain the copy explaining that a matching span does not prove the surrounding claim is fair to the source. Remove the reviewed passage truncation.
+- [ ] Preserve oxygen source/population caveats and measurement limitations on every oxygen result, including normal readings. State that an absent or insufficient overnight sample is no opinion, and that the pathway applies to the population described by its source, not as a screening all-clear. Keep dates and never present oxygen as the current threshold pathway unless the API says so.
 - [ ] Restore handover prepare, preview, and copy actions using the current API response. Give confirmation/error feedback and keep the prepared text available if clipboard access fails.
 - [ ] Fix every pending-state label/action and citation branch against the legacy copy inventory. Keep urgency logic and safety decisions in the backend.
 
-**Tests:** cold/prior-dominated baseline; each pending kind and response path; review submit body; active-chat session boundary; uncited claim with an empty citation list; missing quote span; complete passage/source display; oxygen caveat; handover prepare/preview/copy and failure; failed chat send retains input.
+**Tests:** cold/prior-dominated baseline; no-reading versus quiet-night counts; each pending kind and response path; review submit body; active-chat session boundary; urgency carried across sessions; uncited claim with an empty citation list; missing quote span; complete passage/source display; oxygen caveat; handover prepare/preview/copy and failure; failed chat send retains input.
 
 **Done when:** every legacy Today capability is actionable and the five high-risk baseline, pending, and evidence states have direct regression coverage.
 
@@ -145,6 +172,7 @@ Each state must have a named automated check in the task list and an explicit ob
 **Files:** `frontend/src/views/HistoryView.tsx`, `frontend/src/components/HistoryChart.tsx`, `frontend/src/api.ts`, `src/wha/api/app.py`, `src/wha/service/nights.py`, relevant `frontend/src/__tests__/`, relevant backend service/API tests
 
 - [ ] Restore the legacy time-window choices, level filter, investigated-only filter, show-every-recorded-field toggle, night-by-night table, conclusion explanation, empty-filter explanation, and per-night trace action.
+- [ ] Preserve the default table fields (night, conclusion, reading, difference from normal, measured coverage, and investigation outcome) and expanded fields (exercise explanation, residual, personal normal, usual range, measurement window, and investigation id). Keep distinct states for no recorded nights and no usable readings in the selected window.
 - [ ] Obtain the time-window labels and day ranges from the API/config. Preserve the legacy windows and default selection. The show-every-field option changes visible fields only; it must expose all fields in the legacy table.
 - [ ] Keep domain filtering server-side. When filters change, request the corresponding records from the API; do not reimplement episode/level semantics in React.
 - [ ] Keep the chart's full calendar series and its empty dates. Render each point with its own returned band, rather than applying the last band's values to the whole date range. Do not join across missing nights. Keep all non-chart data/status distinctions visible.
@@ -168,10 +196,13 @@ Each state must have a named automated check in the task list and an explicit ob
 - [ ] Preserve the pipeline legend and explanation. Remove false static claims that a Chronos-Bolt zero-shot forecast is active or that clinical priors are literature-backed; represent `NOT_RUN`, `ASSUMED`, and other provenance/status values from API data accurately. Explain that a missing trace is a record gap, not proof that a step was skipped.
 - [ ] Preserve hash-chain outcomes for empty, intact nonempty, and broken chains; plain-language events; recorded timestamp; expandable exact details; and actor/operation/episode filters with filtered export.
 - [ ] Preserve the filtered audit table's fields and explain actor/permission labels. Keep exported content based on active filters and provide a usable download action.
+- [ ] Preserve every audit column: UTC time, actor, operation, tool, permission result, safety event, hash integrity, investigation id, and entry id. Keep the empty-filter message distinct from an empty record and a failed query.
 - [ ] Restore conversation archive with explicit date/session boundaries, turn counts, urgency, source titles, uncited labeling, and per-session expansion. Never flatten archived sessions into Today's active chat.
-- [ ] Move every `how_it_works.py` explanation into its React section, retaining citations/caveats and avoiding claims inconsistent with current API status. Fix duplicate React keys in safety-rule lists.
+- [ ] Restore the step detail's full fixed-order explanation: what happened, why the step exists, API-backed arithmetic in words, symptom timeline and persistence/co-occurrence table, all cause marginals and illness-probability caveat, every question considered and its value, named outputs, source drawers, and expandable raw inputs/outputs/detail.
+- [ ] Move every `how_it_works.py` topic into its React section: the complete twenty-step topic mapping, live operating values, currently permitted read-only tool list, safety-rule provenance table and warning for assumed values, and where readings/model text go. Keep every number tied to API/config data. Add a check that every pipeline step appears in exactly one topic.
+- [ ] Fix duplicate React keys in safety-rule lists.
 
-**Tests:** no pipeline nights versus pipeline fetch failure; usable-night default and earlier/later; click/keyboard step details; empty/intact/broken audit chain; each audit filter and filtered export; empty/nonempty session archive with dates; every How-it-works copy key; `NOT_RUN`/`ASSUMED` pipeline states; stable list keys.
+**Tests:** no pipeline nights versus pipeline fetch failure; usable-night default and earlier/later; click/keyboard step details; symptom timeline, all-cause, and question-value details; every audit column; empty/intact/broken chain; each audit filter and filtered export; empty/nonempty session archive with dates; every How-it-works key and exact topic-to-step coverage; live config/tool/provenance display; `NOT_RUN`/`ASSUMED` pipeline states; stable list keys.
 
 **Done when:** The record contains every legacy tab capability, and no pipeline or audit empty/error state is ambiguous.
 
@@ -185,6 +216,7 @@ Each state must have a named automated check in the task list and an explicit ob
 - [ ] Restore bridge host/token, model provider/name/base URL/key, notification channel, Telegram token, and all three live diagnostic/test actions. Secret fields remain write-only and are never echoed after save.
 - [ ] Restore all three budgets and their explanations. Preserve the legacy control ranges exactly: weekly interruption budget `0–20`, per-investigation question budget `0–10`, and policy-cost weight `0–1` with `0.01` step. Preserve the legacy profile age range `0–120`. Source displayed bounds from backend configuration/schema; do not narrow them in React.
 - [ ] Save profile and settings with explicit pending/success/failure state. Preserve unsaved values after errors and ensure pointer, touch, keyboard, and assistive-technology input all commit changes. Do not depend only on `onMouseUp`.
+- [ ] Preserve the single "Save all of the above" action and its changed-fields confirmation, while keeping profile saving separate as on the legacy page. A failed save must not clear either form.
 - [ ] Run bridge/model/Telegram diagnostics against the unsaved values when the legacy action does so. Display both success and failure details from the API.
 - [ ] Preserve deletion controls only for disposable `sim` and `demo` subjects. Never offer deletion for `me`. For an allowed deletion, name the target, require explicit confirmation, and report the result; do not quietly fall back to another subject.
 - [ ] Keep all fields from the backend settings contract represented. If the contract gains fields, tests must fail until the UI has a control or a documented reason the field is not user-editable.
@@ -200,7 +232,7 @@ Each state must have a named automated check in the task list and an explicit ob
 **Files:** `frontend/src/index.css`, shared frontend components and views, `README.md`, `docs/demo/README.md`, `docs/CONTRACTS.md` only if an API/schema change requires it, all new frontend tests
 
 - [ ] Apply a cohesive Vite visual system with clear page hierarchy, readable type, consistent spacing, purposeful cards/charts, responsive navigation, and visible loading/empty/stale/pending/success/error states. Keep emergency guidance and the standing disclaimer immediately visible on Home.
-- [ ] Verify each view on desktop and a narrow mobile viewport, including navigation, metric cards, charts, filters, pipeline controls, tables, disclosures, dialogs, forms, focus, and touch targets. Fix clipping, horizontal overflow, obscured controls, and keyboard traps. Do not make density improvements by removing content.
+- [ ] Verify each view on desktop and at the reviewed `390px` mobile width, including navigation, metric cards, charts, filters, pipeline controls, tables, disclosures, dialogs, forms, focus, and touch targets. Replace the fixed-width/overflow-clipped shell behavior that caused the reviewed layout defect. Fix clipping, horizontal overflow, obscured controls, and keyboard traps. Do not make density improvements by removing content.
 - [ ] Use text and icons as well as color. Confirm progressive disclosure preserves the full detail and has clear labels.
 - [ ] Update `README.md` and `docs/demo/README.md` to describe API plus Vite startup, actual ports/commands, all five screens, and demo-data viewing. Remove stale Streamlit-dashboard instructions and claims. Update `docs/CONTRACTS.md` if changed model/API shapes require it.
 - [ ] Run the frontend tests and production build. Run the full backend suite once with `uv run pytest -n auto`, then run `uv run ruff check src tests` and `uv run ruff format --check src tests` once. Address failures without modifying or weakening tests.
@@ -213,7 +245,7 @@ Each state must have a named automated check in the task list and an explicit ob
 
 ## Acceptance Checklist
 
-- [ ] Every legacy screen, shared component, copy key, disclosure row, feature, and user action maps to a React destination and a verification case.
+- [ ] Every legacy screen, shared component, visible copy unit, disclosure row, feature, and user action maps to a React destination and a verification case.
 - [ ] Home/Today/History/The record/Settings all use the same explicit subject selection and render clear no-data, loading, and failure states.
 - [ ] The cold/prior-dominated baseline cannot present an unconditional all-clear.
 - [ ] Question, free text, decline, measurement, review, chat, and handover actions are complete and retryable.
