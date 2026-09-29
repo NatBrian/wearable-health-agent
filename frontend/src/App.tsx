@@ -172,20 +172,20 @@ export default function App() {
             </div>
           </header>
 
-          {selectedSubject && view === 'dashboard' && (
-            <div className="dashboard-context" role="region" aria-label="Dashboard safety guidance">
-              <section className="emergency-notice" aria-labelledby="emergency-title">
-                <span className="emergency-notice__icon" aria-hidden="true">!</span>
-                <div className="emergency-notice__copy"><h2 id="emergency-title">If you feel unwell now</h2><p>{legacyText('home.emergency')}</p></div>
-              </section>
-              <section className="dashboard-disclaimer" aria-labelledby="dashboard-disclaimer-title">
-                <div className="dashboard-disclaimer__mark" aria-hidden="true">i</div>
-                <div className="dashboard-disclaimer__copy"><h2 id="dashboard-disclaimer-title">What this system cannot do</h2><p>{legacyText('home.cannot')}</p></div>
-              </section>
-            </div>
-          )}
+          <div className={`workspace-scroll${view === 'dashboard' && selectedSubject ? ' workspace-scroll--dashboard' : ''}`}>
+            {selectedSubject && view === 'dashboard' && (
+              <div className="dashboard-context" role="region" aria-label="Dashboard safety guidance">
+                <section className="emergency-notice" aria-labelledby="emergency-title">
+                  <span className="emergency-notice__icon" aria-hidden="true">!</span>
+                  <div className="emergency-notice__copy"><h2 id="emergency-title">If you feel unwell now</h2><p>{legacyText('home.emergency')}</p></div>
+                </section>
+                <section className="dashboard-disclaimer" aria-labelledby="dashboard-disclaimer-title">
+                  <div className="dashboard-disclaimer__mark" aria-hidden="true">i</div>
+                  <div className="dashboard-disclaimer__copy"><h2 id="dashboard-disclaimer-title">What this system cannot do</h2><p>{legacyText('home.cannot')}</p></div>
+                </section>
+              </div>
+            )}
 
-          <div className="workspace-scroll">
             {shellLoading ? (
               <div className="state-card" role="status"><span className="loading-orbit" aria-hidden="true" />Loading your dashboard.</div>
             ) : shellError ? (
