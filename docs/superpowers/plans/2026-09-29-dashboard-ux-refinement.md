@@ -105,3 +105,22 @@
 - [x] Commit and push the final verified plan and UI changes on `feat/vite-original-ui-enhancements` only.
 
 **Done when:** focused tests, frontend checks, final repository checks, and Playwright comparison support the requested style and parity constraints, with repository failures reported accurately.
+
+### Follow-up: restore Pipeline provenance status colors
+
+**Discovery:** A same-size Playwright comparison showed the original Vite Pipeline used cyan for `CITED`, amber for `ASSUMED`, and purple for `DERIVED` safety-rule provenance. The current Pipeline table rendered the same statuses as plain text, removing that visual distinction.
+
+**Files:**
+
+- Modify `frontend/src/components/PipelineOverview.tsx` to render a small status badge in the existing provenance column.
+- Modify `frontend/src/index.css` with the three original status colors and a neutral fallback for unrecognized API values.
+- Modify `frontend/src/__tests__/PipelineView.test.tsx` to assert all three status classes.
+
+- [x] Add and run the regression test first; confirmed all three statuses failed because the table rendered plain text without the expected color class.
+- [x] Add the minimal badge markup and status color rules without changing layout, copy, or the shell theme.
+- [x] Run focused Pipeline tests, the full frontend suite, type check, and production build. The focused Pipeline file passed 8 tests; the frontend suite passed 74 tests across 13 files; TypeScript and Vite production build passed.
+- [x] Re-capture both Pipeline screenshots in Playwright at 1440×900 and confirm cyan `CITED`, amber `ASSUMED`, and purple `DERIVED` in the current table, matching the original status colors. Computed browser colors also matched the original Vite values.
+
+**Repository checks:** `uv run ruff check src tests` passed. `uv run ruff format --check src tests` still reports six untouched Python files that would be reformatted. `uv run pytest -n auto` completed with 709 passed, 3 skipped, and 4 failures: the parquet test lacks `pyarrow`/`fastparquet`; two retrieval tests fail because the local passages are unavailable and the embedding-model load exceeds the Windows paging file; the conversation test's xdist worker crashed with a Windows access violation during the same model load. No Python files were changed for this UI fix.
+
+**Done when:** the statuses remain readable text and regain the same meaning and colors as the original Vite Pipeline, with the expanded current Pipeline content unchanged.

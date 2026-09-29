@@ -81,6 +81,18 @@ describe('Pipeline destination', () => {
     expect(screen.getByText('Named published source and population scope.')).toBeInTheDocument()
   })
 
+  it.each([
+    ['CITED', 'cited'],
+    ['ASSUMED', 'assumed'],
+    ['DERIVED', 'derived'],
+  ])('color-codes %s safety-rule provenance', async (provenance, tone) => {
+    mockRecordApi()
+    const safetyRules = [{ ...data.safetyRules[0], provenance }]
+    render(<RecordView subject={subject} config={config} data={{ ...data, safetyRules }} initialNight={null} onNavigate={() => undefined} />)
+
+    expect(await screen.findByText(provenance)).toHaveClass(`provenance-badge--${tone}`)
+  })
+
   it('opens the selected night in the trace and keeps its date in the selector', async () => {
     mockRecordApi()
     render(<RecordView subject={subject} config={config} data={data} initialNight="2026-09-27" onNavigate={() => undefined} />)

@@ -32,6 +32,15 @@ const layers = [
   },
 ] as const
 
+function provenanceTone(provenance: string): string {
+  switch (provenance.trim().toUpperCase()) {
+    case 'CITED': return 'cited'
+    case 'ASSUMED': return 'assumed'
+    case 'DERIVED': return 'derived'
+    default: return 'unknown'
+  }
+}
+
 export function PipelineOverview({ data, timezone }: { data: BackendData; timezone: string }) {
   const episode = data.activeEpisode?.summary ?? data.episodes[0] ?? null
   const rules = data.safetyRules
@@ -74,7 +83,7 @@ export function PipelineOverview({ data, timezone }: { data: BackendData; timezo
         <p>These rules can raise urgency. The model cannot switch them off or lower their result.</p>
         {data.errors.safetyRules ? <p className="inline-notice inline-notice--warning" role="alert">Safety rule details could not be loaded. This is a fetch failure, not an empty rule set. {data.errors.safetyRules}</p> : rules.length === 0 ? <p>No safety rule details are available in this response.</p> : <div className="table-scroll" role="region" aria-label="Safety rule sources" tabIndex={0}>
           <table className="history-table"><thead><tr><th>Rule</th><th>Value</th><th>Source status</th><th>Basis and population scope</th></tr></thead><tbody>
-            {rules.map((rule, index) => <tr key={`${rule.rule}-${rule.number}-${index}`}><td>{rule.rule}</td><td>{rule.number}</td><td>{rule.provenance}</td><td>{rule.basis}</td></tr>)}
+            {rules.map((rule, index) => <tr key={`${rule.rule}-${rule.number}-${index}`}><td>{rule.rule}</td><td>{rule.number}</td><td><span className={`provenance-badge provenance-badge--${provenanceTone(rule.provenance)}`}>{rule.provenance}</span></td><td>{rule.basis}</td></tr>)}
           </tbody></table>
         </div>}
       </section>
