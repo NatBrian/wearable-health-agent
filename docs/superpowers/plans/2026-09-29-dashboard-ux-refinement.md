@@ -84,6 +84,6 @@
 - [x] Capture same-size 1440×900 screenshots of both Dashboard Overview pages. Confirm the original sidebar, colors, typography, card grid, chart, and chat affordance remain recognizable; confirm the full emergency and disclaimer copy remains visible and the trend chart is visible above the fold.
 - [x] At 390px, confirm the complete emergency guidance and disclaimer fit without horizontal overflow; at desktop, the metric cards should begin above y=330 and the trend panel above y=520. Measured document width was 390px; desktop cards began at y=302 and the trend panel at y=487.
 - [x] Confirm each metric remains selectable, selected colors follow the series, all safety copy remains visible, and browser/API errors are absent. The regression test covers series selection; the browser showed no console errors and all observed API requests returned HTTP 200.
-- [ ] Commit and push the verified plan and UI changes on `feat/vite-original-ui-enhancements` only.
+- [x] Commit and push the verified plan and UI changes on `feat/vite-original-ui-enhancements` only.
 
 **Done when:** focused tests, frontend checks, final repository checks, and Playwright comparison support the requested style and parity constraints, with any pre-existing failures reported.
