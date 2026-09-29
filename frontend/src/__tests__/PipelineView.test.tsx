@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { api, type AuditQueryResponse, type EpisodeDetail, type EpisodeSummary, type NightPipeline, type PipelineNightRef, type Subject, type SystemConfig } from '../api'
+import { api, type AuditQueryResponse, type ConversationSession, type EpisodeDetail, type EpisodeSummary, type NightPipeline, type PipelineNightRef, type Subject, type SystemConfig } from '../api'
 import type { BackendData } from '../useBackend'
 import { RecordView } from '../views/RecordView'
 
@@ -51,20 +51,20 @@ const integrityCases: [string, AuditQueryResponse, string][] = [
   ['an empty record', { ...audit, events: [], plain: [], count: 0, intact: true }, 'Nothing has been recorded yet.'],
 ]
 
-function mockRecordApi(auditResult = audit) {
+function mockRecordApi(auditResult = audit, sessions: ConversationSession[] = [{
+  started_utc: '2026-09-27T00:30:00Z',
+  turns: [{
+    id: 'turn-a', episode_id: 'episode-a', subject_id: 'demo', seq: 1, role: 'agent',
+    text: 'This reply contains a sourced statement.',
+    citations_json: JSON.stringify([{ source_id: 'source-a', title: 'Example paper', uri: null, passage: 'The source passage stays visible here.', retrieval_score: 0.8, quoted_span: 'The source passage' }]),
+    uncited_json: '[]', urgency: null, triggered_flags_json: '[]', asked_item_id: null,
+    presentation: null, created_at_utc: '2026-09-27T01:00:00Z',
+  }],
+}]) {
   vi.spyOn(api, 'listPipelineNights').mockResolvedValue(refs)
   vi.spyOn(api, 'getNightPipeline').mockResolvedValue(pipeline)
   vi.spyOn(api, 'getAudit').mockResolvedValue(auditResult)
-  vi.spyOn(api, 'getConversationSessions').mockResolvedValue([{
-    started_utc: '2026-09-27T00:30:00Z',
-    turns: [{
-      id: 'turn-a', episode_id: 'episode-a', subject_id: 'demo', seq: 1, role: 'agent',
-      text: 'This reply contains a sourced statement.',
-      citations_json: JSON.stringify([{ source_id: 'source-a', title: 'Example paper', uri: null, passage: 'The source passage stays visible here.', retrieval_score: 0.8, quoted_span: 'The source passage' }]),
-      uncited_json: '[]', urgency: null, triggered_flags_json: '[]', asked_item_id: null,
-      presentation: null, created_at_utc: '2026-09-27T01:00:00Z',
-    }],
-  }])
+  vi.spyOn(api, 'getConversationSessions').mockResolvedValue(sessions)
 }
 
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
@@ -127,5 +127,23 @@ describe('Pipeline destination', () => {
     await waitFor(() => expect(api.getAudit).toHaveBeenLastCalledWith('demo', expect.objectContaining({ actor: 'agent' }), 100, 0))
     fireEvent.click(screen.getByRole('button', { name: 'Prepare a copy of the record' }))
     await waitFor(() => expect(exportAudit).toHaveBeenCalledWith('demo', expect.objectContaining({ actor: 'agent' })))
+  })
+
+  it('marks archived agent replies unverified when source metadata is empty', async () => {
+    mockRecordApi(audit, [{
+      started_utc: '2026-09-27T00:30:00Z',
+      turns: [{
+        id: 'turn-unverified', episode_id: 'episode-a', subject_id: 'demo', seq: 1,
+        role: 'agent', text: 'An archived reply without source status.',
+        citations_json: '[]', uncited_json: '[]', urgency: null, triggered_flags_json: '[]',
+        asked_item_id: null, presentation: null, created_at_utc: '2026-09-27T01:00:00Z',
+      }],
+    }])
+    render(<RecordView subject={subject} config={config} data={data} initialNight={null} onNavigate={() => undefined} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Everything the system did' }))
+
+    expect(await screen.findByRole('heading', { name: 'Conversations' })).toBeInTheDocument()
+    expect(await screen.findByRole('complementary', { name: 'Source status unavailable' }))
+      .toHaveTextContent('Treat any health information here as unverified.')
   })
 })

@@ -3,19 +3,29 @@ import type { Citation, SystemConfig } from '../api'
 import { legacyText } from '../content/legacyCopy'
 import { isExternalSource, sourceLabel } from '../lib/format'
 
+const MISSING_SOURCE_STATUS = 'No source or unsupported-content note was attached to this reply. Treat any health information here as unverified.'
+
 export function CitationPanel({
-  citations, uncited, config,
+  citations, uncited, config, showMissingStatus = false,
 }: {
   citations: Citation[]
   uncited: string[]
   config: SystemConfig
+  showMissingStatus?: boolean
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const hasExternal = citations.some((citation) => isExternalSource(citation.source_id, config))
   const attribution = typeof config.ATTRIBUTION_NOTE === 'string' ? config.ATTRIBUTION_NOTE : ''
+  const missingStatus = showMissingStatus && citations.length === 0 && uncited.length === 0
 
   return (
     <div className="evidence-stack">
+      {missingStatus && (
+        <aside className="uncited-warning" aria-label="Source status unavailable">
+          <strong>Source status unavailable</strong>
+          <p>{MISSING_SOURCE_STATUS}</p>
+        </aside>
+      )}
       {uncited.length > 0 && (
         <aside className="uncited-warning" aria-label="Not from a cited source">
           <strong>Not from a cited source</strong>

@@ -96,6 +96,7 @@ describe('SettingsView', () => {
 
     fireEvent.click(within(navigation).getByRole('button', { name: 'Agent Behavior' }))
     expect(screen.getByLabelText(/Where questions should reach you/)).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Check Telegram bot connection' })).toBeVisible()
     const weekly = screen.getByLabelText(/Most questions in a week/)
     expect(weekly).toHaveAttribute('min', '0')
     expect(weekly).toHaveAttribute('max', '20')

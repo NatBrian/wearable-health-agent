@@ -75,9 +75,9 @@ fallback on a disposable copy. Start the demo API as described above, then run t
 dashboard in `frontend/`.
 
 ```bash
-uv run python tools/demo_film/film_vite.py --offline-base-url http://127.0.0.1:8445
+uv run python tools/demo_film/film_vite.py --offline-base-url http://127.0.0.1:8445 --output-dir docs/demo/footage-vite
 uv run python tools/demo_film/cards.py
-uv run python tools/demo_film/assemble.py --footage-dir docs/demo/footage --output-dir docs/demo/review-vite
+uv run python tools/demo_film/assemble.py --footage-dir docs/demo/footage-vite --output-dir docs/demo/review-vite
 ```
 
 The recorder uses the normal dashboard for every chapter except the model-outage scene. For

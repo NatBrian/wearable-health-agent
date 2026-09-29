@@ -98,6 +98,24 @@ describe('pending interaction controls', () => {
     expect(screen.getByText('An unsupported statement')).toBeInTheDocument()
   })
 
+  it('marks a review draft unverified when it has no source metadata', () => {
+    const pending: PendingInteraction = {
+      ...questionPending, kind: 'review', question: null,
+      draft_outcome: {
+        schema_version: '1', episode_id: 'episode-a', subject_id: 'sim',
+        opened_on: '2026-09-27', closed_on: '2026-09-28', disposition: 'UNRESOLVED',
+        observation: 'A draft with no attached source metadata.', baseline_nights: 7,
+        baseline_rung: 'PERSONAL', differential: [], evidence_used: [], ruled_out: [],
+        citations: [], unsupported_claims: 0, action: '', escalation_criteria: [],
+        confidence: 'moderate', interruptions_used_this_week: 0, depth_used_this_episode: 0,
+      },
+    }
+    render(<PendingCard pending={pending} config={config} safetyRules={[]} onComplete={() => undefined} />)
+
+    expect(screen.getByRole('complementary', { name: 'Source status unavailable' }))
+      .toHaveTextContent('Treat any health information here as unverified.')
+  })
+
   it('shows the full passage and warns when the supplied quote cannot be found', () => {
     render(<CitationPanel citations={[{
       source_id: 'local:source', title: 'Example source', uri: null, passage: 'The full passage remains available.', retrieval_score: 1, quoted_span: 'missing words',

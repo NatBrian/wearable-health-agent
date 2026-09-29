@@ -237,7 +237,7 @@ export function SettingsView({ subject, config, data, onDeleted }: {
             <label className="field-label">Where questions should reach you<select value={settingsDraft.notify_channel} onChange={(event) => updateSetting('notify_channel', event.target.value as Settings['notify_channel'])}><option value="none">On this screen</option><option value="telegram">Telegram</option></select><small>With none, questions wait on this screen until you open it. With Telegram they arrive on your phone and you can answer there.</small></label>
             <label className="field-label">Telegram bot token<input aria-label="Telegram bot token" type="password" autoComplete="new-password" value={telegramToken} onChange={(event) => setTelegramToken(event.target.value)} /><small>Stored on this machine only. Never shown again after you save it. Leave blank to keep a saved token.</small></label>
           </div>
-          <DiagnosticButton component="telegram" label="Send myself a test message" diagnostics={diagnostics} onTest={testConnection} />
+          <DiagnosticButton component="telegram" label="Check Telegram bot connection" diagnostics={diagnostics} onTest={testConnection} />
         </section>
 
         <section hidden={section !== 'agent'} className="content-card settings-section" aria-labelledby="settings-budget-title">

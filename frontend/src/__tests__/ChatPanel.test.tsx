@@ -110,4 +110,20 @@ describe('ChatPanel', () => {
     expect(screen.getByText('The quoted source span appears here, in this context.')).toBeInTheDocument()
     expect(screen.getByText(/does not prove the sentence built around them describes the passage fairly/)).toBeInTheDocument()
   })
+
+  it('marks an agent reply unverified when source status metadata is missing', async () => {
+    api.getConversationSessions.mockResolvedValue([{
+      started_utc: '2026-09-20T00:00:00Z',
+      turns: [{
+        id: 'turn-unverified', episode_id: null, subject_id: 'demo', seq: 1, role: 'agent',
+        text: 'A reply without source-status metadata.', citations_json: '[]', uncited_json: '[]',
+        urgency: null, triggered_flags_json: '[]', asked_item_id: null, presentation: null,
+        created_at_utc: '2026-09-20T01:00:00Z',
+      }],
+    }])
+    render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} safetyRules={[]} refreshAfterSend={vi.fn()} onClose={vi.fn()} />)
+
+    expect(await screen.findByRole('complementary', { name: 'Source status unavailable' }))
+      .toHaveTextContent('Treat any health information here as unverified.')
+  })
 })

@@ -113,7 +113,7 @@ export function ChatPanel({
             <article className={`chat-turn ${turn.role === 'user' ? 'chat-turn--user' : 'chat-turn--agent'}`} key={turn.id}>
               <div className="chat-turn__meta"><strong>{turn.role === 'user' ? 'You' : 'Agent'}</strong><time dateTime={turn.created_at_utc}>{timeLabel(turn.created_at_utc, subject.timezone)}</time>{turn.urgency && <span className="urgency-inline">{turn.urgency.replace('_', ' ')}</span>}</div>
               <p>{turn.text}</p>
-              <CitationPanel citations={citations} uncited={uncited} config={config} />
+              <CitationPanel citations={citations} uncited={uncited} config={config} showMissingStatus={turn.role === 'agent'} />
             </article>
           )
         })}

@@ -5,9 +5,10 @@
     uv run python tools/demo_film/film_vite.py --only 1 --only 2
 
 The API and Vite frontend must already be serving the demo subject. The recorder uses the
-dashboard's accessible controls and changes only local view state. Chapter 18 is separate:
-it requires an isolated demo clone with the model and notifications disabled, then records
-one fixed-rule fallback interaction against that disposable clone. No setting is saved.
+dashboard's accessible controls. Chapter 12 displays actual turns already submitted through
+the real chat panel and API, including their source-status labels. Chapter 18 is separate: it
+records one fixed-rule fallback against a disposable clone with the model disabled. No
+setting is saved.
 """
 
 from __future__ import annotations
@@ -97,6 +98,27 @@ class Stage:
         self.page.evaluate(
             """([target, duration]) => {
               const element = document.querySelector('.workspace-scroll');
+              if (!element) return;
+              const startTop = element.scrollTop;
+              const startTime = performance.now();
+              const step = now => {
+                const progress = Math.min(1, (now - startTime) / duration);
+                const eased = progress < 0.5
+                  ? 2 * progress * progress
+                  : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+                element.scrollTop = startTop + (target - startTop) * eased;
+                if (progress < 1) requestAnimationFrame(step);
+              };
+              requestAnimationFrame(step);
+            }""",
+            [target, int(seconds * 1000)],
+        )
+        return self.wait(seconds + 0.4)
+
+    def glide_chat(self, target: int, seconds: float = 1.5) -> Stage:
+        self.page.evaluate(
+            """([target, duration]) => {
+              const element = document.querySelector('.chat-transcript');
               if (!element) return;
               const startTop = element.scrollTop;
               const startTime = performance.now();
@@ -219,7 +241,44 @@ def scene_grounding(stage: Stage) -> None:
     archive.wait_for(state="visible", timeout=15000)
     archive.locator(".archive-session").nth(1).locator("summary").click()
     stage.focus(stage.page.get_by_text("Sources behind this reply").first)
-    stage.wait(10.0)
+    stage.wait(7.0)
+
+    stage.primary("Dashboard")
+    stage.dashboard_tab("Overview")
+    stage.page.get_by_role("button", name=re.compile("Open Agent Chat")).click()
+    stage.page.get_by_role("heading", name="Ask about any of this").wait_for(timeout=15000)
+    transcript = stage.page.locator(".chat-transcript")
+    transcript.locator(".chat-turn--agent").nth(1).wait_for(state="visible", timeout=60000)
+    user_count = transcript.locator(".chat-turn--user").count()
+    agent_turns = transcript.locator(".chat-turn--agent")
+    if user_count < 2 or agent_turns.count() < 2:
+        raise SystemExit(
+            "Chapter 12 needs at least two actual user/API/agent exchanges already "
+            "recorded for the demo night."
+        )
+    for index in range(agent_turns.count()):
+        _require_live_chat_turn(agent_turns.nth(index))
+    if transcript.locator('[aria-label="Source status unavailable"]').count() == 0:
+        raise SystemExit("The live chat has no visible missing-source-status warning.")
+
+    max_scroll = transcript.evaluate("element => element.scrollHeight - element.clientHeight")
+    for position in (0, max_scroll * 0.5, max_scroll):
+        stage.glide_chat(position)
+        stage.wait(5.0)
+
+
+def _require_live_chat_turn(turn: Locator) -> None:
+    reply = turn.locator(":scope > p").inner_text().strip()
+    if not reply:
+        raise SystemExit("The live chat turn returned an empty agent message.")
+    if "I cannot reach the language model right now" in reply:
+        raise SystemExit("The live model is unavailable; the chat scene was not captured.")
+    status = turn.locator(
+        '[aria-label="Sources behind this reply"], '
+        '[aria-label="Not from a cited source"], '
+        '[aria-label="Source status unavailable"]',
+    )
+    status.wait_for(state="visible", timeout=10000)
 
 
 def scene_safety(stage: Stage) -> None:
@@ -327,7 +386,7 @@ SCENES = (
     Scene(7, "Four quiet nights", "exercise, alcohol, and their recorded outcomes", scene_quiet_nights),
     Scene(8, "Something starts, and it still says nothing", "first raised night", scene_first_red),
     Scene(10, "The agent wakes", "recorded investigation and question", scene_agent_wakes),
-    Scene(12, "It has to prove what it says", "read-only cited conversation archive", scene_grounding),
+    Scene(12, "It has to prove what it says", "archive and live API conversation", scene_grounding),
     Scene(13, "Two symptoms, two different nights", "recorded safety floor", scene_safety),
     Scene(14, "Everything it did, written down", "audit trail and archive", scene_audit),
     Scene(15, "Feeling better is not the same as being better", "recovery night in History", scene_recovery),

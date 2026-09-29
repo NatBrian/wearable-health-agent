@@ -231,7 +231,7 @@ function ConversationArchive({ sessions, loading, error, subject, config }: {
       return <details className="archive-session" key={`${session.started_utc}-${turns[0]?.id ?? index}`} open={index === 0}><summary>{timeLabel(session.started_utc, subject.timezone)} · {turns.length} turns{urgency ? ` · safety rules reached ${urgency.replace('_', ' ')}` : ''}</summary>{turns.map((turn) => {
         const citations = parseJsonArray(turn.citations_json)
         const uncited = parseJsonArray(turn.uncited_json).filter((item): item is string => typeof item === 'string')
-        return <article className="archive-turn" key={turn.id}><strong>{turn.role === 'user' ? 'You' : 'The system'}</strong><time>{timeLabel(turn.created_at_utc, subject.timezone)}</time><p>{turn.text}</p><CitationPanel citations={citations} uncited={uncited} config={config} /></article>
+        return <article className="archive-turn" key={turn.id}><strong>{turn.role === 'user' ? 'You' : 'The system'}</strong><time>{timeLabel(turn.created_at_utc, subject.timezone)}</time><p>{turn.text}</p><CitationPanel citations={citations} uncited={uncited} config={config} showMissingStatus={turn.role === 'agent'} /></article>
       })}</details>
     })}</div></>}
   </section>
