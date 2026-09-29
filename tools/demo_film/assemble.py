@@ -161,7 +161,9 @@ def marker(seconds: float) -> str:
     return f"{whole // 60:02d}:{whole % 60:02d}"
 
 
-def build_segments(script: dict, work: Path) -> list[Segment]:
+def build_segments(
+    script: dict, work: Path, footage_dir: Path = FOOTAGE_DIR
+) -> list[Segment]:
     segments: list[Segment] = []
     missing_footage: list[str] = []
 
@@ -180,8 +182,8 @@ def build_segments(script: dict, work: Path) -> list[Segment]:
             form = chapter.get("form", "card")
             captions = tuple(chapter.get("captions") or ())
 
-            if "live" in form or "stills" in form:
-                shot = FOOTAGE_DIR / f"{cid:02d}-{slug}.mp4"
+            if "live" in form:
+                shot = footage_dir / f"{cid:02d}-{slug}.mp4"
                 if shot.is_file():
                     clip = work / f"{cid:02d}-1-live.mp4"
                     footage_to_clip(shot, clip)
@@ -321,39 +323,51 @@ def main() -> int:
         "--no-captions", action="store_true", help="skip the burn-in, for a quick check"
     )
     parser.add_argument("--work-dir", help="where the intermediate segments live")
+    parser.add_argument(
+        "--footage-dir",
+        default=str(FOOTAGE_DIR),
+        help="live footage directory (defaults to the published footage)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=str(OUT_DIR),
+        help="where the video, captions, chapters, and work files are written",
+    )
     args = parser.parse_args()
 
     if shutil.which("ffmpeg") is None:
         raise SystemExit("ffmpeg is not on PATH")
 
     script = yaml.safe_load(SCRIPT.read_text(encoding="utf-8"))
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_dir = Path(args.output_dir).resolve()
+    footage_dir = Path(args.footage_dir).resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # A PERSISTENT work directory, on purpose. The first version used a temporary one, so
     # fixing the caption style meant re-encoding all 58 segments again: twenty five minutes
     # to change a font size. Segments are reused when they are newer than what they came
     # from, which is the same rule make has used for fifty years.
-    work = Path(args.work_dir) if args.work_dir else (OUT_DIR / "work")
+    work = Path(args.work_dir).resolve() if args.work_dir else (output_dir / "work")
     work.mkdir(parents=True, exist_ok=True)
     if True:
-        segments = build_segments(script, work)
+        segments = build_segments(script, work, footage_dir)
 
         listing = work / "concat.txt"
         listing.write_text(
-            "\n".join(f"file '{s.path.as_posix()}'" for s in segments) + "\n",
+            "\n".join(f"file '{s.path.name}'" for s in segments) + "\n",
             encoding="utf-8",
         )
 
         silent = work / "silent.mp4"
         ffmpeg("-f", "concat", "-safe", "0", "-i", str(listing), "-c", "copy", str(silent))
 
-        srt = OUT_DIR / "captions.srt"
+        srt = output_dir / "captions.srt"
         write_captions(segments, srt)
-        ass = OUT_DIR / "captions.ass"
+        ass = output_dir / "captions.ass"
         write_ass(segments, ass)
-        write_chapters(script, segments, OUT_DIR / "chapters.txt")
+        write_chapters(script, segments, output_dir / "chapters.txt")
 
-        final = OUT_DIR / "wha-demo.mp4"
+        final = output_dir / "wha-demo.mp4"
         if args.no_captions or srt.stat().st_size == 0:
             shutil.copyfile(silent, final)
         else:
@@ -390,7 +404,7 @@ def main() -> int:
         total = probe_seconds(final)
         print(f"\n{final}")
         print(f"{len(segments)} segments, {marker(total)} long")
-        print(f"chapters: {OUT_DIR / 'chapters.txt'}")
+        print(f"chapters: {output_dir / 'chapters.txt'}")
     return 0
 
 

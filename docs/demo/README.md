@@ -9,7 +9,7 @@ Chaptered, captioned, no narration.
 | `chapters.txt` | Chapter timestamps, for a video description |
 | `captions.srt` | Every caption with its timing, readable before it is burned in |
 | `cards/` | The full frame cards, rendered from `script.yaml` |
-| `footage/` | The live segments, recorded from the running dashboard |
+| `footage/` | The live segments, recorded from the Vite dashboard |
 | `telegram/` | Real messages this build sent to a real phone |
 | `preflight/` | Frames from the resolution check, kept so the next person can see what passed |
 
@@ -69,15 +69,29 @@ That script does three things `wha serve` on its own would not:
 
 ## Rebuilding it
 
+The timeline is already committed, so this records the dashboard without rebuilding its
+simulated history. The outage scene uses one existing demo prompt and records the fixed-rule
+fallback on a disposable copy. Start the demo API as described above, then run the Vite
+dashboard in `frontend/`.
+
 ```bash
-uv run python tools/demo_film/serve_watch.py            # terminal 1, the mock watch
-uv run python tools/demo_film/build.py --stage seed     # terminal 2
-uv run python tools/demo_film/build.py --stage story    # hits the real model
-uv run python tools/demo_film/preflight.py              # then LOOK at the frames
-uv run python tools/demo_film/film.py                   # record the live scenes
+uv run python tools/demo_film/film_vite.py --offline-base-url http://127.0.0.1:8445
 uv run python tools/demo_film/cards.py
-uv run python tools/demo_film/assemble.py
+uv run python tools/demo_film/assemble.py --footage-dir docs/demo/footage --output-dir docs/demo/review-vite
 ```
+
+The recorder uses the normal dashboard for every chapter except the model-outage scene. For
+that scene, run a second Vite instance on the offline URL above with
+`VITE_API_URL=http://127.0.0.1:8502`. Its API must use a disposable copy of the demo database,
+subject `demo`, `--no-scheduler`, `WHA_LLM_PROVIDER=openai_compatible`, an empty model key,
+`WHA_NOTIFY_CHANNEL=none`, no Telegram credentials, and a model base URL on a verified closed
+localhost port. The recorder requires this separate frontend URL so its one existing demo
+prompt cannot reach the normal API; only the cloned database receives the fallback turn.
+Review the render in `docs/demo/review-vite/` before copying it over the published film.
+
+The assembler's output and footage directories can be changed with `--output-dir` and
+`--footage-dir`. Its persistent `work/` subdirectory reuses encoded segments on the next
+run.
 
 `build.py` is the part worth understanding. It states what each day is predicted to do
 BEFORE running it, and halts on the first day that does something else. A simulation you
