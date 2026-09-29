@@ -37,6 +37,8 @@ export function SettingsView({ subject, config, data, onDeleted }: {
   const [profileSaved, setProfileSaved] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [changedSettings, setChangedSettings] = useState<string[]>([])
+  const [adjustedSettings, setAdjustedSettings] = useState<string[]>([])
+  const [savedSecrets, setSavedSecrets] = useState(false)
   const [diagnostics, setDiagnostics] = useState<DiagnosticState>({})
   const [section, setSection] = useState<SettingsSection>('device')
   const [deleteText, setDeleteText] = useState('')
@@ -104,6 +106,10 @@ export function SettingsView({ subject, config, data, onDeleted }: {
     setSettingsSaving(true)
     setSettingsError(null)
     setSettingsSaved(false)
+    setChangedSettings([])
+    setAdjustedSettings([])
+    setSavedSecrets(false)
+    const secretSubmitted = Boolean(bridgeToken || llmApiKey || telegramToken)
     const patch: SettingsPatch = {
       ...settingsDraft,
       bridge_host: settingsDraft.bridge_host || null,
@@ -120,7 +126,11 @@ export function SettingsView({ subject, config, data, onDeleted }: {
         ['interruption_budget_per_week', 'Weekly question limit'],
         ['depth_budget_per_episode', 'Questions per investigation'], ['policy_cost_weight', 'Interruption cost'],
       ]
-      setChangedSettings(labels.filter(([key]) => settingsDraft[key] !== saved[key]).map(([, label]) => label))
+      setChangedSettings(data.settings
+        ? labels.filter(([key]) => data.settings?.[key] !== saved[key]).map(([, label]) => label)
+        : [])
+      setAdjustedSettings(labels.filter(([key]) => settingsDraft[key] !== saved[key]).map(([, label]) => label))
+      setSavedSecrets(secretSubmitted)
       setSettingsDraft(saved)
       setBridgeToken('')
       setLlmApiKey('')
@@ -267,7 +277,7 @@ export function SettingsView({ subject, config, data, onDeleted }: {
       {section === 'agent' && settingsDraft && <section className="content-card safety-settings-note"><h2>Safety rules stay in control</h2><p>The deterministic safety floor runs before the model and cannot be disabled or lowered through settings. The model can only add caution.</p></section>}
       {section === 'model' && settingsDraft && <section className="content-card retrieval-settings-note"><h2>Retrieval grounding</h2><p>A supported clinical sentence must contain a verbatim span from a retrieved passage. That check confirms the words exist in the passage; it does not prove the sentence around them is fair to the source. The full passage and its source stay available in the Pipeline record.</p></section>}
       {settingsDraft && <div className="settings-savebar">
-        <div className="settings-actions"><button className="button button--primary" onClick={() => void saveSettings()} disabled={settingsSaving}>{settingsSaving ? 'Saving…' : 'Save all settings'}</button>{settingsSaved && <span className="save-confirmation" role="status">Saved.{changedSettings.length > 0 ? ` Changed: ${changedSettings.join(', ')}.` : ' No returned setting values changed.'}</span>}</div>
+        <div className="settings-actions"><button className="button button--primary" onClick={() => void saveSettings()} disabled={settingsSaving}>{settingsSaving ? 'Saving…' : 'Save all settings'}</button>{settingsSaved && <span className="save-confirmation" role="status">Saved.{changedSettings.length > 0 ? ` Changed: ${changedSettings.join(', ')}.` : null}{savedSecrets ? ' Connection secrets saved; their values are not returned.' : null}{changedSettings.length === 0 && !savedSecrets && adjustedSettings.length === 0 ? ' No setting values changed.' : null}{adjustedSettings.length > 0 ? ` The application did not apply your requested values for: ${adjustedSettings.join(', ')}.` : null}</span>}</div>
         {settingsError && <p className="inline-notice inline-notice--warning" role="alert">Settings could not be saved. Your entries are still here. {settingsError}</p>}
       </div>}
         </div>

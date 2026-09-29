@@ -84,6 +84,8 @@ describe('SettingsView', () => {
     await waitFor(() => expect(api.updateSettings).toHaveBeenCalled())
     expect(api.updateSettings.mock.calls[0][0]).toMatchObject({ bridge_host: 'http://watch.local' })
     expect(api.updateSettings.mock.calls[0][0]).toMatchObject({ bridge_token: 'private-token' })
+    expect(screen.getByText(/Connection secrets saved; their values are not returned\./)).toBeInTheDocument()
+    expect(screen.getByText(/Connection secrets saved; their values are not returned\./)).not.toHaveTextContent('private-token')
   })
 
   it('keeps every original settings section and exposes its controls in place', async () => {
@@ -123,6 +125,21 @@ describe('SettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save all settings' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('save unavailable')
     expect(weekly).toHaveValue(5)
+  })
+
+  it('reports fields that changed from their loaded values after the API accepts them', async () => {
+    const refresh = vi.fn()
+    const accepted = { ...settings, interruption_budget_per_week: 5 }
+    api.updateSettings.mockResolvedValue(accepted)
+    render(<SettingsView subject={subject('demo')} config={config} data={{ ...data, refresh }} onDeleted={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Agent Behavior' }))
+    fireEvent.change(await screen.findByLabelText(/Most questions in a week/), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save all settings' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Saved. Changed: Weekly question limit.')
+    expect(screen.getByRole('status')).not.toHaveTextContent('No setting values changed.')
+    expect(api.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ interruption_budget_per_week: 5 }))
+    expect(refresh).toHaveBeenCalledOnce()
   })
 
   it('requires the exact disposable subject id before deletion and never offers deletion for me', async () => {

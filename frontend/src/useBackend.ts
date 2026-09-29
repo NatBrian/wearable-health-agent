@@ -44,6 +44,8 @@ export interface BackendData {
 
 type BackendSnapshot = Omit<BackendData, 'loading' | 'error' | 'refresh'>
 
+export const PENDING_POLL_INTERVAL_MS = 30_000
+
 const EMPTY_DATA: BackendSnapshot = {
   status: null,
   summary: null,
@@ -154,6 +156,39 @@ export function useBackend(subjectId: string | null, historyDays = 28): BackendD
 
     return () => { active = false }
   }, [subjectId, historyDays, revision])
+
+  useEffect(() => {
+    if (!subjectId) return
+
+    let active = true
+    let inFlight = false
+    const refreshPending = async () => {
+      if (!active || inFlight || document.visibilityState === 'hidden') return
+      inFlight = true
+      try {
+        const pending = await api.getPending(subjectId)
+        if (!active) return
+        setData((current) => {
+          const errors = { ...current.errors }
+          delete errors.pending
+          return { ...current, pending, errors }
+        })
+      } catch (exc) {
+        if (!active) return
+        setData((current) => ({ ...current, errors: { ...current.errors, pending: String(exc) } }))
+      } finally {
+        inFlight = false
+      }
+    }
+
+    const interval = window.setInterval(() => { void refreshPending() }, PENDING_POLL_INTERVAL_MS)
+    document.addEventListener('visibilitychange', refreshPending)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', refreshPending)
+    }
+  }, [subjectId])
 
   const currentData = subjectId === dataSubjectId ? data : EMPTY_DATA
   return {

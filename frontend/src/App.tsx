@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api, CAUSE_LABELS, type Subject, type SystemConfig } from './api'
 import { ChatPanel } from './components/ChatPanel'
 import { legacyText } from './content/legacyCopy'
@@ -99,6 +99,27 @@ export default function App() {
   const selectedSubject = resolution.kind === 'selected' ? resolution.subject : null
   const data = useBackend(selectedSubject?.subject_id ?? null, config?.dashboard.history_windows_days[0] ?? 28)
   const hasUnread = Boolean(data.pending || data.errors.pending) && !chatOpen
+  const pendingIdentity = data.pending
+    ? JSON.stringify([
+        selectedSubject?.subject_id,
+        data.pending.kind,
+        data.pending.episode_id,
+        data.pending.question?.probe.probe_id ?? null,
+        data.pending.measurement?.measurement_id ?? null,
+      ])
+    : null
+  const lastOpenedPending = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!pendingIdentity) {
+      lastOpenedPending.current = null
+      return
+    }
+    if (lastOpenedPending.current !== pendingIdentity) {
+      lastOpenedPending.current = pendingIdentity
+      setChatOpen(true)
+    }
+  }, [pendingIdentity])
 
   const navigate = (next: DashboardViewId, nightDate?: string) => {
     window.scrollTo(0, 0)

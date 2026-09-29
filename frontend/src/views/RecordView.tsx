@@ -64,10 +64,17 @@ export function RecordView({ subject, config, data, initialNight, onNavigate }: 
   }, [subject.subject_id])
 
   useEffect(() => {
-    if (!nightDate) { setPipeline(null); return }
+    if (!nightDate) {
+      setPipeline(null)
+      setSelectedStep(null)
+      setPipelineLoading(false)
+      return
+    }
     let active = true
+    setPipeline(null)
     setPipelineLoading(true)
     setPipelineError(null)
+    setSelectedStep(null)
     void api.getNightPipeline(subject.subject_id, nightDate)
       .then((value) => {
         if (!active) return
@@ -113,6 +120,7 @@ export function RecordView({ subject, config, data, initialNight, onNavigate }: 
   }, [tab, subject.subject_id])
 
   const selectedIndex = refs.findIndex((ref) => ref.night_date === nightDate)
+  const currentPipeline = pipeline?.night_date === nightDate ? pipeline : null
   const selectEarlier = () => { if (selectedIndex >= 0 && selectedIndex < refs.length - 1) setNightDate(refs[selectedIndex + 1].night_date) }
   const selectLater = () => { if (selectedIndex > 0) setNightDate(refs[selectedIndex - 1].night_date) }
 
@@ -155,11 +163,11 @@ export function RecordView({ subject, config, data, initialNight, onNavigate }: 
           {!refsLoading && !refsError && refs.length === 0 && <div className="content-card empty-record"><strong>No nights are recorded yet.</strong><p>This is an empty record, not a failed check.</p></div>}
           {pipelineLoading && <div className="content-card" role="status">Loading the pipeline for this night.</div>}
           {pipelineError && <div className="content-card inline-notice inline-notice--warning" role="alert">This night could not be loaded. That is a failure to fetch it, not a statement that nothing happened. {pipelineError}</div>}
-          {!pipelineLoading && !pipelineError && nightDate && !pipeline && <div className="content-card">No pipeline detail was recorded for this night.</div>}
-          {pipeline && (
+          {!pipelineLoading && !pipelineError && nightDate && !currentPipeline && <div className="content-card">No pipeline detail was recorded for this night.</div>}
+          {currentPipeline && (
             <>
-              <PipelineTrace pipeline={pipeline} selectedId={selectedStep} onSelect={setSelectedStep} />
-              <PipelineStepDetail step={pipeline.steps.find((step) => step.step_id === selectedStep) ?? null} totalSteps={pipeline.steps.length} config={config} />
+              <PipelineTrace pipeline={currentPipeline} selectedId={selectedStep} onSelect={setSelectedStep} timezone={subject.timezone} />
+              <PipelineStepDetail step={currentPipeline.steps.find((step) => step.step_id === selectedStep) ?? null} totalSteps={currentPipeline.steps.length} config={config} timezone={subject.timezone} />
               <button className="text-link" onClick={() => onNavigate('history')}>Return to History</button>
             </>
           )}

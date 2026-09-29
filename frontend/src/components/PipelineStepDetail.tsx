@@ -1,7 +1,7 @@
 import type { PipelineStepView, SystemConfig } from '../api'
 import { CitationPanel } from './CitationPanel'
 import { LEGACY_COPY, legacyText } from '../content/legacyCopy'
-import { measuredValue, signedValue } from '../lib/format'
+import { dateLabel, measuredValue, signedValue, timeLabel } from '../lib/format'
 
 const FIELD_NAMES: Record<string, string> = {
   heart_rate_samples: 'Readings stored', sleep_stage_rows: 'Sleep records', window_source: 'Window used',
@@ -18,10 +18,11 @@ const FIELD_NAMES: Record<string, string> = {
   raised_something: 'This step raised something', cooccurrence_window_nights: 'How close two symptoms must be',
 }
 
-export function PipelineStepDetail({ step, totalSteps, config }: {
+export function PipelineStepDetail({ step, totalSteps, config, timezone }: {
   step: PipelineStepView | null
   totalSteps: number
   config: SystemConfig
+  timezone: string
 }) {
   if (!step) return <section className="content-card step-detail"><span className="eyebrow">Step detail</span><p>Select a step to see exactly what it did.</p></section>
 
@@ -35,7 +36,7 @@ export function PipelineStepDetail({ step, totalSteps, config }: {
 
   return (
     <section className="content-card step-detail" aria-labelledby="step-detail-heading">
-      <div className="step-detail__meta"><span className={`layer-badge layer-badge--${step.layer}`}>{step.layer}</span><span>Step {step.ordinal} of {totalSteps}</span><span className={`pipeline-status pipeline-status--${step.status}`}>{step.status}</span></div>
+      <div className="step-detail__meta"><span className={`layer-badge layer-badge--${step.layer}`}>{step.layer}</span><span>Step {step.ordinal} of {totalSteps}</span><span className={`pipeline-status pipeline-status--${step.status}`}>{step.status}</span>{step.occurred_utc ? <span>Occurred {dateLabel(step.occurred_utc, timezone)} at {timeLabel(step.occurred_utc, timezone)}</span> : step.status === 'ran' ? <span>Time not recorded</span> : null}</div>
       <h2 id="step-detail-heading">{step.step_id.replace(/_/g, ' ')}</h2>
       <h3>What happened</h3><p>{step.reason || 'No explanation was recorded for this step.'}</p>
       {step.status === 'unrecorded' && <p className="inline-notice inline-notice--warning">{legacyText('pipeline.unrecorded')}</p>}

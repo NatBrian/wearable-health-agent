@@ -43,11 +43,16 @@ function provenanceTone(provenance: string): string {
 
 export function PipelineOverview({ data, timezone }: { data: BackendData; timezone: string }) {
   const episode = data.activeEpisode?.summary ?? data.episodes[0] ?? null
+  const episodeContext = !episode ? 'System context' : episode.state === 'CLOSED' ? 'Most recent investigation' : 'Live system context'
   const rules = data.safetyRules
   const causes = data.activeEpisode?.belief_history.at(-1)?.[2].marginals
-  const topCause = causes
+  const beliefTopCause = causes
     ? (Object.entries(causes) as [keyof typeof CAUSE_LABELS, number][]).sort((left, right) => right[1] - left[1])[0]
     : null
+  const topCause = beliefTopCause ?? (episode?.top_cause && episode.top_probability !== null
+    ? [episode.top_cause, episode.top_probability] as const
+    : null)
+  const causeContext = episode?.state === 'CLOSED' ? 'Leading cause in last recorded belief' : 'Leading cause in current belief'
 
   return (
     <div className="page-stack pipeline-overview">
@@ -61,16 +66,17 @@ export function PipelineOverview({ data, timezone }: { data: BackendData; timezo
       </section>
 
       <section className="content-card episode-summary" aria-labelledby="pipeline-episode-title">
-        <div className="section-heading"><div><span className="eyebrow">Live system context</span><h2 id="pipeline-episode-title">Investigation summary</h2></div>{episode && <span className="level-pill level-na">{episode.state.replace(/_/g, ' ')}</span>}</div>
+        <div className="section-heading"><div><span className="eyebrow">{episodeContext}</span><h2 id="pipeline-episode-title">Investigation summary</h2></div>{episode && <span className="level-pill level-na">{episode.state.replace(/_/g, ' ')}</span>}</div>
         {data.errors.activeEpisode ? <p className="inline-notice inline-notice--warning" role="alert">The current investigation could not be loaded. This is a fetch failure, not an empty history. {data.errors.activeEpisode}</p> : !episode ? <p>{data.episodes.length === 0 ? 'No investigation has been recorded.' : 'No investigation summary is available.'}</p> : <>
           <dl className="episode-summary__facts">
             <div><dt>Investigation</dt><dd>{episode.episode_id}</dd></div>
             <div><dt>Night span</dt><dd>{dateLabel(episode.night_span[0], timezone)} to {dateLabel(episode.night_span[1], timezone)}</dd></div>
             <div><dt>Opened</dt><dd>{dateLabel(episode.opened_on, timezone)}</dd></div>
             {episode.closed_on && <div><dt>Closed</dt><dd>{dateLabel(episode.closed_on, timezone)}</dd></div>}
-            {topCause && <div><dt>Leading cause in current belief</dt><dd>{CAUSE_LABELS[topCause[0]]} · {measuredValue(topCause[1] * 100, '%')}</dd></div>}
+            {topCause && <div><dt>{causeContext}</dt><dd>{CAUSE_LABELS[topCause[0]]} · {measuredValue(topCause[1] * 100, '%')}</dd></div>}
           </dl>
-          {data.activeEpisode && <div className="pipeline-stage-list" aria-label="Episode stage status">
+          {data.activeEpisode && <div className="pipeline-stage-list" aria-label="Investigation-wide stage status">
+            <p className="supporting-copy">These stages describe the investigation as a whole, not one selected night.</p>
             {data.activeEpisode.stages.length > 0 ? data.activeEpisode.stages.map((stage) => <article key={stage.name}>
               <strong>{stage.name.replace(/_/g, ' ')}</strong><span>{stage.status}</span><p>{stage.reason}</p>
             </article>) : <p>No episode stages are recorded in this response.</p>}

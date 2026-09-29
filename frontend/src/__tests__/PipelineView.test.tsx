@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { api, type AuditQueryResponse, type ConversationSession, type EpisodeDetail, type EpisodeSummary, type NightPipeline, type PipelineNightRef, type Subject, type SystemConfig } from '../api'
 import type { BackendData } from '../useBackend'
 import { RecordView } from '../views/RecordView'
@@ -100,6 +100,61 @@ describe('Pipeline destination', () => {
     expect(await screen.findByRole('tab', { name: 'This night, step by step' })).toHaveAttribute('aria-selected', 'true')
     await waitFor(() => expect(api.getNightPipeline).toHaveBeenCalledWith('demo', '2026-09-27'))
     expect(screen.getByRole('combobox', { name: 'Which night' })).toHaveValue('2026-09-27')
+  })
+
+  it('shows occurrence time and replaces the old trace while a different night loads', async () => {
+    const recordedStep = {
+      step_id: 'collect', ordinal: 1, layer: 'deterministic' as const, status: 'ran' as const,
+      reason: 'Readings were collected.', headline_figure: '363 readings',
+      occurred_utc: '2026-09-27T06:36:32Z', inputs: {}, outputs: {}, sources: [],
+    }
+    const firstPipeline = { ...pipeline, steps: [recordedStep] }
+    const secondPipeline: NightPipeline = {
+      ...pipeline,
+      night_date: '2026-09-26',
+      episode_id: null,
+      headline: { ...pipeline.headline, level: 'GREEN', coverage_minutes: 330 },
+      steps: [
+        { ...recordedStep, headline_figure: '301 readings', occurred_utc: null },
+        { ...recordedStep, step_id: 'investigate', ordinal: 11, layer: 'agentic', status: 'not_applicable', headline_figure: null, occurred_utc: null, reason: 'No investigation was opened.' },
+      ],
+    }
+    let resolveSecond: (value: NightPipeline | null) => void = () => undefined
+    const secondResponse = new Promise<NightPipeline | null>((resolve) => { resolveSecond = resolve })
+    mockRecordApi()
+    vi.spyOn(api, 'listPipelineNights').mockResolvedValue([
+      ...refs,
+      { night_date: '2026-09-26', level: 'GREEN', has_episode: false, usable: true },
+    ])
+    const getPipeline = vi.spyOn(api, 'getNightPipeline').mockImplementation((_subjectId, nightDate) =>
+      nightDate === '2026-09-26' ? secondResponse : Promise.resolve(firstPipeline),
+    )
+    render(<RecordView subject={subject} config={config} data={data} initialNight="2026-09-27" onNavigate={() => undefined} />)
+
+    expect(await screen.findByText('363 readings')).toBeInTheDocument()
+    expect(screen.getAllByText(/Occurred .+ at/)).toHaveLength(2)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Which night' }), { target: { value: '2026-09-26' } })
+    expect(screen.getByText('Loading the pipeline for this night.')).toBeInTheDocument()
+    expect(screen.queryByText('363 readings')).not.toBeInTheDocument()
+
+    await act(async () => { resolveSecond(secondPipeline) })
+    expect(await screen.findByText(/Trace for the night of/)).toBeInTheDocument()
+    expect(screen.getByText(/Agent and user steps belong to its investigation and may have happened on another date/)).toBeInTheDocument()
+    expect(screen.getByText('301 readings')).toBeInTheDocument()
+    expect(screen.getAllByText('Time not recorded')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: /AI gathers evidence/ })).toHaveClass('pipeline-step--agentic', 'pipeline-step--not_applicable')
+    expect(getPipeline).toHaveBeenLastCalledWith('demo', '2026-09-26')
+  })
+
+  it('does not label the latest closed investigation as live context', async () => {
+    mockRecordApi()
+    const closed = { ...detail, summary: { ...episode, state: 'CLOSED' as const, closed_on: '2026-09-28', top_cause: 'stress' as const, top_probability: 0.77 } }
+    render(<RecordView subject={subject} config={config} data={{ ...data, activeEpisode: closed }} initialNight={null} onNavigate={() => undefined} />)
+
+    expect(await screen.findByText('Most recent investigation')).toBeInTheDocument()
+    expect(screen.getByLabelText('Investigation-wide stage status')).toBeInTheDocument()
+    expect(screen.getByText('Leading cause in last recorded belief')).toBeInTheDocument()
+    expect(screen.getByText(/Stress.*77 %/)).toBeInTheDocument()
   })
 
   it.each(integrityCases)('distinguishes %s from a broken record', async (_label, result, expectedHeading) => {

@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import App from '../App'
 import { api, CAUSE_LABELS, type CauseId, type DashboardSummary, type EpisodeDetail, type EpisodeSummary, type NightDetail, type NightPipeline, type NightRow, type OxygenReading, type PendingInteraction, type PipelineNightRef, type SafetyRuleProvenance, type Subject, type SystemStatus } from '../api'
 import { LEGACY_COPY } from '../content/legacyCopy'
 import { ORIGINAL_VITE_INVENTORY as originalVite } from '../test/originalViteInventory'
+import { PENDING_POLL_INTERVAL_MS } from '../useBackend'
 
 const subjects: Subject[] = [
   { subject_id: 'subject-a', label: 'Participant A', source_kind: 'synthetic', timezone: 'Asia/Singapore', usable_nights: 0, rung: 'COLD' },
@@ -439,13 +440,52 @@ describe('original Vite preservation contract', () => {
     render(<App />)
 
     await screen.findByRole('heading', { name: originalVite.shell.dashboardTitle })
-    await waitFor(() => expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Dashboard/ })).toHaveTextContent('!'))
-    if (destination !== 'Dashboard') fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: destination }))
-    fireEvent.click(screen.getByRole('button', { name: new RegExp(originalVite.chat.open) }))
     expect(await screen.findByRole('heading', { name: 'One question for you' })).toBeInTheDocument()
+    if (destination !== 'Dashboard') fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: destination }))
+    expect(screen.getByRole('complementary', { name: originalVite.chat.panel })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Yes' }))
     await waitFor(() => expect(submit).toHaveBeenCalledWith('episode-a', {
       probe_id: 'probe-a', option_id: 'yes', free_text: null,
     }))
+  })
+
+  it('opens chat for a newly polled question and respects closing it while that question remains pending', async () => {
+    const pending: PendingInteraction = {
+      kind: 'question', episode_id: 'episode-a', measurement: null, draft_outcome: null,
+      question: {
+        probe: {
+          probe_id: 'probe-a', target_cause: 'infection',
+          answer_space: [{ option_id: 'yes', label: 'Yes' }],
+          evsi: 0.2, interruption_cost: 0.1, fallback_text: 'Question',
+        },
+        text: 'Did the agent ask you anything?', text_source: 'fallback',
+        options: [{ option_id: 'yes', label: 'Yes' }], allows_free_text: false,
+      },
+    }
+    setupApi({ people: [subjects[1]] })
+    const getPending = vi.spyOn(api, 'getPending')
+    getPending.mockReset().mockResolvedValueOnce(null).mockResolvedValue(pending)
+    let pollPending: (() => void) | undefined
+    vi.spyOn(window, 'setInterval').mockImplementation(((handler: TimerHandler, delay?: number) => {
+      if (delay === PENDING_POLL_INTERVAL_MS && typeof handler === 'function') pollPending = handler as () => void
+      return 1
+    }) as typeof window.setInterval)
+    vi.spyOn(window, 'clearInterval').mockImplementation(() => undefined)
+    render(<App />)
+
+    await screen.findByRole('heading', { name: originalVite.shell.dashboardTitle })
+    await waitFor(() => expect(getPending).toHaveBeenCalledTimes(1))
+    expect(screen.queryByRole('complementary', { name: originalVite.chat.panel })).not.toBeInTheDocument()
+    expect(pollPending).toBeDefined()
+    await act(async () => { pollPending?.() })
+    expect(await screen.findByText('Did the agent ask you anything?')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: originalVite.chat.close }))
+    expect(screen.queryByRole('complementary', { name: originalVite.chat.panel })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Open Agent Chat, reply waiting/ })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Refresh' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
+    await waitFor(() => expect(getPending).toHaveBeenCalledTimes(3))
+    expect(screen.queryByRole('complementary', { name: originalVite.chat.panel })).not.toBeInTheDocument()
   })
 })

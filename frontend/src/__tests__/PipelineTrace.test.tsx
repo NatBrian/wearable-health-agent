@@ -45,7 +45,7 @@ afterEach(cleanup)
 describe('sleep-window disclosures in The record', () => {
   it('describes a clock fallback as a measurement window rather than sleep', () => {
     const recorded = pipeline('clock')
-    render(<><PipelineTrace pipeline={recorded} selectedId="sleep_window" onSelect={() => undefined} /><PipelineStepDetail step={recorded.steps[0]} totalSteps={21} config={config} /></>)
+    render(<><PipelineTrace pipeline={recorded} selectedId="sleep_window" onSelect={() => undefined} timezone="UTC" /><PipelineStepDetail step={recorded.steps[0]} totalSteps={21} config={config} timezone="UTC" /></>)
 
     expect(screen.getByRole('button', { name: /Use the clock fallback/ })).toBeInTheDocument()
     expect(screen.getByText(/No sleep duration was reported by the watch\. The system used a clock fallback\./)).toBeInTheDocument()
@@ -55,7 +55,7 @@ describe('sleep-window disclosures in The record', () => {
 
   it('keeps watch-reported sleep wording for a recorded sleep window', () => {
     const recorded = pipeline('sleep')
-    render(<><PipelineTrace pipeline={recorded} selectedId="sleep_window" onSelect={() => undefined} /><PipelineStepDetail step={recorded.steps[0]} totalSteps={21} config={config} /></>)
+    render(<><PipelineTrace pipeline={recorded} selectedId="sleep_window" onSelect={() => undefined} timezone="UTC" /><PipelineStepDetail step={recorded.steps[0]} totalSteps={21} config={config} timezone="UTC" /></>)
 
     expect(screen.getByRole('button', { name: /Find your sleep/ })).toBeInTheDocument()
     expect(screen.getByText(/How long your watch says you slept/)).toBeInTheDocument()
