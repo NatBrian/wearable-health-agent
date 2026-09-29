@@ -244,6 +244,23 @@ describe('dashboard subject boundary', () => {
     expect(sleep).toHaveStyle({ '--vital-accent': '#c5f041' })
     expect(restingHeartRate).toHaveAttribute('aria-pressed', 'false')
   })
+
+  it('preserves the original sleep streak wording and severity color', async () => {
+    const status: SystemStatus = {
+      ...demoStatus,
+      detection_streak: { length: 3, level: 'GREEN', direction: 'falling' },
+    }
+    setupApi({ people: [subjects[1]], status, nights: demoNights })
+
+    render(<App />)
+
+    const sleep = await screen.findByRole('button', { name: /Sleep/ })
+    await waitFor(() => expect(sleep.querySelector('.vital-card__streak')).not.toBeNull())
+
+    expect(sleep).toHaveTextContent('3 green nights')
+    expect(sleep).toHaveTextContent('resolving')
+    expect(sleep.querySelector('.vital-card__streak')).toHaveClass('vital-card__streak--green')
+  })
 })
 
 describe('original Vite preservation contract', () => {
@@ -306,7 +323,7 @@ describe('original Vite preservation contract', () => {
     render(<App />)
 
     await screen.findByRole('heading', { name: originalVite.shell.dashboardTitle })
-    expect(await screen.findByText('2 YELLOW nights')).toBeInTheDocument()
+    expect(await screen.findByText('2 yellow nights')).toBeInTheDocument()
     const restingHr = screen.getByRole('button', { name: /resting hr/i })
     expect(restingHr).toHaveAttribute('aria-pressed', 'true')
     expect(restingHr).toHaveTextContent('Base 61 bpm')
@@ -314,7 +331,7 @@ describe('original Vite preservation contract', () => {
     expect(restingHr).toHaveTextContent('Deviation +5 bpm · robust z 1.56')
     expect(screen.getByRole('img', { name: originalVite.dashboard.chart })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Resting HR sparkline' })).toBeInTheDocument()
-    expect(screen.getByText('2 YELLOW nights')).toBeInTheDocument()
+    expect(screen.getByText('2 yellow nights')).toBeInTheDocument()
     expect(screen.getByText(new RegExp(originalVite.dashboard.sleepStreak, 'i'))).toBeInTheDocument()
     expect(screen.getByText(originalVite.dashboard.differentialChange)).toBeInTheDocument()
     expect(screen.getByRole('region', { name: originalVite.dashboard.episodeStatus })).toHaveTextContent(/Investigation open/)

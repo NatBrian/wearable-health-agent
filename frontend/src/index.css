@@ -522,7 +522,11 @@ button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-
 .vital-card__baseline > span { color: #77768b; }
 .vital-card__deviation { color: #8c5c0a; font-family: var(--font-mono); font-size: 9px; font-weight: 650; }
 .vital-card__streak { display: flex; flex-wrap: wrap; gap: 4px 8px; padding-top: 7px; border-top: 1px solid rgb(0 0 0 / 6%); color: var(--text-secondary); font-size: 10px; }
-.vital-card__streak strong { color: #8a5a05; font-family: var(--font-mono); font-size: 9px; }
+.vital-card__streak strong { border-radius: 6px; padding: 2px 7px; font-family: var(--font-mono); font-size: 9px; }
+.vital-card__streak--green strong { color: #0f5132; background: rgb(15 81 50 / 9%); }
+.vital-card__streak--yellow strong { color: #8a5a05; background: #fef3c7; }
+.vital-card__streak--red strong { color: #842029; background: rgb(132 32 41 / 9%); }
+.vital-card__streak--na strong { color: #5b6169; background: #f1f3f5; }
 .dashboard-state { display: flex; align-items: center; gap: 11px; padding: 10px 14px; border: 1px solid rgb(0 0 0 / 7%); border-radius: 14px; background: #fff; box-shadow: var(--card-shadow); }
 .dashboard-state--active { border-color: rgb(245 158 11 / 35%); background: #fff9ec; }
 .dashboard-state--quiet { border-color: rgb(0 0 0 / 7%); background: #fff; }

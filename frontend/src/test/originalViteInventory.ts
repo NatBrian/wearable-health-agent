@@ -14,7 +14,7 @@ export const ORIGINAL_VITE_INVENTORY = {
     metrics: ['Resting HR', 'Sleep', 'Steps (7d avg)', 'SpO₂'],
     chart: 'Resting HR trend',
     episodeStatus: 'Episode status',
-    sleepStreak: 'Residuals rising',
+    sleepStreak: 'worsening',
     latestNight: 'Last measured night',
     differential: 'Cause differential',
     differentialChange: 'Change since the investigation opened',

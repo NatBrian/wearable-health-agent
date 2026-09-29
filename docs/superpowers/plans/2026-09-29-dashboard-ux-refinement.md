@@ -73,17 +73,35 @@
 
 **Commit intent:** explain that metric selection and displayed sleep precision match the original Vite behavior.
 
-### Task 3: Verify the refinement in the running product
+### Task 3: Preserve the original sleep-card streak treatment
+
+**Discovery:** The original Vite baseline at `214c39b` displayed a level-colored sleep-card streak with lower-case level names and the labels `worsening`, `resolving`, and `holding steady`. The current component consumes the API's `detection_streak`, but the screenshot's running API on port `8500` returned the older status shape without that field. The current branch already computes and returns this value in `get_system_status`; do not reimplement that calculation in the frontend or change the backend for this presentation fix.
+
+**Files:**
+
+- Modify `frontend/src/components/DashboardVitals.tsx`
+- Modify `frontend/src/index.css`
+- Modify `frontend/src/__tests__/App.test.tsx`
+- Modify `frontend/src/test/originalViteInventory.ts` to keep the preservation contract aligned with the verified `214c39b` source.
+
+- [x] **Step 1: Add the regression test.** Provide an API status streak of three GREEN nights with a falling residual direction. Assert the Sleep card displays `3 green nights`, says `resolving`, and uses the green streak treatment.
+- [x] **Step 2: Verify RED.** The focused regression failed as expected: the card showed `3 GREEN nights` and `Residuals falling`, instead of the original Vite wording.
+- [x] **Step 3: Restore the presentation.** Map API direction names to the existing Vite wording, lowercase the level label, and use a status-specific badge class. Keep the API as the sole source of the streak and its direction. Corrected the preservation inventory after checking the original source at `214c39b`.
+- [x] **Step 4: Verify GREEN.** The focused regression and all 25 App tests pass.
+
+**Done when:** the API-provided streak is visible with the original Vite wording and severity color, while no streak calculation is added to the browser.
+
+### Task 4: Verify the refinement in the running product
 
 **Files:**
 
 - No product files; use the demo dashboard at `http://127.0.0.1:8443/` and original comparison at `http://127.0.0.1:8444/`.
 
-- [x] Run `npm test`, `npx tsc --noEmit`, and `npm run build` from `frontend/`: all 70 tests passed across 13 files, TypeScript passed, and the production build passed.
-- [x] Run `uv run pytest -n auto`, `uv run ruff check src tests`, and `uv run ruff format --check src tests` once at the end. Pytest: 710 passed, 3 skipped, 3 failed (missing optional parquet engine; retrieval ranking includes a probe passage in the top six; retrieval tool returns no passages). Ruff check passed. Ruff format check reports six Python files would be reformatted; this frontend-only change does not touch them.
+- [x] Run `npm test`, `npx tsc --noEmit`, and `npm run build` from `frontend/`: all 71 tests passed across 13 files, TypeScript passed, and the production build passed.
+- [x] Run `uv run pytest -n auto`, `uv run ruff check src tests`, and `uv run ruff format --check src tests` once at the end. Final pytest: 710 passed, 3 skipped, 3 failed (missing optional parquet engine; retrieval model load hit Windows paging-file limit; retrieval tool returned no passages). Ruff check passed. Ruff format check reports six Python files would be reformatted; this frontend-only change does not touch them.
 - [x] Capture same-size 1440×900 screenshots of both Dashboard Overview pages. Confirm the original sidebar, colors, typography, card grid, chart, and chat affordance remain recognizable; confirm the full emergency and disclaimer copy remains visible and the trend chart is visible above the fold.
-- [x] At 390px, confirm the complete emergency guidance and disclaimer fit without horizontal overflow; at desktop, the metric cards should begin above y=330 and the trend panel above y=520. Measured document width was 390px; desktop cards began at y=302 and the trend panel at y=487.
-- [x] Confirm each metric remains selectable, selected colors follow the series, all safety copy remains visible, and browser/API errors are absent. The regression test covers series selection; the browser showed no console errors and all observed API requests returned HTTP 200.
-- [x] Commit and push the verified plan and UI changes on `feat/vite-original-ui-enhancements` only.
+- [x] At 390px, confirm the complete emergency guidance and disclaimer fit without horizontal overflow; at desktop, the metric cards should begin above y=330 and the trend panel above y=520. Measured document width was 390px; desktop cards began at y=301 and the trend panel at y=487.
+- [x] Confirm each metric remains selectable, selected colors follow the series, all safety copy remains visible, and browser/API errors are absent. The regression test covers series selection; the browser showed no console errors and all observed API requests returned HTTP 200. The port `8500` status response was an older shape without `detection_streak`; the branch's current API source supplies it, so the live screenshot cannot show the streak until that service is restarted from this branch.
+- [x] Commit and push the final verified plan and UI changes on `feat/vite-original-ui-enhancements` only.
 
-**Done when:** focused tests, frontend checks, final repository checks, and Playwright comparison support the requested style and parity constraints, with any pre-existing failures reported.
+**Done when:** focused tests, frontend checks, final repository checks, and Playwright comparison support the requested style and parity constraints, with repository failures reported accurately.

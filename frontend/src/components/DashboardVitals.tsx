@@ -1,10 +1,11 @@
 import { useState, type CSSProperties } from 'react'
-import { CAUSE_LABELS, type CauseId, type DetectionLevel, type Subject, type SystemConfig } from '../api'
+import { CAUSE_LABELS, type CauseId, type DetectionLevel, type Subject, type SystemConfig, type SystemStatus } from '../api'
 import type { BackendData } from '../useBackend'
 import { dateLabel, measuredValue, signedValue } from '../lib/format'
 import { OxygenContext } from './OxygenContext'
 
 type SeriesId = 'rhr' | 'sleep' | 'steps' | 'oxygen'
+type DetectionStreak = NonNullable<SystemStatus['detection_streak']>
 type TrendPoint = { date: string; value: number | null; low?: number | null; high?: number | null }
 type VitalSeries = {
   id: SeriesId
@@ -24,6 +25,19 @@ type VitalSeries = {
 
 const levelClass: Record<DetectionLevel, string> = {
   GREEN: 'level-green', YELLOW: 'level-yellow', RED: 'level-red', NA: 'level-na',
+}
+const streakDirectionLabel: Record<NonNullable<DetectionStreak['direction']>, string> = {
+  rising: 'worsening', steady: 'holding steady', falling: 'resolving',
+}
+
+function SleepStreak({ streak }: { streak: DetectionStreak }) {
+  const level = streak.level.toLowerCase()
+  return (
+    <span className={`vital-card__streak vital-card__streak--${level}`}>
+      <strong>{streak.length} {level} {streak.length === 1 ? 'night' : 'nights'}</strong>
+      {streak.direction && <span>{streakDirectionLabel[streak.direction]}</span>}
+    </span>
+  )
 }
 
 function latestValue<T extends { value: number | null }>(points: T[]): T | null {
@@ -258,7 +272,7 @@ export function DashboardVitals({ data, subject, config }: { data: BackendData; 
             <Sparkline series={item} /><span className="vital-card__note">{note}</span>
             {item.id === 'rhr' && item.baseline !== null && item.baseline !== undefined && <span className="vital-card__baseline">Base {measuredValue(item.baseline, 'bpm')}{item.baselineNights !== null && item.baselineNights !== undefined && item.baselineRung ? <span>{measuredValue(item.baselineNights)} usable nights · {item.baselineRung}</span> : null}</span>}
             {item.id === 'rhr' && (item.deviation !== null && item.deviation !== undefined || item.robustZ !== null && item.robustZ !== undefined) && <span className="vital-card__deviation">{item.deviation !== null && item.deviation !== undefined ? `Deviation ${signedValue(item.deviation, 'bpm')}` : ''}{item.robustZ !== null && item.robustZ !== undefined ? `${item.deviation !== null && item.deviation !== undefined ? ' · ' : ''}robust z ${item.robustZ.toFixed(2)}` : ''}</span>}
-            {item.id === 'sleep' && data.status?.detection_streak && <span className="vital-card__streak"><strong>{data.status.detection_streak.length} {data.status.detection_streak.level} {data.status.detection_streak.length === 1 ? 'night' : 'nights'}</strong>{data.status.detection_streak.direction && <span>Residuals {data.status.detection_streak.direction === 'rising' ? 'rising' : data.status.detection_streak.direction === 'falling' ? 'falling' : 'holding steady'}</span>}</span>}
+            {item.id === 'sleep' && data.status?.detection_streak && <SleepStreak streak={data.status.detection_streak} />}
           </button>
         })}
       </section>
