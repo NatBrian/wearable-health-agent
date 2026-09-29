@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { CAUSE_LABELS, type CauseId, type DetectionLevel, type Subject, type SystemConfig } from '../api'
 import type { BackendData } from '../useBackend'
 import { dateLabel, measuredValue, signedValue } from '../lib/format'
@@ -247,11 +247,13 @@ export function DashboardVitals({ data, subject, config }: { data: BackendData; 
         {series.map((item) => {
           const displayValue = item.id === 'steps' && item.value !== null
             ? `${measuredValue(item.value)} ${item.unit}`
+            : item.id === 'sleep' && item.value !== null
+              ? `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(item.value)} ${item.unit}`
             : measuredValue(item.value, item.unit)
           const note = item.id === 'steps' && data.summary
             ? `Configured ${config.dashboard.steps_average_days}-day average · ${dateLabel(data.summary.steps_window_start)} to ${dateLabel(data.summary.steps_window_end)}`
             : item.valueDate ? `Most recent reading · ${dateLabel(item.valueDate, subject.timezone)}` : item.note
-          return <button key={item.id} type="button" className={`vital-card ${selectedId === item.id ? 'vital-card--selected' : ''}`} aria-pressed={selectedId === item.id} onClick={() => setSelectedId(item.id)}>
+          return <button key={item.id} type="button" className={`vital-card ${selectedId === item.id ? 'vital-card--selected' : ''}`} style={{ '--vital-accent': item.color } as CSSProperties} aria-pressed={selectedId === item.id} onClick={() => setSelectedId(item.id)}>
             <span className="vital-card__label">{item.label}</span><strong className="vital-card__value" style={{ color: item.color }}>{displayValue}</strong>
             <Sparkline series={item} /><span className="vital-card__note">{note}</span>
             {item.id === 'rhr' && item.baseline !== null && item.baseline !== undefined && <span className="vital-card__baseline">Base {measuredValue(item.baseline, 'bpm')}{item.baselineNights !== null && item.baselineNights !== undefined && item.baselineRung ? <span>{measuredValue(item.baselineNights)} usable nights · {item.baselineRung}</span> : null}</span>}

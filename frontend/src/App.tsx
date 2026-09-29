@@ -156,7 +156,7 @@ export default function App() {
       <div className="app-main">
         <main className="workspace">
           <header className="topbar">
-            <div className="topbar__page"><span className="eyebrow">Vital Agent</span><h1 className="topbar__title">{titles[view]}</h1><span className="topbar__subtitle">{subtitle}</span></div>
+            <div className="topbar__page"><h1 className="topbar__title">{titles[view]}</h1><span className="topbar__subtitle">{subtitle}</span></div>
             <div className="topbar__actions">
               {subjects.length > 1 ? (
                 <label className="subject-picker">Whose data
@@ -173,14 +173,14 @@ export default function App() {
           </header>
 
           {selectedSubject && view === 'dashboard' && (
-            <div className="dashboard-context">
+            <div className="dashboard-context" role="region" aria-label="Dashboard safety guidance">
               <section className="emergency-notice" aria-labelledby="emergency-title">
                 <span className="emergency-notice__icon" aria-hidden="true">!</span>
-                <div><h2 id="emergency-title">If you feel unwell now</h2><p>{legacyText('home.emergency')}</p></div>
+                <div className="emergency-notice__copy"><h2 id="emergency-title">If you feel unwell now</h2><p>{legacyText('home.emergency')}</p></div>
               </section>
               <section className="dashboard-disclaimer" aria-labelledby="dashboard-disclaimer-title">
                 <div className="dashboard-disclaimer__mark" aria-hidden="true">i</div>
-                <div><h2 id="dashboard-disclaimer-title">What this system cannot do</h2><p>{legacyText('home.cannot')}</p></div>
+                <div className="dashboard-disclaimer__copy"><h2 id="dashboard-disclaimer-title">What this system cannot do</h2><p>{legacyText('home.cannot')}</p></div>
               </section>
             </div>
           )}

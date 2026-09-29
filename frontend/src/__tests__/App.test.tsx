@@ -208,6 +208,42 @@ describe('dashboard subject boundary', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Today' }))
     expect(await screen.findByRole('region', { name: 'System status' })).toBeInTheDocument()
   })
+
+  it('keeps complete safety guidance visible in the Dashboard context', async () => {
+    setupApi({ people: [subjects[1]] })
+
+    render(<App />)
+
+    const context = await screen.findByRole('region', { name: 'Dashboard safety guidance' })
+    const emergency = within(context).getByRole('region', { name: 'If you feel unwell now' })
+    const disclaimer = within(context).getByRole('region', { name: 'What this system cannot do' })
+
+    expect(emergency).toBeVisible()
+    expect(disclaimer).toBeVisible()
+    expect(emergency).toHaveTextContent(LEGACY_COPY['home.emergency'])
+    expect(disclaimer).toHaveTextContent(LEGACY_COPY['home.cannot'])
+  })
+
+  it('keeps metric selection accents and sleep value precision', async () => {
+    const nights = demoNights.map((night, index) => index === demoNights.length - 1
+      ? { ...night, sleep_hours: 10.25 }
+      : night)
+    setupApi({ people: [subjects[1]], status: demoStatus, nights })
+
+    render(<App />)
+
+    const restingHeartRate = await screen.findByRole('button', { name: /Resting HR/ })
+    const sleep = screen.getByRole('button', { name: /Sleep/ })
+
+    await waitFor(() => expect(sleep).toHaveTextContent('10.25 h'))
+    expect(restingHeartRate).toHaveAttribute('aria-pressed', 'true')
+    expect(restingHeartRate).toHaveStyle({ '--vital-accent': '#f59e0b' })
+
+    fireEvent.click(sleep)
+    expect(sleep).toHaveAttribute('aria-pressed', 'true')
+    expect(sleep).toHaveStyle({ '--vital-accent': '#c5f041' })
+    expect(restingHeartRate).toHaveAttribute('aria-pressed', 'false')
+  })
 })
 
 describe('original Vite preservation contract', () => {
