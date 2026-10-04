@@ -40,7 +40,7 @@ SUBJECT = "demo"
 TZ = "Asia/Singapore"
 
 # The last night the demo timeline contains. The dashboard is shown this as "today".
-LAST_NIGHT = date(2026, 9, 23)
+LAST_NIGHT = date(2026, 9, 25)
 
 
 def main() -> int:
