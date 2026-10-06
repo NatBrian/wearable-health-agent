@@ -74,9 +74,10 @@ The frontend audit also found a high-severity advisory in the development depend
 **Files:** `src/wha/retrieve/index.py`, `src/wha/retrieve/knowledge_docs.py`, and retrieval tests.
 
 - [x] Reproduce the failing symptom query against the authored-only corpus.
-- [x] Require an explicit authored probe question or answer phrase before probe-evidence chunks can enter hybrid ranking.
+- [x] Require an explicit authored probe question or a distinctive multiword answer phrase before probe-evidence chunks can enter hybrid ranking; one-word labels require question context.
 - [x] Preserve direct retrieval for the probe question and fixed answer labels.
-- [x] Run `uv run pytest -n auto`: 716 passed, 3 skipped.
+- [x] Address final review's Important finding: generic labels such as `No`, `Yes`, and `Normal` could match general symptom searches. Add regression cases for `No fever` and `yes, I feel unwell` while retaining prompt and distinctive-label retrieval.
+- [x] Run the final `uv run pytest -n auto` (716 passed, 3 skipped) and `uv run ruff check src tests` (all checks passed) after the review fix.
 - [x] Run `uv run ruff check src tests`: all checks passed.
 
 **Done when:** General symptom searches do not retrieve assumed probe likelihoods, and deliberate probe-evidence searches continue to work.

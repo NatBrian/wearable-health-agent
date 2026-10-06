@@ -118,7 +118,7 @@ def test_no_match_returns_empty() -> None:
     assert results == []
 
 
-def test_probe_evidence_requires_an_explicit_question_or_answer_match() -> None:
+def test_probe_evidence_requires_a_question_or_distinctive_answer_match() -> None:
     """Dense similarity alone must not expose internal probe assumptions to symptom searches."""
     text = "How are you feeling? One answer is Feverish or chills."
     probe = Chunk(
@@ -130,13 +130,23 @@ def test_probe_evidence_requires_an_explicit_question_or_answer_match() -> None:
         layer=4,
         metadata={
             "topic": "probe_evidence",
-            "retrieval_phrases": ["How are you feeling?", "Feverish or chills"],
+            "retrieval_phrases": [
+                "How are you feeling?",
+                "Feverish or chills",
+                "No",
+                "Yes",
+                "Normal",
+            ],
         },
     )
     index = HybridIndex([probe], embedder=StubDeterministicEmbedder())
 
     assert index.query("I have a fever and chills") == []
+    assert index.query("No fever") == []
+    assert index.query("yes, I feel unwell") == []
+    assert index.query("Normal") == []
     assert index.query("How are you feeling?")[0].chunk_id == probe.chunk_id
+    assert index.query("How are you feeling? No")[0].chunk_id == probe.chunk_id
     assert index.query("feverish or chills")[0].chunk_id == probe.chunk_id
 
 

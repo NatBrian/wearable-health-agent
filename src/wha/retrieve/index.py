@@ -77,9 +77,9 @@ def tokenize(text: str) -> list[str]:
 
 
 def _query_contains_phrase(query_tokens: list[str], phrase: str) -> bool:
-    """Whether normalized query tokens contain a complete contiguous phrase."""
+    """Whether query contains a distinctive multiword phrase, not a generic answer token."""
     phrase_tokens = tokenize(phrase)
-    if not phrase_tokens or len(phrase_tokens) > len(query_tokens):
+    if len(phrase_tokens) < 2 or len(phrase_tokens) > len(query_tokens):
         return False
     return any(
         query_tokens[start : start + len(phrase_tokens)] == phrase_tokens

@@ -89,8 +89,12 @@ def test_the_index_finds_the_right_passage_for_a_symptom_and_for_a_red_flag() ->
     assert any("probe_symptoms" in r.chunk_id for r in index.query("feverish or chills", top_k=3))
 
     # And a symptom query returns health information, not the system's own internals.
-    fever = index.query("I have a fever and chills", top_k=6)
-    assert not any("probe_" in r.chunk_id for r in fever), [r.chunk_id for r in fever]
+    for query in ("I have a fever and chills", "No fever", "yes, I feel unwell"):
+        results = index.query(query, top_k=6)
+        assert not any("probe_" in r.chunk_id for r in results), [
+            query,
+            [r.chunk_id for r in results],
+        ]
 
     # Present in the results, not necessarily first.
     #
