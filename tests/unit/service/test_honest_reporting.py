@@ -12,10 +12,9 @@ from pathlib import Path
 from wha.db import connect
 from wha.db.iso import to_iso
 from wha.db.migrations import apply_schema
-from wha.models import BaselineRung, DetectionLevel
+from wha.models import DetectionLevel
 from wha.service.audit import count_audit_events, verify_hash_chain
 from wha.service.status import get_system_status
-from wha.ui.explain import level as level_phrase
 
 
 def _db_with_detections(tmp_path: Path, levels: list[tuple[date, str, int]]) -> Path:
@@ -86,34 +85,78 @@ def test_a_flagged_night_ends_the_streak(tmp_path: Path) -> None:
     assert get_system_status("me", db_path=db_file).quiet_nights_streak == 1
 
 
-# -- "your usual range" is a claim that has to be earned -----------------------------
-
-
-def test_an_immature_baseline_does_not_claim_a_personal_range() -> None:
-    """Today said "in your usual range" under a tile reading "baseline: Learning"."""
-    for rung in (BaselineRung.COLD, BaselineRung.PRIOR_DOMINATED):
-        sentence = level_phrase(DetectionLevel.GREEN.value, rung=rung.value)
-        assert "your usual range" not in sentence
-        assert "typical adult" in sentence
-
-
-def test_a_mature_baseline_keeps_the_personal_wording() -> None:
-    for rung in (BaselineRung.SHRINKING, BaselineRung.PERSONAL, BaselineRung.MATURE):
-        sentence = level_phrase(DetectionLevel.GREEN.value, rung=rung.value)
-        assert "your usual range" in sentence
-
-
-def test_a_night_with_no_reading_is_worded_the_same_either_way() -> None:
-    """ "Not enough data" makes no claim about a range, so it needs no qualification."""
-    cold = level_phrase(DetectionLevel.NA.value, rung=BaselineRung.COLD.value)
-    mature = level_phrase(DetectionLevel.NA.value, rung=BaselineRung.MATURE.value)
-    assert cold == mature
-
-
-def test_omitting_the_rung_leaves_the_wording_untouched() -> None:
-    assert level_phrase(DetectionLevel.GREEN.value) == (
-        level_phrase(DetectionLevel.GREEN.value, rung=BaselineRung.MATURE.value)
+def test_dashboard_status_reports_the_latest_level_run_and_residual_direction(
+    tmp_path: Path,
+) -> None:
+    base = date(2026, 9, 3)
+    rows = [
+        (base, "YELLOW", 1),
+        (base - timedelta(days=1), "YELLOW", 1),
+        (base - timedelta(days=2), "GREEN", 0),
+    ]
+    db_file = _db_with_detections(tmp_path, rows)
+    conn = connect(db_file)
+    conn.executemany(
+        "UPDATE detections SET residual_bpm = ? WHERE subject_id = 'me' AND night_date = ?",
+        [(3.2, base.isoformat()), (2.0, (base - timedelta(days=1)).isoformat())],
     )
+    conn.commit()
+    conn.close()
+
+    streak = get_system_status("me", db_path=db_file).detection_streak
+
+    assert streak is not None
+    assert streak.length == 2
+    assert streak.level is DetectionLevel.YELLOW
+    assert streak.direction == "rising"
+
+
+def test_an_unmeasured_night_breaks_the_detection_streak(tmp_path: Path) -> None:
+    """The sleep card must not imply a continuous run across a night with no reading."""
+    base = date(2026, 9, 3)
+    rows = [
+        (base, "RED", 1),
+        (base - timedelta(days=1), "NA", 0),
+        (base - timedelta(days=2), "RED", 1),
+    ]
+    db_file = _db_with_detections(tmp_path, rows)
+    conn = connect(db_file)
+    conn.executemany(
+        "UPDATE detections SET residual_bpm = ? WHERE subject_id = 'me' AND night_date = ?",
+        [(5.0, base.isoformat()), (2.0, (base - timedelta(days=2)).isoformat())],
+    )
+    conn.commit()
+    conn.close()
+
+    streak = get_system_status("me", db_path=db_file).detection_streak
+
+    assert streak is not None
+    assert streak.length == 1
+    assert streak.level is DetectionLevel.RED
+    assert streak.direction is None
+
+
+def test_latest_unmeasured_night_has_no_detection_streak(tmp_path: Path) -> None:
+    """The sleep card must not report an older measured level as the current streak."""
+    base = date(2026, 9, 3)
+    rows = [
+        (base, "NA", 0),
+        (base - timedelta(days=1), "RED", 1),
+    ]
+    db_file = _db_with_detections(tmp_path, rows)
+
+    streak = get_system_status("me", db_path=db_file).detection_streak
+
+    assert streak is None
+
+
+# "your usual range" wording lived in wha.ui.explain.level, which was Streamlit-specific
+# presentation text. It moved to archive/streamlit-ui-2026-09-27/ with the rest of that
+# dashboard on 27 September 2026; the frontend under frontend/ now owns this wording
+# independently, in TypeScript, and has its own equivalent honesty rule (DashboardView
+# shows "Still learning your normal" rather than claiming a personal range below MATURE).
+# The four tests that lived here asserted against the archived Python string generator by
+# name and were removed rather than pointed at code this project no longer ships.
 
 
 # -- an empty record is not a verified one -------------------------------------------

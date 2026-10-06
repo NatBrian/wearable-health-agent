@@ -1,239 +1,239 @@
 1
-00:01:19,250 --> 00:01:23,750
+00:00:55,833 --> 00:01:00,333
 So the design splits in two.
 
 2
-00:01:23,750 --> 00:01:28,250
+00:01:00,333 --> 00:01:04,833
 A cheap monitor that watches every night and uses no AI.
 
 3
-00:01:28,250 --> 00:01:32,750
+00:01:04,833 --> 00:01:09,333
 And an agent that wakes up only when there is something worth explaining.
 
 4
-00:02:28,717 --> 00:02:33,217
+00:01:55,467 --> 00:01:59,967
 Every night the system runs the same twenty one steps.
 
 5
-00:02:33,217 --> 00:02:37,717
+00:01:59,967 --> 00:02:04,467
 The screen you are looking at is the real record of one of them.
 
 6
-00:03:59,650 --> 00:04:04,150
+00:02:53,083 --> 00:02:57,583
 A night is not a clock window. It is the sleep your watch actually recorded.
 
 7
-00:04:04,150 --> 00:04:08,650
+00:02:57,583 --> 00:03:02,083
 Sleep from midnight to seven would miss a shift worker entirely.
 
 8
-00:04:08,650 --> 00:04:13,150
+00:03:02,083 --> 00:03:06,583
 The number that matters is the lowest sustained heart rate while you slept.
 
 9
-00:06:18,983 --> 00:06:23,483
+00:04:17,583 --> 00:04:22,083
 This is a real person, over a month.
 
 10
-00:06:23,483 --> 00:06:27,983
+00:04:22,083 --> 00:04:26,583
 Green means this night looked like your normal.
 
 11
-00:06:27,983 --> 00:06:32,483
+00:04:26,583 --> 00:04:31,083
 Nothing has happened yet, and nothing needed to be said.
 
 12
-00:07:23,033 --> 00:07:27,533
+00:04:50,650 --> 00:04:55,150
 A hard training session late in the evening.
 
 13
-00:07:27,533 --> 00:07:32,033
+00:04:55,150 --> 00:04:59,650
 It barely moves the night, and nothing is said.
 
 14
-00:07:32,033 --> 00:07:36,533
+00:04:59,650 --> 00:05:04,150
 A heavier drinking night than usual. Now the night is amber.
 
 15
-00:07:36,533 --> 00:07:41,033
+00:05:04,150 --> 00:05:08,650
 Amber does not raise an alarm. That is a deliberate choice.
 
 16
-00:08:42,300 --> 00:08:46,800
+00:05:58,667 --> 00:06:02,278
 The first red night.
 
 17
-00:08:46,800 --> 00:08:51,300
+00:06:02,278 --> 00:06:05,889
 No alert. An alarm needs two raised nights in a row.
 
 18
-00:08:51,300 --> 00:08:55,800
+00:06:05,889 --> 00:06:09,500
 The person mentions feeling dizzy, without being asked.
 
 19
-00:08:55,800 --> 00:09:00,300
+00:06:09,500 --> 00:06:13,111
 Dizziness is recorded, and on its own it raises nothing.
 
 20
-00:09:00,300 --> 00:09:04,800
+00:06:13,111 --> 00:06:16,722
 There is no trustworthy figure for how long dizziness must last to matter.
 
 21
-00:09:04,800 --> 00:09:09,300
+00:06:16,722 --> 00:06:20,333
 So the system tracks it and does not pretend to know.
 
 22
-00:09:51,833 --> 00:09:56,333
+00:07:01,333 --> 00:07:05,833
 So being more worried does not mean being asked more.
 
 23
-00:09:56,333 --> 00:10:00,833
+00:07:05,833 --> 00:07:10,333
 Past a certain point it stops asking and starts telling you to get seen.
 
 24
-00:11:03,583 --> 00:11:08,083
+00:07:54,517 --> 00:07:59,017
 Second red night in a row. Now an investigation opens.
 
 25
-00:11:08,083 --> 00:11:12,583
+00:07:59,017 --> 00:08:03,517
 This is the first time in eleven days the AI has done anything.
 
 26
-00:11:12,583 --> 00:11:17,083
+00:08:03,517 --> 00:08:08,017
 It weighs twelve possible causes, and it asks one question.
 
 27
-00:11:17,083 --> 00:11:21,583
+00:08:08,017 --> 00:08:12,517
 Watch the list of causes rearrange after a single answer.
 
 28
-00:11:21,583 --> 00:11:26,083
+00:08:12,517 --> 00:08:17,017
 Every reply the model produces is checked against a strict shape before anything acts on it.
 
 29
-00:11:50,833 --> 00:11:53,833
+00:08:23,200 --> 00:08:26,200
 The question arrives on Telegram, and can be answered from there.
 
 30
-00:11:53,833 --> 00:11:56,833
+00:08:26,200 --> 00:08:29,200
 The investigation is then parked, and picked up days later where it left off.
 
 31
-00:11:56,833 --> 00:11:59,833
+00:08:29,200 --> 00:08:32,200
 It remembers across the waiting, which is what makes it an agent and not a chat window.
 
 32
-00:12:49,133 --> 00:12:53,633
+00:09:12,267 --> 00:09:16,767
 Every clinical sentence has to quote words that appear in a real source.
 
 33
-00:12:53,633 --> 00:12:58,133
+00:09:16,767 --> 00:09:21,267
 If it cannot, the sentence is removed, or flagged in amber as unsourced.
 
 34
-00:14:08,917 --> 00:14:13,417
+00:10:19,300 --> 00:10:23,800
 Fever reported yesterday. Vomiting reported today.
 
 35
-00:14:13,417 --> 00:14:17,917
+00:10:23,800 --> 00:10:28,300
 Neither one alone changes anything.
 
 36
-00:14:17,917 --> 00:14:22,417
+00:10:28,300 --> 00:10:32,800
 Together they do, and the system now reads them together.
 
 37
-00:14:22,417 --> 00:14:26,917
+00:10:32,800 --> 00:10:37,300
 See a doctor today. Decided by code, before the AI was asked.
 
 38
-00:15:45,683 --> 00:15:50,183
+00:11:47,300 --> 00:11:51,800
 Every step, every source, every decision, with the time it happened.
 
 39
-00:15:50,183 --> 00:15:54,683
+00:11:51,800 --> 00:11:56,300
 Each entry is sealed with a fingerprint of the entry before it.
 
 40
-00:15:54,683 --> 00:15:59,183
+00:11:56,300 --> 00:12:00,800
 Change any one of them and the chain stops matching.
 
 41
-00:16:29,233 --> 00:16:33,733
+00:12:20,150 --> 00:12:24,650
 The heart rate settles. The person says the fever has gone.
 
 42
-00:16:33,733 --> 00:16:38,233
+00:12:24,650 --> 00:12:29,150
 The investigation does not close.
 
 43
-00:17:43,500 --> 00:17:47,875
+00:13:28,967 --> 00:13:32,017
 The AI drafted its conclusion and stopped to have it checked.
 
 44
-00:17:47,875 --> 00:17:52,250
+00:13:32,017 --> 00:13:35,067
 It does not get to publish that on its own.
 
 45
-00:17:52,250 --> 00:17:56,625
+00:13:35,067 --> 00:13:38,117
 The next day the fever returns, and the person rejects the draft.
 
 46
-00:17:56,625 --> 00:18:01,000
+00:13:38,117 --> 00:13:41,167
 The investigation stays open, because a person said so.
 
 47
-00:18:01,000 --> 00:18:05,375
+00:13:41,167 --> 00:13:44,217
 Days later, recovered, they read the final one and approve it.
 
 48
-00:18:05,375 --> 00:18:09,750
+00:13:44,217 --> 00:13:47,267
 It never worked out what caused this, and it closes saying exactly that.
 
 49
-00:18:09,750 --> 00:18:14,125
+00:13:47,267 --> 00:13:50,317
 Not an all clear. It does not have one to give.
 
 50
-00:18:14,125 --> 00:18:18,500
+00:13:50,317 --> 00:13:53,367
 And it says so out loud. An investigation that ends in silence reads as reassurance.
 
 51
-00:19:10,117 --> 00:19:14,617
+00:14:03,633 --> 00:14:08,133
 Chest pain is not handled by spotting the words chest pain.
 
 52
-00:19:14,617 --> 00:19:19,117
+00:14:08,133 --> 00:14:12,633
 The AI asks five specific questions. Then code, not the AI, scores the answers.
 
 53
-00:20:25,733 --> 00:20:30,233
+00:14:37,900 --> 00:14:42,400
 And when the picture is one the rule was never tested on,
 
 54
-00:20:30,233 --> 00:20:34,733
+00:14:42,400 --> 00:14:46,900
 such as pain right now with sweating or fainting,
 
 55
-00:20:34,733 --> 00:20:39,233
+00:14:46,900 --> 00:14:51,400
 the rule is not allowed to run at all. That is an emergency, with no questions.
 
 56
-00:21:25,950 --> 00:21:30,450
+00:15:19,050 --> 00:15:23,550
 The AI is now pointed at an address that does not answer.
 
 57
-00:21:30,450 --> 00:21:34,950
+00:15:23,550 --> 00:15:28,050
 The monitor still scores the night. The safety checks still run.
 
 58
-00:21:34,950 --> 00:21:39,450
+00:15:28,050 --> 00:15:32,550
 The question still goes out, in plain prepared words.
 
 59
-00:21:39,450 --> 00:21:43,950
+00:15:32,550 --> 00:15:37,050
 The screen says so, rather than pretending.
 
 60
-00:21:43,950 --> 00:21:48,450
+00:15:37,050 --> 00:15:41,550
 An outage in the AI must never be able to hide somebody's illness.

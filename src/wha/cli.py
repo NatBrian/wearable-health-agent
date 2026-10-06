@@ -1,6 +1,7 @@
 """Command-line interface for Wearable Health Early Warning Agent."""
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Annotated
@@ -681,24 +682,34 @@ def _run_api(host: str, port: int) -> None:
 
 @app.command("serve")
 def serve_cmd(
-    port: Annotated[int, typer.Option("--port", "-p", help="Port to bind dashboard")] = 8501,
+    port: Annotated[int, typer.Option("--port", "-p", help="Port to bind the HTTP API")] = 8500,
     host: Annotated[
-        str, typer.Option("--host", help="Host address to bind dashboard")
-    ] = "localhost",
+        str, typer.Option("--host", help="Host address to bind the HTTP API")
+    ] = "127.0.0.1",
     no_scheduler: Annotated[
         bool, typer.Option("--no-scheduler", help="Disable background scheduler")
     ] = False,
-    api_port: Annotated[int, typer.Option("--api-port", help="Port for the HTTP API")] = 8500,
     db: Annotated[Path | None, typer.Option("--db", help="Path to database")] = None,
 ) -> None:
-    """Start the HTTP API, the Streamlit dashboard and the background scheduler."""
+    """Start the HTTP API and the background scheduler.
+
+    The Streamlit dashboard that used to run alongside this was archived to
+    ``archive/streamlit-ui-2026-09-27/`` on 27 September 2026, once the React frontend under
+    ``frontend/`` became a working, independent client of this same API. This command no
+    longer launches a dashboard process at all; run the frontend separately with
+    ``npm run dev`` inside ``frontend/``.
+    """
     import socket
-    import subprocess
-    import threading
 
     from wha.service import create_scheduler
 
-    # Check port availability
+    if db is not None:
+        # The API resolves its own db path from this env var (see wha.config.Settings),
+        # not from this command's arguments, so --db has to reach it this way to have any
+        # effect on what the API actually serves. Set before create_scheduler() runs, since
+        # get_settings() caches its first read for the rest of the process.
+        os.environ["WHA_DB_PATH"] = str(db)
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         in_use = s.connect_ex((host, port)) == 0
         if in_use:
@@ -720,39 +731,14 @@ def serve_cmd(
             "This runs now and then repeats on a schedule."
         )
 
-    # The HTTP boundary, started before the dashboard because the dashboard is now one of
-    # its clients. Everything a screen shows comes through here, so a React front end can
-    # replace Streamlit without a line of backend work.
-    #
     # Bound to localhost and unauthenticated on purpose: one person, one machine, their own
     # health record. Exposing it on a network would need authentication first.
-    api_thread = threading.Thread(
-        target=_run_api,
-        kwargs={"host": "127.0.0.1", "port": api_port},
-        daemon=True,
-    )
-    api_thread.start()
-    typer.echo(f"API on http://127.0.0.1:{api_port} (docs at /docs).")
+    typer.echo(f"API on http://{host}:{port} (docs at /docs).")
+    typer.echo("No dashboard is started by this command. For the frontend:")
+    typer.echo("  cd frontend && npm run dev")
 
-    app_path = Path(__file__).parent / "ui" / "Home.py"
-    typer.echo(f"Starting Streamlit dashboard on http://{host}:{port}...")
     try:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "streamlit",
-                "run",
-                str(app_path),
-                "--server.port",
-                str(port),
-                "--server.address",
-                host,
-                "--server.headless",
-                "true",
-            ],
-            check=False,
-        )
+        _run_api(host=host, port=port)
     except KeyboardInterrupt:
         typer.echo("\nShutting down serve...")
     finally:

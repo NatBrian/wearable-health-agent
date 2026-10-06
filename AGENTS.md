@@ -183,7 +183,8 @@ uv run pytest -n auto                # the whole suite, about five minutes
 uv run pytest tests/unit -q          # fast loop
 uv run ruff check src tests          # lint
 uv run ruff format src tests         # format
-uv run wha serve                     # API on 8500, dashboard on 8501, scheduler
+uv run wha serve                     # API on 8500 plus scheduler
+cd frontend && npm run dev           # Vite dashboard on 8443, in a second terminal
 uv run python tools/demo_film/serve_demo.py   # the finished demo timeline
 ```
 

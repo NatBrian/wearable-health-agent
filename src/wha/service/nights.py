@@ -4,11 +4,15 @@ import json
 import sqlite3
 from datetime import date, timedelta
 
+from wha.clock import now_utc
+from wha.constants import DASHBOARD_STEPS_AVERAGE_DAYS
 from wha.db import connect
+from wha.db.iso import from_iso, to_iso
 from wha.db.migrations import apply_schema
 from wha.models import (
     Baseline,
     BaselineRung,
+    DashboardSummary,
     Detection,
     DetectionLevel,
     Forecast,
@@ -16,7 +20,76 @@ from wha.models import (
     NightDetail,
     NightlyFeatures,
     NightRow,
+    OxygenReading,
 )
+
+
+def filter_history_nights(
+    nights: list[NightRow],
+    levels: list[DetectionLevel] | None = None,
+    investigated_only: bool = False,
+) -> list[NightRow]:
+    """Apply the History table's requested filters without changing chart data."""
+    requested_levels = set(levels or [])
+    return [
+        night
+        for night in nights
+        if (not requested_levels or night.level in requested_levels)
+        and (not investigated_only or night.episode_id is not None)
+    ]
+
+
+def get_dashboard_summary(
+    subject_id: str,
+    end: date,
+    steps_window_days: int = DASHBOARD_STEPS_AVERAGE_DAYS,
+    conn: sqlite3.Connection | None = None,
+) -> DashboardSummary:
+    """Return observation dates and a steps average over a fixed calendar window."""
+    if steps_window_days < 1:
+        raise ValueError("steps_window_days must be at least one")
+
+    close_conn = False
+    if conn is None:
+        conn = connect()
+        apply_schema(conn)
+        close_conn = True
+
+    window_start = end - timedelta(days=steps_window_days - 1)
+    try:
+        latest_sleep = conn.execute(
+            """SELECT night_date, sleep_hours FROM nightly_features
+               WHERE subject_id = ? AND sleep_hours IS NOT NULL
+               ORDER BY night_date DESC LIMIT 1""",
+            (subject_id,),
+        ).fetchone()
+        latest_steps = conn.execute(
+            """SELECT night_date, steps_prev_day FROM nightly_features
+               WHERE subject_id = ? AND steps_prev_day IS NOT NULL
+               ORDER BY night_date DESC LIMIT 1""",
+            (subject_id,),
+        ).fetchone()
+        window_steps = conn.execute(
+            """SELECT steps_prev_day FROM nightly_features
+               WHERE subject_id = ? AND night_date >= ? AND night_date <= ?
+                 AND steps_prev_day IS NOT NULL
+               ORDER BY night_date""",
+            (subject_id, window_start.isoformat(), end.isoformat()),
+        ).fetchall()
+        values = [int(row["steps_prev_day"]) for row in window_steps]
+        average = round(sum(values) / len(values)) if values else None
+        return DashboardSummary(
+            latest_sleep_hours=float(latest_sleep["sleep_hours"]) if latest_sleep else None,
+            latest_sleep_night=date.fromisoformat(latest_sleep["night_date"]) if latest_sleep else None,
+            latest_steps=int(latest_steps["steps_prev_day"]) if latest_steps else None,
+            latest_steps_night=date.fromisoformat(latest_steps["night_date"]) if latest_steps else None,
+            steps_average=average,
+            steps_window_start=window_start,
+            steps_window_end=end,
+        )
+    finally:
+        if close_conn:
+            conn.close()
 
 
 def list_nights(
@@ -142,6 +215,8 @@ def list_nights(
                     forecast_lo_bpm=det["forecast_lo_bpm"] if det is not None else None,
                     forecast_hi_bpm=det["forecast_hi_bpm"] if det is not None else None,
                     forecast_status=det["forecast_status"] if det is not None else None,
+                    sleep_hours=feat["sleep_hours"] if feat is not None else None,
+                    steps_prev_day=feat["steps_prev_day"] if feat is not None else None,
                 )
             )
             cur_date += timedelta(days=1)
@@ -300,6 +375,42 @@ def get_night_detail(
             baseline=baseline,
             detection=detection,
         )
+    finally:
+        if close_conn:
+            conn.close()
+
+
+def list_oxygen_readings(
+    subject_id: str,
+    days: int = 7,
+    conn: sqlite3.Connection | None = None,
+) -> list[OxygenReading]:
+    """Spot SpO2 samples in the last `days`, oldest first.
+
+    Sparse and unbaselined on purpose: a night frequently has none, per
+    docs/DESIGN-DATA-CHANNELS.md. Same table and query shape as the safety floor's own
+    overnight check in wha.safety.rules, so a spot-check panel and the rule that acts on the
+    same readings can never disagree about which rows exist.
+    """
+    close_conn = False
+    if conn is None:
+        conn = connect()
+        apply_schema(conn)
+        close_conn = True
+
+    try:
+        since = to_iso(now_utc() - timedelta(days=days))
+        rows = conn.execute(
+            """SELECT ts_utc, percentage FROM oxygen_saturation_samples
+               WHERE subject_id = ? AND ts_utc >= ?
+               ORDER BY ts_utc ASC""",
+            (subject_id, since),
+        ).fetchall()
+        return [
+            OxygenReading(ts_utc=from_iso(r["ts_utc"]), percentage=float(r["percentage"]))
+            for r in rows
+            if r["percentage"] is not None
+        ]
     finally:
         if close_conn:
             conn.close()

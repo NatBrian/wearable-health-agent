@@ -75,8 +75,8 @@ flowchart TB
     end
 
     subgraph OUT["WHAT REACHES YOU"]
-        API["HTTP API on 127.0.0.1:8500<br/>34 endpoints"]
-        DASH["Streamlit dashboard<br/>Home, Today, History, Audit, Settings"]
+        API["HTTP API on 127.0.0.1:8500"]
+        DASH["React + Vite dashboard<br/>Home, Today, History, The record, Settings"]
         TG["Telegram bot<br/>questions with buttons, and chat"]
         AUD["Audit log<br/>hash-chained, tamper evident"]
     end
@@ -1380,25 +1380,30 @@ to be.
 
 ### What does this part do?
 
-Everything a screen shows now comes over HTTP from a small API on `127.0.0.1:8500`, with 28
-endpoints and generated documentation at `/docs`. The Streamlit dashboard is one client of
-that API. A test asserts that no screen imports the service layer, the constants, or the
-clock.
+Everything a screen shows now comes over HTTP from the API on `127.0.0.1:8500`, with
+generated documentation at `/docs`. The React + Vite dashboard is a separate client of
+that API, served by Vite on `127.0.0.1:8443` during development. Tests assert that browser
+views do not import the service layer, constants, or clock.
+
+`GET /knowledge/safety-provenance` returns each rule's threshold, provenance, and source
+basis. For rules with an age gate, it also returns `minimum_age_years`, so Settings and the
+question screen can show the live limit and citation without typing either into frontend
+copy.
 
 ### Why does it exist?
 
-So the dashboard can be replaced by a React front end without a line of backend work, and
-so there is exactly one path from data to screen rather than two.
+So every dashboard screen reads the same service-owned data over one HTTP boundary, while
+the presentation can evolve independently of detection and safety behavior.
 
-### The five screens
+### The three dashboard destinations
 
-| Screen | What it is for |
+| Destination | What it contains |
 |---|---|
-| Home | the disclaimer, and what the system can and cannot do |
-| Today | last night, anything pending, and the chat box |
-| History | the chart, the list of investigations, night by night |
-| Audit | the tamper-evident record, in plain English |
-| Settings | where data comes from, how you are contacted, every constant |
+| Dashboard | The original Vite metric cards and selectable trend; baseline and cause details; standing emergency and system-limit copy. Overview, Today and History are sections within this destination. Today carries service status, verdict and pending actions, oxygen context, and handover. History carries the selectable chart, filters, full night table and trace action. |
+| Pipeline | The original detection, reasoning and retrieval overview; selected-night trace; tamper-evident audit, filters and export; archived conversations; and How it works explanations with live provenance. |
+| Settings | Device & Data, Agent Behavior, Model & RAG, and Privacy, including profile, diagnostics, save behavior and disposable-record deletion. |
+
+The chat rail stays available from all three destinations. Dashboard and Pipeline keep the original Vite navigation; the former Streamlit pages are sections within those destinations.
 
 The `/config` endpoint enumerates every public constant from the module rather than listing
 them by hand, so the numbers on screen cannot drift from the code. It also carries your
@@ -1407,7 +1412,7 @@ local date, because a browser cannot compute it.
 **Why bound to localhost and unauthenticated:** one person, one machine, their own health
 record. Putting it on a network would need authentication first, and it does not have any.
 
-**Weaknesses found by driving the five screens as an ordinary person:**
+**Historical review of the former five-screen dashboard:**
 
 - The **Execution Trace** panel reported all nine stages as SKIPPED on every episode, with
   invented reasons like "Ask probe not selected by EVSI optimizer" on an episode that

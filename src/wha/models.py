@@ -367,6 +367,14 @@ class ComponentStatus(BaseModel):
     severity: Literal["ok", "warn", "error"]
 
 
+class DetectionStreak(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    length: int
+    level: DetectionLevel
+    direction: Literal["rising", "steady", "falling"] | None = None
+
+
 class SystemStatus(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -377,6 +385,7 @@ class SystemStatus(BaseModel):
     rung: BaselineRung
     errors_24h: int
     quiet_nights_streak: int
+    detection_streak: DetectionStreak | None = None
     # Nights in the same recent window with no usable reading. A night the watch did not
     # measure is not a quiet night, and reporting it as one turns missing data into
     # reassurance, which is the opposite of what it means.
@@ -389,6 +398,15 @@ class ConnectionCheck(BaseModel):
     ok: bool
     detail: str
     latency_ms: int | None = None
+
+
+class OxygenReading(BaseModel):
+    """One spot SpO2 sample. Never baselined: see docs/DESIGN-DATA-CHANNELS.md."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    ts_utc: datetime
+    percentage: float
 
 
 class NightRow(BaseModel):
@@ -422,6 +440,35 @@ class NightRow(BaseModel):
     forecast_lo_bpm: float | None = None
     forecast_hi_bpm: float | None = None
     forecast_status: str | None = None
+    # Carried here, not fetched per-night through NightDetail, so a chart across many
+    # nights costs one list_nights call rather than one NightDetail call per night. Both
+    # are frequently None: sleep_hours is absent whenever the watch recorded no sleep
+    # session, and steps_prev_day whenever the previous day has no step bucket.
+    sleep_hours: float | None = None
+    steps_prev_day: int | None = None
+
+
+class DashboardSummary(BaseModel):
+    """Latest sleep and step observations plus a calendar-bounded steps summary."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    latest_sleep_hours: float | None = None
+    latest_sleep_night: date | None = None
+    latest_steps: int | None = None
+    latest_steps_night: date | None = None
+    steps_average: int | None = None
+    steps_window_start: date
+    steps_window_end: date
+
+
+class KnowledgeProvenanceSummary(BaseModel):
+    """Entry counts for the Home evidence summary, without exposing figure counts."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    unevidenced_entries: int
+    total_entries: int
 
 
 class NightDetail(BaseModel):
@@ -706,9 +753,9 @@ class SettingsPatch(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    interruption_budget_per_week: int | None = None
-    depth_budget_per_episode: int | None = None
-    policy_cost_weight: float | None = None
+    interruption_budget_per_week: int | None = Field(default=None, ge=0, le=20)
+    depth_budget_per_episode: int | None = Field(default=None, ge=0, le=10)
+    policy_cost_weight: float | None = Field(default=None, ge=0, le=1)
     notify_channel: Literal["none", "telegram"] | None = None
     llm_provider: Literal["cassette", "ollama_native", "openai_compatible"] | None = None
     llm_model: str | None = None
@@ -755,7 +802,7 @@ class SubjectProfilePatch(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    age_years: int | None = None
+    age_years: int | None = Field(default=None, ge=0, le=120)
     sex: Literal["female", "male"] | None = None
     known_vascular_disease: bool | None = None
     menstruates: bool | None = None

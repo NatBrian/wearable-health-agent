@@ -50,7 +50,7 @@ holding `chronos-forecasting` and `torch`, both removed with the forecaster in i
 
 | Group | Contents |
 |---|---|
-| runtime | `pydantic>=2.9,<3`, `pandas>=2.2,<3`, `numpy>=2.0,<3`, `scipy>=1.14,<2`, `httpx>=0.27,<1`, `typer>=0.12,<1`, `python-dotenv>=1,<2`, `apscheduler>=3.10,<4`, `sentence-transformers>=3,<5`, `langgraph>=1.2,<2`, `langgraph-checkpoint-sqlite>=3.1,<4`, `rank-bm25>=0.2,<1`, `lxml>=5,<7`, `streamlit>=1.40,<2`, `altair>=5,<7`, `fastapi>=0.115,<1`, `uvicorn>=0.30,<1` |
+| runtime | `pydantic>=2.9,<3`, `pandas>=2.2,<3`, `pyarrow>=25,<26`, `numpy>=2.0,<3`, `scipy>=1.14,<2`, `httpx>=0.27,<1`, `typer>=0.12,<1`, `python-dotenv>=1,<2`, `apscheduler>=3.10,<4`, `sentence-transformers>=3,<5`, `langgraph>=1.2,<2`, `langgraph-checkpoint-sqlite>=3.1,<4`, `rank-bm25>=0.2,<1`, `lxml>=5,<7`, `fastapi>=0.115,<1`, `uvicorn>=0.30,<1`, `pip-system-certs>=5.3` |
 | dev | `pytest>=8,<9`, `pytest-xdist`, `ruff`, `playwright>=1.62.0`, `pillow>=11,<14` |
 
 `torch` is still installed, as a dependency of `sentence-transformers`. Nothing in `src/`
@@ -221,6 +221,12 @@ Single source of truth: `src/wha/constants.py`. **Nothing below may be duplicate
 anywhere else in the codebase.** Every value is either swept or justified in the evaluation.
 
 ```python
+# --- dashboard presentation ----------------------------------------------
+DASHBOARD_STEPS_AVERAGE_DAYS = 7
+HISTORY_WINDOW_DAYS = [30, 60, 90, 365]
+POLICY_COST_WEIGHT_UI_STEP = 0.01
+DASHBOARD_RESIDUAL_DIRECTION_FLOOR_BPM = 0.5   # original Vite display deadband, no clinical effect
+
 # --- coverage and quality -------------------------------------------------
 MIN_NOCTURNAL_MINUTES         = 180     # 3h of the 7h window
 HR_PLAUSIBLE_MIN_BPM          = 25
@@ -963,6 +969,10 @@ class ComponentStatus(BaseModel):
     ok: bool; detail: str; checked_at_utc: datetime
     severity: Literal["ok", "warn", "error"]
 
+class DetectionStreak(BaseModel):
+    length: int; level: DetectionLevel
+    direction: Literal["rising", "steady", "falling"] | None
+
 class SystemStatus(BaseModel):
     components: list[ComponentStatus]
     last_ingest_utc: datetime | None
@@ -970,6 +980,7 @@ class SystemStatus(BaseModel):
     usable_nights: int; rung: BaselineRung
     errors_24h: int
     quiet_nights_streak: int
+    detection_streak: DetectionStreak | None
     # Nights in the recent window with no reading at all. A quiet-night streak that counts
     # unmeasured nights reports reassurance the system is not in a position to give.
     unmeasured_recent_nights: int = 0
@@ -990,6 +1001,21 @@ class NightRow(BaseModel):
     forecast_lo_bpm: float | None = None
     forecast_hi_bpm: float | None = None
     forecast_status: str | None = None
+    sleep_hours: float | None = None
+    steps_prev_day: int | None = None
+
+class DashboardSummary(BaseModel):
+    latest_sleep_hours: float | None = None
+    latest_sleep_night: date | None = None
+    latest_steps: int | None = None
+    latest_steps_night: date | None = None
+    steps_average: int | None = None
+    steps_window_start: date
+    steps_window_end: date
+
+class KnowledgeProvenanceSummary(BaseModel):
+    unevidenced_entries: int
+    total_entries: int
 
 class NightDetail(BaseModel):
     row: NightRow
@@ -1084,9 +1110,9 @@ class Settings(BaseModel):
 
 class SettingsPatch(BaseModel):
     """Every field optional. Secrets are write-only and never read back."""
-    interruption_budget_per_week: int | None = None
-    depth_budget_per_episode: int | None = None
-    policy_cost_weight: float | None = None
+    interruption_budget_per_week: int | None = Field(default=None, ge=0, le=20)
+    depth_budget_per_episode: int | None = Field(default=None, ge=0, le=10)
+    policy_cost_weight: float | None = Field(default=None, ge=0, le=1)
     notify_channel: Literal["none","telegram"] | None = None
     llm_provider: Literal["cassette","ollama_native","openai_compatible"] | None = None
     llm_model: str | None = None
@@ -1095,6 +1121,24 @@ class SettingsPatch(BaseModel):
     bridge_token: SecretStr | None = None
     llm_api_key: SecretStr | None = None
     telegram_token: SecretStr | None = None
+
+class SubjectProfile(BaseModel):
+    subject_id: str
+    age_years: int | None = None
+    sex: Literal["female", "male"] | None = None
+    known_vascular_disease: bool | None = None
+    menstruates: bool | None = None
+    rate_lowering_medicine: bool | None = None
+    notes_for_doctor: str | None = None
+    updated_at_utc: datetime | None = None
+
+class SubjectProfilePatch(BaseModel):
+    age_years: int | None = Field(default=None, ge=0, le=120)
+    sex: Literal["female", "male"] | None = None
+    known_vascular_disease: bool | None = None
+    menstruates: bool | None = None
+    rate_lowering_medicine: bool | None = None
+    notes_for_doctor: str | None = None
 ```
 
 ### 6.6 Agent, tool and LLM models
@@ -1249,9 +1293,10 @@ class Scenario(BaseModel):
 
 ## 7. Service layer
 
-`src/wha/service/` holds every business-logic entry point. **Streamlit pages and CLI commands call
-these and do nothing else.** No page or command queries the database directly, and no page imports
-from `detect/`, `belief/`, `policy/`, `agent/` or `db/`. A lint rule enforces the import ban.
+`src/wha/service/` holds every business-logic entry point. **The HTTP API and CLI commands call
+these and do nothing else.** The React dashboard calls the API over HTTP; no browser view imports
+the service layer or queries the database. The Python layering test enforces the service import
+boundary.
 
 ```python
 # service/status.py
@@ -1299,8 +1344,9 @@ def delete_all_subject_data(subject_id: str) -> None: ...
 **This list is the stable core, not the whole surface.** `wha.service` exports 41 further
 callables that are not named here, and a signature list in a hand-maintained document will always
 lag the code. What this section is FOR is the shape of the boundary: a screen calls the service
-layer through `wha.api`, never the other way round, and `tests/ui/test_ui_boundary.py` enforces
-that. For the current surface, read `src/wha/service/__init__.py`.
+layer through `wha.api`, never the other way round. `tests/unit/test_layering.py` and the
+frontend API/view tests enforce that boundary. For the current service surface, read
+`src/wha/service/__init__.py`.
 
 The conversation that replaced `ask_about_episode` is bounded differently and more strictly than
 that signature was: the deterministic safety floor runs on the person's words BEFORE the model

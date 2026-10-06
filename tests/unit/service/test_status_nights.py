@@ -141,6 +141,63 @@ def test_list_nights_includes_empty_nights() -> None:
         assert n.band_hi is None
 
 
+def test_dashboard_summary_uses_latest_samples_and_a_calendar_steps_window() -> None:
+    from wha.service.nights import get_dashboard_summary
+
+    conn = connect(":memory:")
+    apply_schema(conn)
+    entries = [
+        ("2026-09-01", 900, 7.0, 1),
+        ("2026-09-03", 300, None, 1),
+        ("2026-09-04", 500, 6.25, 0),
+    ]
+    for night_date, steps, sleep_hours, usable in entries:
+        conn.execute(
+            """INSERT INTO nightly_features
+                 (subject_id, night_date, rhr_bpm, coverage_minutes, usable,
+                  steps_prev_day, sleep_hours, computed_at_utc)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            ("summary-subject", night_date, 60, 400, usable, steps, sleep_hours, "2026-09-05T00:00:00Z"),
+        )
+
+    summary = get_dashboard_summary(
+        "summary-subject",
+        end=date(2026, 9, 5),
+        steps_window_days=3,
+        conn=conn,
+    )
+
+    assert summary.latest_sleep_hours == 6.25
+    assert summary.latest_sleep_night == date(2026, 9, 4)
+    assert summary.latest_steps == 500
+    assert summary.latest_steps_night == date(2026, 9, 4)
+    assert summary.steps_average == 400
+    assert summary.steps_window_start == date(2026, 9, 3)
+    assert summary.steps_window_end == date(2026, 9, 5)
+
+
+def test_dashboard_summary_distinguishes_no_samples_from_zero_steps() -> None:
+    from wha.service.nights import get_dashboard_summary
+
+    conn = connect(":memory:")
+    apply_schema(conn)
+
+    summary = get_dashboard_summary(
+        "empty-subject",
+        end=date(2026, 9, 5),
+        steps_window_days=3,
+        conn=conn,
+    )
+
+    assert summary.latest_sleep_hours is None
+    assert summary.latest_sleep_night is None
+    assert summary.latest_steps is None
+    assert summary.latest_steps_night is None
+    assert summary.steps_average is None
+    assert summary.steps_window_start == date(2026, 9, 3)
+    assert summary.steps_window_end == date(2026, 9, 5)
+
+
 def test_band_is_none_without_baseline() -> None:
     """When a night has feature data but no baseline record, band_lo and band_hi are None."""
     conn = connect(":memory:")

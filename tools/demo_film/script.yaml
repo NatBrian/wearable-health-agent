@@ -51,7 +51,7 @@ acts:
 
       - id: 1
         title: "Why an agent, and not a better algorithm"
-        form: card
+        form: live+card
         seconds: 70
         card:
           heading: "One reading. Several explanations. Opposite responses."
@@ -357,7 +357,7 @@ acts:
 
       - id: 20
         title: "What did not work"
-        form: card
+        form: live+card
         seconds: 80
         card:
           heading: "Things that were built and then not kept"
@@ -412,7 +412,7 @@ acts:
 
       - id: 23
         title: "What this is not"
-        form: card
+        form: live+card
         seconds: 45
         card:
           heading: "It is not a medical device, and it does not diagnose."
