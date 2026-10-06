@@ -49,7 +49,7 @@ The frontend audit also found a high-severity advisory in the development depend
 - [x] Include `NA` rows in the query and stop at the first row that differs from the newest measured level.
 - [x] Declare `pyarrow` directly after Streamlit removal and reconcile the runtime dependency contract.
 - [x] Rerun the cases, then run the repository test suite and Ruff once at the end.
-- [ ] Commit the plan, tests, and backend change with a why-focused message.
+- [x] Commit the plan, tests, and backend change with a why-focused message.
 
 **Done when:** Both new cases pass, existing same-level behavior remains covered, and the full repository checks pass.
 
@@ -59,10 +59,12 @@ The frontend audit also found a high-severity advisory in the development depend
 
 **Files:** Local-only `.env2` in the original checkout; PR branch history.
 
-- [x] Copy the PR `.env` blob to `.env2` without reading or changing the existing `.env`.
+- [x] Copy the PR `.env` configuration to `.env2` without displaying its values or changing the existing `.env`.
 - [x] Add `.env2` to the original checkout's local Git exclude file.
-- [ ] Push the tested branch with an explicit lease against the known PR head, omitting both `.env` commits.
-- [ ] Verify PR #3 has no `.env` file and no `.env`-bearing commit in its current branch history.
+- [x] Push the tested branch with an explicit lease against the known PR head, omitting both `.env` commits.
+- [x] Verify PR #3 has no `.env` file and no `.env`-bearing commit in its current branch history.
 - [x] Confirm the local `.env` hash is unchanged and the `.env2` file is ignored.
 
 **Done when:** The PR branch contains the backend fix and no `.env` path in its current tree or history, while the local original `.env` remains unchanged and `.env2` is safely excluded.
+
+**PR state:** GitHub reports the cleaned branch as mergeable but blocked, with no status checks or review decision. The full Python suite retains the retrieval failure recorded above, so this PR is not ready to merge yet.
