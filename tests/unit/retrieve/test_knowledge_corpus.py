@@ -81,22 +81,10 @@ def test_the_index_finds_the_right_passage_for_a_symptom_and_for_a_red_flag() ->
     """Retrieval is only useful if the passage it returns is the relevant one."""
     index = build_index()
 
-    # This asserted that the probe-evidence passage appears in the top 6 for "I have a
-    # fever and chills". It passed for the wrong reason: that passage used to print its
-    # raw option ids, `- **fever**: "Feverish or chills"`, so the literal token `fever`
-    # made an internal note about why the system asks a question outrank real health
-    # information on a symptom query. That is the defect the review reported, where
-    # searching fever returned the answer-option list first.
-    #
-    # Measured after the passage was rewritten as prose: for "I have a fever and chills" it
-    # now sits at rank 10, behind Fever, Valley Fever, Flu, Hay Fever, Bone Infections,
-    # Listeria, Dengue, the tier B same-day rule and Common Cold. Every one of those is a
-    # better answer for somebody reporting a fever, so the new ranking is correct and the
-    # old expectation was wrong.
-    #
-    # What must stay true is that the passage is still FINDABLE, which is the property
-    # item 31 broke once by deleting vocabulary outright. It is rank 1 for the question's
-    # own wording and rank 1 for the words it offers as answers.
+    # Probe evidence contains assumed internal likelihoods. It stays findable through its
+    # own question and fixed answer labels, but semantic similarity alone must not surface
+    # it for a general symptom report. This remains true when the optional MedlinePlus
+    # snapshot is absent and there are no consumer-health passages to outrank it.
     assert any("probe_symptoms" in r.chunk_id for r in index.query("How are you feeling?", top_k=3))
     assert any("probe_symptoms" in r.chunk_id for r in index.query("feverish or chills", top_k=3))
 

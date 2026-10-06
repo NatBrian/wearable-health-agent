@@ -597,6 +597,7 @@ def generate_probe_evidence_docs(path: Path | None = None) -> list[CorpusDocumen
                     "probe_id": probe_id,
                     "cause_id": cause,
                     "provenance": provenance,
+                    "retrieval_phrases": [question, *choices],
                 },
             )
         )

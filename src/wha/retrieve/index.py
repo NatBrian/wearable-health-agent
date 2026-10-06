@@ -76,6 +76,17 @@ def tokenize(text: str) -> list[str]:
     return re.findall(r"\w+", text.lower())
 
 
+def _query_contains_phrase(query_tokens: list[str], phrase: str) -> bool:
+    """Whether normalized query tokens contain a complete contiguous phrase."""
+    phrase_tokens = tokenize(phrase)
+    if not phrase_tokens or len(phrase_tokens) > len(query_tokens):
+        return False
+    return any(
+        query_tokens[start : start + len(phrase_tokens)] == phrase_tokens
+        for start in range(len(query_tokens) - len(phrase_tokens) + 1)
+    )
+
+
 class HybridIndex:
     """Hybrid search index over chunk corpus using BM25, dense embeddings, and RRF."""
 
@@ -113,6 +124,7 @@ class HybridIndex:
             return []
 
         cleaned_query = query_str.strip()
+        query_tokens = tokenize(cleaned_query)
         allowed_layers = (
             {layer} if isinstance(layer, int) else (set(layer) if layer is not None else None)
         )
@@ -122,6 +134,10 @@ class HybridIndex:
         for idx, chunk in enumerate(self.chunks):
             if allowed_layers is not None and chunk.layer not in allowed_layers:
                 continue
+            if chunk.metadata.get("topic") == "probe_evidence":
+                phrases = chunk.metadata.get("retrieval_phrases", [])
+                if not any(_query_contains_phrase(query_tokens, phrase) for phrase in phrases):
+                    continue
             if metadata_filter:
                 match = True
                 for k, v in metadata_filter.items():
@@ -136,7 +152,6 @@ class HybridIndex:
             return []
 
         # 2. BM25 Scores
-        query_tokens = tokenize(cleaned_query)
         bm25_ranks: dict[int, int] = {}
         if self.bm25 and query_tokens:
             bm25_scores = self.bm25.get_scores(query_tokens)

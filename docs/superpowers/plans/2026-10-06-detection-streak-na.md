@@ -17,7 +17,7 @@
 - Always run Python through `uv`.
 - Do not touch or replace the existing local `.env` or any real-subject database.
 - Verify the `.env2` copy is excluded from Git and absent from the PR tree/history.
-- Do not merge PR #3; report its readiness for the owner.
+- Merge PR #3 only after the full Python suite passes, the `.env` scrub is verified, and every exposed credential has been revoked or rotated. The user's latest instruction authorizes merging once those blockers are clear, superseding the earlier confirmation gate.
 
 ## Review Focus
 
@@ -53,7 +53,7 @@ The frontend audit also found a high-severity advisory in the development depend
 
 **Done when:** Both new cases pass, existing same-level behavior remains covered, and the full repository checks pass.
 
-**Verification note:** The new streak cases and focused dependency checks pass, and Ruff passes. The full suite still fails at `tests/unit/retrieve/test_knowledge_corpus.py::test_the_index_finds_the_right_passage_for_a_symptom_and_for_a_red_flag`. That test, its retrieval code and corpus, and the relevant retrieval package versions are unchanged from the base branch.
+**Verification note:** The streak cases, focused dependency checks, full suite (`716 passed, 3 skipped`), and Ruff pass. The suite initially exposed that dense retrieval could surface assumed probe evidence for a general symptom report when the optional MedlinePlus snapshot was absent; Task 3 records the fix.
 
 ### Task 2: Preserve locally and scrub PR history
 
@@ -67,4 +67,18 @@ The frontend audit also found a high-severity advisory in the development depend
 
 **Done when:** The PR branch contains the backend fix and no `.env` path in its current tree or history, while the local original `.env` remains unchanged and `.env2` is safely excluded.
 
-**PR state:** GitHub reports the cleaned branch as mergeable but blocked, with no status checks or review decision. The full Python suite retains the retrieval failure recorded above, so this PR is not ready to merge yet.
+**Credential gate:** The preserved `.env2` contains exposed credentials named `WHA_LLM_API_KEY` (OpenRouter endpoint), `WHA_TELEGRAM_TOKEN`, and `WHA_BRIDGE_TOKEN`. The local `.env` hash matches its pre-task value, and `.env2` is excluded by `.git/info/exclude`. All three exposed credentials must be revoked or rotated before merge; the user must complete credential changes themselves.
+
+### Task 3: Keep internal probe evidence out of general symptom searches
+
+**Files:** `src/wha/retrieve/index.py`, `src/wha/retrieve/knowledge_docs.py`, and retrieval tests.
+
+- [x] Reproduce the failing symptom query against the authored-only corpus.
+- [x] Require an explicit authored probe question or answer phrase before probe-evidence chunks can enter hybrid ranking.
+- [x] Preserve direct retrieval for the probe question and fixed answer labels.
+- [x] Run `uv run pytest -n auto`: 716 passed, 3 skipped.
+- [x] Run `uv run ruff check src tests`: all checks passed.
+
+**Done when:** General symptom searches do not retrieve assumed probe likelihoods, and deliberate probe-evidence searches continue to work.
+
+**PR state:** The `.env` path and its old tip commit are absent from the current PR file list/history. GitHub previously reported the branch mergeable but blocked, without status checks or a review decision. Credential rotation remains the security blocker; recheck GitHub state after pushing Task 3.
