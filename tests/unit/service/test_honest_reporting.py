@@ -111,6 +111,45 @@ def test_dashboard_status_reports_the_latest_level_run_and_residual_direction(
     assert streak.direction == "rising"
 
 
+def test_an_unmeasured_night_breaks_the_detection_streak(tmp_path: Path) -> None:
+    """The sleep card must not imply a continuous run across a night with no reading."""
+    base = date(2026, 9, 3)
+    rows = [
+        (base, "RED", 1),
+        (base - timedelta(days=1), "NA", 0),
+        (base - timedelta(days=2), "RED", 1),
+    ]
+    db_file = _db_with_detections(tmp_path, rows)
+    conn = connect(db_file)
+    conn.executemany(
+        "UPDATE detections SET residual_bpm = ? WHERE subject_id = 'me' AND night_date = ?",
+        [(5.0, base.isoformat()), (2.0, (base - timedelta(days=2)).isoformat())],
+    )
+    conn.commit()
+    conn.close()
+
+    streak = get_system_status("me", db_path=db_file).detection_streak
+
+    assert streak is not None
+    assert streak.length == 1
+    assert streak.level is DetectionLevel.RED
+    assert streak.direction is None
+
+
+def test_latest_unmeasured_night_has_no_detection_streak(tmp_path: Path) -> None:
+    """The sleep card must not report an older measured level as the current streak."""
+    base = date(2026, 9, 3)
+    rows = [
+        (base, "NA", 0),
+        (base - timedelta(days=1), "RED", 1),
+    ]
+    db_file = _db_with_detections(tmp_path, rows)
+
+    streak = get_system_status("me", db_path=db_file).detection_streak
+
+    assert streak is None
+
+
 # "your usual range" wording lived in wha.ui.explain.level, which was Streamlit-specific
 # presentation text. It moved to archive/streamlit-ui-2026-09-27/ with the rest of that
 # dashboard on 27 September 2026; the frontend under frontend/ now owns this wording

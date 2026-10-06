@@ -272,17 +272,17 @@ def get_system_status(
             1 for r in rows_det[:RECENT_NIGHTS_WINDOW] if r["level"] == "NA"
         )
 
-        measured_levels = conn.execute(
+        recent_levels = conn.execute(
             """SELECT level, residual_bpm FROM detections
-               WHERE subject_id = ? AND level != 'NA'
+               WHERE subject_id = ?
                ORDER BY night_date DESC LIMIT 30""",
             (subject_id,),
         ).fetchall()
         detection_streak = None
-        if measured_levels:
-            latest_level = DetectionLevel(measured_levels[0]["level"])
+        if recent_levels and recent_levels[0]["level"] != "NA":
+            latest_level = DetectionLevel(recent_levels[0]["level"])
             same_level = []
-            for row in measured_levels:
+            for row in recent_levels:
                 if row["level"] != latest_level.value:
                     break
                 same_level.append(row)
