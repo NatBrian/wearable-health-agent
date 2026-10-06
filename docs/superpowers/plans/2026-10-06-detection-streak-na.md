@@ -82,4 +82,4 @@ The frontend audit also found a high-severity advisory in the development depend
 
 **Done when:** General symptom searches do not retrieve assumed probe likelihoods, and deliberate probe-evidence searches continue to work.
 
-**PR state:** The `.env` path and its old tip commit are absent from the current PR file list/history. GitHub previously reported the branch mergeable but blocked, without status checks or a review decision. Credential rotation remains the security blocker; recheck GitHub state after pushing Task 3.
+**PR state:** After pushing Task 3, GitHub reports the PR open and mergeable but blocked, with no status checks or review decision. The active `Admin` ruleset applies to `main`, so the requested merge needs admin bypass. The current PR file list has no `.env` paths, and the old `.env`-bearing tip is absent from its commit list. Credential rotation remains the security blocker.
