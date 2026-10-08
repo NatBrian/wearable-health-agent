@@ -4,9 +4,7 @@
 > consumer wearable data.**
 
 
-
-https://github.com/user-attachments/assets/80ddc8ef-3f70-4fe5-9877-78938f91dcd4
-
+https://github.com/user-attachments/assets/dbaf06c2-38ed-4806-9fe5-e10cb43ef248
 
 
 Your smartwatch can tell that something changed. It cannot tell you what changed it.
