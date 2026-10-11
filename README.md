@@ -6,7 +6,7 @@
 
 https://github.com/user-attachments/assets/dbaf06c2-38ed-4806-9fe5-e10cb43ef248
 
-[Presentation PPTX](docs/presentations/Presentation.pptx) · [Report PDF](docs/presentations/Report.pdf)
+[Presentation PDF](docs/presentations/Presentation.pdf) · [Presentation PPTX](docs/presentations/Presentation.pptx) · [Report PDF](docs/presentations/Report.pdf)
 
 
 Your smartwatch can tell that something changed. It cannot tell you what changed it.
