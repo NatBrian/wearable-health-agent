@@ -108,12 +108,12 @@ export function ChatPanel({
           <p className="chat-empty">No conversation has been recorded for this night. The agent speaks only when it has something worth an interruption.</p>
         ) : turns.map((turn) => {
           const citations = parseList<ConversationCitation>(turn.citations_json)
-          const uncited = parseList<string>(turn.uncited_json)
+          const hasUncited = parseList<string>(turn.uncited_json).length > 0
           return (
             <article className={`chat-turn ${turn.role === 'user' ? 'chat-turn--user' : 'chat-turn--agent'}`} key={turn.id}>
               <div className="chat-turn__meta"><strong>{turn.role === 'user' ? 'You' : 'Agent'}</strong><time dateTime={turn.created_at_utc}>{timeLabel(turn.created_at_utc, subject.timezone)}</time>{turn.urgency && <span className="urgency-inline">{turn.urgency.replace('_', ' ')}</span>}</div>
               <p>{turn.text}</p>
-              <CitationPanel citations={citations} uncited={uncited} config={config} showMissingStatus={turn.role === 'agent'} />
+              <CitationPanel citations={citations} hasUncited={hasUncited} config={config} showMissingStatus={turn.role === 'agent'} />
             </article>
           )
         })}

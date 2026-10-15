@@ -63,7 +63,7 @@ export function PendingInteraction({
         <>
           <div className="review-draft"><span className="eyebrow">What it concluded</span><strong>{pending.draft_outcome.disposition.replace(/_/g, ' ').toLowerCase()}</strong><p>{pending.draft_outcome.observation}</p></div>
           <p className="supporting-copy">Nothing here is settled until you decide. You can change the wording, say it is wrong, or send it on to a clinician.</p>
-          <CitationPanel citations={pending.draft_outcome.citations} uncited={[]} config={config} showMissingStatus />
+          <CitationPanel citations={pending.draft_outcome.citations} config={config} showMissingStatus />
           <label className="field-label">Change the wording (optional)<textarea value={prose} onChange={(event) => setProse(event.target.value)} rows={5} /></label>
           <label className="field-label">Why (optional)<input value={rationale} onChange={(event) => setRationale(event.target.value)} /></label>
           <div className="button-row">

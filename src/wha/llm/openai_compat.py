@@ -2,6 +2,7 @@
 
 import time
 from typing import TypeVar
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -44,6 +45,7 @@ class OpenAICompatClient:
         messages: list[dict[str, str]],
         temperature: float,
         max_tokens: int,
+        reasoning_effort: str | None = None,
     ) -> tuple[str, LLMUsage, str | None]:
         url = f"{self.base_url.rstrip('/')}/chat/completions"
         headers = {
@@ -57,6 +59,8 @@ class OpenAICompatClient:
             "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
         }
+        if reasoning_effort is not None:
+            payload["reasoning_effort"] = reasoning_effort
 
         t0 = time.perf_counter()
         try:
@@ -112,7 +116,16 @@ class OpenAICompatClient:
             {"role": "user", "content": prompt.user},
         ]
 
-        raw_content, usage, _ = self._call_api(messages, temperature, max_tokens)
+        use_low_effort = (
+            prompt.prompt_id == "converse"
+            and self.model.startswith("deepseek/")
+            and urlsplit(self.base_url).hostname == "openrouter.ai"
+        )
+        reasoning_effort = "none" if use_low_effort else None
+
+        raw_content, usage, _ = self._call_api(
+            messages, temperature, max_tokens, reasoning_effort=reasoning_effort
+        )
         cleaned = strip_markdown_fences(raw_content)
 
         try:
@@ -127,7 +140,10 @@ class OpenAICompatClient:
             ]
 
             repaired_content, repair_usage, _ = self._call_api(
-                repair_messages, temperature, max_tokens
+                repair_messages,
+                temperature,
+                max_tokens,
+                reasoning_effort=reasoning_effort,
             )
             repaired_cleaned = strip_markdown_fences(repaired_content)
 

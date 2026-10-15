@@ -376,6 +376,21 @@ def test_the_contract_quotes_the_constant_values_the_code_holds() -> None:
     assert not problems, "docs/CONTRACTS.md and constants.py disagree:\n  " + "\n  ".join(problems)
 
 
+def test_contract_source_labels_match_the_values_the_ui_displays() -> None:
+    """A new citation source must be credited consistently on both chat surfaces."""
+    import ast
+    import re
+
+    from wha.constants import SOURCE_LABEL_PREFIXES
+
+    block = _contract()
+    block = block[block.index("## 4. Constants") : block.index("## 5. Storage schema")]
+    match = re.search(r"^SOURCE_LABEL_PREFIXES\s*=\s*(\{.*\})$", block, re.MULTILINE)
+
+    assert match is not None, "the constant's display labels are missing from the contract"
+    assert ast.literal_eval(match.group(1)) == SOURCE_LABEL_PREFIXES
+
+
 def test_the_contract_lists_the_dependencies_pyproject_actually_declares() -> None:
     """The contract claimed this project depends on torch and chronos-forecasting.
 

@@ -258,6 +258,7 @@ class Citation(BaseModel):
     uri: str | None = None
     passage: str
     retrieval_score: float
+    quoted_span: str | None = None
 
 
 class ExtractedFact(BaseModel):

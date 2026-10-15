@@ -73,6 +73,64 @@ def test_finish_reason_length_is_unavailable() -> None:
     assert "finish_reason='length'" in str(exc_info.value)
 
 
+def test_openrouter_deepseek_conversation_disables_optional_reasoning() -> None:
+    """A chat turn reserves its output budget for the structured answer, not hidden reasoning."""
+    client = OpenAICompatClient(
+        base_url="https://openrouter.ai/api/v1",
+        api_key="test-key",
+        model="deepseek/deepseek-v4-flash-0731",
+    )
+    prompt = Prompt(prompt_id="converse", prompt_version="4", user="Reply as JSON.")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": '{"decision": "answer", "confidence": 0.9}'
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 12},
+    }
+
+    with patch("httpx.Client.post", return_value=mock_resp) as mock_post:
+        client.complete(prompt, ExpectedOutput, max_tokens=4096)
+
+    payload = mock_post.call_args.kwargs["json"]
+    assert payload["max_tokens"] == 4096
+    assert payload["reasoning_effort"] == "none"
+
+
+def test_openrouter_deepseek_non_conversation_keeps_provider_default_reasoning() -> None:
+    """Other DeepSeek operations retain their configured provider reasoning behavior."""
+    client = OpenAICompatClient(
+        base_url="https://openrouter.ai/api/v1",
+        api_key="test-key",
+        model="deepseek/deepseek-v4-flash-0731",
+    )
+    prompt = Prompt(prompt_id="extract_facts", user="Extract facts as JSON.")
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "choices": [
+            {
+                "message": {
+                    "content": '{"decision": "answer", "confidence": 0.9}'
+                },
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 12},
+    }
+
+    with patch("httpx.Client.post", return_value=mock_resp) as mock_post:
+        client.complete(prompt, ExpectedOutput, max_tokens=1024)
+
+    assert "reasoning_effort" not in mock_post.call_args.kwargs["json"]
+
+
 def test_one_repair_round_then_raises() -> None:
     """Pydantic validation failure triggers exactly one repair call, then raises ValidationFailed."""
     client = OpenAICompatClient()
