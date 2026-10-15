@@ -14,8 +14,9 @@ in a prompt, because a model checking its own safety is not a check:
 2. **Urgency can rise and can never fall.** It is set by
    :mod:`wha.safety.triage` and the red-flag rules, never by the model. The model may
    confirm a safety gate, which raises it; nothing the model writes can lower it.
-3. **Every clinical sentence is either cited or visibly labelled as uncited.** Grounding is
-   the verbatim containment test in :func:`wha.retrieve.grounding.enforce_grounding`.
+3. **When a turn contains an uncited claim, only claims passing the evidence-span check are
+   shown.** Grounding is the verbatim containment test in
+   :func:`wha.retrieve.grounding.enforce_grounding`.
 
 The conversation is also where red flags are *sought* rather than awaited. Sutaria et al.
 2025 (BMC Health Serv Res 25:1263) measured online symptom checkers seeking 36.9 percent of
@@ -669,28 +670,6 @@ def _sanitise(text: str) -> str:
     return " ".join(cleaned.split())
 
 
-def _remove_inline_uncited_claims(text: str, uncited: list[str]) -> str:
-    """Keep model-labelled unsupported sentences out of the main reply body.
-
-    The interface shows those sentences in a separate warning. Leaving the same sentence
-    in the prose makes it read like part of the cited answer, even though the warning says
-    otherwise. Only remove a complete sentence that matches an uncited note; keep the
-    note itself so the interface can disclose what was unsupported.
-    """
-    cleaned = text
-    for claim in uncited:
-        sentence = " ".join(_sanitise(claim).split()).rstrip(".!? ")
-        if not sentence:
-            continue
-        pattern = re.compile(
-            rf"(^|[.!?]\s+|[\r\n]+){re.escape(sentence)}[.!?]?(?=\s|$)",
-            flags=re.IGNORECASE,
-        )
-        cleaned = pattern.sub(lambda match: match.group(1), cleaned)
-    cleaned = re.sub(r"\s+([,.!?])", r"\1", cleaned)
-    return " ".join(cleaned.split()).strip(" ,;")
-
-
 def _remove_inline_questions(text: str) -> str:
     """Keep a follow-up question in its structured field, so it appears only once."""
     fragments = re.split(r"(?<=[.!?])\s+|\n+", text)
@@ -1058,7 +1037,9 @@ def respond(
     ]
 
     # A claim whose span was not found is not shown as if it were sourced. It joins the
-    # uncited list, where the interface labels it, rather than disappearing silently.
+    # uncited list for audit and storage. If any claim is uncited, construct the displayed
+    # body only from claims whose evidence spans passed the deterministic check; do not
+    # trust free-form prose to repeat an unsupported claim exactly enough to remove it.
     grounded_texts = {c.text for c in grounded}
     uncited = list(result.uncited_notes) + [
         c.text for c in result.grounded_claims if c.text not in grounded_texts
@@ -1067,7 +1048,13 @@ def respond(
     # Append the question only when it is not already in the reply. The model routinely
     # puts the same sentence in both fields, and the result was a real message that asked
     # the person about their temperature twice in a row.
-    text = _remove_inline_uncited_claims(_sanitise(result.reply), uncited)
+    if uncited:
+        grounded_sentences = [_sanitise(claim.text).strip() for claim in grounded]
+        text = " ".join(sentence for sentence in grounded_sentences if sentence)
+        if not text:
+            text = "I couldn't verify an answer from the available sources."
+    else:
+        text = _sanitise(result.reply)
     question = _sanitise(result.question) if result.question else ""
     if question:
         text = _remove_inline_questions(text)

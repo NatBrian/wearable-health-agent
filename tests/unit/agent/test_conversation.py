@@ -172,12 +172,11 @@ def test_a_flag_with_no_validated_rule_still_escalates_on_the_spot(conn) -> None
     assert reply.triggered_flags
 
 
-def test_an_ungrounded_claim_is_labelled_rather_than_presented_as_sourced(conn) -> None:
+def test_an_ungrounded_claim_is_retained_for_audit_not_presented_as_sourced(conn) -> None:
     """Draelos et al. 2025 measured 5 to 13 percent of unguarded answers as unsafe.
 
     A claim whose evidence span is not found verbatim in a retrieved passage does not get
-    to appear as though it had a source. It moves to the uncited list, which the interface
-    labels.
+    to appear as though it had a source. It moves to the uncited list for storage and audit.
     """
     client = _client(
         ConverseResponse(
@@ -271,6 +270,43 @@ def test_uncited_claim_repeated_in_reply_is_removed_but_remains_flagged(conn) ->
 
     assert uncited not in reply.text
     assert uncited in reply.uncited
+    assert len(reply.citations) == 1
+
+
+def test_reply_uses_only_grounded_claims_when_uncited_notes_exist(conn) -> None:
+    """A paraphrased unsupported claim must not remain beside a valid citation."""
+    record = (
+        "Latest recorded night: 2026-09-25.\n"
+        "Resting heart rate: 52 bpm.\n"
+        "Baseline centre: 47 bpm.\n"
+        "Difference from baseline: +5 bpm.\n"
+        "Detection level: RED."
+    )
+    unsupported = "You need to see a doctor today because your fever keeps coming back."
+    paraphrase = "The returning fever means you need medical care today."
+    client = _client(
+        ConverseResponse(
+            reply=f"Your watch recorded 52 bpm. {paraphrase}",
+            grounded_claims=[
+                GeneratedClaim(
+                    text="Your watch recorded 52 bpm.",
+                    evidence_span="Resting heart rate: 52 bpm.",
+                )
+            ],
+            uncited_notes=[unsupported],
+        )
+    )
+
+    reply = _reply(
+        conn,
+        client,
+        "What did my watch record for resting heart rate last night?",
+        episode_summary=record,
+    )
+
+    assert reply.text == "Your watch recorded 52 bpm."
+    assert paraphrase not in reply.text
+    assert unsupported in reply.uncited
     assert len(reply.citations) == 1
 
 

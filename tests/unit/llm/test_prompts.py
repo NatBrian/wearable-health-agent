@@ -77,7 +77,7 @@ def test_prompt_version_written_to_audit() -> None:
 def test_conversation_prompt_keeps_prior_topic_advice_out_of_new_answers() -> None:
     """An old symptom should not be repeated in an unrelated wearable-data answer."""
     prompt = get_prompt_definition("converse")
-    assert prompt.prompt_version == "6"
+    assert prompt.prompt_version == "7"
     assert any(
         "A prior urgency level is metadata, not a reason to repeat clinical advice from an earlier topic."
         in constraint

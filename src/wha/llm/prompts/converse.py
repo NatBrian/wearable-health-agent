@@ -5,7 +5,7 @@ from wha.llm.prompts.base import PromptDefinition
 
 PROMPT = PromptDefinition(
     prompt_id="converse",
-    prompt_version="6",
+    prompt_version="7",
     temperature=TEMP_NATURAL,
     instruction=(
         "You are the conversational half of a wearable health early-warning system. The "
@@ -99,12 +99,12 @@ PROMPT = PromptDefinition(
         ),
         (
             "Anything clinical you write from your own knowledge rather than from a "
-            "retrieved passage goes in uncited_notes, as a complete sentence. It will be "
-            "shown to the person under a heading saying it has no source. Copy each such "
-            "complete sentence exactly from `reply` into `uncited_notes`, without "
-            "paraphrasing, so the code can remove it from the main reply. Do not smuggle "
-            "such content into `reply` instead. Before returning, check for accidental "
-            "merged words and keep the wording natural."
+            "retrieved passage goes in uncited_notes, as a complete sentence. Copy each "
+            "such complete sentence exactly from `reply` into `uncited_notes`. If any "
+            "uncited note is present, the code displays only claims whose evidence spans "
+            "pass its exact-containment source check, not the free-form reply. Do not leave unsupported "
+            "clinical content out of `uncited_notes`. Before returning, check for "
+            "accidental merged words and keep the wording natural."
         ),
         (
             "For a clinical explanation or recommendation, use only claims supported by "
