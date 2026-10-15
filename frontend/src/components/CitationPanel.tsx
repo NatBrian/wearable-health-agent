@@ -4,19 +4,20 @@ import { legacyText } from '../content/legacyCopy'
 import { isExternalSource, sourceLabel } from '../lib/format'
 
 const MISSING_SOURCE_STATUS = 'No source or unsupported-content note was attached to this reply. Treat any health information here as unverified.'
+const normalizeForQuoteMatch = (text: string) => text.toLowerCase().split(/\s+/u).filter(Boolean).join(' ')
 
 export function CitationPanel({
-  citations, uncited, config, showMissingStatus = false,
+  citations, hasUncited = false, config, showMissingStatus = false,
 }: {
   citations: Citation[]
-  uncited: string[]
+  hasUncited?: boolean
   config: SystemConfig
   showMissingStatus?: boolean
 }) {
   const [open, setOpen] = useState<string | null>(null)
   const hasExternal = citations.some((citation) => isExternalSource(citation.source_id, config))
   const attribution = typeof config.ATTRIBUTION_NOTE === 'string' ? config.ATTRIBUTION_NOTE : ''
-  const missingStatus = showMissingStatus && citations.length === 0 && uncited.length === 0
+  const missingStatus = showMissingStatus && citations.length === 0 && !hasUncited
 
   return (
     <div className="evidence-stack">
@@ -26,21 +27,13 @@ export function CitationPanel({
           <p>{MISSING_SOURCE_STATUS}</p>
         </aside>
       )}
-      {uncited.length > 0 && (
-        <aside className="uncited-warning" aria-label="Not from a cited source">
-          <strong>Not from a cited source</strong>
-          <p>The following came from the AI's general knowledge, not from anything held in this system. Treat it as a starting point to check.</p>
-          <ul>{uncited.map((note, index) => <li key={`${note}-${index}`}>{note}</li>)}</ul>
-          <p>The AI sorts cited and uncited content itself and can miss things. An absent warning does not prove a sentence has a source.</p>
-        </aside>
-      )}
       {citations.length > 0 && (
         <section className="citation-list" aria-label="Sources behind this reply">
           <div className="citation-list__heading">Sources behind this reply <span>{citations.length}</span></div>
           {citations.map((citation, index) => {
             const id = `${citation.source_id}-${index}`
             const expanded = open === id
-            const quoteFound = Boolean(citation.quoted_span && citation.passage.includes(citation.quoted_span))
+            const quoteFound = Boolean(citation.quoted_span && normalizeForQuoteMatch(citation.passage).includes(normalizeForQuoteMatch(citation.quoted_span)))
             const quoteMissing = !citation.quoted_span || !quoteFound
             return (
               <article className="citation-card" key={id}>

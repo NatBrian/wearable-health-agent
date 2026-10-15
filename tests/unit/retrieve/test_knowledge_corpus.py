@@ -96,6 +96,18 @@ def test_the_index_finds_the_right_passage_for_a_symptom_and_for_a_red_flag() ->
             [r.chunk_id for r in results],
         ]
 
+    # The conversation compacts a natural-language message before retrieval. This is
+    # especially important on the supported BM25-only fallback, where filler words in
+    # "I feel a bit fever today, what should I do" displaced the actual topic page.
+    from wha.agent.conversation import _retrieval_query_for_turn
+
+    fever_query = _retrieval_query_for_turn(
+        "I feel a bit fever today, what should I do?", prior_turns=[]
+    )
+    assert fever_query == "fever"
+    fever_results = index.query(fever_query, top_k=6)
+    assert any(r.title == "Fever" for r in fever_results), [r.title for r in fever_results]
+
     # Present in the results, not necessarily first.
     #
     # This asserted rank 1 until the MedlinePlus layer was added, at which point "chest

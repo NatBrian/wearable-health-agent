@@ -75,6 +75,19 @@ def test_chest_pain_asks_before_it_escalates(conn) -> None:
     assert reply.triage is not None and reply.triage.complete is False
 
 
+def test_conversation_requests_enough_output_tokens_for_structured_reply(conn) -> None:
+    """The structured answer must have enough output space to finish its JSON object."""
+    client = _client(ConverseResponse(reply="I can explain the recorded night."))
+
+    _reply(
+        conn,
+        client,
+        "What did my watch record for resting heart rate last night?",
+    )
+
+    assert client.complete.call_args_list[0].kwargs["max_tokens"] == 4096
+
+
 def test_a_confirmed_safety_gate_escalates_immediately_and_computes_no_score(conn) -> None:
     """Marburg's own contraindication is "do not use in an emergency setting"."""
     client = _client(
@@ -159,12 +172,11 @@ def test_a_flag_with_no_validated_rule_still_escalates_on_the_spot(conn) -> None
     assert reply.triggered_flags
 
 
-def test_an_ungrounded_claim_is_labelled_rather_than_presented_as_sourced(conn) -> None:
+def test_an_ungrounded_claim_is_retained_for_audit_not_presented_as_sourced(conn) -> None:
     """Draelos et al. 2025 measured 5 to 13 percent of unguarded answers as unsafe.
 
     A claim whose evidence span is not found verbatim in a retrieved passage does not get
-    to appear as though it had a source. It moves to the uncited list, which the interface
-    labels.
+    to appear as though it had a source. It moves to the uncited list for storage and audit.
     """
     client = _client(
         ConverseResponse(
@@ -184,6 +196,136 @@ def test_an_ungrounded_claim_is_labelled_rather_than_presented_as_sourced(conn) 
     assert reply.citations == []
     assert "A raised overnight heart rate is often an infection." in reply.uncited
     assert "Drinking fluids is generally sensible." in reply.uncited
+
+
+def test_a_watch_reading_can_be_cited_to_the_personal_record(conn) -> None:
+    """A recorded measurement has a source even though it is not clinical literature."""
+    record = (
+        "Latest recorded night: 2026-09-25.\n"
+        "Resting heart rate: 52 bpm.\n"
+        "Baseline centre: 47 bpm.\n"
+        "Difference from baseline: +5 bpm.\n"
+        "Detection level: RED."
+    )
+    client = _client(
+        ConverseResponse(
+            reply="Your heart rate was 52 bpm.",
+            grounded_claims=[
+                GeneratedClaim(
+                    text="Your heart rate was 52 bpm.",
+                    evidence_span="Resting heart rate: 52 bpm.",
+                )
+            ],
+        )
+    )
+
+    with patch("wha.agent.conversation._passages_for", return_value=[]):
+        reply = respond(
+            conn,
+            "sub_test",
+            "What was my heart rate last night?",
+            episode_summary=record,
+            llm_client=client,
+        )
+
+    assert len(reply.citations) == 1
+    assert reply.citations[0].source_id == "watch_record_2026-09-25"
+    assert reply.citations[0].title == "Your wearable record"
+    assert reply.citations[0].uri is None
+    assert reply.citations[0].quoted_span == "Resting heart rate: 52 bpm."
+
+
+def test_uncited_claim_repeated_in_reply_is_removed_but_remains_flagged(conn) -> None:
+    """An unsupported sentence must not sit inline with claims that have sources."""
+    record = (
+        "Latest recorded night: 2026-09-25.\n"
+        "Resting heart rate: 52 bpm.\n"
+        "Baseline centre: 47 bpm.\n"
+        "Difference from baseline: +5 bpm.\n"
+        "Detection level: RED."
+    )
+    uncited = "You need to see a doctor today because your fever keeps coming back."
+    client = _client(
+        ConverseResponse(
+            reply=(
+                "Your watch recorded 52 bpm. "
+                f"{uncited} Are you having trouble breathing right now?"
+            ),
+            grounded_claims=[
+                GeneratedClaim(
+                    text="Your watch recorded 52 bpm.",
+                    evidence_span="Resting heart rate: 52 bpm.",
+                )
+            ],
+            uncited_notes=[uncited],
+        )
+    )
+
+    reply = _reply(
+        conn,
+        client,
+        "What did my watch record for resting heart rate last night?",
+        episode_summary=record,
+    )
+
+    assert uncited not in reply.text
+    assert uncited in reply.uncited
+    assert len(reply.citations) == 1
+
+
+def test_reply_uses_only_grounded_claims_when_uncited_notes_exist(conn) -> None:
+    """A paraphrased unsupported claim must not remain beside a valid citation."""
+    record = (
+        "Latest recorded night: 2026-09-25.\n"
+        "Resting heart rate: 52 bpm.\n"
+        "Baseline centre: 47 bpm.\n"
+        "Difference from baseline: +5 bpm.\n"
+        "Detection level: RED."
+    )
+    unsupported = "You need to see a doctor today because your fever keeps coming back."
+    paraphrase = "The returning fever means you need medical care today."
+    client = _client(
+        ConverseResponse(
+            reply=f"Your watch recorded 52 bpm. {paraphrase}",
+            grounded_claims=[
+                GeneratedClaim(
+                    text="Your watch recorded 52 bpm.",
+                    evidence_span="Resting heart rate: 52 bpm.",
+                )
+            ],
+            uncited_notes=[unsupported],
+        )
+    )
+
+    reply = _reply(
+        conn,
+        client,
+        "What did my watch record for resting heart rate last night?",
+        episode_summary=record,
+    )
+
+    assert reply.text == "Your watch recorded 52 bpm."
+    assert paraphrase not in reply.text
+    assert unsupported in reply.uncited
+    assert len(reply.citations) == 1
+
+
+def test_structured_follow_up_question_is_not_repeated_inside_reply(conn) -> None:
+    client = _client(
+        ConverseResponse(
+            reply="Drink enough liquids. Does your neck feel stiff? Do you have a stiff neck?",
+            question="Do you have a stiff neck along with the fever?",
+            uncited_notes=["Drink enough liquids."],
+        )
+    )
+
+    reply = _reply(conn, client, "I have a fever today. What should I do?")
+
+    assert reply.text.count("?") == 1
+    assert reply.text.endswith("Do you have a stiff neck along with the fever?")
+    assert "Does your neck feel stiff?" not in reply.text
+    assert "Do you have a stiff neck?" not in reply.text
+    assert "Drink enough liquids." not in reply.text
 
 
 def test_forbidden_phrasings_are_stripped_from_what_the_model_wrote(conn) -> None:
@@ -218,6 +360,103 @@ def test_the_transcript_outlives_the_call(conn) -> None:
     turns = load_transcript(conn, "sub_test")
     assert [t["role"] for t in turns] == ["user", "agent"]
     assert turns[0]["text"] == "hello"
+
+
+def test_old_consultations_do_not_enter_the_current_prompt(conn) -> None:
+    """Old symptom reports must not be mistaken for the person's current condition."""
+    from datetime import timedelta
+
+    from wha.agent.conversation import record_turn
+    from wha.clock import now_utc
+    from wha.constants import CONVERSATION_SESSION_GAP_HOURS
+    from wha.db.iso import to_iso
+
+    record_turn(conn, "sub_test", "user", "old consultation: fever returned")
+    old_stamp = to_iso(now_utc() - timedelta(hours=CONVERSATION_SESSION_GAP_HOURS + 1))
+    conn.execute(
+        "UPDATE conversation_turns SET created_at_utc = ? WHERE subject_id = ?",
+        (old_stamp, "sub_test"),
+    )
+    record_turn(conn, "sub_test", "user", "current consultation: how was my night?")
+    client = _client(ConverseResponse(reply="I can check the recorded night."))
+
+    with patch("wha.agent.conversation._passages_for", return_value=[]):
+        respond(
+            conn,
+            "sub_test",
+            "current question: what did my watch record?",
+            llm_client=client,
+        )
+
+    prompt = str(client.complete.call_args_list[0].args[0])
+    assert "old consultation: fever returned" not in prompt
+    assert "current consultation: how was my night?" in prompt
+    assert "current question: what did my watch record?" in prompt
+
+
+def test_rule_extraction_uses_only_the_current_consultation(conn) -> None:
+    """A symptom from an older consultation must not fill today's decision-rule answer."""
+    from datetime import timedelta
+    from types import SimpleNamespace
+
+    from wha.agent.conversation import extract_rule_items, record_turn
+    from wha.clock import now_utc
+    from wha.constants import CONVERSATION_SESSION_GAP_HOURS
+    from wha.db.iso import to_iso
+
+    record_turn(conn, "sub_test", "user", "old consultation: I fainted")
+    old_stamp = to_iso(now_utc() - timedelta(hours=CONVERSATION_SESSION_GAP_HOURS + 1))
+    conn.execute(
+        "UPDATE conversation_turns SET created_at_utc = ? WHERE subject_id = ?",
+        (old_stamp, "sub_test"),
+    )
+    record_turn(conn, "sub_test", "user", "current consultation: I have chest pain")
+    record_turn(conn, "sub_test", "user", "it gets worse when I climb stairs")
+    client = MagicMock()
+    client.complete.return_value = (RuleExtraction(), LLMUsage())
+
+    extract_rule_items(
+        conn,
+        "sub_test",
+        "it gets worse when I climb stairs",
+        rule=object(),
+        outstanding=[
+            SimpleNamespace(id="mhs_worse_with_exercise", question_intent="worse with exertion")
+        ],
+        config=SimpleNamespace(unconditional=[]),
+        llm_client=client,
+    )
+
+    prompt = str(client.complete.call_args.args[0])
+    assert "old consultation: I fainted" not in prompt
+    assert "current consultation: I have chest pain" in prompt
+    assert prompt.count("it gets worse when I climb stairs") == 1
+
+
+def test_retrieval_uses_focused_terms_and_reuses_current_symptom_for_followups(conn) -> None:
+    """A generic follow-up should search the symptom already raised in this consultation."""
+    from wha.agent.conversation import record_turn
+
+    fever = _client(ConverseResponse(reply="I will look up the fever information."))
+    with patch("wha.agent.conversation._passages_for", return_value=[]) as retrieve:
+        respond(
+            conn,
+            "sub_test",
+            "I feel a bit fever today, what should I do?",
+            llm_client=fever,
+        )
+    assert retrieve.call_args.args[0] == "fever"
+
+    record_turn(conn, "sub_test", "user", "I feel a bit fever today")
+    follow_up = _client(ConverseResponse(reply="I can help with that."))
+    with patch("wha.agent.conversation._passages_for", return_value=[]) as retrieve:
+        respond(
+            conn,
+            "sub_test",
+            "Can you recommend what I should do?",
+            llm_client=follow_up,
+        )
+    assert retrieve.call_args.args[0] == "fever"
 
 
 def test_only_items_belonging_to_the_rule_are_stored(conn) -> None:

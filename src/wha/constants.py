@@ -278,6 +278,7 @@ SOURCE_LABEL_PREFIXES: dict[str, str] = {
     "method": "how this system measures you",
     "evidence": "the evidence behind a question it asks",
     "confounder": "the evidence behind a competing explanation",
+    "watch_record": "your wearable record",
 }
 SOURCE_LABEL_FALLBACK = "this repository's own knowledge"
 EXTERNAL_SOURCE_PREFIX = "medlineplus"

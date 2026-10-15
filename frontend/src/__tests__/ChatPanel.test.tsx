@@ -104,7 +104,8 @@ describe('ChatPanel', () => {
     render(<ChatPanel subject={subject} nightDate="2026-09-20" episodeId={null} pending={null} config={config} settings={settings} safetyRules={[]} refreshAfterSend={vi.fn()} onClose={vi.fn()} />)
 
     expect(await screen.findByRole('region', { name: /Sources behind this reply/ })).toBeInTheDocument()
-    expect(screen.getByRole('complementary', { name: 'Not from a cited source' })).toHaveTextContent('A detail from general model knowledge.')
+    expect(screen.queryByRole('complementary', { name: /statements have no citation/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('A detail from general model knowledge.')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Example paper/ }))
     expect(screen.getByText('Quoted words: “The quoted source span appears here”')).toBeInTheDocument()
     expect(screen.getByText('The quoted source span appears here, in this context.')).toBeInTheDocument()

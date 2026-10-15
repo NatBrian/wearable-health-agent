@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from wha.agent.conversation import ConversationReply
 from wha.models import Citation
-from wha.retrieve.attribution import MEDLINEPLUS_LABEL
+from wha.retrieve.attribution import MEDLINEPLUS_LABEL, source_label
 from wha.service.conversation import format_for_telegram
 
 LIMIT = 900
@@ -61,6 +61,11 @@ def test_the_attribution_note_travels_with_external_text() -> None:
     )
     assert "used with attribution" not in ours, "our own rules are not MedlinePlus"
     assert "this system's safety rules" in ours
+
+
+def test_a_personal_reading_is_named_as_the_wearable_record() -> None:
+    """A stored measurement is attributed to the person's record, not a clinical source."""
+    assert source_label("watch_record_2026-09-25") == "your wearable record"
 
 
 def test_a_long_message_never_cuts_inside_the_uncited_block() -> None:

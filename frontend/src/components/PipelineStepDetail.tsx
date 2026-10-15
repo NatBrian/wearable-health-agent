@@ -48,7 +48,7 @@ export function PipelineStepDetail({ step, totalSteps, config, timezone }: {
       {Object.keys(marginals).length > 0 && <CauseMarginals values={marginals} pIllness={step.outputs.p_illness} />}
       {questions.length > 0 && <QuestionValues entries={questions} />}
       {Object.keys(step.outputs).length > 0 && <section><h3>What it produced</h3><dl className="step-output-list">{Object.entries(step.outputs).filter(([key, value]) => value !== null && !['marginals', 'questions_considered', 'reported_symptoms'].includes(key)).map(([key, value]) => <div key={key}><dt>{fieldName(step, key)}</dt><dd>{displayValue(value)}</dd></div>)}</dl></section>}
-      {step.sources.length > 0 && <section><h3>Sources it read</h3><CitationPanel citations={step.sources} uncited={[]} config={config} /></section>}
+      {step.sources.length > 0 && <section><h3>Sources it read</h3><CitationPanel citations={step.sources} config={config} /></section>}
       <details className="raw-step"><summary>The raw record for this step</summary><pre>{JSON.stringify({ step_id: step.step_id, status: step.status, occurred_utc: step.occurred_utc, inputs: step.inputs, outputs: step.outputs }, null, 2)}</pre></details>
     </section>
   )

@@ -14,8 +14,9 @@ in a prompt, because a model checking its own safety is not a check:
 2. **Urgency can rise and can never fall.** It is set by
    :mod:`wha.safety.triage` and the red-flag rules, never by the model. The model may
    confirm a safety gate, which raises it; nothing the model writes can lower it.
-3. **Every clinical sentence is either cited or visibly labelled as uncited.** Grounding is
-   the verbatim containment test in :func:`wha.retrieve.grounding.enforce_grounding`.
+3. **When a turn contains an uncited claim, only claims passing the evidence-span check are
+   shown.** Grounding is the verbatim containment test in
+   :func:`wha.retrieve.grounding.enforce_grounding`.
 
 The conversation is also where red flags are *sought* rather than awaited. Sutaria et al.
 2025 (BMC Health Serv Res 25:1263) measured online symptom checkers seeking 36.9 percent of
@@ -25,6 +26,7 @@ validated rule are put in front of the model as the most useful thing it can ask
 """
 
 import json
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timedelta
@@ -170,6 +172,198 @@ def load_transcript(
     return [dict(r) for r in reversed(rows)]
 
 
+def _rows_this_session(conn: sqlite3.Connection, subject_id: str) -> list[sqlite3.Row]:
+    """Newest-first rows in the current consultation, bounded by the configured gap."""
+    rows = conn.execute(
+        """SELECT * FROM conversation_turns WHERE subject_id = ?
+            ORDER BY seq DESC LIMIT 1000""",
+        (subject_id,),
+    ).fetchall()
+    if not rows:
+        return []
+
+    gap = timedelta(hours=CONVERSATION_SESSION_GAP_HOURS)
+    current: list[sqlite3.Row] = []
+    previous: datetime | None = None
+    for row in rows:
+        try:
+            stamp = from_iso(row["created_at_utc"])
+        except (TypeError, ValueError):
+            break
+        if previous is not None and (previous - stamp) > gap:
+            break
+        current.append(row)
+        previous = stamp
+    return current
+
+
+def _load_session_transcript(
+    conn: sqlite3.Connection, subject_id: str, limit: int = TRANSCRIPT_TURNS
+) -> list[dict[str, Any]]:
+    """The current consultation only, oldest first, for the agent's working context."""
+    rows = _rows_this_session(conn, subject_id)[:limit]
+    return [dict(row) for row in reversed(rows)]
+
+
+def _prior_session_turns(
+    conn: sqlite3.Connection, subject_id: str, user_message: str
+) -> list[dict[str, Any]]:
+    """Current consultation turns before the user message being answered."""
+    turns = _load_session_transcript(conn, subject_id)
+    if turns and turns[-1]["role"] == "user" and turns[-1]["text"] == user_message:
+        return turns[:-1]
+    return turns
+
+
+_CHAT_QUERY_STOP_WORDS = {
+    "a",
+    "about",
+    "am",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "been",
+    "bit",
+    "but",
+    "can",
+    "could",
+    "did",
+    "do",
+    "does",
+    "for",
+    "from",
+    "give",
+    "have",
+    "help",
+    "hello",
+    "hey",
+    "how",
+    "i",
+    "in",
+    "is",
+    "it",
+    "last",
+    "me",
+    "mean",
+    "meaning",
+    "means",
+    "my",
+    "of",
+    "on",
+    "or",
+    "please",
+    "recommend",
+    "should",
+    "so",
+    "suggest",
+    "tell",
+    "thank",
+    "thanks",
+    "that",
+    "the",
+    "their",
+    "them",
+    "then",
+    "there",
+    "these",
+    "they",
+    "this",
+    "to",
+    "today",
+    "was",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "with",
+    "would",
+    "you",
+    "your",
+    "feel",
+    "feeling",
+    "night",
+    "bpm",
+}
+
+
+def _topic_query(text: str) -> str:
+    """Keep the health or measurement terms that matter to retrieval."""
+    words = re.findall(r"[a-z]+|\d+", text.casefold())
+    focused: list[str] = []
+    for word in words:
+        if word in _CHAT_QUERY_STOP_WORDS or word.isdecimal():
+            continue
+        focused.append("fever" if word == "feverish" else word)
+    return " ".join(focused)
+
+
+def _retrieval_query_for_turn(user_message: str, prior_turns: list[dict[str, Any]]) -> str:
+    """Search the latest topic, borrowing current-session context for generic follow-ups."""
+    focused = _topic_query(user_message)
+    if focused:
+        return focused
+    for turn in reversed(prior_turns):
+        if turn.get("role") == "user":
+            focused = _topic_query(str(turn.get("text") or ""))
+            if focused:
+                return focused
+    return ""
+
+
+def _watch_record_passage(
+    episode_summary: str,
+    user_message: str,
+    query: str,
+    prior_turns: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Expose recorded watch facts as a source only when the person asks about them."""
+    date_match = re.match(r"Latest recorded night: (\d{4}-\d{2}-\d{2})\.", episode_summary)
+    watch_terms = {
+        "alert",
+        "coverage",
+        "detection",
+        "heart",
+        "hr",
+        "level",
+        "measured",
+        "measurement",
+        "oxygen",
+        "reading",
+        "readings",
+        "record",
+        "rhr",
+        "rate",
+        "sleep",
+        "spo2",
+        "steps",
+        "watch",
+    }
+    context_text = " ".join(
+        [user_message, *(str(turn.get("text") or "") for turn in prior_turns)]
+    ).casefold()
+    message_words = set(re.findall(r"[a-z]+", context_text))
+    personal_reference = bool(
+        message_words.intersection({"my", "mine", "watch", "reading", "readings", "recorded"})
+        or "last night" in context_text
+        or "bpm" in message_words
+    )
+    if date_match is None or not personal_reference or not watch_terms.intersection(query.split()):
+        return None
+    return {
+        "chunk_id": f"watch_record_{date_match.group(1)}",
+        "doc_id": "",
+        "title": "Your wearable record",
+        "text": episode_summary,
+        "source_url": "",
+        "score": 1.0,
+    }
+
+
 def _turns_this_session(conn: sqlite3.Connection, subject_id: str) -> int:
     """How many turns are in the CONSULTATION the person is currently in.
 
@@ -187,27 +381,7 @@ def _turns_this_session(conn: sqlite3.Connection, subject_id: str) -> int:
     history, and `established_urgency` still reads the whole transcript, so an escalation
     from a previous session is still in force.
     """
-    rows = conn.execute(
-        """SELECT created_at_utc FROM conversation_turns
-            WHERE subject_id = ? ORDER BY seq DESC LIMIT 1000""",
-        (subject_id,),
-    ).fetchall()
-    if not rows:
-        return 0
-
-    gap = timedelta(hours=CONVERSATION_SESSION_GAP_HOURS)
-    counted = 0
-    previous: datetime | None = None
-    for row in rows:  # newest first
-        try:
-            stamp = from_iso(row["created_at_utc"])
-        except (TypeError, ValueError):
-            break
-        if previous is not None and (previous - stamp) > gap:
-            break
-        counted += 1
-        previous = stamp
-    return counted
+    return len(_rows_this_session(conn, subject_id))
 
 
 def _episode_for_escalation(
@@ -496,6 +670,12 @@ def _sanitise(text: str) -> str:
     return " ".join(cleaned.split())
 
 
+def _remove_inline_questions(text: str) -> str:
+    """Keep a follow-up question in its structured field, so it appears only once."""
+    fragments = re.split(r"(?<=[.!?])\s+|\n+", text)
+    return " ".join(fragment.strip() for fragment in fragments if "?" not in fragment)
+
+
 def extract_rule_items(
     conn: sqlite3.Connection,
     subject_id: str,
@@ -516,7 +696,7 @@ def extract_rule_items(
     if not outstanding:
         return RuleExtraction()
 
-    transcript = load_transcript(conn, subject_id)
+    transcript = _prior_session_turns(conn, subject_id, user_message)
     said = "\n".join(f"{t['role']}: {t['text']}" for t in transcript)
     try:
         definition = get_prompt_definition("extract_rule_items")
@@ -678,12 +858,17 @@ def respond(
         return reply
 
     prompt_def = get_prompt_definition("converse")
-    passages = _passages_for(user_message)
+    prior_turns = _prior_session_turns(conn, subject_id, user_message)
+    query = _retrieval_query_for_turn(user_message, prior_turns)
+    passages = _passages_for(query)
+    watch_passage = _watch_record_passage(episode_summary, user_message, query, prior_turns)
+    if watch_passage is not None:
+        passages.insert(0, watch_passage)
     try:
         prompt = prompt_def.render(
             {
                 "episode_summary": episode_summary or "No investigation is open.",
-                "transcript": _render_transcript(load_transcript(conn, subject_id)),
+                "transcript": _render_transcript(prior_turns),
                 "user_message": user_message,
                 "passages": _render_passages(passages),
                 "established_urgency": prior or "none",
@@ -833,6 +1018,11 @@ def respond(
     ]
     grounded, unsupported = enforce_grounding(list(result.grounded_claims), searchable)
     cited_ids = {c.citation for c in grounded if c.citation}
+    quoted_spans = {
+        claim.citation: claim.evidence_span
+        for claim in grounded
+        if claim.citation and claim.evidence_span
+    }
     citations = [
         Citation(
             source_id=str(p["chunk_id"]),
@@ -840,13 +1030,16 @@ def respond(
             uri=str(p.get("source_url") or p.get("doc_id") or "") or None,
             passage=str(p["text"]),
             retrieval_score=float(p.get("score") or 0.0),
+            quoted_span=quoted_spans.get(str(p["chunk_id"])),
         )
         for p in passages
         if str(p["chunk_id"]) in cited_ids
     ]
 
     # A claim whose span was not found is not shown as if it were sourced. It joins the
-    # uncited list, where the interface labels it, rather than disappearing silently.
+    # uncited list for audit and storage. If any claim is uncited, construct the displayed
+    # body only from claims whose evidence spans passed the deterministic check; do not
+    # trust free-form prose to repeat an unsupported claim exactly enough to remove it.
     grounded_texts = {c.text for c in grounded}
     uncited = list(result.uncited_notes) + [
         c.text for c in result.grounded_claims if c.text not in grounded_texts
@@ -855,8 +1048,16 @@ def respond(
     # Append the question only when it is not already in the reply. The model routinely
     # puts the same sentence in both fields, and the result was a real message that asked
     # the person about their temperature twice in a row.
-    text = _sanitise(result.reply)
+    if uncited:
+        grounded_sentences = [_sanitise(claim.text).strip() for claim in grounded]
+        text = " ".join(sentence for sentence in grounded_sentences if sentence)
+        if not text:
+            text = "I couldn't verify an answer from the available sources."
+    else:
+        text = _sanitise(result.reply)
     question = _sanitise(result.question) if result.question else ""
+    if question:
+        text = _remove_inline_questions(text)
     if question and question.strip().casefold() not in text.casefold():
         text = f"{text}\n\n{question}"
 
@@ -910,5 +1111,5 @@ def llm_client_complete(
 ) -> tuple[ConverseResponse, Any]:
     """Single seam for the model call, so tests can drive a turn without a network."""
     return (client or get_llm_client()).complete(
-        prompt, schema=ConverseResponse, temperature=temperature
+        prompt, schema=ConverseResponse, temperature=temperature, max_tokens=4096
     )

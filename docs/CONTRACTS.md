@@ -328,6 +328,7 @@ TEMP_NATURAL                  = 0.3     # question phrasing, outcome prose
 CHUNK_TARGET_TOKENS           = 400
 RRF_K                         = 60      # reciprocal rank fusion constant
 RETRIEVE_TOP_K                = 8
+SOURCE_LABEL_PREFIXES         = {"medlineplus": "MedlinePlus, National Library of Medicine", "escalation": "this system's safety rules", "method": "how this system measures you", "evidence": "the evidence behind a question it asks", "confounder": "the evidence behind a competing explanation", "watch_record": "your wearable record"}
 
 # --- outbound -------------------------------------------------------------
 OUTBOUND_MAX_CHARS            = 900
@@ -900,6 +901,7 @@ class MeasurementResult(BaseModel):
 class Citation(BaseModel):
     source_id: str; title: str; uri: str | None
     passage: str; retrieval_score: float
+    quoted_span: str | None
 
 class ExtractedFact(BaseModel):
     field: str

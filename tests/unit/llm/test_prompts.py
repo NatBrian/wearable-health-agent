@@ -74,6 +74,35 @@ def test_prompt_version_written_to_audit() -> None:
         assert rendered.prompt_version == p.prompt_version
 
 
+def test_conversation_prompt_keeps_prior_topic_advice_out_of_new_answers() -> None:
+    """An old symptom should not be repeated in an unrelated wearable-data answer."""
+    prompt = get_prompt_definition("converse")
+    assert prompt.prompt_version == "7"
+    assert any(
+        "A prior urgency level is metadata, not a reason to repeat clinical advice from an earlier topic."
+        in constraint
+        for constraint in prompt.constraints
+    )
+
+
+def test_conversation_prompt_requires_verbatim_uncited_notes() -> None:
+    prompt = get_prompt_definition("converse")
+    assert any(
+        "Copy each such complete sentence exactly from `reply` into `uncited_notes`"
+        in constraint
+        for constraint in prompt.constraints
+    )
+
+
+def test_conversation_prompt_answers_latest_request_before_follow_up() -> None:
+    prompt = get_prompt_definition("converse")
+    assert any(
+        "always answer the latest message first" in constraint
+        and "Put the follow-up only in `question`" in constraint
+        for constraint in prompt.constraints
+    )
+
+
 def test_missing_context_variable_refuses_rather_than_shipping_a_placeholder() -> None:
     """A forgotten key must not reach the model as the literal text of its own name.
 

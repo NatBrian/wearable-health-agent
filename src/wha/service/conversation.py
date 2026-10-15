@@ -5,7 +5,7 @@ seam the dashboard and the CLI talk to, so neither reaches into the agent direct
 """
 
 import sqlite3
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -246,6 +246,90 @@ def latest_urgency_reason(
             connection.close()
 
 
+def _watch_context(conn: sqlite3.Connection, subject_id: str, episode_id: str | None) -> str:
+    """Describe the latest recorded night using stored values, leaving gaps explicit."""
+    if episode_id:
+        episode = conn.execute(
+            "SELECT state FROM episodes WHERE episode_id = ? AND subject_id = ?",
+            (episode_id, subject_id),
+        ).fetchone()
+    else:
+        episode = conn.execute(
+            """SELECT state FROM episodes
+               WHERE subject_id = ? AND state != 'CLOSED'
+               ORDER BY opened_on DESC LIMIT 1""",
+            (subject_id,),
+        ).fetchone()
+
+    night = conn.execute(
+        "SELECT MAX(night_date) AS night_date FROM nightly_features WHERE subject_id = ?",
+        (subject_id,),
+    ).fetchone()
+    if night is None or night["night_date"] is None:
+        lines = ["No recorded night data is available."]
+    else:
+        from wha.service.nights import get_night_detail
+
+        detail = get_night_detail(subject_id, date.fromisoformat(night["night_date"]), conn=conn)
+        row = detail.row
+
+        def measured(value: float | None, unit: str) -> str:
+            return f"{value:g} {unit}" if value is not None else "not recorded"
+
+        deviation = (
+            f"{row.deviation_bpm:+g} bpm" if row.deviation_bpm is not None else "not recorded"
+        )
+        lines = [
+            f"Latest recorded night: {row.night_date.isoformat()}.",
+            f"Resting heart rate: {measured(row.rhr_bpm, 'bpm')}.",
+            f"Baseline centre: {measured(row.centre_bpm, 'bpm')}.",
+            f"Difference from baseline: {deviation}.",
+            f"Detection level: {row.level.value}.",
+            f"Heart-rate coverage: {measured(row.coverage_minutes, 'minutes')}.",
+            f"Heart-rate window source: {row.rhr_window_source}.",
+            f"Sleep: {measured(row.sleep_hours, 'hours')}.",
+            f"Previous-day steps: {measured(row.steps_prev_day, 'steps')}.",
+        ]
+
+        prior_date_row = conn.execute(
+            """SELECT MAX(night_date) AS night_date FROM nightly_features
+               WHERE subject_id = ? AND night_date < ?""",
+            (subject_id, row.night_date.isoformat()),
+        ).fetchone()
+        prior_date = (
+            date.fromisoformat(prior_date_row["night_date"])
+            if prior_date_row is not None and prior_date_row["night_date"]
+            else None
+        )
+        if prior_date == row.night_date - timedelta(days=1):
+            prior_detail = get_night_detail(subject_id, prior_date, conn=conn)
+            prior = prior_detail.row
+            prior_deviation = (
+                f"{prior.deviation_bpm:+g} bpm"
+                if prior.deviation_bpm is not None
+                else "not recorded"
+            )
+            lines.extend(
+                [
+                    f"Immediately preceding night: {prior.night_date.isoformat()}.",
+                    f"Resting heart rate: {measured(prior.rhr_bpm, 'bpm')}.",
+                    f"Baseline centre: {measured(prior.centre_bpm, 'bpm')}.",
+                    f"Difference from baseline: {prior_deviation}.",
+                    f"Detection level: {prior.level.value}.",
+                ]
+            )
+        else:
+            lines.append("Immediately preceding calendar night's reading: not recorded.")
+
+    if episode is not None:
+        lines.append(f"Investigation status: {episode['state']}.")
+    elif episode_id:
+        lines.append("The selected investigation is unavailable for this subject.")
+    else:
+        lines.append("No investigation is open.")
+    return "\n".join(lines)
+
+
 def send_message(
     subject_id: str,
     text: str,
@@ -260,17 +344,21 @@ def send_message(
 
     When the rules raise the urgency, the phone is told, whichever surface the person was
     typing on. Someone who reaches an escalation in the dashboard and then closes the laptop
-    should not be the only place that escalation exists.
+    should not be the only place that escalation exists. The legacy ``episode_summary``
+    argument remains accepted for request compatibility; the watch context is read here
+    from the subject's database so a request cannot supply different sensor values.
     """
     connection, close = _open(conn, db_path)
     try:
         before = _established_urgency(connection, subject_id)
+        # The database is the source of truth; request-supplied context cannot replace it.
+        watch_context = _watch_context(connection, subject_id, episode_id)
         reply = respond(
             connection,
             subject_id=subject_id,
             user_message=text,
             episode_id=episode_id,
-            episode_summary=episode_summary,
+            episode_summary=watch_context,
             age_years=age_years,
         )
         if notify_on_escalation and reply.urgency is not None and reply.urgency != before:

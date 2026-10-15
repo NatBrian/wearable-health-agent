@@ -92,10 +92,13 @@ describe('pending interaction controls', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('shows an unsupported-content warning even when no citation is attached', () => {
-    render(<CitationPanel citations={[]} uncited={['An unsupported statement']} config={config} />)
-    expect(screen.getByRole('complementary', { name: 'Not from a cited source' })).toBeInTheDocument()
-    expect(screen.getByText('An unsupported statement')).toBeInTheDocument()
+  it('shows source cards without an uncited notice', () => {
+    render(<CitationPanel citations={[{
+      source_id: 'local:source', title: 'Example source', uri: null,
+      passage: 'A cited passage.', retrieval_score: 1,
+    }]} config={config} />)
+    expect(screen.getByRole('region', { name: 'Sources behind this reply' })).toBeInTheDocument()
+    expect(screen.queryByRole('complementary', { name: /statements have no citation/i })).not.toBeInTheDocument()
   })
 
   it('marks a review draft unverified when it has no source metadata', () => {
@@ -119,7 +122,7 @@ describe('pending interaction controls', () => {
   it('shows the full passage and warns when the supplied quote cannot be found', () => {
     render(<CitationPanel citations={[{
       source_id: 'local:source', title: 'Example source', uri: null, passage: 'The full passage remains available.', retrieval_score: 1, quoted_span: 'missing words',
-    }]} uncited={[]} config={config} />)
+    }]} config={config} />)
     fireEvent.click(screen.getByRole('button', { name: /Example source/ }))
     expect(screen.getByText(/quoted words could not be found/i)).toBeInTheDocument()
     expect(screen.getByText('The full passage remains available.')).toBeInTheDocument()
@@ -128,8 +131,19 @@ describe('pending interaction controls', () => {
   it('warns when a citation has no quoted span to verify', () => {
     render(<CitationPanel citations={[{
       source_id: 'local:source', title: 'Example source', uri: null, passage: 'The full passage remains available.', retrieval_score: 1, quoted_span: null,
-    }]} uncited={[]} config={config} />)
+    }]} config={config} />)
     fireEvent.click(screen.getByRole('button', { name: /Example source/ }))
     expect(screen.getByText(/quoted words could not be found/i)).toBeInTheDocument()
+  })
+
+  it('verifies a quote using the same case and whitespace normalization as the backend', () => {
+    render(<CitationPanel citations={[{
+      source_id: 'local:source', title: 'Example source', uri: null,
+      passage: 'It is important to drink enough liquids, to prevent dehydration.',
+      retrieval_score: 1, quoted_span: 'IMPORTANT   TO DRINK ENOUGH liquids, to prevent dehydration.',
+    }]} config={config} />)
+    fireEvent.click(screen.getByRole('button', { name: /Example source/ }))
+    expect(screen.queryByText(/quoted words could not be found/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/Quoted words:/)).toBeInTheDocument()
   })
 })

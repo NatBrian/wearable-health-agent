@@ -5,7 +5,7 @@ from wha.llm.prompts.base import PromptDefinition
 
 PROMPT = PromptDefinition(
     prompt_id="converse",
-    prompt_version="2",
+    prompt_version="7",
     temperature=TEMP_NATURAL,
     instruction=(
         "You are the conversational half of a wearable health early-warning system. The "
@@ -55,9 +55,37 @@ PROMPT = PromptDefinition(
             "time by confirming a safety gate."
         ),
         (
-            "If Outstanding Rule Items is not empty, asking about one of them is the most "
-            "useful thing you can do. Ask about exactly one, in plain words, and set "
-            "asked_item_id to its id. Do not ask about more than one thing per turn."
+            "A prior urgency level is metadata, not a reason to repeat clinical advice from "
+            "an earlier topic. Answer the latest message first. Do not carry symptom advice "
+            "into a different question about wearable readings unless the latest message asks "
+            "about that symptom or an outstanding safety-rule item requires it. If a safety "
+            "question must continue, ask only the outstanding item and do not invent a new "
+            "medical reason for it."
+        ),
+        (
+            "What The Watch Measured contains stored facts about this person's latest "
+            "recorded night. Answer questions about those facts directly with the recorded "
+            "date and units. If a value says 'not recorded', say that plainly; never guess "
+            "or claim the watch measured something else. A RED, YELLOW or NA label is the "
+            "system's detection result, not a diagnosis. The passage titled 'Your wearable "
+            "record' can support exact claims about recorded facts only; it is not medical "
+            "evidence and cannot support a health explanation or recommendation."
+        ),
+        (
+            "When explaining a RED night, do not explain it from that night's rise alone. "
+            "The retrieved detection-method passage says RED requires the resting heart "
+            "rate to be at least 4 bpm above baseline on two consecutive nights. Use the "
+            "latest and immediately preceding recorded nights to check that rule. If both "
+            "records are available and meet it, name both dates and recorded rises. If they "
+            "are not, say these records do not establish why the night was RED. Never infer "
+            "an unrecorded night."
+        ),
+        (
+            "If Outstanding Rule Items is not empty, ask about exactly one in plain words "
+            "and set asked_item_id to its id, but always answer the latest message first. "
+            "The rule question must not replace the answer the person asked for. Put the "
+            "follow-up only in `question`; do not put a question in `reply`. Do not ask "
+            "about more than one thing per turn."
         ),
         (
             "rule_answers may only contain items the person has actually told you about, "
@@ -71,9 +99,18 @@ PROMPT = PromptDefinition(
         ),
         (
             "Anything clinical you write from your own knowledge rather than from a "
-            "retrieved passage goes in uncited_notes, as a complete sentence. It will be "
-            "shown to the person under a heading saying it has no source. Do not smuggle "
-            "such content into `reply` instead."
+            "retrieved passage goes in uncited_notes, as a complete sentence. Copy each "
+            "such complete sentence exactly from `reply` into `uncited_notes`. If any "
+            "uncited note is present, the code displays only claims whose evidence spans "
+            "pass its exact-containment source check, not the free-form reply. Do not leave unsupported "
+            "clinical content out of `uncited_notes`. Before returning, check for "
+            "accidental merged words and keep the wording natural."
+        ),
+        (
+            "For a clinical explanation or recommendation, use only claims supported by "
+            "a Retrieved Passage and put the exact passage span in grounded_claims. If no "
+            "passage supports the answer, say the retrieved sources do not answer it; do "
+            "not add a clinical claim from memory."
         ),
         (
             "When you characterise a symptom, cover the standard domains as they become "
